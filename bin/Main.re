@@ -1,0 +1,1 @@
+Printf.printf("%s\n", Lib.Common.foo);
