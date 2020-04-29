@@ -18,10 +18,11 @@
     "doc": "esy dune build @doc"
   },
   "dependencies": {
-    "@opam/dune": "*",
     "@esy-ocaml/reason": ">= 3.4.0 < 3.6.0",
-    "refmterr": "*",
-    "ocaml": "~4.8.1000"
+    "@opam/ANSITerminal": "~0.8.2",
+    "@opam/dune": "*",
+    "ocaml": "~4.8.1000",
+    "refmterr": "*"
   },
   "devDependencies": {
     "@opam/merlin": "*",

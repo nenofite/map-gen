@@ -3,12 +3,14 @@ type tile =
   | Land
   | Mountain;
 
-let show = tile =>
-  switch (tile) {
-  | Ocean => "~"
-  | Land => "+"
-  | Mountain => "▲"
-  };
+let print = tile =>
+  ANSITerminal.(
+    switch (tile) {
+    | Ocean => print_string([blue], "~")
+    | Land => print_string([default], "+")
+    | Mountain => print_string([white], "▲")
+    }
+  );
 
 let convert = (tectonic: Grid.t(Tectonic.tile)) => {
   Grid.init(
