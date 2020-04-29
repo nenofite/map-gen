@@ -20,7 +20,7 @@ let xy_of_i = (width, height, i) => {
   (x, y);
 };
 
-let wrapCoord = (width, height, x, y) => {
+let wrap_coord = (width, height, x, y) => {
   let x' =
     switch (x mod width) {
     | x when x < 0 => x + width
@@ -62,7 +62,7 @@ let at = (grid, x, y) => {
   at' wraps the coord and then calls at
  */
 let at' = (grid, x, y) => {
-  let (x, y) = wrapCoord(grid.width, grid.height, x, y);
+  let (x, y) = wrap_coord(grid.width, grid.height, x, y);
   at(grid, x, y);
 };
 
@@ -75,14 +75,6 @@ let put = (grid, x, y, v) => {
   put' wraps the coord and then calls put
  */
 let put' = (grid, x, y, v) => {
-  let (x, y) = wrapCoord(grid.width, grid.height, x, y);
+  let (x, y) = wrap_coord(grid.width, grid.height, x, y);
   put(grid, x, y, v);
-};
-
-let forEach = (grid, f) => {
-  for (y in 0 to grid.height - 1) {
-    for (x in 0 to grid.width - 1) {
-      f(x, y, at(grid, x, y));
-    };
-  };
 };
