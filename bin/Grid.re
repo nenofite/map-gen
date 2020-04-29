@@ -78,3 +78,17 @@ let put' = (grid, x, y, v) => {
   let (x, y) = wrap_coord(grid.width, grid.height, x, y);
   put(grid, x, y, v);
 };
+
+/** neighbors returns the 8 neighbors starting with northwest and going clockwise */
+let neighbors = (grid, x, y) => {
+  [|
+    at'(grid, x - 1, y - 1),
+    at'(grid, x, y - 1),
+    at'(grid, x + 1, y - 1),
+    at'(grid, x - 1, y),
+    at'(grid, x + 1, y),
+    at'(grid, x - 1, y + 1),
+    at'(grid, x, y + 1),
+    at'(grid, x + 1, y + 1),
+  |];
+};

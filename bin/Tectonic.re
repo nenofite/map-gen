@@ -53,17 +53,6 @@ let generate = (width, height) => {
   );
 };
 
-let fill = (a, b, c, d) => {
-  switch (Random.int(4)) {
-  | 0 => a
-  | 1 => b
-  | 2 => c
-  | _ => d
-  };
-};
-
-let subdivide = Subdivide.subdivide(_, fill);
-
 let run_phase = (width, height) => {
-  generate(width, height) |> Util.times(subdivide, 3, _);
+  generate(width, height) |> Util.times(Subdivide.subdivide, 3, _);
 };
