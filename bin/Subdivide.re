@@ -1,17 +1,3 @@
-let wrapCoord = (width, height, x, y) => {
-  let x' =
-    switch (x mod width) {
-    | x when x < 0 => x + width
-    | x => x
-    };
-  let y' =
-    switch (y mod height) {
-    | y when y < 0 => y + height
-    | y => y
-    };
-  (x', y');
-};
-
 let subdivide = (oldGrid: Grid.t('a), f: ('a, 'a, 'a, 'a) => 'a): Grid.t('a) => {
   open Grid;
   let {width: oldWidth, height: oldHeight} = oldGrid;
