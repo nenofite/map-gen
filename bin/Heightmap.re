@@ -95,20 +95,28 @@ let rec raindrop =
   };
 };
 
-let random_raindrops = (heightmap: Grid.t(tile)): unit => {
-  let amount = heightmap.width * heightmap.height * 5;
+let random_raindrops = (heightmap: Grid.t(tile)) => {
+  let amount = heightmap.width * heightmap.height;
   for (_ in 1 to amount) {
     let start_x = Random.int(heightmap.width);
     let start_y = Random.int(heightmap.height);
     raindrop(heightmap, 0, start_x, start_y);
   };
+  heightmap;
 };
 
 let run_phase = (tectonic: Grid.t(Tectonic.tile)): Grid.t(tile) => {
-  let g =
-    convert(tectonic)
-    |> Util.times(Subdivide.subdivide_with_fill(_, fill_weighted), 1, _)
-    |> Util.times(Subdivide.subdivide_with_fill(_, fill_avg), 1, _);
-  random_raindrops(g);
-  g;
+  convert(tectonic)
+  |> Util.times(Subdivide.subdivide_with_fill(_, fill_weighted), 1, _)
+  |> Util.times(Subdivide.subdivide_with_fill(_, fill_avg), 1, _)
+  |> random_raindrops(_);
 };
+
+let phase =
+  Phase_chain.(
+    convert(_)
+    @> Subdivide.subdivide_with_fill(_, fill_weighted)
+    @> Subdivide.subdivide_with_fill(_, fill_avg)
+    @> repeat(5, random_raindrops(_))
+    @@> finish
+  );

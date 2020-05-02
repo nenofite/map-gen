@@ -56,3 +56,15 @@ let generate = (width, height) => {
 let run_phase = (width, height) => {
   generate(width, height) |> Util.times(Subdivide.subdivide, 5, _);
 };
+
+let phase = (width, height) => {
+  Phase_chain.(
+    (() => generate(width, height))
+    @> Subdivide.subdivide
+    @> Subdivide.subdivide
+    @> Subdivide.subdivide
+    @> Subdivide.subdivide
+    @> Subdivide.subdivide
+    @> finish
+  );
+};
