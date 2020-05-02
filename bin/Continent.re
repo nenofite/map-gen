@@ -32,5 +32,5 @@ let convert = (tectonic: Grid.t(Tectonic.tile)) => {
 };
 
 let run_phase = (tectonic: Grid.t(Tectonic.tile)): Grid.t(tile) => {
-  convert(tectonic);
+  convert(tectonic) |> Util.times(Subdivide.subdivide, 0, _);
 };

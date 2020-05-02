@@ -54,5 +54,5 @@ let generate = (width, height) => {
 };
 
 let run_phase = (width, height) => {
-  generate(width, height) |> Util.times(Subdivide.subdivide, 3, _);
+  generate(width, height) |> Util.times(Subdivide.subdivide, 5, _);
 };
