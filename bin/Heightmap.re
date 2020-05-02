@@ -12,13 +12,13 @@ let convert = (tectonic: Grid.t(Tectonic.tile)) => {
       let toward = Grid.at'(tectonic, x + px, y + py);
       if (Tectonic.are_opposed(here.direction, toward.direction)) {
         /* Mountain */
-        60 + Random.int(40);
+        30 + Random.int(70);
       } else if (here.is_ocean) {
         /* Ocean */
-        (-100) + Random.int(40);
+        (-50) + Random.int(50);
       } else {
         /* Land */
-        5 + Random.int(50);
+        0 + Random.int(30);
       };
     },
   );
