@@ -37,7 +37,55 @@ let fill = (a, b, c, d) => {
   new_elevation;
 };
 
+let compare_elevations = (a, b) => {
+  let (ae, _, _) = a;
+  let (be, _, _) = b;
+  Int.compare(ae, be);
+};
+
+/** fall_to determines which neighbor the raindrop will move to */
+let fall_to = (here, neighbors) => {
+  Array.fast_sort(compare_elevations, neighbors);
+  let (le, lx, ly) = neighbors[0];
+  if (le < here) {
+    Some((lx, ly));
+  } else {
+    None;
+  };
+};
+
+/**
+  raindrop starts at a given coordinate on the heightmap grid, then moves to lower
+  and lower neighbors until it reaches a local minimum, where it deposits
+  sediment (increases height by 1)
+ */
+let rec raindrop = (heightmap: Grid.t(tile), x: int, y: int): unit => {
+  let here = Grid.at(heightmap, x, y);
+  let neighbors = Grid.neighbors_xy(heightmap, x, y);
+  switch (fall_to(here, neighbors)) {
+  | Some((dx, dy)) =>
+    let (x', y') =
+      Grid.wrap_coord(heightmap.width, heightmap.height, x + dx, y + dy);
+    raindrop(heightmap, x', y');
+  | None => Grid.put(heightmap, x, y, here + 1)
+  };
+};
+
+let random_raindrops = (heightmap: Grid.t(tile)): unit => {
+  let amount = heightmap.width * heightmap.height * 20;
+  for (_ in 1 to amount) {
+    let start_x = Random.int(heightmap.width);
+    let start_y = Random.int(heightmap.height);
+    let start = Grid.at(heightmap, start_x, start_y);
+    Grid.put(heightmap, start_x, start_y, start - 1);
+    raindrop(heightmap, start_x, start_y);
+  };
+};
+
 let run_phase = (tectonic: Grid.t(Tectonic.tile)): Grid.t(tile) => {
-  convert(tectonic)
-  |> Util.times(Subdivide.subdivide_with_fill(_, fill), 2, _);
+  let g =
+    convert(tectonic)
+    |> Util.times(Subdivide.subdivide_with_fill(_, fill), 2, _);
+  random_raindrops(g);
+  g;
 };

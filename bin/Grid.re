@@ -92,3 +92,17 @@ let neighbors = (grid, x, y) => {
     at'(grid, x + 1, y + 1),
   |];
 };
+
+/** neighbors_xy returns the 8 neighbors paired with their relative offset, starting with northwest and going clockwise */
+let neighbors_xy = (grid, x, y) => {
+  [|
+    (at'(grid, x - 1, y - 1), (-1), (-1)),
+    (at'(grid, x, y - 1), 0, (-1)),
+    (at'(grid, x + 1, y - 1), 1, (-1)),
+    (at'(grid, x - 1, y), (-1), 0),
+    (at'(grid, x + 1, y), 1, 0),
+    (at'(grid, x - 1, y + 1), (-1), 1),
+    (at'(grid, x, y + 1), 0, 1),
+    (at'(grid, x + 1, y + 1), 1, 1),
+  |];
+};
