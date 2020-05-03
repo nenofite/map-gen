@@ -1,5 +1,26 @@
 Printexc.record_backtrace(true);
 
-let g = Phase_chain.(run_all(Tectonic.phase(3, 3) @@> Heightmap.phase));
-/* Print.print(g, Biome.print); */
-Draw.draw_grid(Heightmap.colorize, "grid.ppm", g);
+let draw_phase = (file, colorize) => {
+  Phase_chain.(
+    (
+      grid => {
+        Draw.draw_grid(colorize, file, grid);
+        grid;
+      }
+    )
+    @> finish
+  );
+};
+
+let g =
+  Phase_chain.(
+    run_all(
+      Tectonic.phase(3, 3)
+      @@> Heightmap.phase
+      @@> draw_phase("grid-height.ppm", Heightmap.colorize)
+      @@> Erosion.phase
+      @@> draw_phase("grid-erosion.ppm", Erosion.colorize)
+      @@> River.phase
+      @@> draw_phase("grid-river.ppm", River.colorize),
+    )
+  );

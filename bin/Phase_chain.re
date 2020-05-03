@@ -25,7 +25,7 @@ let rec repeat = (times, f) =>
   if (times > 0) {
     f @> repeat(times - 1, f);
   } else {
-    singular(f);
+    Empty;
   };
 
 let rec length': type a b. (int, t(a, b)) => int =
