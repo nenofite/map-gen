@@ -12,15 +12,14 @@ let draw_phase = (file, colorize) => {
   );
 };
 
-let g =
-  Phase_chain.(
-    run_all(
-      Tectonic.phase(3, 3)
-      @@> Heightmap.phase
-      @@> draw_phase("grid-height.ppm", Heightmap.colorize)
-      @@> Erosion.phase
-      @@> draw_phase("grid-erosion.ppm", Erosion.colorize)
-      @@> River.phase
-      @@> draw_phase("grid-river.ppm", River.colorize),
-    )
-  );
+Phase_chain.(
+  run_all(
+    Tectonic.phase(3, 3)
+    @@> Heightmap.phase
+    @@> draw_phase("grid-height.ppm", Heightmap.colorize)
+    /* @@> Erosion.phase
+       @@> draw_phase("grid-erosion.ppm", Erosion.colorize), */
+    @@> River.phase
+    @@> draw_phase("grid-river.ppm", River.colorize),
+  )
+);

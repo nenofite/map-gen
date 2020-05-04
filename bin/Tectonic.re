@@ -4,10 +4,15 @@ type direction =
   | S
   | W;
 
-type tile = {
+type intermediate = {
   direction,
   is_ocean: bool,
 };
+
+type tile =
+  | Ocean
+  | Plain
+  | Mountain;
 
 let show = tile =>
   switch (tile.direction) {
@@ -53,8 +58,23 @@ let generate = (width, height) => {
   );
 };
 
-let run_phase = (width, height) => {
-  generate(width, height) |> Util.times(Subdivide.subdivide, 5, _);
+let convert_intermediate = (grid: Grid.t(intermediate)) => {
+  Grid.init(
+    grid.width,
+    grid.height,
+    (x, y) => {
+      let {direction, is_ocean} = Grid.at(grid, x, y);
+      let (px, py) = xy_of_direction(direction);
+      let toward = Grid.at'(grid, x + px, y + py);
+      if (are_opposed(direction, toward.direction)) {
+        Mountain;
+      } else if (is_ocean) {
+        Ocean;
+      } else {
+        Plain;
+      };
+    },
+  );
 };
 
 let phase = (width, height) => {
@@ -65,6 +85,7 @@ let phase = (width, height) => {
     @> Subdivide.subdivide
     @> Subdivide.subdivide
     @> Subdivide.subdivide
+    @> convert_intermediate(_)
     @> finish
   );
 };

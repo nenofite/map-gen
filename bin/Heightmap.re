@@ -1,6 +1,14 @@
 type tile = int;
 
+type intermediate = {
+  tectonic: Tectonic.tile,
+  distance_to_ocean: int,
+  distance_to_mountain: int,
+};
+
 let colorize = (tile: tile): int => (tile + 50) * 255 / 150 * 0x010101;
+
+let empty_distance = Int.max_int - 10;
 
 let convert = (tectonic: Grid.t(Tectonic.tile)) => {
   Grid.init(
@@ -8,21 +16,96 @@ let convert = (tectonic: Grid.t(Tectonic.tile)) => {
     tectonic.height,
     (x, y) => {
       let here = Grid.at(tectonic, x, y);
-      let (px, py) = Tectonic.xy_of_direction(here.direction);
-      let toward = Grid.at'(tectonic, x + px, y + py);
-      if (Tectonic.are_opposed(here.direction, toward.direction)) {
-        /* Mountain */
-        30 + Random.int(70);
-      } else if (here.is_ocean) {
-        /* Ocean */
-        (-50) + Random.int(50);
-      } else {
-        /* Land */
-        1 + Random.int(10);
+      {
+        tectonic: here,
+        distance_to_ocean:
+          switch (here) {
+          | Ocean => 0
+          | _ => empty_distance
+          },
+        distance_to_mountain:
+          switch (here) {
+          | Mountain => 0
+          | _ => empty_distance
+          },
       };
     },
   );
 };
+
+let convert_intermediate = (grid: Grid.t(intermediate)) => {
+  Grid.init(
+    grid.width,
+    grid.height,
+    (x, y) => {
+      let {tectonic, distance_to_ocean, distance_to_mountain} =
+        Grid.at(grid, x, y);
+      switch (tectonic) {
+      | Ocean => (-50) + Random.int(50)
+      | Mountain => 30 + Random.int(70)
+      | Plain =>
+        assert(distance_to_ocean != empty_distance);
+        if (distance_to_mountain != empty_distance) {
+          let fraction =
+            float_of_int(distance_to_ocean)
+            /. float_of_int(distance_to_ocean + distance_to_mountain);
+          1 + int_of_float(fraction *. 29.0);
+        } else {
+          min(distance_to_ocean, 30);
+        };
+      };
+    },
+  );
+};
+
+let until_changes_stop = (grid: Grid.t(intermediate), automata) => {
+  let grid = ref(grid);
+  let changed = ref(true);
+  while (changed^) {
+    changed := false;
+    let old_grid = grid^;
+    grid :=
+      Grid.init(
+        old_grid.width,
+        old_grid.height,
+        (x, y) => {
+          let here = Grid.at(old_grid, x, y);
+          let neighbors = Grid.neighbors(old_grid, x, y);
+          switch (automata(here, neighbors)) {
+          | Some(new_here) =>
+            changed := true;
+            new_here;
+          | None => here
+          };
+        },
+      );
+  };
+  grid^;
+};
+
+let spread_distances = grid =>
+  until_changes_stop(
+    grid,
+    (here, neighbors) => {
+      let ocean_distances = Array.map(x => x.distance_to_ocean, neighbors);
+      Array.fast_sort(Int.compare, ocean_distances);
+      let distance_to_ocean =
+        min(here.distance_to_ocean, ocean_distances[0] + 1);
+
+      let mountain_distances =
+        Array.map(x => x.distance_to_mountain, neighbors);
+      Array.fast_sort(Int.compare, mountain_distances);
+      let distance_to_mountain =
+        min(here.distance_to_mountain, mountain_distances[0] + 1);
+
+      if (distance_to_ocean != here.distance_to_ocean
+          || distance_to_mountain != here.distance_to_mountain) {
+        Some({...here, distance_to_ocean, distance_to_mountain});
+      } else {
+        None;
+      };
+    },
+  );
 
 let fill_weighted = (a, b, c, d) => {
   let elevations = [|a, b, c, d|];
@@ -47,16 +130,13 @@ let fill_avg = (a, b, c, d) => {
   new_elevation;
 };
 
-let run_phase = (tectonic: Grid.t(Tectonic.tile)): Grid.t(tile) => {
-  convert(tectonic)
-  |> Util.times(Subdivide.subdivide_with_fill(_, fill_weighted), 1, _)
-  |> Util.times(Subdivide.subdivide_with_fill(_, fill_avg), 1, _);
-};
-
 let phase =
   Phase_chain.(
     convert(_)
-    @> Subdivide.subdivide_with_fill(_, fill_weighted)
+    @> spread_distances(_)
+    @> convert_intermediate(_)
+    /* @> Subdivide.subdivide_with_fill(_, fill_weighted) */
+    @> Subdivide.subdivide_with_fill(_, fill_avg)
     @> Subdivide.subdivide_with_fill(_, fill_avg)
     @> finish
   );
