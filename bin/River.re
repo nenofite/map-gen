@@ -102,9 +102,12 @@ let rec flow_river = (grid, river, x, y, carve_elevation) => {
 let river = (grid: Grid.t(tile), id: int, source_x: int, source_y: int): unit => {
   let here = Grid.at(grid, source_x, source_y);
   let neighbors = Grid.neighbors_xy(grid, source_x, source_y);
-  let (fall_x, fall_y) = Option.get(fall_to(here, neighbors));
-  let river = {id, innate_direction: (fall_x, fall_y)};
-  flow_river(grid, river, source_x, source_y, here.elevation);
+  switch (fall_to(here, neighbors)) {
+  | Some((fall_x, fall_y)) =>
+    let river = {id, innate_direction: (fall_x, fall_y)};
+    flow_river(grid, river, source_x, source_y, here.elevation);
+  | None => ()
+  };
 };
 
 let add_rivers = (grid, amount): Grid.t(tile) => {
