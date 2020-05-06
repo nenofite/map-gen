@@ -1,7 +1,4 @@
-type river = {
-  id: int,
-  innate_direction: (int, int),
-};
+type river = {id: int};
 
 type tile = {
   elevation: int,
@@ -69,54 +66,66 @@ let river_sources = (grid: Grid.t(tile)) => {
 };
 
 /**
-  flow_river adds the river to the given coordinate, then selects the next
-  coordinate to flow into, carving it if necessary
+  place_river_tile modifies the given tile to have a river on it. If there's
+  already a river there, it raises [Invalid_argument]
  */
-let rec flow_river = (grid, river, x, y, carve_elevation) => {
+let place_river_tile = (grid, river, x, y) => {
   let here = Grid.at(grid, x, y);
-  if (!here.ocean && Option.is_none(here.river)) {
-    let elevation = min(here.elevation, carve_elevation);
-    let here = {...here, elevation, river: Some(river)};
-    Grid.put(grid, x, y, here);
+  if (Option.is_some(here.river)) {
+    raise(Invalid_argument("Tile already has river"));
+  };
+  Grid.put(grid, x, y, {...here, river: Some(river)});
+};
 
+/**
+  flow_river moves downhill until the river reaches the ocean or a local
+  minimum. If the river reaches a local minimum before reaching the ocean, it
+  is abandoned. If the river reaches an ocean, it returns the path it took.
+  No tiles are modified.
+ */
+let rec flow_river = (grid, river, path, x, y) => {
+  let here = Grid.at(grid, x, y);
+  if (!here.ocean) {
+    let path = [(x, y), ...path];
     let neighbors = Grid.neighbors_xy(grid, x, y);
-    let (next_x, next_y) =
-      switch (fall_to(here, neighbors)) {
-      | Some((dx, dy)) =>
-        Grid.wrap_coord(grid.width, grid.height, x + dx, y + dy)
-      | None =>
-        /* move in the innate direction and carve it to this elevation */
-        let (dx, dy) = river.innate_direction;
+    switch (fall_to(here, neighbors)) {
+    | Some((dx, dy)) =>
+      let (next_x, next_y) =
         Grid.wrap_coord(grid.width, grid.height, x + dx, y + dy);
-      };
-    flow_river(grid, river, next_x, next_y, here.elevation);
+      flow_river(grid, river, path, next_x, next_y);
+    | None => None
+    };
+  } else {
+    Some(path);
   };
 };
 
 /**
   river finds a non-ocean tile with an elevation between plains and
-  mountains, then creates a river with the given id there. It looks at the
-  lowest surrounding neighbor to determine the river's innate direction, then
-  flows the river.
+  mountains, then creates a river with the given id there. The river is only
+  kept if it can reach the ocean.
  */
-let river = (grid: Grid.t(tile), id: int, source_x: int, source_y: int): unit => {
-  let here = Grid.at(grid, source_x, source_y);
-  let neighbors = Grid.neighbors_xy(grid, source_x, source_y);
-  switch (fall_to(here, neighbors)) {
-  | Some((fall_x, fall_y)) =>
-    let river = {id, innate_direction: (fall_x, fall_y)};
-    flow_river(grid, river, source_x, source_y, here.elevation);
-  | None => ()
+let river = (grid: Grid.t(tile), id: int, source_x: int, source_y: int): bool => {
+  let river = {id: id};
+  switch (flow_river(grid, river, [], source_x, source_y)) {
+  | Some(path) =>
+    List.iter(((x, y)) => place_river_tile(grid, river, x, y), path);
+    true;
+  | None => false
   };
 };
 
 let add_rivers = (grid, amount): Grid.t(tile) => {
   let sources = river_sources(grid);
   let amount = min(amount, Array.length(sources));
+  let succeeded = ref(0);
   for (id in 0 to pred(amount)) {
     let (source_x, source_y) = sources[id];
-    river(grid, id, source_x, source_y);
+    if (river(grid, id, source_x, source_y)) {
+      succeeded := succeeded^ + 1;
+    };
   };
+  Printf.printf("Successfully placed %d of %d rivers\n", succeeded^, amount);
   grid;
 };
 
