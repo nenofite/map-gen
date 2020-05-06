@@ -120,10 +120,9 @@ let current_flow_direction = (path, x, y) => {
 /**
   flow_river moves downhill until the river reaches the ocean, another river,
   or a local minimum. If the river reaches a local minimum before reaching
-  the ocean, it is abandoned. If the river reaches an ocean or another river,
-  it succeeds and returns the path it took.
-
-  No tiles are modified.
+  the ocean, it deposits sediment there and tries again from the previous
+  tile. If the river reaches an ocean or another river, it succeeds and
+  returns the path it took.
  */
 let rec flow_river = (grid, river, path, x, y) =>
   if (List.exists(((lx, ly)) => lx == x && ly == y, path)) {
@@ -140,7 +139,13 @@ let rec flow_river = (grid, river, path, x, y) =>
           Grid.wrap_coord(grid.width, grid.height, x + dx, y + dy);
         assert(next_x != x || next_y != y);
         flow_river(grid, river, next_path, next_x, next_y);
-      | None => None
+      | None =>
+        deposit_sediment(grid, x, y);
+        switch (path) {
+        | [(previous_x, previous_y), ...previous_path] =>
+          flow_river(grid, river, previous_path, previous_x, previous_y)
+        | [] => flow_river(grid, river, [], x, y)
+        };
       };
     } else {
       Some(path);

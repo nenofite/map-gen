@@ -127,7 +127,7 @@ let fill_avg = (a, b, c, d) => {
   let new_elevation =
     elevations[0]
     + int_of_float(float_of_int(elevations[3] - elevations[0]) *. between);
-  new_elevation;
+  new_elevation + Random.int(2);
 };
 
 let phase =
