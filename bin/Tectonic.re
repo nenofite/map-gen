@@ -44,7 +44,7 @@ let generate = (width, height) => {
   Grid.init(
     width,
     height,
-    (_, _) => {
+    (x, y) => {
       let direction =
         switch (Random.int(4)) {
         | 0 => N
@@ -52,7 +52,9 @@ let generate = (width, height) => {
         | 2 => S
         | _ => W
         };
-      let is_ocean = Random.int(100) < 67;
+      /* Edges are always ocean */
+      let is_edge = /*x == 0 || x == width - 1 ||*/ y == 0 || y == height - 1;
+      let is_ocean = is_edge || Random.int(100) < 50;
       {direction, is_ocean};
     },
   );
@@ -66,7 +68,7 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
       let {direction, is_ocean} = Grid.at(grid, x, y);
       let (px, py) = xy_of_direction(direction);
       let toward = Grid.at'(grid, x + px, y + py);
-      if (are_opposed(direction, toward.direction)) {
+      if (!is_ocean && are_opposed(direction, toward.direction)) {
         Mountain;
       } else if (is_ocean) {
         Ocean;
@@ -80,7 +82,7 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
 let phase = (width, height) => {
   Phase_chain.(
     (() => generate(width, height))
-    @> repeat(5, Subdivide.subdivide)
+    @> repeat(4, Subdivide.subdivide)
     @@> convert_intermediate(_)
     @> finish
   );
