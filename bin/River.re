@@ -38,8 +38,26 @@ let compare_elevations = (a, b) => {
 let fall_to = (here, neighbors) => {
   Array.fast_sort(compare_elevations, neighbors);
   let (_, lx, ly) as l = neighbors[0];
-  if (compare_elevations(l, (here, 0, 0)) < 0) {
+  let cmp = compare_elevations(l, (here, 0, 0));
+  if (cmp < 0) {
     Some((lx, ly));
+  } else {
+    None;
+  };
+};
+
+/**
+  fall_to determines which neighbor the river will flow to. If the terrain is
+  flat, go in [flat_dir]
+ */
+let fall_to_with_flat_dir = (here, neighbors, flat_dir) => {
+  Array.fast_sort(compare_elevations, neighbors);
+  let (_, lx, ly) as l = neighbors[0];
+  let cmp = compare_elevations(l, (here, 0, 0));
+  if (cmp < 0) {
+    Some((lx, ly));
+  } else if (cmp == 0) {
+    Some(flat_dir);
   } else {
     None;
   };
@@ -77,28 +95,57 @@ let place_river_tile = (grid, river, x, y) => {
   Grid.put(grid, x, y, {...here, river: Some(river)});
 };
 
+let debug_deposited_sediment_ = ref(0);
+
 /**
-  flow_river moves downhill until the river reaches the ocean or a local
-  minimum. If the river reaches a local minimum before reaching the ocean, it
-  is abandoned. If the river reaches an ocean, it returns the path it took.
-  No tiles are modified.
+  deposit_sediment increases the elevation by 1 at the given coordinate.
  */
-let rec flow_river = (grid, river, path, x, y) => {
+let deposit_sediment = (grid, x, y) => {
   let here = Grid.at(grid, x, y);
-  if (!here.ocean) {
-    let path = [(x, y), ...path];
-    let neighbors = Grid.neighbors_xy(grid, x, y);
-    switch (fall_to(here, neighbors)) {
-    | Some((dx, dy)) =>
-      let (next_x, next_y) =
-        Grid.wrap_coord(grid.width, grid.height, x + dx, y + dy);
-      flow_river(grid, river, path, next_x, next_y);
-    | None => None
-    };
-  } else {
-    Some(path);
+  Grid.put(grid, x, y, {...here, elevation: here.elevation + 1});
+  debug_deposited_sediment_ := debug_deposited_sediment_^ + 1;
+};
+
+/**
+  current_flow_direction gets the river's current direction given path and
+  current coordinate. If the path is empty, this defaults to south.
+ */
+let current_flow_direction = (path, x, y) => {
+  switch (path) {
+  | [(px, py), ..._] => (x - px, y - py)
+  | [] => (0, 1)
   };
 };
+
+/**
+  flow_river moves downhill until the river reaches the ocean, another river,
+  or a local minimum. If the river reaches a local minimum before reaching
+  the ocean, it is abandoned. If the river reaches an ocean or another river,
+  it succeeds and returns the path it took.
+
+  No tiles are modified.
+ */
+let rec flow_river = (grid, river, path, x, y) =>
+  if (List.exists(((lx, ly)) => lx == x && ly == y, path)) {
+    None;
+  } else {
+    let here = Grid.at(grid, x, y);
+    if (!here.ocean && Option.is_none(here.river)) {
+      let next_path = [(x, y), ...path];
+      let neighbors = Grid.neighbors_xy(grid, x, y);
+      let flat_dir = current_flow_direction(path, x, y);
+      switch (fall_to_with_flat_dir(here, neighbors, flat_dir)) {
+      | Some((dx, dy)) =>
+        let (next_x, next_y) =
+          Grid.wrap_coord(grid.width, grid.height, x + dx, y + dy);
+        assert(next_x != x || next_y != y);
+        flow_river(grid, river, next_path, next_x, next_y);
+      | None => None
+      };
+    } else {
+      Some(path);
+    };
+  };
 
 /**
   river finds a non-ocean tile with an elevation between plains and
@@ -119,6 +166,7 @@ let add_rivers = (grid, amount): Grid.t(tile) => {
   let sources = river_sources(grid);
   let amount = min(amount, Array.length(sources));
   let succeeded = ref(0);
+  debug_deposited_sediment_ := 0;
   for (id in 0 to pred(amount)) {
     let (source_x, source_y) = sources[id];
     if (river(grid, id, source_x, source_y)) {
@@ -126,7 +174,8 @@ let add_rivers = (grid, amount): Grid.t(tile) => {
     };
   };
   Printf.printf("Successfully placed %d of %d rivers\n", succeeded^, amount);
+  Printf.printf("Deposited sediment %d times\n", debug_deposited_sediment_^);
   grid;
 };
 
-let phase = Phase_chain.(convert(_) @> add_rivers(_, 100) @> finish);
+let phase = Phase_chain.(convert(_) @> add_rivers(_, 250) @> finish);
