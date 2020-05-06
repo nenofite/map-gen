@@ -69,7 +69,7 @@ let river_sources = (grid: Grid.t(tile)) => {
   for (y in 0 to pred(grid.height)) {
     for (x in 0 to pred(grid.width)) {
       let here = Grid.at(grid, x, y);
-      if (!here.ocean && 10 < here.elevation && here.elevation < 30) {
+      if (!here.ocean && 24 <= here.elevation && here.elevation <= 30) {
         let neighbors = Grid.neighbors_xy(grid, x, y);
         if (Option.is_some(fall_to(here, neighbors))) {
           result := [(x, y, Random.bits()), ...result^];

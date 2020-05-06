@@ -80,12 +80,8 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
 let phase = (width, height) => {
   Phase_chain.(
     (() => generate(width, height))
-    @> Subdivide.subdivide
-    @> Subdivide.subdivide
-    @> Subdivide.subdivide
-    @> Subdivide.subdivide
-    @> Subdivide.subdivide
-    @> convert_intermediate(_)
+    @> repeat(5, Subdivide.subdivide)
+    @@> convert_intermediate(_)
     @> finish
   );
 };
