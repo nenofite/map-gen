@@ -122,22 +122,21 @@ let current_flow_direction = (path, x, y) => {
   tile. If the river reaches an ocean or another river, it succeeds and
   returns the path it took.
  */
-let rec flow_river = (grid, river, path, x, y) =>
-  if (List.exists(((lx, ly)) => lx == x && ly == y, path)) {
-    None;
-  } else {
-    let here = Grid.at(grid, x, y);
-    if (!here.ocean && Option.is_none(here.river)) {
-      let next_path = [(x, y), ...path];
-      let neighbors = Grid.neighbors_xy(grid, x, y);
-      let flat_dir = current_flow_direction(path, x, y);
-      switch (fall_to_with_flat_dir(here, neighbors, flat_dir)) {
-      | Some((dx, dy)) =>
-        let (next_x, next_y) =
-          Grid.wrap_coord(grid.width, grid.height, x + dx, y + dy);
-        assert(next_x != x || next_y != y);
+let rec flow_river = (grid, river, path, x, y) => {
+  let here = Grid.at(grid, x, y);
+  if (!here.ocean && Option.is_none(here.river)) {
+    let next_path = [(x, y), ...path];
+    let neighbors = Grid.neighbors_xy(grid, x, y);
+    let flat_dir = current_flow_direction(path, x, y);
+    switch (fall_to_with_flat_dir(here, neighbors, flat_dir)) {
+    | Some((dx, dy)) =>
+      let (next_x, next_y) =
+        Grid.wrap_coord(grid.width, grid.height, x + dx, y + dy);
+      assert(next_x != x || next_y != y);
+      if (!List.exists(((lx, ly)) => lx == next_x && ly == next_y, path)) {
         flow_river(grid, river, next_path, next_x, next_y);
-      | None =>
+      } else {
+        /* We formed a loop. Deposit sediment and backtrack. */
         deposit_sediment(grid, x, y);
         switch (path) {
         | [(previous_x, previous_y), ...previous_path] =>
@@ -145,10 +144,19 @@ let rec flow_river = (grid, river, path, x, y) =>
         | [] => flow_river(grid, river, [], x, y)
         };
       };
-    } else {
-      Some(path);
+    | None =>
+      /* We're stuck in a ditch. Deposit sediment and backtrack. */
+      deposit_sediment(grid, x, y);
+      switch (path) {
+      | [(previous_x, previous_y), ...previous_path] =>
+        flow_river(grid, river, previous_path, previous_x, previous_y)
+      | [] => flow_river(grid, river, [], x, y)
+      };
     };
+  } else {
+    Some(path);
   };
+};
 
 /**
   river finds a non-ocean tile with an elevation between plains and
@@ -181,4 +189,4 @@ let add_rivers = (grid, amount): Grid.t(tile) => {
   grid;
 };
 
-let phase = Phase_chain.(convert(_) @> add_rivers(_, 250) @> finish);
+let phase = Phase_chain.(convert(_) @> add_rivers(_, 250000) @> finish);
