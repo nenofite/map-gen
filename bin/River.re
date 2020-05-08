@@ -46,18 +46,52 @@ let fall_to = (here, neighbors) => {
   };
 };
 
-/**
-  fall_to determines which neighbor the river will flow to. If the terrain is
-  flat, go in [flat_dir]
- */
-let fall_to_with_flat_dir = (here, neighbors, flat_dir) => {
-  Array.fast_sort(compare_elevations, neighbors);
-  let (_, lx, ly) as l = neighbors[0];
-  let cmp = compare_elevations(l, (here, 0, 0));
-  if (cmp <= 0) {
-    Some((lx, ly));
+let rec array_find = (f, array, i) =>
+  if (i < Array.length(array)) {
+    if (f(array[i])) {
+      Some(array[i]);
+    } else {
+      array_find(f, array, i + 1);
+    };
   } else {
     None;
+  };
+
+let shuffle_copy = array => {
+  let ordered = Array.map(x => (Random.bits(), x), array);
+  Array.fast_sort(((a, _), (b, _)) => Int.compare(a, b), ordered);
+  Array.map(((_, x)) => x, ordered);
+};
+
+/**
+  fall_to_with_flat_dir determines which neighbor the river will flow to:
+
+  1. If there is lower land, move in that direction.
+  2. Otherwise, if [flat_dir] is level with us, move in that direction.
+  3. Otherwise, pick a random flat direction.
+ */
+let fall_to_with_flat_dir = (here, neighbors, flat_dir) => {
+  let (flat_dir_x, flat_dir_y) = flat_dir;
+  assert(flat_dir_x != 0 || flat_dir_y != 0);
+  let flat_dir_n =
+    array_find(
+      ((_, x, y)) => x == flat_dir_x && y == flat_dir_y,
+      neighbors,
+      0,
+    )
+    |> Option.get(_);
+
+  Array.fast_sort(compare_elevations, neighbors);
+  let (_, lowest_x, lowest_y) as lowest = neighbors[0];
+
+  if (compare_elevations(lowest, (here, 0, 0)) < 0) {
+    Some((lowest_x, lowest_y));
+  } else if (compare_elevations(flat_dir_n, (here, 0, 0)) <= 0) {
+    Some(flat_dir);
+  } else {
+    shuffle_copy(neighbors)
+    |> array_find(x => compare_elevations(x, (here, 0, 0)) <= 0, _, 0)
+    |> Option.map(((_, x, y)) => (x, y), _);
   };
 };
 
