@@ -40,23 +40,35 @@ let are_opposed = (a, b) => {
   };
 };
 
-let generate = (width, height) => {
-  Grid.init(
-    width,
-    height,
-    (x, y) => {
-      let direction =
-        switch (Random.int(4)) {
-        | 0 => N
-        | 1 => E
-        | 2 => S
-        | _ => W
-        };
-      /* Edges are always ocean */
-      let is_edge = /*x == 0 || x == width - 1 ||*/ y == 0 || y == height - 1;
-      let is_ocean = is_edge || Random.int(100) < 50;
-      {direction, is_ocean};
-    },
+let random_direction = () =>
+  switch (Random.int(4)) {
+  | 0 => N
+  | 1 => E
+  | 2 => S
+  | _ => W
+  };
+
+let generate = () => {
+  let size = 48;
+  let point_cloud =
+    Point_cloud.init(
+      ~width=48,
+      ~height=48,
+      ~spacing=8,
+      (_, _) => {
+        let direction = random_direction();
+        let is_ocean = Random.int(100) < 50;
+        {direction, is_ocean};
+      },
+    );
+  let edge = {direction: S, is_ocean: true};
+  Grid.init(size, size, (x, y) =>
+    Point_cloud.nearest_with_edge(
+      point_cloud,
+      edge,
+      float_of_int(x),
+      float_of_int(y),
+    )
   );
 };
 
@@ -81,9 +93,9 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
 
 let phase = (width, height) => {
   Phase_chain.(
-    (() => generate(width, height))
-    @> repeat(4, Subdivide.subdivide)
-    @@> convert_intermediate(_)
+    generate(_)
+    @> convert_intermediate(_)
     @> finish
+    @@> repeat(1, Subdivide.subdivide)
   );
 };
