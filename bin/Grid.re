@@ -14,7 +14,7 @@ let i_of_xy = (width, height, x, y) => {
   y * width + x;
 };
 
-let xy_of_i = (width, height, i) => {
+let xy_of_i = (width, _height, i) => {
   let y = i / width;
   let x = i mod width;
   (x, y);

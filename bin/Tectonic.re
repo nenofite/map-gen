@@ -97,7 +97,7 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
     grid.width,
     grid.height,
     (x, y) => {
-      let {direction, is_ocean} = Grid.at(grid, x, y);
+      let {direction, is_ocean, _} = Grid.at(grid, x, y);
       let (px, py) = xy_of_direction(direction);
       let toward = Grid.at'(grid, x + px, y + py);
       if (!is_ocean && are_opposed(direction, toward.direction)) {

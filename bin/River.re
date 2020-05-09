@@ -29,8 +29,8 @@ let convert = (old_grid: Grid.t(int)) => {
 };
 
 let compare_elevations = (a, b) => {
-  let ({elevation: ae}, _, _) = a;
-  let ({elevation: be}, _, _) = b;
+  let ({elevation: ae, _}, _, _) = a;
+  let ({elevation: be, _}, _, _) = b;
   Int.compare(ae, be);
 };
 

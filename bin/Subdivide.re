@@ -1,7 +1,7 @@
 let subdivide_with_fill =
     (oldGrid: Grid.t('a), f: ('a, 'a, 'a, 'a) => 'a): Grid.t('a) => {
   open Grid;
-  let {width: oldWidth, height: oldHeight} = oldGrid;
+  let {width: oldWidth, height: oldHeight, _} = oldGrid;
   let width = oldWidth * 2;
   let height = oldHeight * 2;
 
