@@ -223,4 +223,8 @@ let add_rivers = (grid, amount): Grid.t(tile) => {
   grid;
 };
 
-let phase = Phase_chain.(convert(_) @> add_rivers(_, 250000) @> finish);
+let phase =
+  Phase_chain.(
+    phase("Convert to river", convert(_))
+    @> phase("Flow rivers", add_rivers(_, 250000))
+  );

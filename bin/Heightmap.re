@@ -132,11 +132,13 @@ let fill_avg = (a, b, c, d) => {
 
 let phase =
   Phase_chain.(
-    convert(_)
-    @> spread_distances(_)
-    @> convert_intermediate(_)
+    phase("Convert to heightmap", convert(_))
+    @> phase("Spread distances", spread_distances(_))
+    @> phase("Convert", convert_intermediate(_))
     /* @> Subdivide.subdivide_with_fill(_, fill_weighted) */
-    @> Subdivide.subdivide_with_fill(_, fill_avg)
-    @> Subdivide.subdivide_with_fill(_, fill_avg)
-    @> finish
+    @> phase_repeat(
+         2,
+         "Subdivide heightmap",
+         Subdivide.subdivide_with_fill(_, fill_avg),
+       )
   );

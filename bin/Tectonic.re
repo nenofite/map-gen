@@ -91,11 +91,9 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
   );
 };
 
-let phase = (width, height) => {
+let phase =
   Phase_chain.(
-    generate(_)
-    @> convert_intermediate(_)
-    @> finish
-    @@> repeat(1, Subdivide.subdivide)
+    phase("Generate tectonic plates", generate(_))
+    @> phase("Convert", convert_intermediate(_))
+    @> phase_repeat(1, "Subdivide tectonic", Subdivide.subdivide)
   );
-};
