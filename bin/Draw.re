@@ -13,3 +13,14 @@ let draw_grid = (colorizer: 'a => int, file: string, grid: Grid.t('a)): unit => 
   output_char(out, '\n');
   close_out(out);
 };
+
+let phase = (file, colorize) => {
+  let name = Printf.sprintf("Draw %s", file);
+  Phase_chain.phase(
+    name,
+    grid => {
+      draw_grid(colorize, file, grid);
+      grid;
+    },
+  );
+};

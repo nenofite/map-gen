@@ -5,6 +5,7 @@ type direction =
   | W;
 
 type intermediate = {
+  id: int,
   direction,
   is_ocean: bool,
 };
@@ -21,6 +22,13 @@ let show = tile =>
   | S => "⬇️"
   | W => "⬅️"
   };
+
+let draw_intermediate = tile => {
+  let frac = float_of_int(tile.id) /. 10.;
+  Color.(
+    blend(color_of_int(0), color_of_int(0xFFFFFF), frac) |> int_of_color(_)
+  );
+};
 
 let xy_of_direction = direction =>
   switch (direction) {
@@ -50,6 +58,7 @@ let random_direction = () =>
 
 let generate = () => {
   let size = 128;
+  let next_id = ref(1);
   let continents =
     Point_cloud.init(
       ~width=size,
@@ -58,12 +67,14 @@ let generate = () => {
       (_, _) => {
         let direction = random_direction();
         let is_ocean = Random.int(100) < 50;
-        {direction, is_ocean};
+        let id = next_id^;
+        next_id := id + 1;
+        {direction, is_ocean, id};
       },
     );
-  let edge = {direction: S, is_ocean: true};
+  let edge = {direction: S, is_ocean: true, id: 0};
   let plates =
-    Point_cloud.init(~width=size, ~height=size, ~spacing=size / 20, (x, y) => {
+    Point_cloud.init(~width=size, ~height=size, ~spacing=size / 14, (x, y) => {
       Point_cloud.nearest_with_edge(
         continents,
         edge,
@@ -103,6 +114,7 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
 let phase =
   Phase_chain.(
     phase("Generate tectonic plates", generate(_))
+    @> Draw.phase("plates.ppm", draw_intermediate)
     @> phase("Convert", convert_intermediate(_))
     @> phase_repeat(1, "Subdivide tectonic", Subdivide.subdivide)
   );
