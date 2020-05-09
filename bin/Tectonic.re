@@ -49,12 +49,12 @@ let random_direction = () =>
   };
 
 let generate = () => {
-  let size = 48;
-  let point_cloud =
+  let size = 128;
+  let continents =
     Point_cloud.init(
-      ~width=48,
-      ~height=48,
-      ~spacing=8,
+      ~width=size,
+      ~height=size,
+      ~spacing=size / 5,
       (_, _) => {
         let direction = random_direction();
         let is_ocean = Random.int(100) < 50;
@@ -62,9 +62,18 @@ let generate = () => {
       },
     );
   let edge = {direction: S, is_ocean: true};
+  let plates =
+    Point_cloud.init(~width=size, ~height=size, ~spacing=size / 20, (x, y) => {
+      Point_cloud.nearest_with_edge(
+        continents,
+        edge,
+        float_of_int(x),
+        float_of_int(y),
+      )
+    });
   Grid.init(size, size, (x, y) =>
     Point_cloud.nearest_with_edge(
-      point_cloud,
+      plates,
       edge,
       float_of_int(x),
       float_of_int(y),
