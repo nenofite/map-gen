@@ -21,7 +21,7 @@ let level_dat = level => {
               "allowCommands" >: Byte(1),
               "GameType" >: Int(1l), /* creative */
               "generatorName" >: String(Generator.name(level.generator)),
-              "LastPlayed" >: Long(0L),
+              "LastPlayed" >: Long(Utils.time_ms()),
               "LevelName" >: String(level.name),
               "MapFeatures" >: Byte(0), /* don't generate structures */
               "RandomSeed" >: Long(1L),
@@ -33,4 +33,24 @@ let level_dat = level => {
             ]),
        ])
   );
+};
+
+/** save writes the level to storage within the given path */
+let save = (level_path, level) => {
+  /* Create level.dat */
+  let level_dat_path = Filename.concat(level_path, "level.dat");
+  let level_dat_nbt = level_dat(level);
+  Utils.write_file(level_dat_path, f =>
+    Nbt.Nbt_printer.print_node(f, level_dat_nbt)
+  );
+
+  /* Create the region directory */
+  let region_path = Filename.concat(level_path, "region");
+  Unix.mkdir(region_path, 0);
+  /*
+    TODO heightmaps and sunlight should be calculated, though perhaps
+    separately from the save function
+   */
+  /* Save each region */
+  /* TODO */
 };
