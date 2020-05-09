@@ -63,6 +63,23 @@ let tag_of_payload =
   | Int_array(_) => Int_array_tag
   | Long_array(_) => Long_array_tag;
 
+/**
+  check_list_type gets the tag of the list's elements. It also asserts that all elements have the same tag.
+
+  Empty lists assume the type End_tag.
+ */
+let check_list_type = list => {
+  let tag =
+    switch (list) {
+    | [hd, ..._] => tag_of_payload(hd)
+    | [] => End_tag
+    };
+  if (List.exists(elem => tag_of_payload(elem) != tag, list)) {
+    raise(Malformed_nbt(List(list)));
+  };
+  tag;
+};
+
 /* Ergonomics */
 
 let (>:) = (name, payload) => {name, payload};

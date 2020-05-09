@@ -39,14 +39,7 @@ let rec print_payload_contents =
     print_payload_contents(channel, Short(String.length(string)));
     output_string(channel, string);
   | List(list) =>
-    let tag =
-      switch (list) {
-      | [hd, ..._] => Node.tag_of_payload(hd)
-      | [] => End_tag
-      };
-    if (List.exists(elem => Node.tag_of_payload(elem) != tag, list)) {
-      raise(Node.Malformed_nbt(payload));
-    };
+    let tag = Node.check_list_type(list);
     print_tag(channel, tag);
     print_payload_contents(channel, Int(List.length(list) |> Int32.of_int));
     List.iter(elem => print_payload_contents(channel, elem), list);
