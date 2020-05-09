@@ -15,7 +15,7 @@ type tag =
   | Long_array_tag;
 
 type byte_array =
-  Bigarray.Array1.t(char, Bigarray.int8_signed_elt, Bigarray.c_layout);
+  Bigarray.Array1.t(int, Bigarray.int8_signed_elt, Bigarray.c_layout);
 type int_array =
   Bigarray.Array1.t(int32, Bigarray.int32_elt, Bigarray.c_layout);
 type long_array =
@@ -63,78 +63,11 @@ let tag_of_payload =
   | Int_array(_) => Int_array_tag
   | Long_array(_) => Long_array_tag;
 
-/** print_tag prints the one-byte representation of a tag */
-let print_tag = (channel, tag: tag) => {
-  let tag_byte: int = Obj.magic(tag);
-  output_byte(channel, tag_byte);
-};
+/* Ergonomics */
 
-/** print_payload_contents prints a payload without its tag  */
-let rec print_payload_contents = (channel, payload) =>
-  switch (payload) {
-  | Byte(int) => output_byte(channel, int)
-  | Short(int) =>
-    let bytes = Bytes.make(2, Char.chr(0));
-    Bytes.set_int16_be(bytes, 0, int);
-    output_bytes(channel, bytes);
-  | Int(int32) =>
-    let bytes = Bytes.make(4, Char.chr(0));
-    Bytes.set_int32_be(bytes, 0, int32);
-    output_bytes(channel, bytes);
-  | Long(int64) =>
-    let bytes = Bytes.make(8, Char.chr(0));
-    Bytes.set_int64_be(bytes, 0, int64);
-    output_bytes(channel, bytes);
-  | Float(float) =>
-    let bytes = Bytes.make(4, Char.chr(0));
-    Int32.bits_of_float(float) |> Bytes.set_int32_be(bytes, 0, _);
-    output_bytes(channel, bytes);
-  | Double(float) =>
-    let bytes = Bytes.make(8, Char.chr(0));
-    Int64.bits_of_float(float) |> Bytes.set_int64_be(bytes, 0, _);
-    output_bytes(channel, bytes);
-  | Byte_array(byte_array) =>
-    let size = Bigarray.Array1.dim(byte_array);
-    print_payload_contents(channel, Int(Int32.of_int(size)));
-    for (i in 0 to pred(size)) {
-      output_byte(channel, byte_array.{i} |> int_of_char);
-    };
-  | String(string) =>
-    print_payload_contents(channel, Short(String.length(string)));
-    output_string(channel, string);
-  | List(list) =>
-    let tag =
-      switch (list) {
-      | [hd, ..._] => tag_of_payload(hd)
-      | [] => End_tag
-      };
-    if (List.exists(elem => tag_of_payload(elem) != tag, list)) {
-      raise(Malformed_nbt(payload));
-    };
-    print_tag(channel, tag);
-    print_payload_contents(channel, Int(List.length(list) |> Int32.of_int));
-    List.iter(elem => print_payload_contents(channel, elem), list);
-  | Compound(list) =>
-    List.iter(print_node(channel, _), list);
-    print_tag(channel, End_tag);
-  | Int_array(int_array) =>
-    let size = Bigarray.Array1.dim(int_array);
-    print_payload_contents(channel, Int(Int32.of_int(size)));
-    for (i in 0 to pred(size)) {
-      print_payload_contents(channel, Int(int_array.{i}));
-    };
-  | Long_array(long_array) =>
-    let size = Bigarray.Array1.dim(long_array);
-    print_payload_contents(channel, Int(Int32.of_int(size)));
-    for (i in 0 to pred(size)) {
-      print_payload_contents(channel, Long(long_array.{i}));
-    };
-  }
+let (>:) = (name, payload) => {name, payload};
 
-/** print_node prints the tag, node name, then node payload */
-and print_node = (channel, node) => {
-  print_tag(channel, tag_of_payload(node.payload));
-  print_payload_contents(channel, Short(String.length(node.name)));
-  output_string(channel, node.name);
-  print_payload_contents(channel, node.payload);
+let make_byte_array = arr => {
+  let ba = Bigarray.(Array1.of_array(Int8_signed, C_layout, arr));
+  Byte_array(ba);
 };
