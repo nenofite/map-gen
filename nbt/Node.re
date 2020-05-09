@@ -67,7 +67,20 @@ let tag_of_payload =
 
 let (>:) = (name, payload) => {name, payload};
 
+/** make_byte_array provides convenience by converting an array into a Bigarray */
 let make_byte_array = arr => {
   let ba = Bigarray.(Array1.of_array(Int8_signed, C_layout, arr));
   Byte_array(ba);
+};
+
+/** make_int_array provides convenience by converting an array into a Bigarray */
+let make_int_array = arr => {
+  let ba = Bigarray.(Array1.of_array(Int32, C_layout, arr));
+  Int_array(ba);
+};
+
+/** make_long_array provides convenience by converting an array into a Bigarray */
+let make_long_array = arr => {
+  let ba = Bigarray.(Array1.of_array(Int64, C_layout, arr));
+  Long_array(ba);
 };

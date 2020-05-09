@@ -72,14 +72,19 @@ and print_node = (channel, node) => {
 
 let test = () => {
   let n =
-    Node.{
-      name: "root",
-      payload:
-        Compound([
-          "something" >: make_byte_array([|1, 2, 3|]),
-          "else" >: List([String("hello"), String("world")]),
-        ]),
-    };
+    Node.(
+      "root"
+      >: Compound([
+           "something" >: make_byte_array([|1, 2, 3|]),
+           "else" >: List([String("hello"), String("world")]),
+           "many \"things\""
+           >: Compound([
+                "one" >: Int(1l),
+                "two" >: Float(2.),
+                "three" >: Double(Float.pi),
+              ]),
+         ])
+    );
   print_node(stdout, n);
   print_newline();
 };
