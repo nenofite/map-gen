@@ -1,3 +1,3 @@
 (library
     (name Minecraft)
-    (libraries Nbt))
+    (libraries Nbt zlib))

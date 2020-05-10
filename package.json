@@ -5,22 +5,15 @@
   "license": "MIT",
   "esy": {
     "build": "refmterr dune build -p #{self.name}",
-    "release": {
-      "bin": [
-        "Main"
-      ]
-    },
-    "buildEnv": {
-      "ODOC_SYNTAX": "re"
-    }
+    "release": { "bin": [ "Main" ] },
+    "buildEnv": { "ODOC_SYNTAX": "re" }
   },
-  "scripts": {
-    "doc": "esy dune build @doc"
-  },
+  "scripts": { "doc": "esy dune build @doc" },
   "dependencies": {
     "@esy-ocaml/reason": ">= 3.4.0 < 3.6.0",
     "@opam/ANSITerminal": "~0.8.2",
     "@opam/dune": "*",
+    "@opam/zlib": "0.6",
     "ocaml": "~4.8.1000",
     "refmterr": "*"
   },
