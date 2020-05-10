@@ -118,6 +118,16 @@ let height_at = (chunk, x, z) => {
   height_at'(chunk, x, y, z);
 };
 
+/** has_blocks is true iff the chunk contains at least one non-Air block */
+let has_blocks = chunk => {
+  Array.exists(
+    zys =>
+      Array.exists(ys => Array.exists(block => block != Block.Air, ys), zys),
+    /* TODO check other sections */
+    chunk.sections[0].blocks,
+  );
+};
+
 /* Saving */
 
 let section_i_of_xyz = (x, y, z) => {
@@ -179,12 +189,14 @@ let chunk_heightmap = chunk => {
 };
 
 let chunk_nbt = (chunk, cx, cz) => {
-  let sections =
-    Array.mapi(
-      (section_y, section) => section_nbt(section, section_y).payload,
-      chunk.sections,
-    )
-    |> Array.to_list;
+  /* let sections =
+     Array.mapi(
+       (section_y, section) => section_nbt(section, section_y).payload,
+       chunk.sections,
+     )
+     |> Array.to_list; */
+  /* TODO save all non-empty sections */
+  let sections = [section_nbt(chunk.sections[0], 0).payload];
   let heightmap = chunk_heightmap(chunk);
   Nbt.Node.(
     ""
@@ -252,54 +264,58 @@ let save_region = (region_path, tree, rx, rz) => {
       for (z in 0 to pred(region_side)) {
         for (x in 0 to pred(region_side)) {
           let i = z * region_side + x;
+          let chunk = region.chunks[x][z];
+          if (has_blocks(chunk)) {
+            /* Make sure we're at the start of a sector */
+            assert(pos_out(f) mod sector_bytes == 0);
 
-          /* Make sure we're at the start of a sector */
-          assert(pos_out(f) mod sector_bytes == 0);
-
-          /* Deflate chunk NBT. Keep chunk NBT and buffer in smaller scope to reduce memory, perhaps */
-          let chunk_deflated = {
-            let chunk = chunk_nbt(region.chunks[x][z], x, z);
-            Nbt.Nbt_printer.print_nbt(~gzip=false, chunk);
-          };
-
-          let start = pos_out(f);
-          let offset_sectors = start / sector_bytes;
-          let length = Int32.of_int(Bigarray.Array1.dim(chunk_deflated) + 1);
-          /* 4 bytes of length. Always use version 2 */
-          let%bitstring sector_header = {| length : 32; 2 : 8 |};
-          Bitstring.bitstring_to_chan(sector_header, f);
-          /* Write the deflated chunk */
-          for (cd_i in 0 to pred(Bigarray.Array1.dim(chunk_deflated))) {
-            output_char(f, chunk_deflated.{cd_i});
-          };
-
-          /* Move up to the next 4 KB sector */
-          let until_next_sector = sector_bytes - pos_out(f) mod sector_bytes;
-          if (until_next_sector < sector_bytes) {
-            for (_ in 0 to pred(until_next_sector)) {
-              output_byte(f, 0);
+            /* Deflate chunk NBT. Keep chunk NBT and buffer in smaller scope to reduce memory, perhaps */
+            let chunk_deflated = {
+              let nbt = chunk_nbt(chunk, x, z);
+              Nbt.Nbt_printer.print_nbt(~gzip=false, nbt);
             };
+
+            let start = pos_out(f);
+            let offset_sectors = start / sector_bytes;
+            let length =
+              Int32.of_int(Bigarray.Array1.dim(chunk_deflated) + 1);
+            /* 4 bytes of length. Always use version 2 */
+            let%bitstring sector_header = {| length : 32; 2 : 8 |};
+            Bitstring.bitstring_to_chan(sector_header, f);
+            /* Write the deflated chunk */
+            for (cd_i in 0 to pred(Bigarray.Array1.dim(chunk_deflated))) {
+              output_char(f, chunk_deflated.{cd_i});
+            };
+
+            /* Move up to the next 4 KB sector */
+            let until_next_sector =
+              sector_bytes - pos_out(f) mod sector_bytes;
+            if (until_next_sector < sector_bytes) {
+              for (_ in 0 to pred(until_next_sector)) {
+                output_byte(f, 0);
+              };
+            };
+            /* Make sure we're at the start of a sector */
+            assert(pos_out(f) mod sector_bytes == 0);
+
+            /*
+              We know we're at the next sector boundary, so it'll divide into a
+              whole number. Otherwise we'd have to use float division and take
+              the ceiling.
+             */
+            let length_sectors = (pos_out(f) - start) / sector_bytes;
+
+            /* Store the offset and length into the header bytes */
+            /* let%bitstring header_offset_size = {| offset_sectors : 24; length_sectors : 8 |}; */
+            let header_byte =
+              Int32.(
+                logor(
+                  shift_left(of_int(offset_sectors), 8),
+                  logand(of_int(length_sectors), 0xFFl),
+                )
+              );
+            Bytes.set_int32_be(chunk_offset_sizes, i * 4, header_byte);
           };
-          /* Make sure we're at the start of a sector */
-          assert(pos_out(f) mod sector_bytes == 0);
-
-          /*
-            We know we're at the next sector boundary, so it'll divide into a
-            whole number. Otherwise we'd have to use float division and take
-            the ceiling.
-           */
-          let length_sectors = (pos_out(f) - start) / sector_bytes;
-
-          /* Store the offset and length into the header bytes */
-          /* let%bitstring header_offset_size = {| offset_sectors : 24; length_sectors : 8 |}; */
-          let header_byte =
-            Int32.(
-              logor(
-                shift_left(of_int(offset_sectors), 8),
-                logand(of_int(length_sectors), 0xFFl),
-              )
-            );
-          Bytes.set_int32_be(chunk_offset_sizes, i * 4, header_byte);
         };
       };
 
