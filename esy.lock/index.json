@@ -1,5 +1,5 @@
 {
-  "checksum": "aa0d83375c21dbec9513cf2988c48c72",
+  "checksum": "62efc082cf9667ed7a75aa6d9b18a4a5",
   "root": "map-gen@link-dev:./package.json",
   "node": {
     "yarn-pkg-config@github:esy-ocaml/yarn-pkg-config#db3a0b63883606dd57c54a7158d560d6cba8cd79@d41d8cd9": {
@@ -65,6 +65,7 @@
       "dependencies": [
         "refmterr@3.3.0@d41d8cd9", "ocaml@4.8.1000@d41d8cd9",
         "@opam/zlib@opam:0.6@c1c02a30", "@opam/dune@opam:1.11.4@a7ccb7ae",
+        "@opam/bitstring@opam:3.1.1@b8828896",
         "@opam/ANSITerminal@opam:0.8.2@9823a93b",
         "@esy-ocaml/reason@3.5.2@d41d8cd9"
       ],
@@ -385,6 +386,31 @@
         "ocaml@4.8.1000@d41d8cd9", "@opam/ocamlbuild@opam:0.14.0@6ac75d03"
       ]
     },
+    "@opam/stdlib-shims@opam:0.1.0@d957c903": {
+      "id": "@opam/stdlib-shims@opam:0.1.0@d957c903",
+      "name": "@opam/stdlib-shims",
+      "version": "opam:0.1.0",
+      "source": {
+        "type": "install",
+        "source": [
+          "archive:https://opam.ocaml.org/cache/md5/12/12b5704eed70c6bff5ac39a16db1425d#md5:12b5704eed70c6bff5ac39a16db1425d",
+          "archive:https://github.com/ocaml/stdlib-shims/releases/download/0.1.0/stdlib-shims-0.1.0.tbz#md5:12b5704eed70c6bff5ac39a16db1425d"
+        ],
+        "opam": {
+          "name": "stdlib-shims",
+          "version": "0.1.0",
+          "path": "esy.lock/opam/stdlib-shims.0.1.0"
+        }
+      },
+      "overrides": [],
+      "dependencies": [
+        "ocaml@4.8.1000@d41d8cd9", "@opam/dune@opam:1.11.4@a7ccb7ae",
+        "@esy-ocaml/substs@0.0.1@d41d8cd9"
+      ],
+      "devDependencies": [
+        "ocaml@4.8.1000@d41d8cd9", "@opam/dune@opam:1.11.4@a7ccb7ae"
+      ]
+    },
     "@opam/seq@opam:base@d8d7de1d": {
       "id": "@opam/seq@opam:base@d8d7de1d",
       "name": "@opam/seq",
@@ -477,6 +503,34 @@
       ],
       "devDependencies": [
         "ocaml@4.8.1000@d41d8cd9", "@opam/seq@opam:base@d8d7de1d",
+        "@opam/dune@opam:1.11.4@a7ccb7ae"
+      ]
+    },
+    "@opam/ppx_tools_versioned@opam:5.4.0@48c10ee1": {
+      "id": "@opam/ppx_tools_versioned@opam:5.4.0@48c10ee1",
+      "name": "@opam/ppx_tools_versioned",
+      "version": "opam:5.4.0",
+      "source": {
+        "type": "install",
+        "source": [
+          "archive:https://opam.ocaml.org/cache/md5/3e/3e809a11cae99f57c051d3d0100311f6#md5:3e809a11cae99f57c051d3d0100311f6",
+          "archive:https://github.com/ocaml-ppx/ppx_tools_versioned/archive/5.4.0.tar.gz#md5:3e809a11cae99f57c051d3d0100311f6"
+        ],
+        "opam": {
+          "name": "ppx_tools_versioned",
+          "version": "5.4.0",
+          "path": "esy.lock/opam/ppx_tools_versioned.5.4.0"
+        }
+      },
+      "overrides": [],
+      "dependencies": [
+        "ocaml@4.8.1000@d41d8cd9",
+        "@opam/ocaml-migrate-parsetree@opam:1.7.3@dbcf3b47",
+        "@opam/dune@opam:1.11.4@a7ccb7ae", "@esy-ocaml/substs@0.0.1@d41d8cd9"
+      ],
+      "devDependencies": [
+        "ocaml@4.8.1000@d41d8cd9",
+        "@opam/ocaml-migrate-parsetree@opam:1.7.3@dbcf3b47",
         "@opam/dune@opam:1.11.4@a7ccb7ae"
       ]
     },
@@ -1224,6 +1278,35 @@
       ],
       "devDependencies": [
         "ocaml@4.8.1000@d41d8cd9", "@opam/dune@opam:1.11.4@a7ccb7ae"
+      ]
+    },
+    "@opam/bitstring@opam:3.1.1@b8828896": {
+      "id": "@opam/bitstring@opam:3.1.1@b8828896",
+      "name": "@opam/bitstring",
+      "version": "opam:3.1.1",
+      "source": {
+        "type": "install",
+        "source": [
+          "archive:https://opam.ocaml.org/cache/md5/eb/ebf52fe55946c70aa7cb3fe51905b830#md5:ebf52fe55946c70aa7cb3fe51905b830",
+          "archive:https://bitbucket.org/thanatonauts/bitstring/get/v3.1.1.tar.gz#md5:ebf52fe55946c70aa7cb3fe51905b830"
+        ],
+        "opam": {
+          "name": "bitstring",
+          "version": "3.1.1",
+          "path": "esy.lock/opam/bitstring.3.1.1"
+        }
+      },
+      "overrides": [],
+      "dependencies": [
+        "ocaml@4.8.1000@d41d8cd9", "@opam/stdlib-shims@opam:0.1.0@d957c903",
+        "@opam/ppx_tools_versioned@opam:5.4.0@48c10ee1",
+        "@opam/ocaml-migrate-parsetree@opam:1.7.3@dbcf3b47",
+        "@opam/dune@opam:1.11.4@a7ccb7ae", "@esy-ocaml/substs@0.0.1@d41d8cd9"
+      ],
+      "devDependencies": [
+        "ocaml@4.8.1000@d41d8cd9", "@opam/stdlib-shims@opam:0.1.0@d957c903",
+        "@opam/ocaml-migrate-parsetree@opam:1.7.3@dbcf3b47",
+        "@opam/dune@opam:1.11.4@a7ccb7ae"
       ]
     },
     "@opam/biniou@opam:1.2.1@d7570399": {

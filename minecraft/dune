@@ -1,3 +1,4 @@
 (library
     (name Minecraft)
-    (libraries Nbt))
+    (libraries Nbt bitstring)
+    (preprocess (pps bitstring.ppx)))

@@ -12,6 +12,7 @@
   "dependencies": {
     "@esy-ocaml/reason": ">= 3.4.0 < 3.6.0",
     "@opam/ANSITerminal": "~0.8.2",
+    "@opam/bitstring": "3.1.1",
     "@opam/dune": "*",
     "@opam/zlib": "0.6",
     "ocaml": "~4.8.1000",
