@@ -73,12 +73,15 @@ let print_nbt = (~gzip=true, node: Node.t): big_string => {
     input.{i} = Buffer.nth(input_buffer, i);
   };
 
-  /* Run Zlib. window_bits > 15 to ask it to produce Gzip headers */
+  /*
+     Run Zlib. window_bits > 15 to ask it to produce Gzip headers, negative
+     window_bits to ask it to do a raw deflate
+   */
   let zlib =
     if (gzip) {
       Zlib.create_deflate(~window_bits=15 + 16, ());
     } else {
-      Zlib.create_deflate();
+      Zlib.create_deflate(~window_bits=15, ());
     };
   /* Add 1KB breathing room for Gzip header--should be more than enough */
   let output_upper_bound =
@@ -100,21 +103,26 @@ let print_nbt_f = (~gzip=?, f: out_channel, node: Node.t): unit => {
   };
 };
 
+/** test prints every possible tag type to make sure it works */
 let test = () => {
   let n =
     Node.(
       ""
       >: Compound([
-           "root"
+           "compound"
            >: Compound([
-                "something" >: make_byte_array([|1, 2, 3|]),
-                "else" >: List([String("hello"), String("world")]),
-                "many.things."
-                >: Compound([
-                     "one" >: Int(1l),
-                     "two" >: Float(2.),
-                     "three" >: Double(3.14),
-                   ]),
+                "byte" >: Byte(37),
+                "short" >: Short(427),
+                "int" >: Int(3030l),
+                "long" >: Long(12345L),
+                "float" >: Float(1.3),
+                "double" >: Double(1.4),
+                "byte array" >: make_byte_array([|1, 2, 3|]),
+                "string" >: String("hello world"),
+                "list" >: List([String("a"), String("b"), String("c")]),
+                "int array" >: make_int_array([|4l, 5l, 6l|]),
+                "long array" >: make_long_array([|7L, 8L, 9L|]),
+                "empty list" >: List([]),
               ]),
          ])
     );
