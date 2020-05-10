@@ -40,9 +40,9 @@ let save = (level_path, level) => {
   /* Create level.dat */
   let level_dat_path = Filename.concat(level_path, "level.dat");
   let level_dat_nbt = level_dat(level);
-  Utils.write_file(level_dat_path, f =>
-    Nbt.Nbt_printer.print_node(f, level_dat_nbt)
-  );
+  Utils.write_file(level_dat_path, f => {
+    Nbt.Nbt_printer.print_node_f(f, level_dat_nbt)
+  });
 
   /* Create the region directory */
   let region_path = Filename.concat(level_path, "region");

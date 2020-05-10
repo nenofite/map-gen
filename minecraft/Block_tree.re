@@ -204,6 +204,22 @@ let chunk_nbt = (chunk, cx, cz) => {
   );
 };
 
+/** deflate_buffer uses Zlib to deflate a buffer. Returns a Bigarray, as that's what the Zlib binding uses */
+let deflate_buffer = buffer => {
+  /* Copy input into Bigarray */
+  let length = Buffer.length(buffer);
+  let input = Bigarray.(Array1.create(Char, C_layout, length));
+  for (i in 0 to pred(length)) {
+    input.{i} = Buffer.nth(buffer, i);
+  };
+  /* Run Zlib */
+  let zlib = Zlib.create_deflate();
+  zlib.in_buf = input;
+  let status = Zlib.(flate(zlib, Finish));
+  assert(status == Zlib.Stream_end);
+  zlib.out_buf;
+};
+
 /** sector_bytes is 4 KB, the size of one sector in a region file */
 let sector_bytes = 4096;
 
@@ -252,13 +268,25 @@ let save_region = (region_path, tree, rx, rz) => {
       for (z in 0 to pred(region_side)) {
         for (x in 0 to pred(region_side)) {
           let i = z * region_side + x;
-          let chunk = chunk_nbt(region.chunks[x][z], x, z);
 
-          /* TODO compression somehow */
+          /* Deflate chunk NBT. Keep chunk NBT and buffer in smaller scope to reduce memory, perhaps */
+          let chunk_deflated = {
+            let chunk = chunk_nbt(region.chunks[x][z], x, z);
+            let chunk_buffer = Buffer.create(sector_bytes);
+            Nbt.Nbt_printer.print_node(chunk_buffer, chunk);
+            deflate_buffer(chunk_buffer);
+          };
+
           let start = pos_out(f);
-          let offset = start / sector_bytes;
-          /* TODO length and version bytes */
-          Nbt.Nbt_printer.print_node(f, chunk);
+          let offset = Int32.of_int(start / sector_bytes);
+          /* 4 bytes of length. Add 1 for version byte */
+          output_binary_int(f, Bigarray.Array1.dim(chunk_deflated) + 1);
+          /* Version byte */
+          output_byte(f, 2);
+          /* Write the deflated chunk */
+          for (cd_i in 0 to pred(Bigarray.Array1.dim(chunk_deflated))) {
+            output_char(f, chunk_deflated.{cd_i});
+          };
 
           /* Move up to the next 4 KB sector */
           let pos = pos_out(f);
@@ -274,10 +302,11 @@ let save_region = (region_path, tree, rx, rz) => {
             whole number. Otherwise we'd have to use float division and take
             the ceiling.
            */
-          let length = (pos_out(f) - start) / sector_bytes;
+          let length = Int32.of_int((pos_out(f) - start) / sector_bytes);
 
           /* Store the offset and length into the header bytes */
-          let header_byte = offset lsl 8 lor (length land 0xFF);
+          let header_byte =
+            Int32.(logor(shift_left(offset, 8), logand(length, 0xFFl)));
           Bytes.set_int32_be(chunk_offset_sizes, i * 4, header_byte);
         };
       };
