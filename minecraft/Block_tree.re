@@ -7,15 +7,15 @@ type chunk = {sections: array(section)};
 /** region is 32x32 chunks */
 type region = {chunks: array(array(chunk))};
 
-type t = {
-  regions: Hashtbl.t((int, int), region),
-  generator: Generator.t,
-};
+type t = {regions: Hashtbl.t((int, int), region)};
 
 let chunk_side = 16;
 let section_volume = chunk_side * chunk_side * chunk_side;
 let chunk_sections = 16;
 let region_side = 32;
+
+/** create creates an empty block tree with no regions yet */
+let create = () => {regions: Hashtbl.create(16)};
 
 let make_empty_section = (_cx, _cz, _section_y) => {
   blocks:
