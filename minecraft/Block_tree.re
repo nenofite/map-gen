@@ -13,6 +13,7 @@ type t = {
 };
 
 let chunk_side = 16;
+let section_volume = chunk_side * chunk_side * chunk_side;
 let chunk_sections = 16;
 let region_side = 32;
 
@@ -102,7 +103,106 @@ let set_block = (chunk, x, y, z, block) => {
   chunk.sections[section_y].blocks[x][z][y] = block;
 };
 
+let rec height_at' = (chunk, x, y, z) =>
+  if (y > 0) {
+    switch (get_block(chunk, x, y, z)) {
+    | Air => height_at'(chunk, x, y - 1, z)
+    | _ => y
+    };
+  } else {
+    0;
+  };
+/** height_at is the y-coord of the highest non-Air block */
+let height_at = (chunk, x, z) => {
+  let y = chunk_side * chunk_sections - 1;
+  height_at'(chunk, x, y, z);
+};
+
 /* Saving */
+
+let section_i_of_xyz = (x, y, z) => {
+  assert_xyz(x, y, z);
+  y * chunk_side * chunk_side + z * chunk_side + x;
+};
+
+let section_xyz_of_i = i => {
+  let y = i / chunk_side / chunk_side;
+  let i = i - y * chunk_side * chunk_side;
+  let z = i / chunk_side;
+  let i = i - z * chunk_side;
+  let x = i;
+  assert_xyz(x, y, z);
+  (x, y, z);
+};
+
+let section_nbt = (section, section_y) => {
+  let block_ids =
+    Nibble_array.init(
+      section_volume,
+      i => {
+        let (x, y, z) = section_xyz_of_i(i);
+        Block.id(section.blocks[x][z][y]);
+      },
+    );
+  let block_data =
+    Nibble_array.init(
+      section_volume,
+      i => {
+        let (x, y, z) = section_xyz_of_i(i);
+        Block.data(section.blocks[x][z][y]);
+      },
+    );
+  /* 4 bits per block in the section, all zeros */
+  let zeros = Array.make(chunk_side * chunk_side * chunk_side / 2, 0);
+  Nbt.Node.(
+    ""
+    >: Compound([
+         "Blocks" >: make_byte_array(block_ids),
+         "Data" >: make_byte_array(block_data),
+         "BlockLight" >: make_byte_array(zeros),
+         "SkyLight" >: make_byte_array(zeros), /* TODO once we calculate sky light */
+         "Y" >: Byte(section_y),
+       ])
+  );
+};
+
+let chunk_heightmap = chunk => {
+  Array.init(
+    chunk_side * chunk_side,
+    i => {
+      let z = i / chunk_side;
+      let i = i - z * chunk_side;
+      let x = i;
+      height_at(chunk, x, z) |> Int32.of_int;
+    },
+  );
+};
+
+let chunk_nbt = (chunk, cx, cz) => {
+  let sections =
+    Array.mapi(
+      (section_y, section) => section_nbt(section, section_y).payload,
+      chunk.sections,
+    )
+    |> Array.to_list;
+  let heightmap = chunk_heightmap(chunk);
+  Nbt.Node.(
+    ""
+    >: Compound([
+         "Level"
+         >: Compound([
+              "Sections" >: List(sections),
+              "xPos" >: Int(cx |> Int32.of_int),
+              "zPos" >: Int(cz |> Int32.of_int),
+              "LastUpdate" >: Long(Utils.time_ms()),
+              "V" >: Byte(1),
+              "LightPopulated" >: Byte(0), /* maybe by leaving this as 0, Minecraft will calculate for us? */
+              "TerrainPopulated" >: Byte(1),
+              "HeightMap" >: make_int_array(heightmap),
+            ]),
+       ])
+  );
+};
 
 /** save_region writes the given region to storage */
 let save_region = (region_path, tree, rx, rz) => {
