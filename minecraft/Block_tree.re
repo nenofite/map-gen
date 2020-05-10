@@ -204,10 +204,88 @@ let chunk_nbt = (chunk, cx, cz) => {
   );
 };
 
-/** save_region writes the given region to storage */
+/** sector_bytes is 4 KB, the size of one sector in a region file */
+let sector_bytes = 4096;
+
+/**
+  save_region writes the given region to storage
+
+  Region files are split into 4KB sectors. The first two sectors are headers:
+
+  - Sector 0: 3 bytes per chunk listing the sector # where that chunk starts
+    and 1 byte listing # of sectors in length. Chunks are in [[z][x]] order.
+  - Sector 1: 4 bytes per chunk listing the modification timestamp of that
+    chunk. Same order as above.
+
+  After that, each region can take 1 or more sectors to write its NBT. At the start of each chunk are 5 bytes:
+
+  - A 4 byte integer describing the size in bytes of the chunk, not including this integer.
+  - One byte describing the version. We currently only use 2, which means Zlib-compressed NBT.
+  - [length - 1] bytes of compressed chunk NBT data.
+*/
 let save_region = (region_path, tree, rx, rz) => {
-  let _region = get_region(tree, rx, rz);
+  let region = get_region(tree, rx, rz);
   let region_file_path =
     Printf.sprintf("r.%d.%d.mca", rx, rz) |> Filename.concat(region_path, _);
-  Utils.write_file(region_file_path, f => {output_string(f, "todo :(\n")});
+  Utils.write_file(
+    region_file_path,
+    f => {
+      /* Write chunk sector offsets & lengths */
+      /*
+        First we'll write them all as zero, then we'll update the byte array as
+        we serialize chunks. Finally at the end we'll rewind the file and write
+        the updated bytes.
+       */
+      let chunk_offset_sizes =
+        Bytes.make(4 * region_side * region_side, Char.chr(0));
+      output_bytes(f, chunk_offset_sizes);
+
+      /* Write modification times (repeat current time 32 * 32 times) */
+      let now = Utils.time_ms() |> Int64.to_int32(_);
+      let now_bytes = Bytes.create(4);
+      Bytes.set_int32_be(now_bytes, 0, now);
+      for (_ in 0 to pred(region_side * region_side)) {
+        output_bytes(f, now_bytes);
+      };
+
+      /* Write each chunk */
+      for (z in 0 to pred(region_side)) {
+        for (x in 0 to pred(region_side)) {
+          let i = z * region_side + x;
+          let chunk = chunk_nbt(region.chunks[x][z], x, z);
+
+          /* TODO compression somehow */
+          let start = pos_out(f);
+          let offset = start / sector_bytes;
+          /* TODO length and version bytes */
+          Nbt.Nbt_printer.print_node(f, chunk);
+
+          /* Move up to the next 4 KB sector */
+          let pos = pos_out(f);
+          if (pos mod sector_bytes != 0) {
+            let until_next_sector = sector_bytes - pos mod sector_bytes;
+            for (_ in 0 to pred(until_next_sector)) {
+              output_byte(f, 0);
+            };
+          };
+
+          /*
+            We know we're at the next sector boundary, so it'll divide into a
+            whole number. Otherwise we'd have to use float division and take
+            the ceiling.
+           */
+          let length = (pos_out(f) - start) / sector_bytes;
+
+          /* Store the offset and length into the header bytes */
+          let header_byte = offset lsl 8 lor (length land 0xFF);
+          Bytes.set_int32_be(chunk_offset_sizes, i * 4, header_byte);
+        };
+      };
+
+      seek_out(f, 0);
+      output_bytes(f, chunk_offset_sizes);
+    },
+  );
 };
+
+save_region;
