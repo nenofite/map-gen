@@ -11,7 +11,7 @@ let save = world => {
   let worlds_path = Filename.concat(base_path, "worlds");
   let level_path = Filename.concat(worlds_path, world.level.name);
 
-  Unix.mkdir(level_path, 0);
+  Utils.mkdir(level_path);
 
   /* Create the lock file */
   let session_lock_path = Filename.concat(level_path, "session.lock");

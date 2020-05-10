@@ -47,7 +47,7 @@ let save = (level_path, level) => {
 
   /* Create the region directory */
   let region_path = Filename.concat(level_path, "region");
-  Unix.mkdir(region_path, 0);
+  Utils.mkdir(region_path);
   /*
     TODO heightmaps and sunlight should be calculated, though perhaps
     separately from the save function
