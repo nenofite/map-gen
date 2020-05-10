@@ -16,7 +16,7 @@ let save = world => {
   /* Create the lock file */
   let session_lock_path = Filename.concat(level_path, "session.lock");
   Utils.write_file(session_lock_path, f => {
-    Printf.fprintf(f, "%Ld", Utils.time_ms())
+    Utils.output_int64_be(f, Utils.time_ms())
   });
 
   /* Save each level */
