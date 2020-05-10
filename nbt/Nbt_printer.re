@@ -53,9 +53,72 @@ and print_node = (buffer: Buffer.t, node: Node.t): unit => {
   print_payload_contents(buffer, node.payload);
 };
 
-/** print_node_f is a convenience over print_node which handles the Buffer for you */
-let print_node_f = (file: out_channel, node: Node.t): unit => {
-  let buffer = Buffer.create(16);
-  print_node(buffer, node);
-  Buffer.output_buffer(file, buffer);
+type big_string =
+  Bigarray.Array1.t(char, Bigarray.int8_unsigned_elt, Bigarray.c_layout);
+
+/**
+  print_nbt prints a full NBT file, Gzips it, and returns the bytes
+
+  If gzip is false, the output is deflated rather than gzip'd
+ */
+let print_nbt = (~gzip=true, node: Node.t): big_string => {
+  /* Print uncompressed NBT to a buffer */
+  let input_buffer = Buffer.create(16);
+  print_node(input_buffer, node);
+
+  /* Buffer -> Bigarray */
+  let input_length = Buffer.length(input_buffer);
+  let input = Bigarray.(Array1.create(Char, C_layout, input_length));
+  for (i in 0 to pred(input_length)) {
+    input.{i} = Buffer.nth(input_buffer, i);
+  };
+
+  /* Run Zlib. window_bits > 15 to ask it to produce Gzip headers */
+  let zlib =
+    if (gzip) {
+      Zlib.create_deflate(~window_bits=15 + 16, ());
+    } else {
+      Zlib.create_deflate();
+    };
+  /* Add 1KB breathing room for Gzip header--should be more than enough */
+  let output_upper_bound =
+    Zlib.deflate_bound(zlib.state, input_length) + 1024;
+  zlib.in_buf = input;
+  zlib.out_buf = Bigarray.(Array1.create(Char, C_layout, output_upper_bound));
+  let status = Zlib.(flate(zlib, Finish));
+  assert(status == Zlib.Stream_end);
+
+  /* Trim output */
+  Bigarray.Array1.sub(zlib.out_buf, 0, zlib.out_total);
+};
+
+/** print_nbt_f runs print_nbt and outputs the result */
+let print_nbt_f = (~gzip=?, f: out_channel, node: Node.t): unit => {
+  let bigstr = print_nbt(~gzip?, node);
+  for (i in 0 to pred(Bigarray.Array1.dim(bigstr))) {
+    output_char(f, bigstr.{i});
+  };
+};
+
+let test = () => {
+  let n =
+    Node.(
+      ""
+      >: Compound([
+           "root"
+           >: Compound([
+                "something" >: make_byte_array([|1, 2, 3|]),
+                "else" >: List([String("hello"), String("world")]),
+                "many.things."
+                >: Compound([
+                     "one" >: Int(1l),
+                     "two" >: Float(2.),
+                     "three" >: Double(3.14),
+                   ]),
+              ]),
+         ])
+    );
+  let f = open_out("test.nbt");
+  print_nbt_f(f, n);
+  close_out(f);
 };

@@ -204,22 +204,6 @@ let chunk_nbt = (chunk, cx, cz) => {
   );
 };
 
-/** deflate_buffer uses Zlib to deflate a buffer. Returns a Bigarray, as that's what the Zlib binding uses */
-let deflate_buffer = buffer => {
-  /* Copy input into Bigarray */
-  let length = Buffer.length(buffer);
-  let input = Bigarray.(Array1.create(Char, C_layout, length));
-  for (i in 0 to pred(length)) {
-    input.{i} = Buffer.nth(buffer, i);
-  };
-  /* Run Zlib */
-  let zlib = Zlib.create_deflate();
-  zlib.in_buf = input;
-  let status = Zlib.(flate(zlib, Finish));
-  assert(status == Zlib.Stream_end);
-  zlib.out_buf;
-};
-
 /** sector_bytes is 4 KB, the size of one sector in a region file */
 let sector_bytes = 4096;
 
@@ -272,9 +256,7 @@ let save_region = (region_path, tree, rx, rz) => {
           /* Deflate chunk NBT. Keep chunk NBT and buffer in smaller scope to reduce memory, perhaps */
           let chunk_deflated = {
             let chunk = chunk_nbt(region.chunks[x][z], x, z);
-            let chunk_buffer = Buffer.create(sector_bytes);
-            Nbt.Nbt_printer.print_node(chunk_buffer, chunk);
-            deflate_buffer(chunk_buffer);
+            Nbt.Nbt_printer.print_nbt(~gzip=false, chunk);
           };
 
           let start = pos_out(f);
