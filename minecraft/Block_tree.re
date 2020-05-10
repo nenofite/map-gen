@@ -317,4 +317,10 @@ let save_region = (region_path, tree, rx, rz) => {
   );
 };
 
-save_region;
+/** save writes all regions to storage */
+let save = (region_path, tree) => {
+  Hashtbl.iter(
+    ((rx, rz), _region) => save_region(region_path, tree, rx, rz),
+    tree.regions,
+  );
+};

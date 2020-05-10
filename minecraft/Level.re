@@ -1,8 +1,9 @@
-/** t is a Minecraft level, which contains multiple worlds */
+/** t is a Minecraft level */
 type t = {
   name: string,
   spawn: (int, int, int),
   generator: Generator.t,
+  tree: Block_tree.t,
 };
 
 /** level_dat is the NBT that should be written to "level.dat" */
@@ -52,5 +53,5 @@ let save = (level_path, level) => {
     separately from the save function
    */
   /* Save each region */
-  /* TODO */
+  Block_tree.save(region_path, level.tree);
 };
