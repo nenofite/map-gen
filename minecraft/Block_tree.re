@@ -103,6 +103,15 @@ let set_block = (chunk, x, y, z, block) => {
   chunk.sections[section_y].blocks[x][z][y] = block;
 };
 
+let set_block_any_chunk = (tree, x, y, z, block) => {
+  let cx = x / chunk_side;
+  let cz = z / chunk_side;
+  let x = x - cx * chunk_side;
+  let z = z - cz * chunk_side;
+  let chunk = get_chunk(tree, cx, cz);
+  set_block(chunk, x, y, z, block);
+};
+
 let rec height_at' = (chunk, x, y, z) =>
   if (y > 0) {
     switch (get_block(chunk, x, y, z)) {
