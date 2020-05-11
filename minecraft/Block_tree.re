@@ -147,7 +147,7 @@ let section_xyz_of_i = i => {
 
 let section_nbt = (section, section_y) => {
   let block_ids =
-    Nibble_array.init(
+    Array.init(
       section_volume,
       i => {
         let (x, y, z) = section_xyz_of_i(i);
