@@ -118,14 +118,19 @@ let height_at = (chunk, x, z) => {
   height_at'(chunk, x, y, z);
 };
 
-/** has_blocks is true iff the chunk contains at least one non-Air block */
-let has_blocks = chunk => {
-  Array.exists(
-    zys =>
-      Array.exists(ys => Array.exists(block => block != Block.Air, ys), zys),
-    /* TODO check other sections */
-    chunk.sections[0].blocks,
+/** section_has_blocks is true iff the section contains at least one non-Air block */
+let section_has_blocks = section => {
+  Array.(
+    exists(
+      zys => exists(ys => exists(block => block != Block.Air, ys), zys),
+      section.blocks,
+    )
   );
+};
+
+/** chunk_has_blocks is true iff the chunk contains at least one non-Air block */
+let chunk_has_blocks = chunk => {
+  Array.exists(section_has_blocks, chunk.sections);
 };
 
 /* Saving */
@@ -189,14 +194,16 @@ let chunk_heightmap = chunk => {
 };
 
 let chunk_nbt = (chunk, cx, cz) => {
-  /* let sections =
-     Array.mapi(
-       (section_y, section) => section_nbt(section, section_y).payload,
-       chunk.sections,
-     )
-     |> Array.to_list; */
-  /* TODO save all non-empty sections */
-  let sections = [section_nbt(chunk.sections[0], 0).payload];
+  /* Save all non-empty sections */
+  let sections =
+    List.(
+      Array.to_list(chunk.sections)
+      |> mapi((section_y, section) => (section_y, section), _)
+      |> filter(((_, section)) => section_has_blocks(section), _)
+      |> map(((section_y, section)) =>
+           section_nbt(section, section_y).payload
+         )
+    );
   let heightmap = chunk_heightmap(chunk);
   Nbt.Node.(
     ""
@@ -265,7 +272,7 @@ let save_region = (region_path, tree, rx, rz) => {
         for (x in 0 to pred(region_side)) {
           let i = z * region_side + x;
           let chunk = region.chunks[x][z];
-          if (has_blocks(chunk)) {
+          if (chunk_has_blocks(chunk)) {
             /* Make sure we're at the start of a sector */
             assert(pos_out(f) mod sector_bytes == 0);
 
