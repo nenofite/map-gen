@@ -1,11 +1,11 @@
 /** section is 16x16x16 blocks. Blocks are stored in [[x][z][y]] order. */
-type section = {blocks: array(array(array(Block.material)))};
+type section = {blocks: array(Block.material)};
 
-/** chunk is 16 sections stacked vertically */
-type chunk = {sections: array(section)};
-
-/** region is 32x32 chunks */
-type region = {chunks: array(array(chunk))};
+/**
+  region is 32x32 chunks and each chunk is 16 sections stacked vertically.
+  Sections are stored in [[x][z][y]] order
+ */
+type region = {sections: array(section)};
 
 type t = {regions: Hashtbl.t((int, int), region)};
 
@@ -17,30 +17,14 @@ let region_side = 32;
 /** create creates an empty block tree with no regions yet */
 let create = () => {regions: Hashtbl.create(16)};
 
-let make_empty_section = (_cx, _cz, _section_y) => {
-  blocks:
-    Array.(
-      init(chunk_side, _x =>
-        init(chunk_side, _z => make(chunk_side, Block.Air))
-      )
-    ),
+let make_empty_section = () => {
+  blocks: Array.make(chunk_side * chunk_side * chunk_side, Block.Air),
 };
 
-let make_empty_chunk = (cx, cz) => {
+let make_empty_region = () => {
   sections:
-    Array.init(chunk_sections, section_y =>
-      make_empty_section(cx, cz, section_y)
-    ),
-};
-
-let make_empty_region = (rx, rz) => {
-  chunks:
-    Array.(
-      init(region_side, cx_off =>
-        Array.init(region_side, cz_off =>
-          make_empty_chunk(rx + cx_off, rz + cz_off)
-        )
-      )
+    Array.init(region_side * region_side * chunk_sections, _ =>
+      make_empty_section()
     ),
 };
 
@@ -51,20 +35,25 @@ let get_region = (tree, rx, rz) => {
   switch (Hashtbl.find_opt(tree.regions, (rx, rz))) {
   | Some(region) => region
   | None =>
-    let region = make_empty_region(rx, rz);
+    let region = make_empty_region();
     Hashtbl.replace(tree.regions, (rx, rz), region);
     region;
   };
 };
 
-/** get_chunk retrieves the chunk at the given chunk-level coords. It creates the parent region if needed. */
-let get_chunk = (tree, cx, cz) => {
+/**
+  get_section retrieves the section at the given chunk-level coords and section
+  Y. It creates the parent region if needed.
+ */
+let get_section = (tree, cx, sy, cz) => {
+  assert(0 <= sy && sy < chunk_sections);
   let rx = cx / region_side;
   let rz = cz / region_side;
   let cx_off = cx - rx * region_side;
   let cz_off = cz - rz * region_side;
   let region = get_region(tree, rx, rz);
-  region.chunks[cx_off][cz_off];
+  let i = cx_off * region_side * chunk_sections + cz_off * chunk_sections + sy;
+  region.sections[i];
 };
 
 let assert_xyz = (x, y, z) =>
@@ -73,13 +62,12 @@ let assert_xyz = (x, y, z) =>
         && x < chunk_side
         && 0 <= y
         && y < chunk_side
-        * chunk_sections
         && 0 <= z
         && z < chunk_side
       )) {
     let msg =
       Printf.sprintf(
-        "local coordinates outside of chunk: (%d, %d, %d)",
+        "local coordinates outside of section: (%d, %d, %d)",
         x,
         y,
         z,
@@ -87,59 +75,79 @@ let assert_xyz = (x, y, z) =>
     raise(Invalid_argument(msg));
   };
 
-let get_block = (chunk, x, y, z) => {
+let get_block_in_section = (section, x, y, z) => {
   assert_xyz(x, y, z);
-  let section_y = y / chunk_side;
-  /* We know y >= 0, so it's safe to use mod */
-  let y = y mod chunk_side;
-  chunk.sections[section_y].blocks[x][z][y];
+  let i = x * chunk_side * chunk_side + z * chunk_side + y;
+  section.blocks[i];
 };
 
-let set_block = (chunk, x, y, z, block) => {
+let set_block_in_section = (section, x, y, z, block) => {
   assert_xyz(x, y, z);
-  let section_y = y / chunk_side;
-  /* We know y >= 0, so it's safe to use mod */
-  let y = y mod chunk_side;
-  chunk.sections[section_y].blocks[x][z][y] = block;
+  let i = x * chunk_side * chunk_side + z * chunk_side + y;
+  section.blocks[i] = block;
 };
 
-let set_block_any_chunk = (tree, x, y, z, block) => {
+let get_block = (tree, x, y, z) => {
   let cx = x / chunk_side;
+  let sy = y / chunk_side;
   let cz = z / chunk_side;
   let x = x - cx * chunk_side;
+  let y = y - sy * chunk_side;
   let z = z - cz * chunk_side;
-  let chunk = get_chunk(tree, cx, cz);
-  set_block(chunk, x, y, z, block);
+  let section = get_section(tree, cx, sy, cz);
+  get_block_in_section(section, x, y, z);
 };
 
-let rec height_at' = (chunk, x, y, z) =>
+let set_block = (tree, x, y, z, block) => {
+  let cx = x / chunk_side;
+  let sy = y / chunk_side;
+  let cz = z / chunk_side;
+  let x = x - cx * chunk_side;
+  let y = y - sy * chunk_side;
+  let z = z - cz * chunk_side;
+  let section = get_section(tree, cx, sy, cz);
+  set_block_in_section(section, x, y, z, block);
+};
+
+let rec height_at' = (tree, x, y, z) =>
   if (y > 0) {
-    switch (get_block(chunk, x, y, z)) {
-    | Air => height_at'(chunk, x, y - 1, z)
+    switch (get_block(tree, x, y, z)) {
+    | Air => height_at'(tree, x, y - 1, z)
     | _ => y
     };
   } else {
     0;
   };
 /** height_at is the y-coord of the highest non-Air block */
-let height_at = (chunk, x, z) => {
+let height_at = (tree, x, z) => {
   let y = chunk_side * chunk_sections - 1;
-  height_at'(chunk, x, y, z);
+  height_at'(tree, x, y, z);
 };
 
 /** section_has_blocks is true iff the section contains at least one non-Air block */
 let section_has_blocks = section => {
-  Array.(
-    exists(
-      zys => exists(ys => exists(block => block != Block.Air, ys), zys),
-      section.blocks,
-    )
-  );
+  Array.exists(block => block != Block.Air, section.blocks);
 };
 
+let rec chunk_has_blocks' = (tree, cx, sy, cz) =>
+  if (sy < chunk_sections) {
+    if (section_has_blocks(get_section(tree, cx, sy, cz))) {
+      true;
+    } else {
+      chunk_has_blocks'(tree, cx, sy + 1, cz);
+    };
+  } else {
+    false;
+  };
 /** chunk_has_blocks is true iff the chunk contains at least one non-Air block */
-let chunk_has_blocks = chunk => {
-  Array.exists(section_has_blocks, chunk.sections);
+let chunk_has_blocks = (tree, cx, cz) => {
+  /* Iterate from bottom to top since lower chunks are much more likely to have blocks */
+  chunk_has_blocks'(
+    tree,
+    cx,
+    0,
+    cz,
+  );
 };
 
 /* Saving */
@@ -159,29 +167,16 @@ let section_xyz_of_i = i => {
   (x, y, z);
 };
 
-let section_nbt = (section, section_y) => {
-  let block_ids =
-    Array.init(
-      section_volume,
-      i => {
-        let (x, y, z) = section_xyz_of_i(i);
-        Block.id(section.blocks[x][z][y]);
-      },
-    );
+let section_nbt = (section, sy) => {
+  let block_ids = Array.map(Block.id, section.blocks);
   let block_data =
-    Nibble_array.init(
-      section_volume,
-      i => {
-        let (x, y, z) = section_xyz_of_i(i);
-        Block.data(section.blocks[x][z][y]);
-      },
-    );
+    Nibble_array.init(section_volume, i => {Block.data(section.blocks[i])});
   Nbt.Node.(
     ""
     >: Compound([
          "Blocks" >: make_byte_array(block_ids),
          "Data" >: make_byte_array(block_data), /* TODO add support for block data */
-         "Y" >: Byte(section_y),
+         "Y" >: Byte(sy),
          /*
            Luckily we don't need to calculate and include light levels.
            Minecraft will do it for us when fixing the chunk
@@ -190,30 +185,30 @@ let section_nbt = (section, section_y) => {
   );
 };
 
-let chunk_heightmap = chunk => {
+let chunk_heightmap = (tree, cx, cz) => {
   Array.init(
     chunk_side * chunk_side,
     i => {
       let z = i / chunk_side;
       let i = i - z * chunk_side;
       let x = i;
-      height_at(chunk, x, z) |> Int32.of_int;
+      height_at(tree, cx * chunk_side + x, cz * chunk_side + z)
+      |> Int32.of_int;
     },
   );
 };
 
-let chunk_nbt = (chunk, cx, cz) => {
+let chunk_nbt = (tree, cx, cz) => {
   /* Save all non-empty sections */
   let sections =
     List.(
-      Array.to_list(chunk.sections)
-      |> mapi((section_y, section) => (section_y, section), _)
+      init(chunk_sections, sy => (sy, get_section(tree, cx, sy, cz)))
       |> filter(((_, section)) => section_has_blocks(section), _)
       |> map(((section_y, section)) =>
            section_nbt(section, section_y).payload
          )
     );
-  let heightmap = chunk_heightmap(chunk);
+  let heightmap = chunk_heightmap(tree, cx, cz);
   Nbt.Node.(
     ""
     >: Compound([
@@ -252,7 +247,7 @@ let sector_bytes = 4096;
   - [length - 1] bytes of compressed chunk NBT data.
 */
 let save_region = (region_path, tree, rx, rz) => {
-  let region = get_region(tree, rx, rz);
+  /* let region = get_region(tree, rx, rz); */
   let region_file_path =
     Printf.sprintf("r.%d.%d.mca", rx, rz) |> Filename.concat(region_path, _);
   Utils.write_file(
@@ -277,17 +272,16 @@ let save_region = (region_path, tree, rx, rz) => {
       };
 
       /* Write each chunk */
-      for (z in 0 to pred(region_side)) {
-        for (x in 0 to pred(region_side)) {
-          let i = z * region_side + x;
-          let chunk = region.chunks[x][z];
-          if (chunk_has_blocks(chunk)) {
+      for (cz in 0 to pred(region_side)) {
+        for (cx in 0 to pred(region_side)) {
+          let i = cz * region_side + cx;
+          if (chunk_has_blocks(tree, cx, cz)) {
             /* Make sure we're at the start of a sector */
             assert(pos_out(f) mod sector_bytes == 0);
 
             /* Deflate chunk NBT. Keep chunk NBT and buffer in smaller scope to reduce memory, perhaps */
             let chunk_deflated = {
-              let nbt = chunk_nbt(chunk, x, z);
+              let nbt = chunk_nbt(tree, cx, cz);
               Nbt.Nbt_printer.print_nbt(~gzip=false, nbt);
             };
 
