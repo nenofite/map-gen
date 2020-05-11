@@ -16,6 +16,17 @@ let test = () => {
   for (x in 0 to pred(Block_tree.chunk_side)) {
     for (z in 0 to pred(Block_tree.chunk_side)) {
       Block_tree.set_block(center, x, 0, z, Block.Dirt);
+      if (x == 0
+          || x == pred(Block_tree.chunk_side)
+          || z == 0
+          || z == pred(Block_tree.chunk_side)) {
+        Block_tree.set_block(center, x, 1, z, Block.Planks);
+        Block_tree.set_block(center, x, 2, z, Block.Planks);
+        for (y in 3 to 50) {
+          Block_tree.set_block(center, x, y, z, Block.Glass);
+        };
+      };
+      Block_tree.set_block(center, x, 100, z, Block.Dirt);
     };
   };
   World.save(world);
