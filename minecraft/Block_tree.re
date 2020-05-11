@@ -208,7 +208,7 @@ let chunk_nbt = (chunk, cx, cz) => {
               "zPos" >: Int(cz |> Int32.of_int),
               "LastUpdate" >: Long(Utils.time_ms()),
               "V" >: Byte(1),
-              "LightPopulated" >: Byte(0), /* maybe by leaving this as 0, Minecraft will calculate for us? */
+              "LightPopulated" >: Byte(1),
               "TerrainPopulated" >: Byte(1),
               "HeightMap" >: make_int_array(heightmap),
             ]),
