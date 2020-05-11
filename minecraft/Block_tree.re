@@ -167,16 +167,16 @@ let section_nbt = (section, section_y) => {
         Block.data(section.blocks[x][z][y]);
       },
     );
-  /* 4 bits per block in the section, all zeros */
-  let zeros = Array.make(chunk_side * chunk_side * chunk_side / 2, 0);
   Nbt.Node.(
     ""
     >: Compound([
          "Blocks" >: make_byte_array(block_ids),
-         "Data" >: make_byte_array(block_data),
-         "BlockLight" >: make_byte_array(zeros),
-         "SkyLight" >: make_byte_array(zeros), /* TODO once we calculate sky light */
+         "Data" >: make_byte_array(block_data), /* TODO add support for block data */
          "Y" >: Byte(section_y),
+         /*
+           Luckily we don't need to calculate and include light levels.
+           Minecraft will do it for us when fixing the chunk
+          */
        ])
   );
 };

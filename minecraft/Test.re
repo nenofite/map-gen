@@ -29,5 +29,7 @@ let test = () => {
       Block_tree.set_block(center, x, 100, z, Block.Dirt);
     };
   };
+  Block_tree.set_block(center, 8, 100, 8, Block.Air);
+  Block_tree.set_block(center, 2, 1, 2, Block.Torch);
   World.save(world);
 };
