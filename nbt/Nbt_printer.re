@@ -71,7 +71,8 @@ type nbt_printer_memory = {
 let create_memory = () => {
   input_buffer: Buffer.create(16),
   zlib_gzip: Zlib.create_deflate(~window_bits=15 + 16, ()),
-  zlib_deflate: Zlib.create_deflate(~window_bits=15, ()),
+  /* TODO maybe consider switching strategy to RLE */
+  zlib_deflate: Zlib.create_deflate(~window_bits=15, ~strategy=Zlib.RLE, ()),
 };
 
 /**
