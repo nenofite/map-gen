@@ -1,4 +1,4 @@
-/** section is 16x16x16 blocks. Blocks are stored in [[x][z][y]] order. */
+/** section is 16x16x16 blocks. Blocks are stored in [[y][z][x]] order. */
 type section = {blocks: array(Block.material)};
 
 /**
@@ -59,13 +59,13 @@ let assert_xyz = (x, y, z) =>
 
 let get_block_in_section = (section, x, y, z) => {
   assert_xyz(x, y, z);
-  let i = x * chunk_side * chunk_side + z * chunk_side + y;
+  let i = y * chunk_side * chunk_side + z * chunk_side + x;
   section.blocks[i];
 };
 
 let set_block_in_section = (section, x, y, z, block) => {
   assert_xyz(x, y, z);
-  let i = x * chunk_side * chunk_side + z * chunk_side + y;
+  let i = y * chunk_side * chunk_side + z * chunk_side + x;
   section.blocks[i] = block;
 };
 
