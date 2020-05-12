@@ -23,6 +23,9 @@ let test = () => {
     };
   };
   set_block(tree, 8, 100, 8, Block.Air);
-  set_block(tree, 2, 1, 2, Block.Torch);
+  set_block(tree, 2, 1, 2, Block.Glowstone);
+  for (y in 0 to 100) {
+    set_block(tree, 16 + 8, y, 16 + 8, Block.Bedrock);
+  };
   Block_tree.save_region(region_path, tree, 0, 0);
 };

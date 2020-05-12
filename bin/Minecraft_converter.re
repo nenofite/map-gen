@@ -5,6 +5,20 @@ let scale_elevation = elevation => {
 let sea_level = scale_elevation(0);
 
 /**
+  xz_of_gxy is for use within callbacks passed to segment_grid_by_region. It
+  converts the grid coordinates to region-local block coordinates.
+ */
+let xz_of_gxy = (~block_per_tile, gx, gy) => {
+  /* Convert to global block coordinates */
+  let x = gx * block_per_tile;
+  let z = gy * block_per_tile;
+  /* Truncate to region-local coordinates. We know the coords are >= 0 so we can use mod */
+  let x = x mod Minecraft.Block_tree.block_per_region;
+  let z = z mod Minecraft.Block_tree.block_per_region;
+  (x, z);
+};
+
+/**
   segment_grid_by_region divides the grid into squares such that each square
   becomes one Minecraft Anvil region. Then it calls f with the region
   coordinates, grid offset, and grid size.
@@ -56,8 +70,9 @@ let segment_grid_by_region =
         ~world,
         ~rx,
         ~rz,
-        ~gx=rx * tile_per_region,
-        ~gy=rz * tile_per_region,
+        ~block_per_tile,
+        ~gx_offset=rx * tile_per_region,
+        ~gy_offset=rz * tile_per_region,
         ~gsize=tile_per_region,
       );
     };
@@ -71,20 +86,20 @@ let save_region =
       ~world: Grid.t(River.tile),
       ~rx,
       ~rz,
-      ~gx,
-      ~gy,
+      ~block_per_tile,
+      ~gx_offset,
+      ~gy_offset,
       ~gsize,
     ) => {
   let set_block = Minecraft.Block_tree.set_block;
   Printf.printf("Creating region (%d, %d)\n", rx, rz);
   let tree = Minecraft.Block_tree.create();
-  for (gx in 0 to pred(gsize)) {
-    for (gy in 0 to pred(gsize)) {
+  for (gx in gx_offset to pred(gx_offset + gsize)) {
+    for (gy in gy_offset to pred(gy_offset + gsize)) {
       let here = Grid.at(world, gx, gy);
       let elevation = scale_elevation(here.elevation);
       /* TODO apply scale */
-      let x = gx;
-      let z = gy;
+      let (x, z) = xz_of_gxy(~block_per_tile, gx, gy);
       set_block(tree, x, 0, z, Minecraft.Block.Bedrock);
 
       for (y in 1 to elevation) {
