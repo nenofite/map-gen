@@ -93,7 +93,9 @@ let save_region =
       ~gsize,
     ) => {
   let set_block = Minecraft.Block_tree.set_block;
+
   Printf.printf("Creating region (%d, %d)\n", rx, rz);
+  let start_time = Minecraft.Utils.time_ms();
   Minecraft.Block_tree.reset(region);
   for (gx in gx_offset to pred(gx_offset + gsize)) {
     for (gy in gy_offset to pred(gy_offset + gsize)) {
@@ -120,6 +122,9 @@ let save_region =
     };
   };
   Minecraft.Block_tree.save_region(region_path, region, rx, rz);
+  let elapsed_time =
+    Int64.sub(Minecraft.Utils.time_ms(), start_time) |> Int64.to_float;
+  Printf.printf("Finished (%d, %d) in %fs\n", rx, rz, elapsed_time /. 1000.);
 };
 
 /** save creates a Minecraft world with the given heightmap */
