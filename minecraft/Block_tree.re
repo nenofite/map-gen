@@ -2,26 +2,22 @@
 type section = {blocks: array(Block.material)};
 
 /**
-  region is 32x32 chunks and each chunk is 16 sections stacked vertically.
-  Sections are stored in [[x][z][y]] order
+  t is one Anvil region, 32x32 chunks and each chunk is 16 sections stacked
+  vertically. Sections are stored in [[x][z][y]] order
  */
-type region = {sections: array(section)};
-
-type t = {regions: Hashtbl.t((int, int), region)};
+type t = {sections: array(section)};
 
 let chunk_side = 16;
 let section_volume = chunk_side * chunk_side * chunk_side;
 let chunk_sections = 16;
 let region_side = 32;
-
-/** create creates an empty block tree with no regions yet */
-let create = () => {regions: Hashtbl.create(16)};
+let block_per_region = region_side * chunk_side;
 
 let make_empty_section = () => {
   blocks: Array.make(chunk_side * chunk_side * chunk_side, Block.Air),
 };
 
-let make_empty_region = () => {
+let create = () => {
   sections:
     Array.init(region_side * region_side * chunk_sections, _ =>
       make_empty_section()
@@ -30,30 +26,16 @@ let make_empty_region = () => {
 
 /* Chunk and block access */
 
-/** get_region retrieves the region at the given region-level coords. It creates the region if needed. */
-let get_region = (tree, rx, rz) => {
-  switch (Hashtbl.find_opt(tree.regions, (rx, rz))) {
-  | Some(region) => region
-  | None =>
-    let region = make_empty_region();
-    Hashtbl.replace(tree.regions, (rx, rz), region);
-    region;
-  };
-};
-
 /**
   get_section retrieves the section at the given chunk-level coords and section
   Y. It creates the parent region if needed.
  */
 let get_section = (tree, cx, sy, cz) => {
+  assert(0 <= cx && cx < region_side);
+  assert(0 <= cz && cz < region_side);
   assert(0 <= sy && sy < chunk_sections);
-  let rx = cx / region_side;
-  let rz = cz / region_side;
-  let cx_off = cx - rx * region_side;
-  let cz_off = cz - rz * region_side;
-  let region = get_region(tree, rx, rz);
-  let i = cx_off * region_side * chunk_sections + cz_off * chunk_sections + sy;
-  region.sections[i];
+  let i = cx * region_side * chunk_sections + cz * chunk_sections + sy;
+  tree.sections[i];
 };
 
 let assert_xyz = (x, y, z) =>
@@ -332,13 +314,5 @@ let save_region = (region_path, tree, rx, rz) => {
       seek_out(f, 0);
       output_bytes(f, chunk_offset_sizes);
     },
-  );
-};
-
-/** save writes all regions to storage */
-let save = (region_path, tree) => {
-  Hashtbl.iter(
-    ((rx, rz), _region) => save_region(region_path, tree, rx, rz),
-    tree.regions,
   );
 };
