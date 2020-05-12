@@ -57,13 +57,34 @@ type big_string =
   Bigarray.Array1.t(char, Bigarray.int8_unsigned_elt, Bigarray.c_layout);
 
 /**
+  nbt_printer_memory contains the large allocated objects which can be re-used
+  between calls to print_nbt in order to reduce GC pressure. If calling
+  print_nbt in a hot loop, consider allocating memory once with
+  [create_memory()]
+ */
+type nbt_printer_memory = {
+  input_buffer: Buffer.t,
+  zlib_gzip: Zlib.t(Zlib.deflate),
+  zlib_deflate: Zlib.t(Zlib.deflate),
+};
+
+let create_memory = () => {
+  input_buffer: Buffer.create(16),
+  zlib_gzip: Zlib.create_deflate(~window_bits=15 + 16, ()),
+  zlib_deflate: Zlib.create_deflate(~window_bits=15, ()),
+};
+
+/**
   print_nbt prints a full NBT file, Gzips it, and returns the bytes
 
   If gzip is false, the output is deflated rather than gzip'd
  */
-let print_nbt = (~gzip=true, node: Node.t): big_string => {
+let print_nbt =
+    (~memory=create_memory(), ~gzip=true, node: Node.t): big_string => {
+  let {input_buffer, zlib_gzip, zlib_deflate} = memory;
+
   /* Print uncompressed NBT to a buffer */
-  let input_buffer = Buffer.create(16);
+  Buffer.clear(input_buffer);
   print_node(input_buffer, node);
 
   /* Buffer -> Bigarray */
@@ -77,12 +98,8 @@ let print_nbt = (~gzip=true, node: Node.t): big_string => {
      Run Zlib. window_bits > 15 to ask it to produce Gzip headers, negative
      window_bits to ask it to do a raw deflate
    */
-  let zlib =
-    if (gzip) {
-      Zlib.create_deflate(~window_bits=15 + 16, ());
-    } else {
-      Zlib.create_deflate(~window_bits=15, ());
-    };
+  let zlib = if (gzip) {zlib_gzip} else {zlib_deflate};
+  Zlib.reset(zlib);
   /* Add 1KB breathing room for Gzip header--should be more than enough */
   let output_upper_bound =
     Zlib.deflate_bound(zlib.state, input_length) + 1024;

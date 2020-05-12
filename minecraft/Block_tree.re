@@ -134,6 +134,18 @@ let chunk_has_blocks = (tree, cx, cz) => {
 
 /* Saving */
 
+/**
+  block_tree_memory contains the large allocations that could be re-used
+  between calls to save_region
+ */
+type block_tree_memory = {
+  nbt_printer_memory: Nbt.Nbt_printer.nbt_printer_memory,
+};
+
+let create_memory = () => {
+  nbt_printer_memory: Nbt.Nbt_printer.create_memory(),
+};
+
 let section_i_of_xyz = (x, y, z) => {
   assert_xyz(x, y, z);
   y * chunk_side * chunk_side + z * chunk_side + x;
@@ -228,7 +240,9 @@ let sector_bytes = 4096;
   - One byte describing the version. We currently only use 2, which means Zlib-compressed NBT.
   - [length - 1] bytes of compressed chunk NBT data.
 */
-let save_region = (region_path, tree, rx, rz) => {
+let save_region = (~memory=create_memory(), region_path, tree, rx, rz) => {
+  let {nbt_printer_memory} = memory;
+
   /* let region = get_region(tree, rx, rz); */
   let region_file_path =
     Printf.sprintf("r.%d.%d.mca", rx, rz) |> Filename.concat(region_path, _);
@@ -264,7 +278,11 @@ let save_region = (region_path, tree, rx, rz) => {
             /* Deflate chunk NBT. Keep chunk NBT and buffer in smaller scope to reduce memory, perhaps */
             let chunk_deflated = {
               let nbt = chunk_nbt(tree, cx, cz);
-              Nbt.Nbt_printer.print_nbt(~gzip=false, nbt);
+              Nbt.Nbt_printer.print_nbt(
+                ~memory=nbt_printer_memory,
+                ~gzip=false,
+                nbt,
+              );
             };
 
             let start = pos_out(f);
