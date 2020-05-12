@@ -105,16 +105,12 @@ let save_region =
 /** save creates a Minecraft world with the given heightmap */
 let save = (world: Grid.t(River.tile)): unit => {
   let world_config =
-    Minecraft.(
-      World.{
-        level:
-          Level.{
-            name: "heightmap",
-            spawn: (0, 0, 0),
-            generator: Generator.Flat,
-          },
-      }
-    );
+    Minecraft.World.{
+      name: "heightmap",
+      spawn: (0, 0, 0),
+      generator: Minecraft.Generator.Flat,
+    };
+
   let region_path = Minecraft.World.save(world_config);
 
   segment_grid_by_region(1, world, save_region(~region_path));
