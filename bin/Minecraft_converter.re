@@ -100,17 +100,21 @@ let save_region =
       let elevation = scale_elevation(here.elevation);
       /* TODO apply scale */
       let (x, z) = xz_of_gxy(~block_per_tile, gx, gy);
-      set_block(tree, x, 0, z, Minecraft.Block.Bedrock);
+      for (x in x to pred(x + block_per_tile)) {
+        for (z in z to pred(z + block_per_tile)) {
+          set_block(tree, x, 0, z, Minecraft.Block.Bedrock);
 
-      for (y in 1 to elevation) {
-        set_block(tree, x, y, z, Minecraft.Block.Dirt);
-      };
-      if (here.ocean) {
-        for (y in elevation + 1 to sea_level) {
-          set_block(tree, x, y, z, Minecraft.Block.Water);
+          for (y in 1 to elevation) {
+            set_block(tree, x, y, z, Minecraft.Block.Dirt);
+          };
+          if (here.ocean) {
+            for (y in elevation + 1 to sea_level) {
+              set_block(tree, x, y, z, Minecraft.Block.Water);
+            };
+          } else if (Option.is_some(here.river)) {
+            set_block(tree, x, elevation, z, Minecraft.Block.Water);
+          };
         };
-      } else if (Option.is_some(here.river)) {
-        set_block(tree, x, elevation, z, Minecraft.Block.Water);
       };
     };
   };
@@ -128,5 +132,5 @@ let save = (world: Grid.t(River.tile)): unit => {
 
   let region_path = Minecraft.World.save(world_config);
 
-  segment_grid_by_region(1, world, save_region(~region_path));
+  segment_grid_by_region(4, world, save_region(~region_path));
 };
