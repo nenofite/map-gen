@@ -1,15 +1,13 @@
-type river = {id: int};
-
 type tile = {
   elevation: int,
-  river: option(river),
+  river: bool,
   ocean: bool,
 };
 
 let colorize = (tile: tile): int => {
   let base = Heightmap.colorize(tile.elevation) |> Color.color_of_int(_);
   let blue = Color.color_of_int(0x0000FF);
-  if (tile.ocean || Option.is_some(tile.river)) {
+  if (tile.ocean || tile.river) {
     Color.blend(base, blue, 0.5) |> Color.int_of_color(_);
   } else {
     base |> Color.int_of_color(_);
@@ -23,7 +21,7 @@ let convert = (old_grid: Grid.t(int)) => {
     (x, y) => {
       let elevation = Grid.at(old_grid, x, y);
       let ocean = elevation <= 0;
-      {elevation, ocean, river: None};
+      {elevation, ocean, river: false};
     },
   );
 };
@@ -119,12 +117,12 @@ let river_sources = (grid: Grid.t(tile)) => {
   place_river_tile modifies the given tile to have a river on it. If there's
   already a river there, it raises [Invalid_argument]
  */
-let place_river_tile = (grid, river, x, y) => {
+let place_river_tile = (grid, x, y) => {
   let here = Grid.at(grid, x, y);
-  if (Option.is_some(here.river)) {
+  if (here.river) {
     raise(Invalid_argument("Tile already has river"));
   };
-  Grid.put(grid, x, y, {...here, river: Some(river)});
+  Grid.put(grid, x, y, {...here, river: true});
 };
 
 let debug_deposited_sediment_ = ref(0);
@@ -156,9 +154,9 @@ let current_flow_direction = (path, x, y) => {
   tile. If the river reaches an ocean or another river, it succeeds and
   returns the path it took.
  */
-let rec flow_river = (grid, river, path, x, y) => {
+let rec flow_river = (grid, path, x, y) => {
   let here = Grid.at(grid, x, y);
-  if (!here.ocean && Option.is_none(here.river)) {
+  if (!here.ocean && !here.river) {
     let next_path = [(x, y), ...path];
     let neighbors = Grid.neighbors_xy(grid, x, y);
     let flat_dir = current_flow_direction(path, x, y);
@@ -168,14 +166,14 @@ let rec flow_river = (grid, river, path, x, y) => {
         Grid.wrap_coord(grid.width, grid.height, x + dx, y + dy);
       assert(next_x != x || next_y != y);
       if (!List.exists(((lx, ly)) => lx == next_x && ly == next_y, path)) {
-        flow_river(grid, river, next_path, next_x, next_y);
+        flow_river(grid, next_path, next_x, next_y);
       } else {
         /* We formed a loop. Deposit sediment and backtrack. */
         deposit_sediment(grid, x, y);
         switch (path) {
         | [(previous_x, previous_y), ...previous_path] =>
-          flow_river(grid, river, previous_path, previous_x, previous_y)
-        | [] => flow_river(grid, river, [], x, y)
+          flow_river(grid, previous_path, previous_x, previous_y)
+        | [] => flow_river(grid, [], x, y)
         };
       };
     | None =>
@@ -183,8 +181,8 @@ let rec flow_river = (grid, river, path, x, y) => {
       deposit_sediment(grid, x, y);
       switch (path) {
       | [(previous_x, previous_y), ...previous_path] =>
-        flow_river(grid, river, previous_path, previous_x, previous_y)
-      | [] => flow_river(grid, river, [], x, y)
+        flow_river(grid, previous_path, previous_x, previous_y)
+      | [] => flow_river(grid, [], x, y)
       };
     };
   } else {
@@ -198,10 +196,9 @@ let rec flow_river = (grid, river, path, x, y) => {
   kept if it can reach the ocean.
  */
 let river = (grid: Grid.t(tile), id: int, source_x: int, source_y: int): bool => {
-  let river = {id: id};
-  switch (flow_river(grid, river, [], source_x, source_y)) {
+  switch (flow_river(grid, [], source_x, source_y)) {
   | Some(path) =>
-    List.iter(((x, y)) => place_river_tile(grid, river, x, y), path);
+    List.iter(((x, y)) => place_river_tile(grid, x, y), path);
     true;
   | None => false
   };
@@ -226,5 +223,5 @@ let add_rivers = (grid, amount): Grid.t(tile) => {
 let phase =
   Phase_chain.(
     phase("Convert to river", convert(_))
-    @> phase("Flow rivers", add_rivers(_, 200))
+    @> phase("Flow rivers", add_rivers(_, 100))
   );

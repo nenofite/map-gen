@@ -1,7 +1,5 @@
 Printexc.record_backtrace(true);
-Random.self_init();
-
-Minecraft.Test.test();
+Random.init(135);
 
 let world =
   Phase_chain.(
@@ -12,7 +10,9 @@ let world =
       /* @@> Erosion.phase
          @@> draw_phase("grid-erosion.ppm", Erosion.colorize), */
       @> River.phase
-      @> Draw.phase("grid-river.ppm", River.colorize),
+      @> Draw.phase("grid-river.ppm", River.colorize)
+      @> Sites.phase
+      @> Draw.phase("grid-sites.ppm", River.colorize),
     )
   );
 

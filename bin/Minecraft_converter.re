@@ -114,7 +114,7 @@ let save_region =
             for (y in elevation + 1 to sea_level) {
               set_block(region, x, y, z, Minecraft.Block.Water);
             };
-          } else if (Option.is_some(here.river)) {
+          } else if (here.river) {
             set_block(region, x, elevation, z, Minecraft.Block.Water);
           };
         };
@@ -128,7 +128,7 @@ let save_region =
 };
 
 /** save creates a Minecraft world with the given heightmap */
-let save = (world: Grid.t(River.tile)): unit => {
+let save = (world: Grid.t(Sites.tile)): unit => {
   let world_config =
     Minecraft.World.{
       name: "heightmap",
@@ -138,5 +138,5 @@ let save = (world: Grid.t(River.tile)): unit => {
 
   let region_path = Minecraft.World.save(world_config);
   let region = Minecraft.Block_tree.create();
-  segment_grid_by_region(4, world, save_region(~region_path, ~region));
+  segment_grid_by_region(1, world, save_region(~region_path, ~region));
 };
