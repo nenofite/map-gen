@@ -100,6 +100,18 @@ let print_nbt =
    */
   let zlib = if (gzip) {zlib_gzip} else {zlib_deflate};
   Zlib.reset(zlib);
+  /*
+    Zlib.reset seems broken/misdocumented, we have to manually reset the
+    mutable fields. These match the initial state
+   */
+  zlib.in_ofs = 0;
+  zlib.out_ofs = 0;
+  zlib.in_len = (-1);
+  zlib.out_len = (-1);
+  zlib.in_total = 0;
+  zlib.out_total = 0;
+  zlib.data_type = 2;
+  zlib.cksum = 0l;
   /* Add 1KB breathing room for Gzip header--should be more than enough */
   let output_upper_bound =
     Zlib.deflate_bound(zlib.state, input_length) + 1024;
