@@ -83,6 +83,7 @@ let segment_grid_by_region =
 let save_region =
     (
       ~region_path: string,
+      ~region,
       ~world: Grid.t(River.tile),
       ~rx,
       ~rz,
@@ -93,7 +94,7 @@ let save_region =
     ) => {
   let set_block = Minecraft.Block_tree.set_block;
   Printf.printf("Creating region (%d, %d)\n", rx, rz);
-  let tree = Minecraft.Block_tree.create();
+  Minecraft.Block_tree.reset(region);
   for (gx in gx_offset to pred(gx_offset + gsize)) {
     for (gy in gy_offset to pred(gy_offset + gsize)) {
       let here = Grid.at(world, gx, gy);
@@ -102,23 +103,23 @@ let save_region =
       let (x, z) = xz_of_gxy(~block_per_tile, gx, gy);
       for (x in x to pred(x + block_per_tile)) {
         for (z in z to pred(z + block_per_tile)) {
-          set_block(tree, x, 0, z, Minecraft.Block.Bedrock);
+          set_block(region, x, 0, z, Minecraft.Block.Bedrock);
 
           for (y in 1 to elevation) {
-            set_block(tree, x, y, z, Minecraft.Block.Dirt);
+            set_block(region, x, y, z, Minecraft.Block.Dirt);
           };
           if (here.ocean) {
             for (y in elevation + 1 to sea_level) {
-              set_block(tree, x, y, z, Minecraft.Block.Water);
+              set_block(region, x, y, z, Minecraft.Block.Water);
             };
           } else if (Option.is_some(here.river)) {
-            set_block(tree, x, elevation, z, Minecraft.Block.Water);
+            set_block(region, x, elevation, z, Minecraft.Block.Water);
           };
         };
       };
     };
   };
-  Minecraft.Block_tree.save_region(region_path, tree, rx, rz);
+  Minecraft.Block_tree.save_region(region_path, region, rx, rz);
 };
 
 /** save creates a Minecraft world with the given heightmap */
@@ -131,6 +132,6 @@ let save = (world: Grid.t(River.tile)): unit => {
     };
 
   let region_path = Minecraft.World.save(world_config);
-
-  segment_grid_by_region(4, world, save_region(~region_path));
+  let region = Minecraft.Block_tree.create();
+  segment_grid_by_region(4, world, save_region(~region_path, ~region));
 };

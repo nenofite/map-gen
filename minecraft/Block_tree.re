@@ -24,6 +24,19 @@ let create = () => {
     ),
 };
 
+/**
+  reset clears all blocks to Air, restoring the region to a consistent state so
+  it can be re-used
+ */
+let reset = tree => {
+  Array.(
+    iter(
+      section => fill(section.blocks, 0, section_volume, Block.Air),
+      tree.sections,
+    )
+  );
+};
+
 /* Chunk and block access */
 
 /**
