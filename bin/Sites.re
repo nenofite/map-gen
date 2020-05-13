@@ -43,11 +43,11 @@ let phase =
   Phase_chain.(
     phase(
       "Subdivide into sites",
-      Subdivide.subdivide_with_fill(_, fill(~fill_diags=true)),
+      Subdivide.overwrite_subdivide_with_fill(_, fill(~fill_diags=true)),
     )
     @> phase_repeat(
          1,
          "Subdivide into sites",
-         Subdivide.subdivide_with_fill(_, fill),
+         Subdivide.overwrite_subdivide_with_fill(_, fill),
        )
   );

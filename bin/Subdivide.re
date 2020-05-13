@@ -56,6 +56,35 @@ let subdivide_with_fill =
   grid;
 };
 
+/**
+  overwrite_subdivide also re-fills the tiles that previously existed. This
+  is usually not wanted, but in some cases can help smooth out subdivision
+  artifacts.
+ */
+let overwrite_subdivide_with_fill =
+    (old_grid: Grid.t('a), f: ('a, 'a, 'a, 'a) => 'a): Grid.t('a) => {
+  open Grid;
+  let grid = subdivide_with_fill(old_grid, f);
+
+  /* Pre-existing tiles */
+  for (old_y in 0 to pred(old_grid.height)) {
+    for (old_x in 0 to pred(old_grid.width)) {
+      let y = old_y * 2;
+      let x = old_x * 2;
+
+      let nw = at'(grid, x - 1, y - 1);
+      let ne = at'(grid, x + 1, y - 1);
+      let se = at'(grid, x + 1, y + 1);
+      let sw = at'(grid, x - 1, y + 1);
+
+      let v = f(nw, ne, se, sw);
+      put(grid, x, y, v);
+    };
+  };
+
+  grid;
+};
+
 /** random_fill picks a random neighbor and uses its value */
 let random_fill = (a, b, c, d) => {
   switch (Random.int(4)) {
