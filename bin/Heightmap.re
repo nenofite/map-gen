@@ -42,7 +42,7 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
         Grid.at(grid, x, y);
       switch (tectonic) {
       | Ocean => (-30) + Random.int(10)
-      | Mountain => 30 + Random.int(70)
+      | Mountain => 90 + Random.int(10)
       | Plain =>
         assert(distance_to_ocean != empty_distance);
         if (distance_to_mountain != empty_distance) {
@@ -56,31 +56,6 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
       };
     },
   );
-};
-
-let until_changes_stop = (grid: Grid.t(intermediate), automata) => {
-  let grid = ref(grid);
-  let changed = ref(true);
-  while (changed^) {
-    changed := false;
-    let old_grid = grid^;
-    grid :=
-      Grid.init(
-        old_grid.width,
-        old_grid.height,
-        (x, y) => {
-          let here = Grid.at(old_grid, x, y);
-          let neighbors = Grid.neighbors(old_grid, x, y);
-          switch (automata(here, neighbors)) {
-          | Some(new_here) =>
-            changed := true;
-            new_here;
-          | None => here
-          };
-        },
-      );
-  };
-  grid^;
 };
 
 let spread_mountain_into = (grid, x, y, new_distance) => {
