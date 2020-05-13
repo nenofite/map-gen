@@ -4,6 +4,8 @@ type tile = {
   ocean: bool,
 };
 
+let min_river_length = 30;
+
 let colorize = (tile: tile): int => {
   let base = Heightmap.colorize(tile.elevation) |> Color.color_of_int(_);
   let blue = Color.color_of_int(0x0000FF);
@@ -185,8 +187,12 @@ let rec flow_river = (grid, path, x, y) => {
       | [] => flow_river(grid, [], x, y)
       };
     };
-  } else {
+  } else if (List.length(path) > min_river_length) {
+    /* We've made a river! Only accept if it's long enough */
     Some(path);
+  } else {
+    None;
+        /* Too short */
   };
 };
 
