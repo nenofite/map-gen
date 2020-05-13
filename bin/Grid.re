@@ -34,6 +34,8 @@ let wrap_coord = (width, height, x, y) => {
   (x', y');
 };
 
+let wrap = (grid, x, y) => wrap_coord(grid.width, grid.height, x, y);
+
 let make = (width, height, default) => {
   width,
   height,
@@ -79,6 +81,18 @@ let put' = (grid, x, y, v) => {
   put(grid, x, y, v);
 };
 
+/** eight_directions is a list of the eight direction offsets: NW, N, NE, ..., SW, W */
+let eight_directions = [
+  ((-1), (-1)),
+  (0, (-1)),
+  (1, (-1)),
+  (1, 0),
+  (1, 1),
+  (0, 1),
+  ((-1), 1),
+  ((-1), 0),
+];
+
 /** neighbors returns the 8 neighbors starting with northwest and going clockwise */
 let neighbors = (grid, x, y) => {
   [|
@@ -105,4 +119,25 @@ let neighbors_xy = (grid, x, y) => {
     (at'(grid, x, y + 1), 0, 1),
     (at'(grid, x + 1, y + 1), 1, 1),
   |];
+};
+
+let rec fold_xy' = (grid, acc, f, x, y) =>
+  if (y >= grid.height) {
+    acc;
+  } else if (x >= grid.width) {
+    fold_xy'(grid, acc, f, 0, y + 1);
+  } else {
+    let here = at(grid, x, y);
+    let acc = f(acc, x, y, here);
+    fold_xy'(grid, acc, f, x + 1, y);
+  };
+let fold_xy = (grid, acc, f) => fold_xy'(grid, acc, f, 0, 0);
+
+let filter_map_xy = (grid, f) => {
+  fold_xy(grid, [], (acc, x, y, here) => {
+    switch (f(x, y, here)) {
+    | Some(n) => [n, ...acc]
+    | None => acc
+    }
+  });
 };

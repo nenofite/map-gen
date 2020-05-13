@@ -83,29 +83,93 @@ let until_changes_stop = (grid: Grid.t(intermediate), automata) => {
   grid^;
 };
 
-let spread_distances = grid =>
-  until_changes_stop(
-    grid,
-    (here, neighbors) => {
-      let ocean_distances = Array.map(x => x.distance_to_ocean, neighbors);
-      Array.fast_sort(Int.compare, ocean_distances);
-      let distance_to_ocean =
-        min(here.distance_to_ocean, ocean_distances[0] + 1);
+let spread_mountain_into = (grid, x, y, new_distance) => {
+  let (x, y) = Grid.wrap(grid, x, y);
+  switch (Grid.at(grid, x, y)) {
+  | {distance_to_ocean: 0, _} =>
+    /* Mountain distances don't spread across ocean */
+    None
+  | {distance_to_mountain, _} as here =>
+    if (distance_to_mountain > new_distance) {
+      /* This distance is shorter, so update */
+      let here = {...here, distance_to_mountain: new_distance};
+      Grid.put(grid, x, y, here);
+      Some((new_distance, x, y));
+    } else {
+      None;
+          /* This tile already has a shorter distance, so ignore */
+    }
+  };
+};
 
-      let mountain_distances =
-        Array.map(x => x.distance_to_mountain, neighbors);
-      Array.fast_sort(Int.compare, mountain_distances);
-      let distance_to_mountain =
-        min(here.distance_to_mountain, mountain_distances[0] + 1);
+let spread_mountain = (grid, x, y) => {
+  let here = Grid.at(grid, x, y);
+  let next_distance = here.distance_to_mountain + 1;
+  /* Spread in all 8 directions */
+  Grid.eight_directions
+  |> List.filter_map(
+       ((dx, dy)) =>
+         spread_mountain_into(grid, x + dx, y + dy, next_distance),
+       _,
+     );
+};
 
-      if (distance_to_ocean != here.distance_to_ocean
-          || distance_to_mountain != here.distance_to_mountain) {
-        Some({...here, distance_to_ocean, distance_to_mountain});
-      } else {
-        None;
-      };
-    },
-  );
+let spread_ocean_into = (grid, x, y, new_distance) => {
+  let (x, y) = Grid.wrap(grid, x, y);
+  switch (Grid.at(grid, x, y)) {
+  | {distance_to_mountain: 0, _} =>
+    /* Ocean distances don't spread across mountains */
+    None
+  | {distance_to_ocean, _} as here =>
+    if (distance_to_ocean > new_distance) {
+      /* This distance is shorter, so update */
+      let here = {...here, distance_to_ocean: new_distance};
+      Grid.put(grid, x, y, here);
+      Some((new_distance, x, y));
+    } else {
+      None;
+          /* This tile already has a shorter distance, so ignore */
+    }
+  };
+};
+
+let spread_ocean = (grid, x, y) => {
+  let here = Grid.at(grid, x, y);
+  let next_distance = here.distance_to_ocean + 1;
+  /* Spread in all 8 directions */
+  Grid.eight_directions
+  |> List.filter_map(
+       ((dx, dy)) => spread_ocean_into(grid, x + dx, y + dy, next_distance),
+       _,
+     );
+};
+
+let spread_distances = grid => {
+  /* First spread mountain distances */
+  /* Start the queue with all mountains (sources) */
+  let mountains =
+    Grid.filter_map_xy(grid, (x, y, here) =>
+      switch (here) {
+      | {distance_to_mountain: 0, _} => Some((x, y))
+      | _ => None
+      }
+    );
+  let needs_update = [(0, mountains)];
+  Grid_flood.flood(grid, ~initial=needs_update, ~spread=spread_mountain);
+  /* Then spread ocean distances */
+  /* Start the queue with all oceans (sources) */
+  let oceans =
+    Grid.filter_map_xy(grid, (x, y, here) =>
+      switch (here) {
+      | {distance_to_ocean: 0, _} => Some((x, y))
+      | _ => None
+      }
+    );
+  let needs_update = [(0, oceans)];
+  Grid_flood.flood(grid, ~initial=needs_update, ~spread=spread_ocean);
+
+  grid;
+};
 
 let fill_weighted = (a, b, c, d) => {
   let elevations = [|a, b, c, d|];
