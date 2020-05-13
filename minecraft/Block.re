@@ -8,7 +8,7 @@ type material =
   | Planks
   | Sapling
   | Bedrock
-  | Flowing_water
+  | Flowing_water(int)
   | Water
   | Flowing_lava
   | Lava
@@ -209,7 +209,7 @@ let id =
   | Planks => 5
   | Sapling => 6
   | Bedrock => 7
-  | Flowing_water => 8
+  | Flowing_water(_) => 8
   | Water => 9
   | Flowing_lava => 10
   | Lava => 11
@@ -400,4 +400,7 @@ let id =
   | Acacia_door => 196
   | Dark_oak_door => 197;
 
-let data = _ => 0;
+let data =
+  fun
+  | Flowing_water(level) => level
+  | _ => 0;

@@ -91,41 +91,62 @@ let save_region =
       ~gx_offset,
       ~gy_offset,
       ~gsize,
-    ) => {
-  let set_block = Minecraft.Block_tree.set_block;
+    ) =>
+  if (rx == 3 && rz == 1) {
+    let rx = 0; /* TODO hack */
+    let rz = 0;
+    let set_block = Minecraft.Block_tree.set_block;
 
-  Printf.printf("Creating region (%d, %d)\n", rx, rz);
-  let start_time = Minecraft.Utils.time_ms();
-  Minecraft.Block_tree.reset(region);
-  for (gx in gx_offset to pred(gx_offset + gsize)) {
-    for (gy in gy_offset to pred(gy_offset + gsize)) {
-      let here = Grid.at(world, gx, gy);
-      let elevation = scale_elevation(here.elevation);
-      /* TODO apply scale */
-      let (x, z) = xz_of_gxy(~block_per_tile, gx, gy);
-      for (x in x to pred(x + block_per_tile)) {
-        for (z in z to pred(z + block_per_tile)) {
-          set_block(region, x, 0, z, Minecraft.Block.Bedrock);
+    Printf.printf("Creating region (%d, %d)\n", rx, rz);
+    let start_time = Minecraft.Utils.time_ms();
+    Printf.printf("Resetting region\n");
+    Minecraft.Block_tree.reset(region);
+    Printf.printf("Filling blocks\n");
+    for (gx in gx_offset to pred(gx_offset + gsize)) {
+      for (gy in gy_offset to pred(gy_offset + gsize)) {
+        let here = Grid.at(world, gx, gy);
+        let elevation = scale_elevation(here.elevation);
+        /* TODO apply scale */
+        let (x, z) = xz_of_gxy(~block_per_tile, gx, gy);
+        for (x in x to pred(x + block_per_tile)) {
+          for (z in z to pred(z + block_per_tile)) {
+            set_block(region, x, 0, z, Minecraft.Block.Bedrock);
 
-          for (y in 1 to elevation) {
-            set_block(region, x, y, z, Minecraft.Block.Dirt);
-          };
-          if (here.ocean) {
-            for (y in elevation + 1 to sea_level) {
-              set_block(region, x, y, z, Minecraft.Block.Water);
+            for (y in 1 to elevation) {
+              set_block(region, x, y, z, Minecraft.Block.Dirt);
             };
-          } else if (here.river) {
-            set_block(region, x, elevation, z, Minecraft.Block.Water);
+            if (here.ocean) {
+              for (y in elevation + 1 to sea_level) {
+                set_block(region, x, y, z, Minecraft.Block.Water);
+              };
+            } else if (here.river) {
+              set_block(
+                region,
+                x,
+                elevation,
+                z,
+                Minecraft.Block.Flowing_water(0),
+              );
+            } else {
+              set_block(region, x, elevation, z, Minecraft.Block.Grass);
+            };
           };
         };
       };
     };
+    Printf.printf("Flowing water\n");
+    Minecraft.Water.flow_water(region);
+    Printf.printf("Saving region\n");
+    Minecraft.Block_tree.save_region(region_path, region, rx, rz);
+    let elapsed_time =
+      Int64.sub(Minecraft.Utils.time_ms(), start_time) |> Int64.to_float;
+    Printf.printf(
+      "Finished (%d, %d) in %fs\n",
+      rx,
+      rz,
+      elapsed_time /. 1000.,
+    );
   };
-  Minecraft.Block_tree.save_region(region_path, region, rx, rz);
-  let elapsed_time =
-    Int64.sub(Minecraft.Utils.time_ms(), start_time) |> Int64.to_float;
-  Printf.printf("Finished (%d, %d) in %fs\n", rx, rz, elapsed_time /. 1000.);
-};
 
 /** save creates a Minecraft world with the given heightmap */
 let save = (world: Grid.t(Sites.tile)): unit => {

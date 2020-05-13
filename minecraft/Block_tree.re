@@ -12,6 +12,7 @@ let section_volume = chunk_side * chunk_side * chunk_side;
 let chunk_sections = 16;
 let region_side = 32;
 let block_per_region = region_side * chunk_side;
+let block_per_region_vertical = chunk_sections * chunk_side;
 
 let make_empty_section = () => {
   blocks: Array.make(chunk_side * chunk_side * chunk_side, Block.Air),
@@ -92,6 +93,20 @@ let get_block = (tree, x, y, z) => {
   let section = get_section(tree, cx, sy, cz);
   get_block_in_section(section, x, y, z);
 };
+
+let get_block_opt = (tree, x, y, z) =>
+  if (!(
+        0 <= x
+        && x < block_per_region
+        && 0 <= y
+        && y < block_per_region_vertical
+        && 0 <= z
+        && z < block_per_region
+      )) {
+    None;
+  } else {
+    Some(get_block(tree, x, y, z));
+  };
 
 let set_block = (tree, x, y, z, block) => {
   let cx = x / chunk_side;
