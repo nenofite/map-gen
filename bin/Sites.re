@@ -11,8 +11,12 @@ let fill = (~fill_diags=false, a: tile, b: tile, c: tile, d: tile): tile => {
   let cr = c.river || c.ocean;
   let dr = d.river || d.ocean;
 
+  /* At least one needs to be an actual river, not ocean */
+  let one_river = a.river || b.river || c.river || d.river;
+
   let river =
     !ocean
+    && one_river
     && (
       switch (ar, br, cr, dr) {
       /* opposing sides */
