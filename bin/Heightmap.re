@@ -37,7 +37,6 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
       | Ocean => (-30) + Random.int(10)
       | Mountain => 90 + Random.int(10)
       | Plain =>
-        /* assert(distance_to_ocean != empty_distance); */
         let distance_to_ocean =
           if (distance_to_ocean != empty_distance) {
             distance_to_ocean;
