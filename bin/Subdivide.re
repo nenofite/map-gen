@@ -1,88 +1,103 @@
-let subdivide_with_fill =
-    (oldGrid: Grid.t('a), f: ('a, 'a, 'a, 'a) => 'a): Grid.t('a) => {
+let subdivide_with_fill = (old_grid: Grid.t('a), fill): Grid.t('a) => {
   open Grid;
-  let {width: oldWidth, height: oldHeight, _} = oldGrid;
-  let width = oldWidth * 2;
-  let height = oldHeight * 2;
 
-  /* Copy into larger grid */
-  let empty = Obj.magic(0);
-  let grid =
-    init(width, height, (x, y) =>
-      if (x mod 2 == 0 && y mod 2 == 0) {
-        at(oldGrid, x / 2, y / 2);
-      } else {
-        empty;
-      }
+  /*
+     old_grid:
+     1-2-3-
+     ------
+     4-5-6-
+     ------
+     7-8-9-
+     ------
+
+     diamonds:
+     =-=-=-
+     -1-2-3
+     =-=-=-
+     -4-5-6
+     =-=-=-
+     -7-8-9
+
+     offset_squares:
+     =1=2=3
+     -=-=-=
+     =4=5=6
+     -=-=-=
+     =7=8=9
+     -=-=-=
+
+     center_squares:
+     ======
+     1=2=3=
+     ======
+     4=5=6=
+     ======
+     7=8=9=
+   */
+
+  let diamonds =
+    init(
+      old_grid.side,
+      (x, y) => {
+        let nw = at_w(old_grid, x, y);
+        let ne = at_w(old_grid, x + 1, y);
+        let se = at_w(old_grid, x + 1, y + 1);
+        let sw = at_w(old_grid, x, y + 1);
+        fill(nw, ne, se, sw);
+      },
     );
-
-  /* Diamonds */
-  for (oldY in 0 to oldHeight - 1) {
-    let y = oldY * 2 + 1;
-    for (oldX in 0 to oldWidth - 1) {
-      let x = oldX * 2 + 1;
-
-      let nw = at'(grid, x - 1, y - 1);
-      let ne = at'(grid, x + 1, y - 1);
-      let se = at'(grid, x + 1, y + 1);
-      let sw = at'(grid, x - 1, y + 1);
-
-      let v = f(nw, ne, se, sw);
-      put(grid, x, y, v);
-    };
-  };
-
-  /* Squares */
-  for (y in 0 to height - 1) {
-    let xOffset =
-      if (y mod 2 == 0) {
-        1;
-      } else {
-        0;
-      };
-    for (oldX in 0 to oldWidth - 1) {
-      let x = oldX * 2 + xOffset;
-
-      let n = at'(grid, x, y - 1);
-      let e = at'(grid, x + 1, y);
-      let s = at'(grid, x, y + 1);
-      let w = at'(grid, x - 1, y);
-
-      let v = f(n, e, s, w);
-      put(grid, x, y, v);
-    };
-  };
-
-  grid;
+  let offset_squares =
+    init(
+      old_grid.side,
+      (x, y) => {
+        let n = at_w(diamonds, x, y - 1);
+        let e = at_w(old_grid, x + 1, y);
+        let s = at_w(diamonds, x, y);
+        let w = at_w(old_grid, x, y);
+        fill(n, e, s, w);
+      },
+    );
+  let center_squares =
+    init(
+      old_grid.side,
+      (x, y) => {
+        let n = at_w(old_grid, x, y);
+        let e = at_w(diamonds, x, y);
+        let s = at_w(old_grid, x, y + 1);
+        let w = at_w(diamonds, x - 1, y);
+        fill(n, e, s, w);
+      },
+    );
+  let combined =
+    init(
+      old_grid.side * 2,
+      (x, y) => {
+        let x' = x / 2;
+        let y' = y / 2;
+        switch (x mod 2 == 0, y mod 2 == 0) {
+        | (true, true) => at(old_grid, x', y')
+        | (false, true) => at(center_squares, x', y')
+        | (false, false) => at(diamonds, x', y')
+        | (true, false) => at(offset_squares, x', y')
+        };
+      },
+    );
+  combined;
 };
 
-/**
-  overwrite_subdivide also re-fills the tiles that previously existed. This
-  is usually not wanted, but in some cases can help smooth out subdivision
-  artifacts.
- */
-let overwrite_subdivide_with_fill =
-    (old_grid: Grid.t('a), f: ('a, 'a, 'a, 'a) => 'a): Grid.t('a) => {
-  open Grid;
-  let grid = subdivide_with_fill(old_grid, f);
-
-  /* Pre-existing tiles */
-  for (old_y in 0 to pred(old_grid.height)) {
-    for (old_x in 0 to pred(old_grid.width)) {
-      let y = old_y * 2;
-      let x = old_x * 2;
-
-      let nw = at'(grid, x - 1, y - 1);
-      let ne = at'(grid, x + 1, y - 1);
-      let se = at'(grid, x + 1, y + 1);
-      let sw = at'(grid, x - 1, y + 1);
-
-      let v = f(nw, ne, se, sw);
-      put(grid, x, y, v);
-    };
-  };
-
-  grid;
+let overwrite_subdivide_with_fill = (old_grid: Grid.t('a), fill) => {
+  let grid = subdivide_with_fill(old_grid, fill);
+  Grid.map(grid, (x, y, here) =>
+    if (x mod 2 == 0 && y mod 2 == 0) {
+      let n = Grid.at_w(grid, x, y - 1);
+      let e = Grid.at_w(grid, x + 1, y);
+      let s = Grid.at_w(grid, x, y + 1);
+      let w = Grid.at_w(grid, x - 1, y);
+      fill(n, e, s, w);
+    } else {
+      here;
+    }
+  );
 };
 
 /** random_fill picks a random neighbor and uses its value */

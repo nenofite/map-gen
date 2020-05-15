@@ -17,11 +17,9 @@ let colorize = (tile: tile): int => {
 };
 
 let convert = (old_grid: Grid.t(int)) => {
-  Grid.init(
-    old_grid.width,
-    old_grid.height,
-    (x, y) => {
-      let elevation = Grid.at(old_grid, x, y);
+  Grid.map(
+    old_grid,
+    (x, y, elevation) => {
       let ocean = elevation <= 0;
       {elevation, ocean, river: false};
     },
@@ -36,8 +34,8 @@ let compare_elevations = (a, b) => {
 
 /** fall_to determines which neighbor the river will flow to */
 let fall_to = (here, neighbors) => {
-  Array.fast_sort(compare_elevations, neighbors);
-  let (_, lx, ly) as l = neighbors[0];
+  let neighbors = List.fast_sort(compare_elevations, neighbors);
+  let (_, lx, ly) as l = List.hd(neighbors);
   let cmp = compare_elevations(l, (here, 0, 0));
   if (cmp < 0) {
     Some((lx, ly));
@@ -57,10 +55,12 @@ let rec array_find = (f, array, i) =>
     None;
   };
 
-let shuffle_copy = array => {
-  let ordered = Array.map(x => (Random.bits(), x), array);
-  Array.fast_sort(((a, _), (b, _)) => Int.compare(a, b), ordered);
-  Array.map(((_, x)) => x, ordered);
+let shuffle = list => {
+  List.(
+    map(x => (Random.bits(), x), list)
+    |> fast_sort(((a, _), (b, _)) => Int.compare(a, b), _)
+    |> map(((_, x)) => x, _)
+  );
 };
 
 /**
@@ -74,45 +74,39 @@ let fall_to_with_flat_dir = (here, neighbors, flat_dir) => {
   let (flat_dir_x, flat_dir_y) = flat_dir;
   assert(flat_dir_x != 0 || flat_dir_y != 0);
   let flat_dir_n =
-    array_find(
-      ((_, x, y)) => x == flat_dir_x && y == flat_dir_y,
-      neighbors,
-      0,
-    )
-    |> Option.get(_);
+    List.find(((_, x, y)) => x == flat_dir_x && y == flat_dir_y, neighbors);
 
-  Array.fast_sort(compare_elevations, neighbors);
-  let (_, lowest_x, lowest_y) as lowest = neighbors[0];
+  let neighbors = List.fast_sort(compare_elevations, neighbors);
+  let (_, lowest_x, lowest_y) as lowest = List.hd(neighbors);
 
   if (compare_elevations(lowest, (here, 0, 0)) < 0) {
     Some((lowest_x, lowest_y));
   } else if (compare_elevations(flat_dir_n, (here, 0, 0)) <= 0) {
     Some(flat_dir);
   } else {
-    shuffle_copy(neighbors)
-    |> array_find(x => compare_elevations(x, (here, 0, 0)) <= 0, _, 0)
+    shuffle(neighbors)
+    |> List.find_opt(x => compare_elevations(x, (here, 0, 0)) <= 0, _)
     |> Option.map(((_, x, y)) => (x, y), _);
   };
 };
 
 /** river_sources gets all potential river sources on the map, in random order */
 let river_sources = (grid: Grid.t(tile)) => {
-  let result = ref([]);
-  for (y in 0 to pred(grid.height)) {
-    for (x in 0 to pred(grid.width)) {
-      let here = Grid.at(grid, x, y);
+  let coords =
+    Grid.fold(grid, [], (acc, x, y, here) =>
       if (!here.ocean && 24 <= here.elevation && here.elevation <= 30) {
         let neighbors = Grid.neighbors_xy(grid, x, y);
         if (Option.is_some(fall_to(here, neighbors))) {
-          result := [(x, y, Random.bits()), ...result^];
+          [(x, y, Random.bits()), ...acc];
+        } else {
+          acc;
         };
-      };
-    };
-  };
-  let result = Array.of_list(result^);
+      } else {
+        acc;
+      }
+    );
   let cmp = ((_, _, a), (_, _, b)) => Int.compare(a, b);
-  Array.fast_sort(cmp, result);
-  Array.map(((x, y, _)) => (x, y), result);
+  List.fast_sort(cmp, coords) |> List.map(((x, y, _)) => (x, y), _);
 };
 
 /**
@@ -120,22 +114,19 @@ let river_sources = (grid: Grid.t(tile)) => {
   already a river there, it raises [Invalid_argument]
  */
 let place_river_tile = (grid, x, y) => {
-  let here = Grid.at(grid, x, y);
-  if (here.river) {
-    raise(Invalid_argument("Tile already has river"));
-  };
-  Grid.put(grid, x, y, {...here, river: true});
+  Grid.update(grid, x, y, here =>
+    switch (here) {
+    | {river: true, _} => raise(Invalid_argument("Tile already has river"))
+    | {river: false, _} as here => {...here, river: true}
+    }
+  );
 };
-
-let debug_deposited_sediment_ = ref(0);
 
 /**
   deposit_sediment increases the elevation by 1 at the given coordinate.
  */
 let deposit_sediment = (grid, x, y) => {
-  let here = Grid.at(grid, x, y);
-  Grid.put(grid, x, y, {...here, elevation: here.elevation + 1});
-  debug_deposited_sediment_ := debug_deposited_sediment_^ + 1;
+  Grid.update(grid, x, y, here => {...here, elevation: here.elevation + 1});
 };
 
 /**
@@ -164,14 +155,14 @@ let rec flow_river = (grid, path, x, y) => {
     let flat_dir = current_flow_direction(path, x, y);
     switch (fall_to_with_flat_dir(here, neighbors, flat_dir)) {
     | Some((dx, dy)) =>
-      let (next_x, next_y) =
-        Grid.wrap_coord(grid.width, grid.height, x + dx, y + dy);
+      let (next_x, next_y) = Grid.wrap_coord(grid, x + dx, y + dy);
       assert(next_x != x || next_y != y);
       if (!List.exists(((lx, ly)) => lx == next_x && ly == next_y, path)) {
+        let grid = place_river_tile(grid, x, y);
         flow_river(grid, next_path, next_x, next_y);
       } else {
         /* We formed a loop. Deposit sediment and backtrack. */
-        deposit_sediment(grid, x, y);
+        let grid = deposit_sediment(grid, x, y);
         switch (path) {
         | [(previous_x, previous_y), ...previous_path] =>
           flow_river(grid, previous_path, previous_x, previous_y)
@@ -180,7 +171,7 @@ let rec flow_river = (grid, path, x, y) => {
       };
     | None =>
       /* We're stuck in a ditch. Deposit sediment and backtrack. */
-      deposit_sediment(grid, x, y);
+      let grid = deposit_sediment(grid, x, y);
       switch (path) {
       | [(previous_x, previous_y), ...previous_path] =>
         flow_river(grid, previous_path, previous_x, previous_y)
@@ -189,40 +180,45 @@ let rec flow_river = (grid, path, x, y) => {
     };
   } else if (List.length(path) > min_river_length) {
     /* We've made a river! Only accept if it's long enough */
-    Some(path);
+    Some(grid);
   } else {
     None;
         /* Too short */
   };
 };
 
+let rec take = (amount, list) =>
+  switch (list) {
+  | [a, ...b] when amount > 0 => [a, ...take(amount - 1, b)]
+  | [_, ..._]
+  | [] => []
+  };
+
 /**
   river finds a non-ocean tile with an elevation between plains and
   mountains, then creates a river with the given id there. The river is only
   kept if it can reach the ocean.
  */
-let river = (grid: Grid.t(tile), id: int, source_x: int, source_y: int): bool => {
-  switch (flow_river(grid, [], source_x, source_y)) {
-  | Some(path) =>
-    List.iter(((x, y)) => place_river_tile(grid, x, y), path);
-    true;
-  | None => false
-  };
-};
+let river = (grid: Grid.t(tile), id: int, source_x: int, source_y: int) =>
+  flow_river(grid, [], source_x, source_y);
 
 let add_rivers = (grid, amount): Grid.t(tile) => {
-  let sources = river_sources(grid);
-  let amount = min(amount, Array.length(sources));
-  let succeeded = ref(0);
-  debug_deposited_sediment_ := 0;
-  for (id in 0 to pred(amount)) {
-    let (source_x, source_y) = sources[id];
-    if (river(grid, id, source_x, source_y)) {
-      succeeded := succeeded^ + 1;
-    };
-  };
-  Printf.printf("Successfully placed %d of %d rivers\n", succeeded^, amount);
-  Printf.printf("Deposited sediment %d times\n", debug_deposited_sediment_^);
+  let sources = river_sources(grid) |> take(amount, _);
+  let amount = min(amount, List.length(sources));
+
+  let (grid, succeeded) =
+    List.mapi((id, coord) => (id, coord), sources)
+    |> List.fold_left(
+         ((grid, succeeded), (id, (x, y))) => {
+           switch (river(grid, id, x, y)) {
+           | Some(grid) => (grid, succeeded + 1)
+           | None => (grid, succeeded)
+           }
+         },
+         (grid, 0),
+         _,
+       );
+  Printf.printf("Successfully placed %d of %d rivers\n", succeeded, amount);
   grid;
 };
 

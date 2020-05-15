@@ -1,5 +1,11 @@
 type needs_update_list('a) = list((int, list('a)));
 
+type update_coord = {
+  x: int,
+  y: int,
+  level: int,
+};
+
 let rec pop_update =
         (needs_update: needs_update_list('a))
         : option(('a, needs_update_list('a))) =>
@@ -41,13 +47,13 @@ let rec flood =
         ) =>
   switch (pop_update(needs_update)) {
   | Some(((x, y), needs_update)) =>
-    let updated_coords = spread(grid, x, y);
+    let (grid, updated_coords) = spread(grid, x, y);
     let needs_update =
       List.fold_left(
-        (ls, (level, x, y)) => insert_update(level, (x, y), ls),
+        (ls, {level, x, y}) => insert_update(level, (x, y), ls),
         needs_update,
         updated_coords,
       );
     flood(grid, ~initial=needs_update, ~spread);
-  | None => ()
+  | None => grid
   };

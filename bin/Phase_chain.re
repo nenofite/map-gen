@@ -56,8 +56,8 @@ let rec run_all':
         "[%d of %d] [%d x %d] %s\n",
         completed,
         total,
-        grid.width,
-        grid.height,
+        grid.side,
+        grid.side,
         name,
       );
       run_all'(~completed, ~total, ~grid, ~chain=rest);

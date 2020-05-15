@@ -39,33 +39,27 @@ let segment_grid_by_region =
   /* block_per_tile must divide 512 evenly */
   assert(block_per_region mod block_per_tile == 0);
   /* The grid must split evenly into regions */
-  if (world.width
-      * block_per_tile
-      mod block_per_region != 0
-      || world.height
-      * block_per_tile
-      mod block_per_region != 0) {
+  if (world.side * block_per_tile mod block_per_region != 0) {
     let msg =
       Printf.sprintf(
         "grid does not divide evenly into regions with block_per_tile=%d and grid %dx%d",
         block_per_tile,
-        world.width,
-        world.height,
+        world.side,
+        world.side,
       );
     raise(Invalid_argument(msg));
   };
   /* Calculate how many tiles form the side of a region */
   let tile_per_region = block_per_region / block_per_tile;
-  let regions_width = world.width / tile_per_region;
-  let regions_height = world.height / tile_per_region;
+  let regions_side = world.side / tile_per_region;
   Printf.printf(
     "Grid divided into %dx%d regions\n",
-    regions_width,
-    regions_height,
+    regions_side,
+    regions_side,
   );
   /* Iterate over the grid */
-  for (rx in 0 to pred(regions_width)) {
-    for (rz in 0 to pred(regions_height)) {
+  for (rx in 0 to pred(regions_side)) {
+    for (rz in 0 to pred(regions_side)) {
       f(
         ~world,
         ~rx,
