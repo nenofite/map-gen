@@ -6,7 +6,13 @@ type intermediate = {
   distance_to_mountain: int,
 };
 
-let colorize = (tile: tile): int => (tile + 50) * 255 / 150 * 0x010101;
+let colorize = (tile: tile): int => {
+  let frac = (float_of_int(tile) +. 30.) /. 130.;
+  let frac = max(min(frac, 1.), 0.);
+  let black = Color.color_of_int(0);
+  let white = Color.color_of_int(0xFFFFFF);
+  Color.blend(black, white, frac) |> Color.int_of_color;
+};
 
 let empty_distance = Int.max_int - 10;
 

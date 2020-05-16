@@ -4,7 +4,6 @@ let draw_grid = (colorizer: 'a => int, file: string, grid: Grid.t('a)): unit => 
   Printf.fprintf(out, "P6\n%d %d\n255\n", grid.side, grid.side);
   Grid.scan_iter(
     grid,
-    ~row_f=_ => output_char(out, '\n'),
     (_x, _y, n) => {
       let rgb = colorizer(n);
       output_char(out, char_of_int((rgb land 0xFF0000) lsr 16));
@@ -12,6 +11,7 @@ let draw_grid = (colorizer: 'a => int, file: string, grid: Grid.t('a)): unit => 
       output_char(out, char_of_int(rgb land 0x0000FF));
     },
   );
+  output_char(out, '\n');
   close_out(out);
 };
 
