@@ -158,7 +158,6 @@ let rec flow_river = (grid, path, x, y) => {
       let (next_x, next_y) = Grid.wrap_coord(grid, x + dx, y + dy);
       assert(next_x != x || next_y != y);
       if (!List.exists(((lx, ly)) => lx == next_x && ly == next_y, path)) {
-        let grid = place_river_tile(grid, x, y);
         flow_river(grid, next_path, next_x, next_y);
       } else {
         /* We formed a loop. Deposit sediment and backtrack. */
@@ -180,7 +179,7 @@ let rec flow_river = (grid, path, x, y) => {
     };
   } else if (List.length(path) > min_river_length) {
     /* We've made a river! Only accept if it's long enough */
-    Some(grid);
+    Some(path);
   } else {
     None;
         /* Too short */
@@ -199,8 +198,19 @@ let rec take = (amount, list) =>
   mountains, then creates a river with the given id there. The river is only
   kept if it can reach the ocean.
  */
-let river = (grid: Grid.t(tile), _id: int, source_x: int, source_y: int) =>
-  flow_river(grid, [], source_x, source_y);
+let river = (grid: Grid.t(tile), _id: int, source_x: int, source_y: int) => {
+  switch (flow_river(grid, [], source_x, source_y)) {
+  | Some(path) =>
+    Some(
+      List.fold_left(
+        (grid, (x, y)) => place_river_tile(grid, x, y),
+        grid,
+        path,
+      ),
+    )
+  | None => None
+  };
+};
 
 let add_rivers = (grid, amount): Grid.t(tile) => {
   let sources = river_sources(grid) |> take(amount, _);
