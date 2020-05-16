@@ -1,0 +1,3 @@
+(tests
+    (names Grid)
+    (libraries Worldgen alcotest))

@@ -5,6 +5,7 @@
   "license": "MIT",
   "esy": {
     "build": "refmterr dune build -p #{self.name}",
+    "test": "esy build dune test",
     "release": {
       "bin": [
         "Main"
