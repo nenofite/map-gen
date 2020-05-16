@@ -284,13 +284,6 @@ let scan_iter = (grid, ~row_f=noop_row_f, f) =>
     },
   );
 
-let debug_print = grid =>
-  scan_iter(
-    grid,
-    ~row_f=_y => print_newline(),
-    (_x, _y, n) => print_int(n),
-  );
-
 /*
   Directions and neighbors
  */
@@ -318,4 +311,87 @@ let neighbors_xy = (grid, x, y) => {
     ((dx, dy)) => (at_w(grid, x + dx, y + dy), dx, dy),
     eight_directions,
   );
+};
+
+/*
+ Tests
+ */
+
+let test_print = grid => {
+  scan_iter(
+    grid,
+    ~row_f=_ => print_newline(),
+    (_, _, here) => {
+      print_string(here);
+      print_string(",");
+    },
+  );
+};
+
+let%expect_test "init" = {
+  let grid = init(4, (x, y) => Printf.sprintf("%d:%d", x, y));
+  test_print(grid);
+
+  %expect
+  {|
+    0:0,1:0,2:0,3:0,
+    0:1,1:1,2:1,3:1,
+    0:2,1:2,2:2,3:2,
+    0:3,1:3,2:3,3:3,
+  |};
+};
+
+let%expect_test "map" = {
+  let grid =
+    init(4, (x, y) => (x, y))
+    |> map(_, (x, y, (hx, hy)) =>
+         Printf.sprintf("%d:%d::%d:%d", x, y, hx, hy)
+       );
+  test_print(grid);
+
+  %expect
+  {|
+    0:0::0:0,1:0::1:0,2:0::2:0,3:0::3:0,
+    0:1::0:1,1:1::1:1,2:1::2:1,3:1::3:1,
+    0:2::0:2,1:2::1:2,2:2::2:2,3:2::3:2,
+    0:3::0:3,1:3::1:3,2:3::2:3,3:3::3:3,
+  |};
+};
+
+let%expect_test "neighbors" = {
+  let grid = init(4, (x, y) => Printf.sprintf("%d:%d", x, y));
+  neighbors(grid, 1, 2) |> List.iter(print_endline, _);
+
+  %expect
+  {|
+    0:1
+    1:1
+    2:1
+    2:2
+    2:3
+    1:3
+    0:3
+    0:2
+  |};
+};
+
+let%expect_test "neighbors_xy" = {
+  let grid = init(4, (x, y) => Printf.sprintf("%d:%d", x, y));
+  neighbors_xy(grid, 1, 2)
+  |> List.iter(
+       ((coord, dx, dy)) => Printf.printf("%s::%d:%d\n", coord, dx, dy),
+       _,
+     );
+
+  %expect
+  {|
+    0:1::-1:-1
+    1:1::0:-1
+    2:1::1:-1
+    2:2::1:0
+    2:3::1:1
+    1:3::0:1
+    0:3::-1:1
+    0:2::-1:0
+  |};
 };
