@@ -1,0 +1,3 @@
+(library
+    (name Worldgen)
+    (libraries ANSITerminal Minecraft))

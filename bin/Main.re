@@ -1,3 +1,5 @@
+open Worldgen;
+
 Printexc.record_backtrace(true);
 Random.init(135);
 

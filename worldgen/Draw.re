@@ -5,7 +5,7 @@ let draw_grid = (colorizer: 'a => int, file: string, grid: Grid.t('a)): unit => 
   Grid.scan_iter(
     grid,
     ~row_f=_ => output_char(out, '\n'),
-    (x, y, n) => {
+    (_x, _y, n) => {
       let rgb = colorizer(n);
       output_char(out, char_of_int((rgb land 0xFF0000) lsr 16));
       output_char(out, char_of_int((rgb land 0x00FF00) lsr 8));

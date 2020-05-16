@@ -1,4 +1,4 @@
 (executable
   (name Main)
   (public_name Main)
-  (libraries ANSITerminal Minecraft))
+  (libraries Worldgen))

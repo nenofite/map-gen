@@ -19,7 +19,7 @@ let colorize = (tile: tile): int => {
 let convert = (old_grid: Grid.t(int)) => {
   Grid.map(
     old_grid,
-    (x, y, elevation) => {
+    (_x, _y, elevation) => {
       let ocean = elevation <= 0;
       {elevation, ocean, river: false};
     },
@@ -199,7 +199,7 @@ let rec take = (amount, list) =>
   mountains, then creates a river with the given id there. The river is only
   kept if it can reach the ocean.
  */
-let river = (grid: Grid.t(tile), id: int, source_x: int, source_y: int) =>
+let river = (grid: Grid.t(tile), _id: int, source_x: int, source_y: int) =>
   flow_river(grid, [], source_x, source_y);
 
 let add_rivers = (grid, amount): Grid.t(tile) => {

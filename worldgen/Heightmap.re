@@ -11,7 +11,7 @@ let colorize = (tile: tile): int => (tile + 50) * 255 / 150 * 0x010101;
 let empty_distance = Int.max_int - 10;
 
 let convert = (tectonic: Grid.t(Tectonic.tile)) => {
-  Grid.map(tectonic, (x, y, here) => {
+  Grid.map(tectonic, (_x, _y, here) => {
     {
       tectonic: here,
       distance_to_ocean:
@@ -31,7 +31,7 @@ let convert = (tectonic: Grid.t(Tectonic.tile)) => {
 let convert_intermediate = (grid: Grid.t(intermediate)) => {
   Grid.map(
     grid,
-    (x, y, here) => {
+    (_x, _y, here) => {
       let {tectonic, distance_to_ocean, distance_to_mountain} = here;
       switch (tectonic) {
       | Ocean => (-30) + Random.int(10)
@@ -47,9 +47,9 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
           let fraction =
             float_of_int(distance_to_ocean)
             /. float_of_int(distance_to_ocean + distance_to_mountain);
-          1 + int_of_float(fraction *. 29.0);
+          1 + int_of_float(fraction *. 79.0);
         } else {
-          min(distance_to_ocean, 30);
+          min(distance_to_ocean, 80);
         };
       };
     },
