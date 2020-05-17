@@ -92,6 +92,7 @@ let save_region =
     (
       ~region_path: string,
       ~region,
+      ~dirt_cloud,
       ~world: Grid.t(River.tile),
       ~rx,
       ~rz,
@@ -115,10 +116,21 @@ let save_region =
       let (x, z) = xz_of_gxy(~block_per_tile, gx, gy);
       for (x in x to pred(x + block_per_tile)) {
         for (z in z to pred(z + block_per_tile)) {
+          let dirt_height =
+            Point_cloud.interpolate(
+              dirt_cloud,
+              float_of_int(x),
+              float_of_int(z),
+            )
+            |> int_of_float;
+
           set_block(region, x, 0, z, Minecraft.Block.Bedrock);
 
           for (y in 1 to elevation) {
-            set_block(region, x, y, z, Minecraft.Block.Dirt);
+            let material =
+              y <= elevation - dirt_height
+                ? Minecraft.Block.Stone : Minecraft.Block.Glass;
+            set_block(region, x, y, z, material);
           };
           if (here.ocean) {
             for (y in elevation to sea_level) {
@@ -133,7 +145,8 @@ let save_region =
               Minecraft.Block.Flowing_water(0),
             );
           } else {
-            set_block(region, x, elevation, z, Minecraft.Block.Grass);
+            ();
+              /* set_block(region, x, elevation, z, Minecraft.Block.Grass); */
           };
         };
       };
@@ -148,6 +161,12 @@ let save_region =
   Printf.printf("Finished (%d, %d) in %fs\n", rx, rz, elapsed_time /. 1000.);
 };
 
+let make_dirt_cloud = side => {
+  Point_cloud.init(~width=side, ~height=side, ~spacing=128, (_x, _y) =>
+    Random.int(8) |> float_of_int
+  );
+};
+
 /** save creates a Minecraft world with the given heightmap */
 let save = (world: Grid.t(Sites.tile)): unit => {
   let world_config =
@@ -157,12 +176,14 @@ let save = (world: Grid.t(Sites.tile)): unit => {
       generator: Minecraft.Generator.Flat,
     };
 
+  let dirt_cloud = make_dirt_cloud(world.side);
+
   let region_path = Minecraft.World.save(world_config);
   let region = Minecraft.Block_tree.create();
   segment_grid_by_region(
     1,
     world,
     ~sub=((3, 4), (2, 2)),
-    save_region(~region_path, ~region),
+    save_region(~region_path, ~region, ~dirt_cloud),
   );
 };
