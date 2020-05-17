@@ -7,20 +7,24 @@ type section = {blocks: array(Block.material)};
  */
 type t = {sections: array(section)};
 
-let chunk_side = 16;
-let section_volume = chunk_side * chunk_side * chunk_side;
-let chunk_sections = 16;
-let region_side = 32;
-let block_per_region = region_side * chunk_side;
-let block_per_region_vertical = chunk_sections * chunk_side;
+let block_per_chunk = 16;
+let section_volume = block_per_chunk * block_per_chunk * block_per_chunk;
+let section_per_chunk = 16;
+let chunk_per_region = 32;
+let block_per_region = chunk_per_region * block_per_chunk;
+let block_per_region_vertical = section_per_chunk * block_per_chunk;
 
 let make_empty_section = () => {
-  blocks: Array.make(chunk_side * chunk_side * chunk_side, Block.Air),
+  blocks:
+    Array.make(
+      block_per_chunk * block_per_chunk * block_per_chunk,
+      Block.Air,
+    ),
 };
 
 let create = () => {
   sections:
-    Array.init(region_side * region_side * chunk_sections, _ =>
+    Array.init(chunk_per_region * chunk_per_region * section_per_chunk, _ =>
       make_empty_section()
     ),
 };
@@ -45,21 +49,22 @@ let reset = tree => {
   Y. It creates the parent region if needed.
  */
 let get_section = (tree, cx, sy, cz) => {
-  assert(0 <= cx && cx < region_side);
-  assert(0 <= cz && cz < region_side);
-  assert(0 <= sy && sy < chunk_sections);
-  let i = cx * region_side * chunk_sections + cz * chunk_sections + sy;
+  assert(0 <= cx && cx < chunk_per_region);
+  assert(0 <= cz && cz < chunk_per_region);
+  assert(0 <= sy && sy < section_per_chunk);
+  let i =
+    cx * chunk_per_region * section_per_chunk + cz * section_per_chunk + sy;
   tree.sections[i];
 };
 
 let assert_xyz = (x, y, z) =>
   if (!(
         0 <= x
-        && x < chunk_side
+        && x < block_per_chunk
         && 0 <= y
-        && y < chunk_side
+        && y < block_per_chunk
         && 0 <= z
-        && z < chunk_side
+        && z < block_per_chunk
       )) {
     let msg =
       Printf.sprintf(
@@ -73,23 +78,23 @@ let assert_xyz = (x, y, z) =>
 
 let get_block_in_section = (section, x, y, z) => {
   assert_xyz(x, y, z);
-  let i = y * chunk_side * chunk_side + z * chunk_side + x;
+  let i = y * block_per_chunk * block_per_chunk + z * block_per_chunk + x;
   section.blocks[i];
 };
 
 let set_block_in_section = (section, x, y, z, block) => {
   assert_xyz(x, y, z);
-  let i = y * chunk_side * chunk_side + z * chunk_side + x;
+  let i = y * block_per_chunk * block_per_chunk + z * block_per_chunk + x;
   section.blocks[i] = block;
 };
 
 let get_block = (tree, x, y, z) => {
-  let cx = x / chunk_side;
-  let sy = y / chunk_side;
-  let cz = z / chunk_side;
-  let x = x - cx * chunk_side;
-  let y = y - sy * chunk_side;
-  let z = z - cz * chunk_side;
+  let cx = x / block_per_chunk;
+  let sy = y / block_per_chunk;
+  let cz = z / block_per_chunk;
+  let x = x - cx * block_per_chunk;
+  let y = y - sy * block_per_chunk;
+  let z = z - cz * block_per_chunk;
   let section = get_section(tree, cx, sy, cz);
   get_block_in_section(section, x, y, z);
 };
@@ -109,12 +114,12 @@ let get_block_opt = (tree, x, y, z) =>
   };
 
 let set_block = (tree, x, y, z, block) => {
-  let cx = x / chunk_side;
-  let sy = y / chunk_side;
-  let cz = z / chunk_side;
-  let x = x - cx * chunk_side;
-  let y = y - sy * chunk_side;
-  let z = z - cz * chunk_side;
+  let cx = x / block_per_chunk;
+  let sy = y / block_per_chunk;
+  let cz = z / block_per_chunk;
+  let x = x - cx * block_per_chunk;
+  let y = y - sy * block_per_chunk;
+  let z = z - cz * block_per_chunk;
   let section = get_section(tree, cx, sy, cz);
   set_block_in_section(section, x, y, z, block);
 };
@@ -130,7 +135,7 @@ let rec height_at' = (tree, x, y, z) =>
   };
 /** height_at is the y-coord of the highest non-Air block */
 let height_at = (tree, x, z) => {
-  let y = chunk_side * chunk_sections - 1;
+  let y = block_per_chunk * section_per_chunk - 1;
   height_at'(tree, x, y, z);
 };
 
@@ -140,7 +145,7 @@ let section_has_blocks = section => {
 };
 
 let rec chunk_has_blocks' = (tree, cx, sy, cz) =>
-  if (sy < chunk_sections) {
+  if (sy < section_per_chunk) {
     if (section_has_blocks(get_section(tree, cx, sy, cz))) {
       true;
     } else {
@@ -176,14 +181,14 @@ let create_memory = () => {
 
 let section_i_of_xyz = (x, y, z) => {
   assert_xyz(x, y, z);
-  y * chunk_side * chunk_side + z * chunk_side + x;
+  y * block_per_chunk * block_per_chunk + z * block_per_chunk + x;
 };
 
 let section_xyz_of_i = i => {
-  let y = i / chunk_side / chunk_side;
-  let i = i - y * chunk_side * chunk_side;
-  let z = i / chunk_side;
-  let i = i - z * chunk_side;
+  let y = i / block_per_chunk / block_per_chunk;
+  let i = i - y * block_per_chunk * block_per_chunk;
+  let z = i / block_per_chunk;
+  let i = i - z * block_per_chunk;
   let x = i;
   assert_xyz(x, y, z);
   (x, y, z);
@@ -209,41 +214,61 @@ let section_nbt = (section, sy) => {
 
 let chunk_heightmap = (tree, cx, cz) => {
   Array.init(
-    chunk_side * chunk_side,
+    block_per_chunk * block_per_chunk,
     i => {
-      let z = i / chunk_side;
-      let i = i - z * chunk_side;
+      let z = i / block_per_chunk;
+      let i = i - z * block_per_chunk;
       let x = i;
-      height_at(tree, cx * chunk_side + x, cz * chunk_side + z)
+      height_at(tree, cx * block_per_chunk + x, cz * block_per_chunk + z)
       |> Int32.of_int;
     },
   );
 };
 
-let chunk_nbt = (tree, cx, cz) => {
+let chunk_nbt = (tree, ~rx, ~rz, ~cx, ~cz) => {
   /* Save all non-empty sections */
   let sections =
+    List.init(section_per_chunk, sy => (sy, get_section(tree, cx, sy, cz)));
+  let sections_nbt =
     List.(
-      init(chunk_sections, sy => (sy, get_section(tree, cx, sy, cz)))
+      sections
       |> filter(((_, section)) => section_has_blocks(section), _)
       |> map(((section_y, section)) =>
            section_nbt(section, section_y).payload
          )
     );
+  /* Check for saplings to be ticked */
+  let tile_ticks =
+    List.(
+      Nbt.Node.List(
+        sections
+        |> map(((_sy, section)) =>
+             Nbt.Node.List(
+               Array.to_list(section.blocks)
+               |> mapi((i, block) => (i, block))
+               |> filter(((_i, block)) => block == Block.Sapling)
+               |> map(((i, _block)) => Nbt.Node.Short(i)),
+             )
+           ),
+      )
+    );
   let heightmap = chunk_heightmap(tree, cx, cz);
+  let global_cx = rx * chunk_per_region + cx;
+  let global_cz = rz * chunk_per_region + cz;
   Nbt.Node.(
     ""
     >: Compound([
          "Level"
          >: Compound([
-              "Sections" >: List(sections),
-              "xPos" >: Int(cx |> Int32.of_int),
-              "zPos" >: Int(cz |> Int32.of_int),
+              "Sections" >: List(sections_nbt),
+              "xPos" >: Int(global_cx |> Int32.of_int),
+              "zPos" >: Int(global_cz |> Int32.of_int),
               "LastUpdate" >: Long(Utils.time_ms()),
               "V" >: Byte(1),
               "LightPopulated" >: Byte(1),
               "TerrainPopulated" >: Byte(1),
               "HeightMap" >: make_int_array(heightmap),
+              "TileTicks" >: tile_ticks,
             ]),
        ])
   );
@@ -284,28 +309,28 @@ let save_region = (~memory=create_memory(), region_path, tree, rx, rz) => {
         the updated bytes.
        */
       let chunk_offset_sizes =
-        Bytes.make(4 * region_side * region_side, Char.chr(0));
+        Bytes.make(4 * chunk_per_region * chunk_per_region, Char.chr(0));
       output_bytes(f, chunk_offset_sizes);
 
       /* Write modification times (repeat current time 32 * 32 times) */
       let now = Utils.time_ms() |> Int64.to_int32(_);
       let now_bytes = Bytes.create(4);
       Bytes.set_int32_be(now_bytes, 0, now);
-      for (_ in 0 to pred(region_side * region_side)) {
+      for (_ in 0 to pred(chunk_per_region * chunk_per_region)) {
         output_bytes(f, now_bytes);
       };
 
       /* Write each chunk */
-      for (cz in 0 to pred(region_side)) {
-        for (cx in 0 to pred(region_side)) {
-          let i = cz * region_side + cx;
+      for (cz in 0 to pred(chunk_per_region)) {
+        for (cx in 0 to pred(chunk_per_region)) {
+          let i = cz * chunk_per_region + cx;
           if (chunk_has_blocks(tree, cx, cz)) {
             /* Make sure we're at the start of a sector */
             assert(pos_out(f) mod sector_bytes == 0);
 
             /* Deflate chunk NBT. Keep chunk NBT and buffer in smaller scope to reduce memory, perhaps */
             let chunk_deflated = {
-              let nbt = chunk_nbt(tree, cx, cz);
+              let nbt = chunk_nbt(tree, ~rx, ~rz, ~cx, ~cz);
               Nbt.Nbt_printer.print_nbt(
                 ~memory=nbt_printer_memory,
                 ~gzip=false,

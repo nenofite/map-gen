@@ -6,13 +6,13 @@ let test = () => {
   let region_path = World.save(world_config);
   let tree = Block_tree.create();
   open Block_tree;
-  for (x in 0 to pred(Block_tree.chunk_side)) {
-    for (z in 0 to pred(Block_tree.chunk_side)) {
+  for (x in 0 to pred(Block_tree.block_per_chunk)) {
+    for (z in 0 to pred(Block_tree.block_per_chunk)) {
       set_block(tree, x, 0, z, Block.Dirt);
       if (x == 0
-          || x == pred(Block_tree.chunk_side)
+          || x == pred(Block_tree.block_per_chunk)
           || z == 0
-          || z == pred(Block_tree.chunk_side)) {
+          || z == pred(Block_tree.block_per_chunk)) {
         set_block(tree, x, 1, z, Block.Planks);
         set_block(tree, x, 2, z, Block.Planks);
         for (y in 3 to 50) {
