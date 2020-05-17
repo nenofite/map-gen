@@ -182,13 +182,6 @@ let rec flow_river = (grid, path, x, y) => {
   };
 };
 
-let rec take = (amount, list) =>
-  switch (list) {
-  | [a, ...b] when amount > 0 => [a, ...take(amount - 1, b)]
-  | [_, ..._]
-  | [] => []
-  };
-
 /**
   river finds a non-ocean tile with an elevation between plains and
   mountains, then creates a river with the given id there. The river is only
@@ -209,7 +202,7 @@ let river = (grid: Grid.t(tile), _id: int, source_x: int, source_y: int) => {
 };
 
 let add_rivers = (grid, amount): Grid.t(tile) => {
-  let sources = river_sources(grid) |> take(amount, _);
+  let sources = river_sources(grid) |> Util.take(amount, _);
   let amount = min(amount, List.length(sources));
 
   let (grid, succeeded) =

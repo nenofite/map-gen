@@ -13,3 +13,10 @@ let shuffle = list => {
     |> map(((_, x)) => x, _)
   );
 };
+
+let rec take = (amount, list) =>
+  switch (list) {
+  | [a, ...b] when amount > 0 => [a, ...take(amount - 1, b)]
+  | [_, ..._]
+  | [] => []
+  };
