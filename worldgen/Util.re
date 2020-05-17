@@ -20,3 +20,13 @@ let rec take = (amount, list) =>
   | [_, ..._]
   | [] => []
   };
+
+let print_progress = (title: string, f: unit => 'a): 'a => {
+  ANSITerminal.printf([ANSITerminal.green], "%s", title);
+  flush(stdout);
+  ANSITerminal.move_bol();
+  let result = f();
+  ANSITerminal.erase(ANSITerminal.Eol);
+  ANSITerminal.printf([], "%s\n", title);
+  result;
+};

@@ -11,10 +11,7 @@ let make = side => {
       @> phase_repeat(
            2,
            "Line subdivide",
-           Subdivide.subdivide_with_fill(
-             _,
-             Fill.(line(~subfill=(a, _) => a, ()) **> random_avg),
-           ),
+           Subdivide.subdivide_with_fill(_, Fill.(line() **> random_avg)),
          )
       @> Draw.phase("dirt.ppm", i => i * 20 * 0x010101),
     )

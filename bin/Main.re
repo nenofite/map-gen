@@ -20,4 +20,7 @@ let world =
 
 let dirt = Dirt_height.make(world.side);
 
-Minecraft_converter.save(world, ~dirt);
+let overlays =
+  [Biome_overlay.overlay(world)] |> List.map(Overlay.prepare_overlay, _);
+
+Minecraft_converter.save(world, ~dirt, ~overlays);

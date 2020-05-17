@@ -24,7 +24,7 @@ let random_avg = (a, b, c, d) => {
 };
 
 /** line will continue a "line" if two opposing sides are equal */
-let line = (~eq=(==), ~subfill, (), ~next, a, b, c, d) => {
+let line = (~eq=(==), ~subfill=(a, _) => a, (), ~next, a, b, c, d) => {
   switch (eq(a, c), eq(b, d)) {
   | (true, true) =>
     if (Random.bool()) {
