@@ -16,8 +16,15 @@ let random = (a, b, c, d) => {
   };
 };
 
+/** random_avg picks a random int within the range of neighbors */
+let random_avg = (a, b, c, d) => {
+  let lowest = min(min(a, b), min(c, d));
+  let highest = max(max(a, b), max(c, d));
+  lowest + Random.int(highest - lowest + 1);
+};
+
 /** line will continue a "line" if two opposing sides are equal */
-let line = (~eq=(==), ~subfill, ~next, a, b, c, d) => {
+let line = (~eq=(==), ~subfill, (), ~next, a, b, c, d) => {
   switch (eq(a, c), eq(b, d)) {
   | (true, true) =>
     if (Random.bool()) {

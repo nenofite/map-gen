@@ -92,7 +92,7 @@ let save_region =
     (
       ~region_path: string,
       ~region,
-      ~dirt_cloud,
+      ~dirt,
       ~world: Grid.t(River.tile),
       ~rx,
       ~rz,
@@ -112,24 +112,16 @@ let save_region =
     for (gy in gy_offset to pred(gy_offset + gsize)) {
       let here = Grid.at(world, gx, gy);
       let elevation = scale_elevation(here.elevation);
-      /* TODO apply scale */
+      let dirt_height = Grid.at(dirt, gx, gy);
       let (x, z) = xz_of_gxy(~block_per_tile, gx, gy);
       for (x in x to pred(x + block_per_tile)) {
         for (z in z to pred(z + block_per_tile)) {
-          let dirt_height =
-            Point_cloud.interpolate(
-              dirt_cloud,
-              float_of_int(x),
-              float_of_int(z),
-            )
-            |> int_of_float;
-
           set_block(region, x, 0, z, Minecraft.Block.Bedrock);
 
           for (y in 1 to elevation) {
             let material =
               y <= elevation - dirt_height
-                ? Minecraft.Block.Stone : Minecraft.Block.Glass;
+                ? Minecraft.Block.Stone : Minecraft.Block.Dirt;
             set_block(region, x, y, z, material);
           };
           if (here.ocean) {
@@ -144,9 +136,8 @@ let save_region =
               z,
               Minecraft.Block.Flowing_water(0),
             );
-          } else {
-            ();
-              /* set_block(region, x, elevation, z, Minecraft.Block.Grass); */
+          } else if (dirt_height > 0) {
+            set_block(region, x, elevation, z, Minecraft.Block.Grass);
           };
         };
       };
@@ -162,13 +153,13 @@ let save_region =
 };
 
 let make_dirt_cloud = side => {
-  Point_cloud.init(~width=side, ~height=side, ~spacing=128, (_x, _y) =>
+  Point_cloud.init(~width=side, ~height=side, ~spacing=20, (_x, _y) =>
     Random.int(8) |> float_of_int
   );
 };
 
 /** save creates a Minecraft world with the given heightmap */
-let save = (world: Grid.t(Sites.tile)): unit => {
+let save = (world: Grid.t(Sites.tile), ~dirt: Grid.t(int)): unit => {
   let world_config =
     Minecraft.World.{
       name: "heightmap",
@@ -176,14 +167,12 @@ let save = (world: Grid.t(Sites.tile)): unit => {
       generator: Minecraft.Generator.Flat,
     };
 
-  let dirt_cloud = make_dirt_cloud(world.side);
-
   let region_path = Minecraft.World.save(world_config);
   let region = Minecraft.Block_tree.create();
   segment_grid_by_region(
     1,
     world,
     ~sub=((3, 4), (2, 2)),
-    save_region(~region_path, ~region, ~dirt_cloud),
+    save_region(~region_path, ~region, ~dirt),
   );
 };

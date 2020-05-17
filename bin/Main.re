@@ -18,4 +18,6 @@ let world =
     )
   );
 
-Minecraft_converter.save(world);
+let dirt = Dirt_height.make(world.side);
+
+Minecraft_converter.save(world, ~dirt);

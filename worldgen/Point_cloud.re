@@ -111,5 +111,5 @@ let nearest_with_edge = (cloud, edge_value, x, y) => {
 let interpolate = (cloud, x, y) => {
   let (a, a_distance, b, b_distance) = two_closest_points(cloud, x, y);
   let frac = a_distance /. (a_distance +. b_distance);
-  a.value *. frac +. b.value *. (1. -. frac);
+  a.value *. (1. -. frac) +. b.value *. frac;
 };
