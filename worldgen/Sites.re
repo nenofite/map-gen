@@ -24,8 +24,15 @@ let touchup = (grid: Grid.t(tile)) => {
 };
 
 let fill = (~fill_diags=false, a: tile, b: tile, c: tile, d: tile): tile => {
-  /* Elevation is average */
-  let elevation = (a.elevation + b.elevation + c.elevation + d.elevation) / 4;
+  /* Elevation forms lines, otherwise is average */
+  let elevation =
+    switch (a.elevation == c.elevation, b.elevation == d.elevation) {
+    | (true, true) => Random.bool() ? a.elevation : b.elevation
+    | (true, false) => a.elevation
+    | (false, true) => b.elevation
+    | (false, false) =>
+      (a.elevation + b.elevation + c.elevation + d.elevation) / 4
+    };
   let ocean = elevation <= 0;
 
   /* River if opposing sides are river or ocean */

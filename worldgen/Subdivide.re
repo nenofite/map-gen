@@ -100,18 +100,8 @@ let overwrite_subdivide_with_fill = (old_grid: Grid.t('a), fill) => {
   );
 };
 
-/** random_fill picks a random neighbor and uses its value */
-let random_fill = (a, b, c, d) => {
-  switch (Random.int(4)) {
-  | 0 => a
-  | 1 => b
-  | 2 => c
-  | _ => d
-  };
-};
-
 /** subdivide uses [random_fill] */
-let subdivide = subdivide_with_fill(_, random_fill);
+let subdivide = subdivide_with_fill(_, Fill.random);
 
 let%expect_test "subdivide_with_fill" = {
   let rec print_list =

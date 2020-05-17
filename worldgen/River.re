@@ -57,14 +57,6 @@ let rec array_find = (f, array, i) =>
     None;
   };
 
-let shuffle = list => {
-  List.(
-    map(x => (Random.bits(), x), list)
-    |> fast_sort(((a, _), (b, _)) => Int.compare(a, b), _)
-    |> map(((_, x)) => x, _)
-  );
-};
-
 /**
   fall_to_with_flat_dir determines which neighbor the river will flow to:
 
@@ -86,7 +78,7 @@ let fall_to_with_flat_dir = (here, neighbors, flat_dir) => {
   } else if (compare_elevations(flat_dir_n, (here, 0, 0)) <= 0) {
     Some(flat_dir);
   } else {
-    shuffle(neighbors)
+    Util.shuffle(neighbors)
     |> List.find_opt(x => compare_elevations(x, (here, 0, 0)) <= 0, _)
     |> Option.map(((_, x, y)) => (x, y), _);
   };
