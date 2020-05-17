@@ -403,4 +403,5 @@ let id =
 let data =
   fun
   | Flowing_water(level) => level
+  | Sapling => 0x8
   | _ => 0;

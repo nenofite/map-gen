@@ -58,8 +58,10 @@ let apply_region =
       if (value) {
         let x = int_of_float(x);
         let z = int_of_float(z);
-        let here_biome = Grid.at(state.biomes, x, z);
-        let here_base = Grid.at(base, x, z);
+        let gx = x + gx_offset;
+        let gy = z + gy_offset;
+        let here_biome = Grid.at(state.biomes, gx, gy);
+        let here_base = Grid.at(base, gx, gy);
         if (here_biome == Forest && !here_base.ocean && !here_base.river) {
           let y = Minecraft.Block_tree.height_at(region, x, z);
           let block = Minecraft.Block_tree.get_block(region, x, y, z);
@@ -68,11 +70,17 @@ let apply_region =
             Minecraft.Block_tree.set_block(
               region,
               x,
+              y + 20,
+              z,
+              Minecraft.Block.Glowstone,
+            );
+            Minecraft.Block_tree.set_block(
+              region,
+              x,
               y + 1,
               z,
               Minecraft.Block.Sapling,
             );
-            print_endline("tree");
           | _ => ()
           };
         };
