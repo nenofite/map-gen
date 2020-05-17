@@ -268,7 +268,7 @@ let chunk_nbt = (tree, ~rx, ~rz, ~cx, ~cz) => {
               "LightPopulated" >: Byte(1),
               "TerrainPopulated" >: Byte(1),
               "HeightMap" >: make_int_array(heightmap),
-              "TileTicks" >: tile_ticks,
+              "PostProcessing" >: tile_ticks,
             ]),
        ])
   );
