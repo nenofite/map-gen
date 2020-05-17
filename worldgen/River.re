@@ -5,6 +5,8 @@ type tile = {
 };
 
 let min_river_length = 30;
+let min_source_elevation = 70;
+let max_source_elevation = 100;
 
 let colorize = (tile: tile): int => {
   let base = Heightmap.colorize(tile.elevation) |> Color.color_of_int(_);
@@ -94,7 +96,9 @@ let fall_to_with_flat_dir = (here, neighbors, flat_dir) => {
 let river_sources = (grid: Grid.t(tile)) => {
   let coords =
     Grid.fold(grid, [], (acc, x, y, here) =>
-      if (!here.ocean && 24 <= here.elevation && here.elevation <= 30) {
+      if (!here.ocean
+          && min_source_elevation <= here.elevation
+          && here.elevation <= max_source_elevation) {
         let neighbors = Grid.neighbors_xy(grid, x, y);
         if (Option.is_some(fall_to(here, neighbors))) {
           [(x, y, Random.bits()), ...acc];
