@@ -10,6 +10,16 @@ type t('v) = {
   height: int,
 };
 
+let is_within = (width, height, x, y) =>
+  0. <= x && x < float_of_int(width) && 0. <= y && y < float_of_int(height);
+
+let assert_within = (width, height, x, y) =>
+  if (!is_within(width, height, x, y)) {
+    let msg =
+      Printf.sprintf("point is outside boundaries of cloud: %f, %f", x, y);
+    raise(Invalid_argument(msg));
+  };
+
 /**
   init creates a point cloud, randomizes the points, and initializes their
   value by calling `f(x, y)`.
@@ -19,8 +29,8 @@ type t('v) = {
  */
 let init = (~width, ~height, ~spacing=1, f) => {
   let points = ref([]);
-  for (yi in 1 to height / spacing - 2) {
-    for (xi in 1 to width / spacing - 2) {
+  for (yi in 0 to height / spacing) {
+    for (xi in 0 to width / spacing) {
       let x = xi * spacing;
       let y = yi * spacing;
       let xf =
@@ -31,24 +41,15 @@ let init = (~width, ~height, ~spacing=1, f) => {
         float_of_int(y)
         +. (Random.float(1.) -. 0.5)
         *. float_of_int(spacing);
-      let point = {x: xf, y: yf, value: f(x, y)};
-      points := [point, ...points^];
+      /* Discard if the point is outside */
+      if (is_within(width, height, xf, yf)) {
+        let point = {x: xf, y: yf, value: f(x, y)};
+        points := [point, ...points^];
+      };
     };
   };
   {points: points^, width, height};
 };
-
-let assert_within = (width, height, x, y) =>
-  if (!(
-        0. <= x
-        && x < float_of_int(width)
-        && 0. <= y
-        && y < float_of_int(height)
-      )) {
-    let msg =
-      Printf.sprintf("point is outside boundaries of cloud: %f, %f", x, y);
-    raise(Invalid_argument(msg));
-  };
 
 let distance = (ax, ay, bx, by) =>
   sqrt((ax -. bx) ** 2. +. (ay -. by) ** 2.);
