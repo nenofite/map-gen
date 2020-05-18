@@ -3,8 +3,19 @@ type tile = {
   ceiling_elev: int,
 };
 
-let min_dist_to_surface = 10;
-let pillar_meet_elev = 35;
+let colorize = tile =>
+  if (tile.floor_elev < tile.ceiling_elev) {
+    let frac = float_of_int(tile.floor_elev) /. 50.;
+    Color.(
+      blend(color_of_int(0x101010), color_of_int(0xFFFFFF), frac)
+      |> int_of_color
+    );
+  } else {
+    0;
+  };
+
+let min_dist_to_surface = 5;
+let pillar_meet_elev = 10;
 
 let add_floor_pillars = (pillar_cloud: Point_cloud.t(bool), floor) => {
   List.fold_left(
@@ -43,22 +54,22 @@ let add_ceiling_pillars = (pillar_cloud: Point_cloud.t(bool), ceiling) => {
 };
 
 let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
-  let start_side = 128;
+  let start_side = world.side / 32;
   let floor_cloud =
     Point_cloud.init(
-      ~width=start_side, ~height=start_side, ~spacing=4, (_, _) => {
-      Random.float(20.) +. 10.
+      ~width=start_side, ~height=start_side, ~spacing=16, (_, _) => {
+      Random.float(16.) +. 4.
     });
   let ceiling_cloud =
     Point_cloud.init(
       ~width=start_side, ~height=start_side, ~spacing=4, (_, _) => {
-      Random.float(10.) +. 40.
+      Random.float(8.) +. 12.
     });
   let pillar_cloud =
     Point_cloud.init(
       ~width=start_side * 4, ~height=start_side * 4, ~spacing=8, (_, _) =>
-      Random.int(100) < 100
-    ); /* TODO */
+      true
+    );
   let floor =
     Phase_chain.(
       run_all(
@@ -72,24 +83,24 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
               )
               |> int_of_float
             )
-            - Random.int(5)
+            - Random.int(2)
           })
         )
         @> phase_repeat(
              2,
-             "Avg subdivide",
+             "Random avg subdivide",
              Subdivide.subdivide_with_fill(_, Fill.random_avg),
            )
         @> phase("Add pillars", add_floor_pillars(pillar_cloud))
         @> phase_repeat(
              2,
-             "Avg subdivide",
+             "Random avg subdivide",
              Subdivide.subdivide_with_fill(_, Fill.random_avg),
            )
         @> phase_repeat(
              1,
              "Line subdivide",
-             Subdivide.subdivide_with_fill(_, Fill.(line() **> random_avg)),
+             Subdivide.subdivide_with_fill(_, Fill.(line() **> avg)),
            ),
       )
     );
@@ -106,18 +117,19 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
               )
               |> int_of_float
             )
-            + Random.int(5)
+            + Random.int(4)
+            - 2
           })
         )
         @> phase_repeat(
              2,
-             "Avg subdivide",
+             "Random avg subdivide",
              Subdivide.subdivide_with_fill(_, Fill.random_avg),
            )
         @> phase("Add pillars", add_ceiling_pillars(pillar_cloud))
         @> phase_repeat(
              2,
-             "Avg subdivide",
+             "Random avg subdivide",
              Subdivide.subdivide_with_fill(_, Fill.random_avg),
            )
         @> phase_repeat(
@@ -127,11 +139,19 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
            ),
       )
     );
-  (floor, ceiling);
+  Phase_chain.(
+    run_all(
+      phase("Combine", () =>
+        Grid.zip_map(floor, ceiling, (_x, _y, floor_elev, ceiling_elev) =>
+          {floor_elev, ceiling_elev}
+        )
+      )
+      @> Draw.phase("cavern.ppm", colorize),
+    )
+  );
 };
 
-let apply_region =
-    (world: Grid.t(Base_overlay.tile), (floor, ceiling), args) => {
+let apply_region = (world: Grid.t(Base_overlay.tile), cavern, args) => {
   let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
   Minecraft_converter.iter_blocks(
     ~gx_offset,
@@ -141,8 +161,7 @@ let apply_region =
       open Minecraft.Block_tree;
 
       let surface_elev = Grid.at(world, gx, gy).elevation;
-      let ceiling_elev = Grid.at(ceiling, gx, gy);
-      let floor_elev = Grid.at(floor, gx, gy);
+      let {floor_elev, ceiling_elev} = Grid.at(cavern, gx, gy);
 
       /* Don't go above the maximum */
       let ceiling_elev =

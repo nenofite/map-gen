@@ -33,6 +33,10 @@ let random_avg = (a, b, c, d) => {
   lowest + Random.int(highest - lowest + 1);
 };
 
+let avg = (a, b, c, d) => {
+  (a + b + c + d) / 4;
+};
+
 /** line will continue a "line" if two opposing sides are equal */
 let line = (~eq=(==), ~subfill=(a, _) => a, (), ~next, a, b, c, d) => {
   switch (eq(a, c), eq(b, d)) {

@@ -22,6 +22,7 @@ let int_of_color = ({r, g, b}) => {
 };
 
 let blend = (a, b, fraction) => {
+  let fraction = min(1., max(0., fraction));
   let r =
     int_of_float(
       float_of_int(a.r) *. (1. -. fraction) +. float_of_int(b.r) *. fraction,

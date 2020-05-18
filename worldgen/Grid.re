@@ -233,6 +233,32 @@ let iter = (grid, f) =>
     },
   );
 
+let rec zip_map' = (node_a, node_b, node_side, node_x, node_y, f) =>
+  switch (node_a, node_b) {
+  | (Tile(a), Tile(b)) =>
+    assert(node_side == 1);
+    Tile(f(node_x, node_y, a, b));
+  | (Quad(nw_a, ne_a, se_a, sw_a), Quad(nw_b, ne_b, se_b, sw_b)) =>
+    let sub_side = node_side / 2;
+    let nw = zip_map'(nw_a, nw_b, sub_side, node_x, node_y, f);
+    let ne = zip_map'(ne_a, ne_b, sub_side, node_x + sub_side, node_y, f);
+    let se =
+      zip_map'(se_a, se_b, sub_side, node_x + sub_side, node_y + sub_side, f);
+    let sw = zip_map'(sw_a, sw_b, sub_side, node_x, node_y + sub_side, f);
+    Quad(nw, ne, se, sw);
+  | (_, _) => raise(Invalid_argument("grid structures do not match"))
+  };
+let zip_map = (grid_a, grid_b, f) => {
+  if (grid_a.side != grid_b.side) {
+    raise(Invalid_argument("grid sides must match to zip"));
+  };
+  let root = zip_map'(grid_a.root, grid_b.root, grid_a.side, 0, 0, f);
+  {side: grid_a.side, root};
+};
+
+let zip = (grid_a, grid_b) =>
+  zip_map(grid_a, grid_b, (_x, _y, a, b) => (a, b));
+
 /*
   Scanning
  */
