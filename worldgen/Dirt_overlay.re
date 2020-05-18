@@ -1,4 +1,4 @@
-let make = side => {
+let prepare = (side, ()) => {
   Printf.printf("Making dirt heights\n");
   Phase_chain.(
     run_all(
@@ -17,3 +17,6 @@ let make = side => {
     )
   );
 };
+
+let overlay = side =>
+  Overlay.make("dirt height", prepare(side), (_, _) => ());

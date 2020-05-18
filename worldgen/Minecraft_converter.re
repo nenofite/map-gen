@@ -10,12 +10,6 @@ type region_args = {
   gsize: int,
 };
 
-let scale_elevation = elevation => {
-  /* Take -30 to 100 and map to 1 to 100 */
-  (elevation + 30) * 99 / 130 + 1;
-};
-let sea_level = scale_elevation(0);
-
 /**
   xz_of_gxy is for use within callbacks passed to segment_grid_by_region. It
   converts the grid coordinates to region-local block coordinates.
@@ -39,20 +33,20 @@ let xz_of_gxy = (gx, gy) => {
   sub is an optional range of regions to limit the export, eg. ((2, 3), (1,
   1)) to export a 1x1 slice of regions starting with region r.2.3
  */
-let segment_grid_by_region = (world: Grid.t('a), ~sub=?, f): unit => {
+let segment_grid_by_region = (~side: int, ~sub=?, f): unit => {
   let block_per_region = Minecraft.Block_tree.block_per_region;
   /* The grid must split evenly into regions */
-  if (world.side mod block_per_region != 0) {
+  if (side mod block_per_region != 0) {
     let msg =
       Printf.sprintf(
         "grid does not divide evenly into regions with grid %dx%d",
-        world.side,
-        world.side,
+        side,
+        side,
       );
     raise(Invalid_argument(msg));
   };
   /* Calculate how many tiles form the side of a region */
-  let regions_side = world.side / block_per_region;
+  let regions_side = side / block_per_region;
   Printf.printf(
     "Grid divided into %dx%d regions\n",
     regions_side,
@@ -72,7 +66,6 @@ let segment_grid_by_region = (world: Grid.t('a), ~sub=?, f): unit => {
         + len_rz;
       if (in_sub) {
         f(
-          ~world,
           ~rx,
           ~rz,
           ~gx_offset=rx * block_per_region,
@@ -98,53 +91,17 @@ let save_region =
     (
       ~region_path: string,
       ~region,
-      ~dirt,
       ~apply_overlays,
-      ~world: Grid.t(River.tile),
       ~rx,
       ~rz,
       ~gx_offset,
       ~gy_offset,
       ~gsize,
     ) => {
-  let set_block = Minecraft.Block_tree.set_block;
-
   Printf.printf("Creating region (%d, %d)\n", rx, rz);
   let start_time = Minecraft.Utils.time_ms();
   Printf.printf("Resetting region\n");
   Minecraft.Block_tree.reset(region);
-
-  Printf.printf("Filling blocks\n");
-  iter_blocks(
-    ~rx,
-    ~rz,
-    ~gx_offset,
-    ~gy_offset,
-    ~gsize,
-    (~gx, ~gy, ~x, ~z) => {
-      let here = Grid.at(world, gx, gy);
-      let elevation = scale_elevation(here.elevation);
-      let dirt_height = Grid.at(dirt, gx, gy);
-
-      set_block(region, x, 0, z, Minecraft.Block.Bedrock);
-
-      for (y in 1 to elevation) {
-        let material =
-          y <= elevation - dirt_height
-            ? Minecraft.Block.Stone : Minecraft.Block.Dirt;
-        set_block(region, x, y, z, material);
-      };
-      if (here.ocean) {
-        for (y in elevation to sea_level) {
-          set_block(region, x, y, z, Minecraft.Block.Water);
-        };
-      } else if (here.river) {
-        set_block(region, x, elevation, z, Minecraft.Block.Flowing_water(0));
-      } else if (dirt_height > 0) {
-        set_block(region, x, elevation, z, Minecraft.Block.Grass);
-      };
-    },
-  );
 
   let args = {region, rx, rz, gx_offset, gy_offset, gsize};
   apply_overlays(args);
@@ -165,13 +122,7 @@ let make_dirt_cloud = side => {
 };
 
 /** save creates a Minecraft world with the given heightmap */
-let save =
-    (
-      world: Grid.t(Sites.tile),
-      ~dirt: Grid.t(int),
-      ~apply_overlays: region_args => unit,
-    )
-    : unit => {
+let save = (~side: int, ~apply_overlays: region_args => unit): unit => {
   let world_config =
     Minecraft.World.{
       name: "heightmap",
@@ -182,8 +133,8 @@ let save =
   let region_path = Minecraft.World.save(world_config);
   let region = Minecraft.Block_tree.create();
   segment_grid_by_region(
-    world,
+    ~side,
     ~sub=((3, 4), (2, 2)),
-    save_region(~region_path, ~region, ~dirt, ~apply_overlays),
+    save_region(~region_path, ~region, ~apply_overlays),
   );
 };
