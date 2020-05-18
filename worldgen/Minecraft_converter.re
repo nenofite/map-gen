@@ -77,7 +77,7 @@ let segment_grid_by_region = (~side: int, ~sub=?, f): unit => {
   };
 };
 
-let iter_blocks = (~rx, ~rz, ~gx_offset, ~gy_offset, ~gsize, f) => {
+let iter_blocks = (~gx_offset, ~gy_offset, ~gsize, f) => {
   for (gx in gx_offset to pred(gx_offset + gsize)) {
     for (gy in gy_offset to pred(gy_offset + gsize)) {
       let (x, z) = xz_of_gxy(gx, gy);

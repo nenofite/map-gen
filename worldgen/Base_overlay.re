@@ -23,10 +23,8 @@ let prepare = () =>
   );
 
 let apply_region = (dirt: Grid.t(int), world: Grid.t(tile), args) => {
-  let Minecraft_converter.{region, rx, rz, gx_offset, gy_offset, gsize} = args;
+  let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
   Minecraft_converter.iter_blocks(
-    ~rx,
-    ~rz,
     ~gx_offset,
     ~gy_offset,
     ~gsize,

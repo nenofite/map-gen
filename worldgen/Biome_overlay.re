@@ -38,7 +38,7 @@ let prepare = (side, ()) => {
 
 let apply_region =
     (base: Grid.t(River.tile), state, args: Minecraft_converter.region_args) => {
-  let Minecraft_converter.{region, rx, rz, gx_offset, gy_offset, gsize} = args;
+  let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
   /* Create a point cloud of trees */
   let trees =
     Point_cloud.init(~width=gsize, ~height=gsize, ~spacing=8, (_, _) =>
