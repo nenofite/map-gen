@@ -1,4 +1,5 @@
 (executable
   (name Main)
   (public_name Main)
+  (preprocess (pps ppx_let))
   (libraries Worldgen))

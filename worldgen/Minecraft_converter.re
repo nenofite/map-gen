@@ -1,3 +1,15 @@
+/**
+  region_params are the numerous arguments provided when generating a region
+ */
+type region_args = {
+  region: Minecraft.Block_tree.t,
+  rx: int,
+  rz: int,
+  gx_offset: int,
+  gy_offset: int,
+  gsize: int,
+};
+
 let scale_elevation = elevation => {
   /* Take -30 to 100 and map to 1 to 100 */
   (elevation + 30) * 99 / 130 + 1;
@@ -87,7 +99,7 @@ let save_region =
       ~region_path: string,
       ~region,
       ~dirt,
-      ~overlays,
+      ~apply_overlays,
       ~world: Grid.t(River.tile),
       ~rx,
       ~rz,
@@ -134,19 +146,8 @@ let save_region =
     },
   );
 
-  List.iter(
-    ov =>
-      Overlay.apply_overlay(
-        ov,
-        ~region,
-        ~rx,
-        ~rz,
-        ~gx_offset,
-        ~gy_offset,
-        ~gsize,
-      ),
-    overlays,
-  );
+  let args = {region, rx, rz, gx_offset, gy_offset, gsize};
+  apply_overlays(args);
 
   Printf.printf("Flowing water\n");
   Minecraft.Water.flow_water(region);
@@ -168,7 +169,7 @@ let save =
     (
       world: Grid.t(Sites.tile),
       ~dirt: Grid.t(int),
-      ~overlays: list(Overlay.overlay_state),
+      ~apply_overlays: region_args => unit,
     )
     : unit => {
   let world_config =
@@ -183,6 +184,6 @@ let save =
   segment_grid_by_region(
     world,
     ~sub=((3, 4), (2, 2)),
-    save_region(~region_path, ~region, ~dirt, ~overlays),
+    save_region(~region_path, ~region, ~dirt, ~apply_overlays),
   );
 };

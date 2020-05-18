@@ -20,7 +20,12 @@ let world =
 
 let dirt = Dirt_height.make(world.side);
 
-let overlays =
-  [Biome_overlay.overlay(world)] |> List.map(Overlay.prepare_overlay, _);
+let overlays = {
+  module Let_syntax = Overlay.Let_syntax;
+  let%bind biomes = Biome_overlay.overlay(world);
+  Overlay.return(biomes);
+};
 
-Minecraft_converter.save(world, ~dirt, ~overlays);
+let apply_overlays = Overlay.prepare(overlays);
+
+Minecraft_converter.save(world, ~dirt, ~apply_overlays);

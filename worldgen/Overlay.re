@@ -1,94 +1,52 @@
-/* module type OVERLAY = {
-     type t;
-     let title: string;
-     let prepare: unit => t;
-     let make_region:
-       (
-         t,
-         ~region: Minecraft.Block_tree.t,
-         ~rx: int,
-         ~rz: int,
-         ~gx_offset: int,
-         ~gy_offset: int,
-         ~gsize: int
-       ) =>
-       unit;
-   }; */
-
-type overlay('state) = {
-  name: string,
-  prepare: unit => 'state,
-  apply_region:
-    (
-      'state,
-      ~region: Minecraft.Block_tree.t,
-      ~rx: int,
-      ~rz: int,
-      ~gx_offset: int,
-      ~gy_offset: int,
-      ~gsize: int
-    ) =>
-    unit,
+type monad('state) = {
+  prepare: unit => ('state, Minecraft_converter.region_args => unit),
 };
 
-type overlay_state =
-  | Overlay_state(overlay('state), 'state): overlay_state;
-
-let prepare_overlay = overlay => {
-  let state =
-    Util.print_progress(
-      Printf.sprintf("Preparing %s overlay", overlay.name),
-      overlay.prepare,
-    );
-  Overlay_state(overlay, state);
-};
-
-let apply_overlay =
+let make =
     (
-      overlay_state,
-      ~region: Minecraft.Block_tree.t,
-      ~rx: int,
-      ~rz: int,
-      ~gx_offset: int,
-      ~gy_offset: int,
-      ~gsize: int,
-    ) => {
-  let Overlay_state(overlay, state) = overlay_state;
-  Util.print_progress(Printf.sprintf("Applying %s overlay", overlay.name), () =>
-    overlay.apply_region(
-      state,
-      ~region,
-      ~rx,
-      ~rz,
-      ~gx_offset,
-      ~gy_offset,
-      ~gsize,
+      name: string,
+      prepare: unit => 'a,
+      apply_region: ('a, Minecraft_converter.region_args) => unit,
     )
-  );
+    : monad('a) => {
+  let prepare = () => {
+    let state =
+      Util.print_progress("Preparing " ++ name ++ " overlay", prepare);
+    let apply_region = args =>
+      Util.print_progress("Applying " ++ name ++ " overlay", () =>
+        apply_region(state, args)
+      );
+    (state, apply_region);
+  };
+  {prepare: prepare};
 };
 
-/*
- type overlay_state =
-   | Overlay_state((module OVERLAY with type t = 'a), 'a): overlay_state;
+let bind = (m, ~f) => {
+  let prepare = () => {
+    let (m_state, m_apply_f) = m.prepare();
+    let (o_state, o_apply_f) = f(m_state).prepare();
+    let apply_f = args => {
+      m_apply_f(args);
+      o_apply_f(args);
+    };
+    (o_state, apply_f);
+  };
+  {prepare: prepare};
+};
 
- let prepare = (overlay: (module OVERLAY)): overlay_state => {
-   module Ov = (val overlay: OVERLAY);
-   let state = Util.print_progress(Ov.title, Ov.prepare);
-   Overlay_state((module Ov): (module OVERLAY with type t = Ov.t), state);
- };
+let return = v => {
+  let prepare = () => {
+    (v, _ => ());
+  };
+  {prepare: prepare};
+};
 
- let make_region =
-     (
-       overlay_state: overlay_state,
-       ~region: Minecraft.Block_tree.t,
-       ~rx: int,
-       ~rz: int,
-       ~gx_offset: int,
-       ~gy_offset: int,
-       ~gsize: int,
-     )
-     : unit => {
-   let Overlay_state(overlay, state) = overlay_state;
-   module Ov = (val overlay: OVERLAY with type t = 'state);
-   Ov.make_region(state, ~region, ~rx, ~rz, ~gx_offset, ~gy_offset, ~gsize);
- }; */
+module Let_syntax = {
+  let bind = bind;
+  let return = return;
+};
+
+let prepare = monad => {
+  let (_state, apply_region) = monad.prepare();
+  apply_region;
+};

@@ -1,5 +1,5 @@
 {
-  "checksum": "e3cf0a61c0cde81fa9efb750a65da2b1",
+  "checksum": "a56981ae57d02250b460acac0275abe2",
   "root": "map-gen@link-dev:./package.json",
   "node": {
     "yarn-pkg-config@github:esy-ocaml/yarn-pkg-config#db3a0b63883606dd57c54a7158d560d6cba8cd79@d41d8cd9": {
@@ -64,7 +64,9 @@
       "overrides": [],
       "dependencies": [
         "refmterr@3.3.0@d41d8cd9", "ocaml@4.8.1000@d41d8cd9",
-        "@opam/zlib@opam:0.6@c1c02a30", "@opam/dune@opam:2.5.1@a0c1e658",
+        "@opam/zlib@opam:0.6@c1c02a30",
+        "@opam/ppx_let@opam:v0.13.0@5703d2be",
+        "@opam/dune@opam:2.5.1@a0c1e658",
         "@opam/bitstring@opam:3.1.1@b8828896",
         "@opam/ANSITerminal@opam:0.8.2@9823a93b",
         "@esy-ocaml/reason@3.5.2@d41d8cd9"
@@ -703,6 +705,33 @@
       "devDependencies": [
         "ocaml@4.8.1000@d41d8cd9", "@opam/sexplib0@opam:v0.13.0@3f54c2be",
         "@opam/ppxlib@opam:0.13.0@65a9c7cc",
+        "@opam/dune@opam:2.5.1@a0c1e658", "@opam/base@opam:v0.13.2@c3150775"
+      ]
+    },
+    "@opam/ppx_let@opam:v0.13.0@5703d2be": {
+      "id": "@opam/ppx_let@opam:v0.13.0@5703d2be",
+      "name": "@opam/ppx_let",
+      "version": "opam:v0.13.0",
+      "source": {
+        "type": "install",
+        "source": [
+          "archive:https://opam.ocaml.org/cache/md5/8b/8b5fab936fffa4b02f786ef18ab0c877#md5:8b5fab936fffa4b02f786ef18ab0c877",
+          "archive:https://ocaml.janestreet.com/ocaml-core/v0.13/files/ppx_let-v0.13.0.tar.gz#md5:8b5fab936fffa4b02f786ef18ab0c877"
+        ],
+        "opam": {
+          "name": "ppx_let",
+          "version": "v0.13.0",
+          "path": "esy.lock/opam/ppx_let.v0.13.0"
+        }
+      },
+      "overrides": [],
+      "dependencies": [
+        "ocaml@4.8.1000@d41d8cd9", "@opam/ppxlib@opam:0.13.0@65a9c7cc",
+        "@opam/dune@opam:2.5.1@a0c1e658", "@opam/base@opam:v0.13.2@c3150775",
+        "@esy-ocaml/substs@0.0.1@d41d8cd9"
+      ],
+      "devDependencies": [
+        "ocaml@4.8.1000@d41d8cd9", "@opam/ppxlib@opam:0.13.0@65a9c7cc",
         "@opam/dune@opam:2.5.1@a0c1e658", "@opam/base@opam:v0.13.2@c3150775"
       ]
     },

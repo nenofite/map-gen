@@ -37,16 +37,8 @@ let prepare = (side, ()) => {
 };
 
 let apply_region =
-    (
-      base: Grid.t(River.tile),
-      state,
-      ~region: Minecraft.Block_tree.t,
-      ~rx: int,
-      ~rz: int,
-      ~gx_offset: int,
-      ~gy_offset: int,
-      ~gsize: int,
-    ) => {
+    (base: Grid.t(River.tile), state, args: Minecraft_converter.region_args) => {
+  let Minecraft_converter.{region, rx, rz, gx_offset, gy_offset, gsize} = args;
   /* Create a point cloud of trees */
   let trees =
     Point_cloud.init(~width=gsize, ~height=gsize, ~spacing=8, (_, _) =>
@@ -84,8 +76,4 @@ let apply_region =
 };
 
 let overlay = (base: Grid.t(River.tile)) =>
-  Overlay.{
-    name: "biome",
-    prepare: prepare(base.side),
-    apply_region: apply_region(base),
-  };
+  Overlay.make("biome", prepare(base.side), apply_region(base));
