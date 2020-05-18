@@ -126,7 +126,7 @@ let save = (~side: int, ~apply_overlays: region_args => unit): unit => {
   let world_config =
     Minecraft.World.{
       name: "heightmap",
-      spawn: (0, 0, 0),
+      spawn: (2300, 50, 2100),
       generator: Minecraft.Generator.Flat,
     };
 

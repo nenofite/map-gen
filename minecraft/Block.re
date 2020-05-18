@@ -404,4 +404,5 @@ let data =
   fun
   | Flowing_water(level) => level
   | Sapling => 0x8
+  | Tallgrass => 1
   | _ => 0;
