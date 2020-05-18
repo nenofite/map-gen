@@ -54,3 +54,39 @@ let prepare = (seed, monad) => {
   let (_state, apply_region) = monad.prepare();
   apply_region;
 };
+
+let%expect_test "consistent random state" = {
+  let overlay_a: monad(unit) = {
+    prepare: () => {
+      /* Calls twice */
+      Random.bits() |> ignore;
+      Random.bits() |> ignore;
+      ((), _ => ());
+    },
+  };
+  let overlay_b: monad(unit) = {
+    prepare: () => {
+      /* Calls once */
+      Random.bits() |> ignore;
+      ((), _ => ());
+    },
+  };
+  let spy: monad(unit) = {
+    prepare: () => {
+      let test = Random.int(100);
+      Printf.printf("%d\n", test);
+      ((), _ => ());
+    },
+  };
+
+  /*
+    The two should print the same number, despite their predecessor calling
+    Random different amounts
+   */
+  prepare(1, bind(overlay_a, ~f=_ => spy)) |> ignore;
+  %expect
+  "13";
+  prepare(1, bind(overlay_b, ~f=_ => spy)) |> ignore;
+  %expect
+  "13";
+};
