@@ -42,8 +42,8 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
     (_x, _y, here) => {
       let {tectonic, distance_to_ocean, distance_to_mountain} = here;
       switch (tectonic) {
-      | Ocean => 2 + Random.int(8) /* 2 - 10 */
-      | Mountain => 90 + Random.int(10) /* 150 - 160 */
+      | Ocean => 30 + Random.int(10) /* 30 - 40 */
+      | Mountain => 150 + Random.int(10) /* 150 - 160 */
       | Plain =>
         /* 62 - 140 */
         let distance_to_ocean =
