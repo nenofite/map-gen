@@ -5,13 +5,11 @@ let prepare = () =>
     run_all(
       Tectonic.phase
       @> Heightmap.phase
-      @> Draw.phase("grid-height.ppm", Heightmap.colorize)
-      /* @@> Erosion.phase
-         @@> draw_phase("grid-erosion.ppm", Erosion.colorize), */
+      /* @> Draw.phase("grid-height.ppm", Heightmap.colorize) */
       @> River.phase
       @> Draw.phase("grid-river.ppm", River.colorize)
-      @> Sites.phase
-      @> Draw.phase("grid-sites.ppm", River.colorize),
+      @> Sites.phase,
+      /* @> Draw.phase("grid-sites.ppm", River.colorize), */
     )
   );
 

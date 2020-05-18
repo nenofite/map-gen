@@ -6,6 +6,16 @@ type opt_fill('a) = (~next: fill('a)) => fill('a);
 let ( **> ) = (fill: opt_fill('a), next_fill: fill('a)) =>
   fill(~next=next_fill);
 
+/**
+  sometimes will ignore neighbors and return value for probability / 100 times
+  */
+let sometimes = (~probability, ~value, (), ~next, a, b, c, d) =>
+  if (Random.int(100) < probability) {
+    value;
+  } else {
+    next(a, b, c, d);
+  };
+
 /** random picks a random neighbor and uses its value */
 let random = (a, b, c, d) => {
   switch (Random.int(4)) {
