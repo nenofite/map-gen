@@ -54,7 +54,7 @@ let apply_region =
     );
   /* Try placing them where it's forest && solid ground */
   List.iter(
-    (Point_cloud.{x, y as z, value}) =>
+    (Point_cloud.{x, y: z, value}) =>
       if (value) {
         let x = int_of_float(x);
         let z = int_of_float(z);

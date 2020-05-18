@@ -57,7 +57,7 @@ let closest_point = (cloud, x, y) => {
   let first = List.hd(cloud.points);
   let first_distance = distance(first.x, first.y, x, y);
   List.fold_left(
-    ((a, a_distance) as acc, point) => {
+    ((_a, a_distance) as acc, point) => {
       let point_distance = distance(point.x, point.y, x, y);
       if (point_distance < a_distance) {
         (point, point_distance);
@@ -74,7 +74,7 @@ let two_closest_points = (cloud, x, y) => {
   let first = List.hd(cloud.points);
   let first_distance = distance(first.x, first.y, x, y);
   List.fold_left(
-    ((a, a_distance, b, b_distance) as acc, point) => {
+    ((a, a_distance, _b, b_distance) as acc, point) => {
       let point_distance = distance(point.x, point.y, x, y);
       switch (point_distance < a_distance, point_distance < b_distance) {
       | (true, _) => (point, point_distance, a, a_distance)
@@ -109,7 +109,7 @@ let nearest_with_edge = (cloud, edge_value, x, y) => {
  */
 let nearest = (cloud, x, y) => {
   assert_within(cloud.width, cloud.height, x, y);
-  let (closest_point, closest_point_distance) = closest_point(cloud, x, y);
+  let (closest_point, _closest_point_distance) = closest_point(cloud, x, y);
   closest_point.value;
 };
 

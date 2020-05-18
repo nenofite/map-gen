@@ -225,6 +225,35 @@ let chunk_heightmap = (tree, cx, cz) => {
   );
 };
 
+let section_coords = (~rx, ~rz, ~cx, ~cz, ~sy) => {
+  let min_x = rx * block_per_region + cx * block_per_chunk;
+  let min_y = sy * block_per_chunk;
+  let min_z = rz * block_per_region + cz * block_per_chunk;
+  List.(
+    init(
+      block_per_chunk,
+      y => {
+        let y = min_y + y;
+        init(
+          block_per_chunk,
+          z => {
+            let z = min_z + z;
+            init(
+              block_per_chunk,
+              x => {
+                let x = min_x + x;
+                (x, y, z);
+              },
+            );
+          },
+        )
+        |> concat;
+      },
+    )
+    |> concat
+  );
+};
+
 let chunk_nbt = (tree, ~rx, ~rz, ~cx, ~cz) => {
   /* Save all non-empty sections */
   let sections =
@@ -237,21 +266,7 @@ let chunk_nbt = (tree, ~rx, ~rz, ~cx, ~cz) => {
            section_nbt(section, section_y).payload
          )
     );
-  /* Check for saplings to be ticked */
-  let tile_ticks =
-    List.(
-      Nbt.Node.List(
-        sections
-        |> map(((_sy, section)) =>
-             Nbt.Node.List(
-               Array.to_list(section.blocks)
-               |> mapi((i, block) => (i, block))
-               |> filter(((_i, block)) => block == Block.Sapling)
-               |> map(((i, _block)) => Nbt.Node.Short(i)),
-             )
-           ),
-      )
-    );
+
   let heightmap = chunk_heightmap(tree, cx, cz);
   let global_cx = rx * chunk_per_region + cx;
   let global_cz = rz * chunk_per_region + cz;
@@ -268,7 +283,6 @@ let chunk_nbt = (tree, ~rx, ~rz, ~cx, ~cz) => {
               "LightPopulated" >: Byte(1),
               "TerrainPopulated" >: Byte(1),
               "HeightMap" >: make_int_array(heightmap),
-              "PostProcessing" >: tile_ticks,
             ]),
        ])
   );
