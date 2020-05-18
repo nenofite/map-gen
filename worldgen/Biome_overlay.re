@@ -24,13 +24,13 @@ let prepare = (side, ()) => {
              4,
              "Subdivide",
              Subdivide.subdivide_with_fill(_, Fill.(line() **> random)),
-           )
-        @> Draw.phase(
+           ),
+        /* @> Draw.phase(
              "biome.ppm",
              fun
              | Forest => 0x4F8D26
              | Plain => 0x77543D,
-           ),
+           ), */
       )
     );
   {biomes: biomes};
