@@ -1,7 +1,6 @@
 open Worldgen;
 
 Printexc.record_backtrace(true);
-Random.init(135);
 
 let side = 4096;
 
@@ -13,6 +12,6 @@ let overlays = {
   Overlay.return(biomes);
 };
 
-let apply_overlays = Overlay.prepare(overlays);
+let apply_overlays = Overlay.prepare(135, overlays);
 
 Minecraft_converter.save(~side, ~apply_overlays);

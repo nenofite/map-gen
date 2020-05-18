@@ -23,10 +23,13 @@ let make =
 
 let bind = (m, ~f) => {
   let prepare = () => {
+    let next_seed = Random.bits();
     let (m_state, m_apply_f) = m.prepare();
+    Random.init(next_seed);
     let (o_state, o_apply_f) = f(m_state).prepare();
     let apply_f = args => {
       m_apply_f(args);
+      Random.init(next_seed);
       o_apply_f(args);
     };
     (o_state, apply_f);
@@ -46,7 +49,8 @@ module Let_syntax = {
   let return = return;
 };
 
-let prepare = monad => {
+let prepare = (seed, monad) => {
+  Random.init(seed);
   let (_state, apply_region) = monad.prepare();
   apply_region;
 };
