@@ -22,7 +22,7 @@ let convert = (old_grid: Grid.t(int)) => {
   Grid.map(
     old_grid,
     (_x, _y, elevation) => {
-      let ocean = elevation <= 0;
+      let ocean = elevation <= Heightmap.sea_level;
       {elevation, ocean, river: false};
     },
   );

@@ -13,7 +13,7 @@ let touchup = (grid: Grid.t(tile)) => {
          | {river: false, _} as here => here
          }; */
       let here =
-        if (here.elevation <= 0) {
+        if (here.elevation <= Heightmap.sea_level) {
           {...here, ocean: true, river: false};
         } else {
           {...here, ocean: false};
@@ -33,7 +33,7 @@ let fill = (~fill_diags=false, a: tile, b: tile, c: tile, d: tile): tile => {
     | (false, false) =>
       (a.elevation + b.elevation + c.elevation + d.elevation) / 4
     };
-  let ocean = elevation <= 0;
+  let ocean = elevation <= Heightmap.sea_level;
 
   /* River if opposing sides are river or ocean */
   let ar = a.river || a.ocean;
@@ -70,7 +70,7 @@ let fill = (~fill_diags=false, a: tile, b: tile, c: tile, d: tile): tile => {
       elevation;
     };
   /* Now that we've updated elevation, reconsider being an ocean */
-  let ocean = elevation <= 0;
+  let ocean = elevation <= Heightmap.sea_level;
   let river = !ocean && river;
 
   {elevation, ocean, river};

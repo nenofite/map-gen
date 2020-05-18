@@ -6,8 +6,10 @@ type intermediate = {
   distance_to_mountain: int,
 };
 
+let sea_level = 62;
+
 let colorize = (tile: tile): int => {
-  let frac = (float_of_int(tile) +. 30.) /. 130.;
+  let frac = float_of_int(tile) /. 200.;
   let frac = max(min(frac, 1.), 0.);
   let black = Color.color_of_int(0);
   let white = Color.color_of_int(0xFFFFFF);
@@ -40,9 +42,10 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
     (_x, _y, here) => {
       let {tectonic, distance_to_ocean, distance_to_mountain} = here;
       switch (tectonic) {
-      | Ocean => (-30) + Random.int(10)
-      | Mountain => 90 + Random.int(10)
+      | Ocean => 2 + Random.int(8) /* 2 - 10 */
+      | Mountain => 90 + Random.int(10) /* 150 - 160 */
       | Plain =>
+        /* 62 - 140 */
         let distance_to_ocean =
           if (distance_to_ocean != empty_distance) {
             distance_to_ocean;
@@ -53,9 +56,9 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
           let fraction =
             float_of_int(distance_to_ocean)
             /. float_of_int(distance_to_ocean + distance_to_mountain);
-          1 + int_of_float(fraction *. 79.0);
+          sea_level + int_of_float(fraction *. 80.);
         } else {
-          min(distance_to_ocean, 80);
+          sea_level + min(distance_to_ocean, 80);
         };
       };
     },
