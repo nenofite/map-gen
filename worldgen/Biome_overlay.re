@@ -49,8 +49,8 @@ let apply_region =
     ) => {
   /* Create a point cloud of trees */
   let trees =
-    Point_cloud.init(~width=gsize, ~height=gsize, ~spacing=10, (_, _) =>
-      Random.int(100) < 33
+    Point_cloud.init(~width=gsize, ~height=gsize, ~spacing=8, (_, _) =>
+      Random.int(100) < 67
     );
   /* Try placing them where it's forest && solid ground */
   List.iter(
@@ -67,20 +67,14 @@ let apply_region =
           let block = Minecraft.Block_tree.get_block(region, x, y, z);
           switch (block) {
           | Grass =>
-            Minecraft.Block_tree.set_block(
-              region,
-              x,
-              y + 20,
-              z,
-              Minecraft.Block.Glowstone,
-            );
-            Minecraft.Block_tree.set_block(
+            Minecraft.Template.place(
+              Minecraft.Template_data.tree(),
               region,
               x,
               y + 1,
               z,
-              Minecraft.Block.Sapling,
-            );
+            )
+            |> ignore
           | _ => ()
           };
         };
