@@ -27,3 +27,8 @@ let print_progress = (title: string, f: unit => 'a): 'a => {
   ANSITerminal.printf([ANSITerminal.green], "⌞ %s ⌟\n", title);
   result;
 };
+
+/** mkdir creates all directories in path, using the shell command [mkdir -p <path>] */
+let mkdir = (path: string): unit => {
+  Unix.system("mkdir -p " ++ path) |> ignore;
+};
