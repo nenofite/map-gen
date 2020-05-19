@@ -9,3 +9,4 @@ _release
 *.ppm
 .DS_Store
 /worlds/
+/overlays/
