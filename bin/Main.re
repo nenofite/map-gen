@@ -10,6 +10,7 @@ let overlays = {
   let%bind base = Base_overlay.overlay(dirt);
   let%bind cavern = Cavern_overlay.overlay(base);
   let%bind biomes = Biome_overlay.overlay(base);
+  let%bind biomes = Road_overlay.overlay(base);
   Overlay.return(biomes);
 };
 

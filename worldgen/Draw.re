@@ -35,3 +35,14 @@ let phase = (file, colorize) => {
     },
   );
 };
+
+let draw_sparse_grid =
+    (colorizer: option('a) => int, file: string, grid: Sparse_grid.t('a))
+    : unit => {
+  draw(
+    (x, y) => colorizer(Sparse_grid.at(grid, x, y)),
+    grid.side,
+    grid.side,
+    file,
+  );
+};
