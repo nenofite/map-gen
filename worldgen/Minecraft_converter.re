@@ -126,7 +126,7 @@ let save = (~side: int, ~apply_overlays: region_args => unit): unit => {
   let world_config =
     Minecraft.World.{
       name: "heightmap",
-      spawn: (2300, 80, 1100),
+      spawn: (3600, 80, 280),
       generator: Minecraft.Generator.Flat,
     };
 
@@ -134,7 +134,7 @@ let save = (~side: int, ~apply_overlays: region_args => unit): unit => {
   let region = Minecraft.Block_tree.create();
   segment_grid_by_region(
     ~side,
-    ~sub=((3, 2), (2, 2)),
+    ~sub=((6, 0), (2, 2)),
     save_region(~region_path, ~region, ~apply_overlays),
   );
 };

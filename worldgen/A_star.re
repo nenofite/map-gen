@@ -33,7 +33,7 @@ let rec run' =
           ~max_iters,
         ) =>
   max_iters <= 0
-    ? None
+    ? None  /* TODO if we run out of iters, maybe check if goal is in the open set and take the sub-optimal path */
     : (
       switch (Priority_queue.extract(open_set)) {
       | (None, _open_set) => None /* no path */

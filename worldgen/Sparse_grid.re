@@ -69,3 +69,11 @@ let put_w = (grid, x, y, n) => {
   let (x, y) = wrap_coord(grid, x, y);
   put(grid, x, y, n);
 };
+
+let fold = (grid, f, acc) => {
+  Coord_map.fold(f, grid.map, acc);
+};
+
+let iter = (grid, f) => {
+  Coord_map.iter(f, grid.map);
+};
