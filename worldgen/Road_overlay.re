@@ -203,11 +203,10 @@ let place_road_block = (region, x, y, z) => {
       set_block(region, x, y, z, Minecraft.Block.Stone_slab);
       /* Clear space above unless it's also a path (cobblestone) */
       for (dy in 1 to 10) {
-        switch (get_block_opt(region, x, y, z)) {
+        switch (get_block_opt(region, x, y + dy, z)) {
         | None
         | Some(Air)
-        | Some(Cobblestone) => ()
-        | Some(_) => set_block(region, x, y, z, Minecraft.Block.Air)
+        | Some(_) => set_block(region, x, y + dy, z, Minecraft.Block.Air)
         };
       };
     }
@@ -220,7 +219,7 @@ let place_step_block = (region, x, y, z) => {
     | None => ()
     | Some(_) =>
       set_block(region, x, y, z, Minecraft.Block.Air);
-      set_block(region, x, y - 1, z, Minecraft.Block.Stone_slab);
+      set_block(region, x, y - 1, z, Minecraft.Block.Double_stone_slab);
     }
   );
 };
