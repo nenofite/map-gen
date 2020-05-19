@@ -314,6 +314,9 @@ let scan_iter = (grid, ~row_f=noop_row_f, f) =>
   Directions and neighbors
  */
 
+/** four_directions is a list of the four cardinal direction offsets: N, E, S, W */
+let four_directions = [(0, (-1)), (1, 0), (0, 1), ((-1), 0)];
+
 /** eight_directions is a list of the eight direction offsets: NW, N, NE, ..., SW, W */
 let eight_directions = [
   ((-1), (-1)),
