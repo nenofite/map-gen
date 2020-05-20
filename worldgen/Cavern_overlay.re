@@ -68,7 +68,11 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
       switch (Grid.at_w(world, x * r, y * r)) {
       | {ocean: true, _} => 50.
       | {ocean: false, _} =>
-        (Random.int(100) < 33 ? 35. : 30.) +. Random.float(5.)
+        switch (Random.int(3)) {
+        | 0 => 30. +. Random.float(5.)
+        | 1 => 35. +. Random.float(5.)
+        | _ => 60.
+        }
       }
     );
   let ceiling_cloud =
@@ -90,7 +94,7 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
         phase("Init floor", () =>
           Grid.init(start_side, (x, y) => {
             (
-              Point_cloud.nearest(
+              Point_cloud.interpolate(
                 floor_cloud,
                 float_of_int(x),
                 float_of_int(y),
@@ -124,7 +128,7 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
         phase("Init ceiling", () =>
           Grid.init(start_side, (x, y) => {
             (
-              Point_cloud.nearest(
+              Point_cloud.interpolate(
                 ceiling_cloud,
                 float_of_int(x),
                 float_of_int(y),
