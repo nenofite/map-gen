@@ -14,8 +14,14 @@ let colorize = tile =>
     0;
   };
 
+/*
+   floor: 35 - 45
+   ceiling: 50 - 60
+   pillars: 50
+ */
+
 let min_dist_to_surface = 5;
-let pillar_meet_elev = 10;
+let pillar_meet_elev = 50;
 
 let add_floor_pillars = (pillar_cloud: Point_cloud.t(bool), floor) => {
   List.fold_left(
@@ -54,17 +60,25 @@ let add_ceiling_pillars = (pillar_cloud: Point_cloud.t(bool), ceiling) => {
 };
 
 let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
-  let start_side = world.side / 32;
+  let r = 32;
+  let start_side = world.side / r;
   let floor_cloud =
     Point_cloud.init(
-      ~width=start_side, ~height=start_side, ~spacing=16, (_, _) => {
-      Random.float(16.) +. 4.
-    });
+      ~width=start_side, ~height=start_side, ~spacing=16, (x, y) =>
+      switch (Grid.at_w(world, x * r, y * r)) {
+      | {ocean: true, _} => 50.
+      | {ocean: false, _} =>
+        (Random.int(100) < 33 ? 35. : 30.) +. Random.float(5.)
+      }
+    );
   let ceiling_cloud =
     Point_cloud.init(
-      ~width=start_side, ~height=start_side, ~spacing=4, (_, _) => {
-      Random.float(8.) +. 12.
-    });
+      ~width=start_side, ~height=start_side, ~spacing=4, (x, y) =>
+      switch (Grid.at_w(world, x * r, y * r)) {
+      | {ocean: true, _} => 35.
+      | {ocean: false, _} => Random.float(10.) +. 50.
+      }
+    );
   let pillar_cloud =
     Point_cloud.init(
       ~width=start_side * 4, ~height=start_side * 4, ~spacing=8, (_, _) =>
@@ -76,7 +90,7 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
         phase("Init floor", () =>
           Grid.init(start_side, (x, y) => {
             (
-              Point_cloud.interpolate(
+              Point_cloud.nearest(
                 floor_cloud,
                 float_of_int(x),
                 float_of_int(y),
@@ -110,14 +124,14 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
         phase("Init ceiling", () =>
           Grid.init(start_side, (x, y) => {
             (
-              Point_cloud.interpolate(
+              Point_cloud.nearest(
                 ceiling_cloud,
                 float_of_int(x),
                 float_of_int(y),
               )
               |> int_of_float
             )
-            + Random.int(4)
+            + Random.int(3)
             - 2
           })
         )
