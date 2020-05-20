@@ -70,6 +70,11 @@ let put_w = (grid, x, y, n) => {
   put(grid, x, y, n);
 };
 
+let map = (grid, f) => {
+  let map = Coord_map.mapi(f, grid.map);
+  {...grid, map};
+};
+
 let fold = (grid, f, acc) => {
   Coord_map.fold(f, grid.map, acc);
 };

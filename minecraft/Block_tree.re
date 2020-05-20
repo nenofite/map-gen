@@ -124,6 +124,16 @@ let set_block = (tree, x, y, z, block) => {
   set_block_in_section(section, x, y, z, block);
 };
 
+let set_block_opt = (tree, x, y, z, block) =>
+  if (0 <= x
+      && x < block_per_region
+      && 0 <= y
+      && y < block_per_region_vertical
+      && 0 <= z
+      && z < block_per_region) {
+    set_block(tree, x, y, z, block);
+  };
+
 let rec height_at' = (tree, x, y, z) =>
   if (y > 0) {
     switch (get_block(tree, x, y, z)) {
