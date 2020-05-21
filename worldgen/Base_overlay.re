@@ -29,9 +29,7 @@ let apply_region = (dirt: Grid.t(int), world: Grid.t(tile), args) => {
       set_block(region, x, 0, z, Minecraft.Block.Bedrock);
 
       for (y in 1 to elevation) {
-        let material =
-          y <= elevation - dirt_height
-            ? Minecraft.Block.Stone : Minecraft.Block.Dirt;
+        let material = Minecraft.Block.Glass;
         set_block(region, x, y, z, material);
       };
       if (here.ocean) {
@@ -41,7 +39,8 @@ let apply_region = (dirt: Grid.t(int), world: Grid.t(tile), args) => {
       } else if (here.river) {
         set_block(region, x, elevation, z, Minecraft.Block.Flowing_water(0));
       } else if (dirt_height > 0) {
-        set_block(region, x, elevation, z, Minecraft.Block.Grass);
+        ();
+          /* set_block(region, x, elevation, z, Minecraft.Block.Grass); */
       };
     },
   );

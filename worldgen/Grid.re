@@ -259,6 +259,15 @@ let zip_map = (grid_a, grid_b, f) => {
 let zip = (grid_a, grid_b) =>
   zip_map(grid_a, grid_b, (_x, _y, a, b) => (a, b));
 
+let multizip = grids => {
+  let side = List.hd(grids).side;
+  if (List.exists(g => g.side != side, grids)) {
+    raise(Invalid_argument("grids don't all have same side"));
+  };
+  /* Probably a more efficient way to do this, oh well */
+  init(side, (x, y) => List.map(g => at(g, x, y), grids));
+};
+
 /*
   Scanning
  */
