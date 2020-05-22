@@ -30,11 +30,12 @@ let add_floor_pillars = (pillar_cloud: Point_cloud.t(bool), floor) => {
   List.fold_left(
     (floor, Point_cloud.{x, y, value}) =>
       if (value) {
-        Grid.put(
-          floor,
-          int_of_float(x),
-          int_of_float(y),
-          pillar_meet_elev + 5,
+        Grid.update(floor, int_of_float(x), int_of_float(y), old_elev =>
+          if (old_elev < pillar_meet_elev) {
+            pillar_meet_elev + 5;
+          } else {
+            old_elev;
+          }
         );
       } else {
         floor;
@@ -48,11 +49,12 @@ let add_ceiling_pillars = (pillar_cloud: Point_cloud.t(bool), ceiling) => {
   List.fold_left(
     (ceiling, Point_cloud.{x, y, value}) =>
       if (value) {
-        Grid.put(
-          ceiling,
-          int_of_float(x),
-          int_of_float(y),
-          pillar_meet_elev - 5,
+        Grid.update(ceiling, int_of_float(x), int_of_float(y), old_elev =>
+          if (old_elev > pillar_meet_elev) {
+            pillar_meet_elev - 5;
+          } else {
+            old_elev;
+          }
         );
       } else {
         ceiling;
@@ -71,7 +73,7 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
       switch (Random.int(3)) {
       | 0 => 1.
       | 1 => 3. +. Random.float(5.)
-      | _ => 60.
+      | _ => float_of_int(pillar_meet_elev + 5)
       }
     );
   let ceiling_cloud =
@@ -90,7 +92,7 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
         phase("Init floor", () =>
           Grid.init(start_side, (x, y) => {
             switch (Grid.at(world, x * r, y * r)) {
-            | {ocean: true, _} => 60
+            | {ocean: true, _} => pillar_meet_elev + 5
             | {ocean: false, _} =>
               (
                 Point_cloud.interpolate(
@@ -128,7 +130,7 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
         phase("Init ceiling", () =>
           Grid.init(start_side, (x, y) => {
             switch (Grid.at(world, x * r, y * r)) {
-            | {ocean: true, _} => 50
+            | {ocean: true, _} => pillar_meet_elev - 5
             | {ocean: false, _} =>
               (
                 Point_cloud.interpolate(
