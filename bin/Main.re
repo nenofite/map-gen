@@ -9,9 +9,9 @@ let overlays = {
   let%bind dirt = Dirt_overlay.overlay(side);
   let%bind base = Base_overlay.overlay(dirt);
   let%bind ores = Ore_overlay.overlay(base);
-  /* let%bind cavern = Cavern_overlay.overlay(base); */
-  /* let%bind roads = Road_overlay.overlay(base); */
-  /* let%bind biomes = Biome_overlay.overlay(base); */
+  let%bind cavern = Cavern_overlay.overlay(base);
+  let%bind roads = Road_overlay.overlay(base);
+  let%bind biomes = Biome_overlay.overlay(base);
   Overlay.return();
 };
 
