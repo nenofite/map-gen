@@ -26,6 +26,8 @@ let random_ore = () => Minecraft.Block.Iron_ore; /* TODO other ores */
 /** can_place_ore determines whether ore can be inserted into the given material */
 let can_place_ore = (block: Minecraft.Block.material) =>
   switch (block) {
+  | Grass
+  | Dirt
   | Stone => true
   | _ => false
   };
@@ -49,27 +51,57 @@ let make_layer =
 };
 
 let prepare = (base, ()) => {
-  let iron_surface =
-    make_layer(
-      base,
-      ~ore=Minecraft.Block.Iron_ore,
-      ~min_density=0.5,
-      ~max_density=0.75,
-      ~depth=From_surface(0, 15),
-      ~min_deposit_size=3,
-      ~max_deposit_size=10,
-    );
+  /* let iron_surface =
+     make_layer(
+       base,
+       ~ore=Minecraft.Block.Iron_ore,
+       ~min_density=0.1,
+       ~max_density=0.1,
+       ~depth=From_surface(0, 2),
+       ~min_deposit_size=3,
+       ~max_deposit_size=10,
+     ); */
+  let iron_low_density =
+    [40, 60, 80, 100, 120, 140, 160]
+    |> List.map(
+         elev =>
+           make_layer(
+             base,
+             ~ore=Minecraft.Block.Iron_ore,
+             ~min_density=0.03,
+             ~max_density=0.06,
+             ~depth=From_bedrock(elev, elev + 20),
+             ~min_deposit_size=1,
+             ~max_deposit_size=14,
+           ),
+         _,
+       );
+  let iron_high_density =
+    [10, 20, 30]
+    |> List.map(
+         elev =>
+           make_layer(
+             base,
+             ~ore=Minecraft.Block.Iron_ore,
+             ~min_density=0.1,
+             ~max_density=0.2,
+             ~depth=From_bedrock(elev, elev + 10),
+             ~min_deposit_size=1,
+             ~max_deposit_size=14,
+           ),
+         _,
+       );
   let diamond =
     make_layer(
       base,
       ~ore=Minecraft.Block.Diamond_ore,
-      ~min_density=0.1,
-      ~max_density=1.0,
+      ~min_density=0.05,
+      ~max_density=0.15,
       ~depth=From_bedrock(1, 15),
       ~min_deposit_size=15,
       ~max_deposit_size=30,
     );
-  [iron_surface, diamond];
+  iron_low_density @ iron_high_density @ [diamond];
 };
 
 let rec remove_i = (i, list) =>
