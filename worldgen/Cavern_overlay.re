@@ -3,25 +3,28 @@ type tile = {
   ceiling_elev: int,
 };
 
+/*
+   floor: 1 - 15
+   ceiling: 30 - 40
+   pillars: 20
+ */
+
+let min_dist_to_surface = 5;
+let pillar_meet_elev = 20;
+let magma_sea_elev = 3;
+
 let colorize = tile =>
-  if (tile.floor_elev < tile.ceiling_elev) {
+  if (tile.floor_elev >= tile.ceiling_elev) {
+    0;
+  } else if (tile.floor_elev <= magma_sea_elev) {
+    0xFF0000;
+  } else {
     let frac = float_of_int(tile.floor_elev) /. 50.;
     Color.(
       blend(color_of_int(0x101010), color_of_int(0xFFFFFF), frac)
       |> int_of_color
     );
-  } else {
-    0;
   };
-
-/*
-   floor: 35 - 45
-   ceiling: 50 - 60
-   pillars: 50
- */
-
-let min_dist_to_surface = 5;
-let pillar_meet_elev = 50;
 
 let add_floor_pillars = (pillar_cloud: Point_cloud.t(bool), floor) => {
   List.fold_left(
@@ -64,24 +67,17 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
   let start_side = world.side / r;
   let floor_cloud =
     Point_cloud.init(
-      ~width=start_side, ~height=start_side, ~spacing=16, (x, y) =>
-      switch (Grid.at_w(world, x * r, y * r)) {
-      | {ocean: true, _} => 50.
-      | {ocean: false, _} =>
-        switch (Random.int(3)) {
-        | 0 => 30. +. Random.float(5.)
-        | 1 => 35. +. Random.float(5.)
-        | _ => 60.
-        }
+      ~width=start_side, ~height=start_side, ~spacing=16, (_x, _y) =>
+      switch (Random.int(3)) {
+      | 0 => 1.
+      | 1 => 3. +. Random.float(5.)
+      | _ => 60.
       }
     );
   let ceiling_cloud =
     Point_cloud.init(
-      ~width=start_side, ~height=start_side, ~spacing=4, (x, y) =>
-      switch (Grid.at_w(world, x * r, y * r)) {
-      | {ocean: true, _} => 35.
-      | {ocean: false, _} => Random.float(10.) +. 50.
-      }
+      ~width=start_side, ~height=start_side, ~spacing=4, (_x, _y) =>
+      Random.float(10.) +. 30.
     );
   let pillar_cloud =
     Point_cloud.init(
@@ -93,15 +89,19 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
       run_all(
         phase("Init floor", () =>
           Grid.init(start_side, (x, y) => {
-            (
-              Point_cloud.interpolate(
-                floor_cloud,
-                float_of_int(x),
-                float_of_int(y),
+            switch (Grid.at(world, x * r, y * r)) {
+            | {ocean: true, _} => 60
+            | {ocean: false, _} =>
+              (
+                Point_cloud.interpolate(
+                  floor_cloud,
+                  float_of_int(x),
+                  float_of_int(y),
+                )
+                |> int_of_float
               )
-              |> int_of_float
-            )
-            - Random.int(2)
+              + Random.int(2)
+            }
           })
         )
         @> phase_repeat(
@@ -127,16 +127,20 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
       run_all(
         phase("Init ceiling", () =>
           Grid.init(start_side, (x, y) => {
-            (
-              Point_cloud.interpolate(
-                ceiling_cloud,
-                float_of_int(x),
-                float_of_int(y),
+            switch (Grid.at(world, x * r, y * r)) {
+            | {ocean: true, _} => 50
+            | {ocean: false, _} =>
+              (
+                Point_cloud.interpolate(
+                  ceiling_cloud,
+                  float_of_int(x),
+                  float_of_int(y),
+                )
+                |> int_of_float
               )
-              |> int_of_float
-            )
-            + Random.int(3)
-            - 2
+              + Random.int(3)
+              - 2
+            }
           })
         )
         @> phase_repeat(
@@ -186,6 +190,13 @@ let apply_region = (world: Grid.t(Base_overlay.tile), cavern, args) => {
         min(ceiling_elev, surface_elev - min_dist_to_surface);
       for (y in floor_elev + 1 to pred(ceiling_elev)) {
         set_block(region, x, y, z, Minecraft.Block.Air);
+      };
+      /* Add magma sea */
+      for (y in 1 to magma_sea_elev) {
+        switch (get_block(region, x, y, z)) {
+        | Air => set_block(region, x, y, z, Lava)
+        | _ => ()
+        };
       };
       /* TODO remove */
       if (floor_elev < ceiling_elev && x mod 8 == 0 && z mod 8 == 0) {
