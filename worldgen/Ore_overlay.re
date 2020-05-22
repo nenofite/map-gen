@@ -1,197 +1,206 @@
+type depth =
+  | From_surface(int, int)
+  | From_bedrock(int, int);
+
 type ore_layer = {
-  min_elev: int,
-  max_elev: int,
-  ore: option(Minecraft.Block.material),
+  ore: Minecraft.Block.material,
+  densities: Point_cloud.t(float),
+  depth,
+  min_deposit_size: int,
+  max_deposit_size: int,
 };
 
-let colorize = tile =>
-  switch (tile.ore) {
-  | None => 0
-  | Some(_) => 0xFFFFFF
-  };
+type t = list(ore_layer);
 
-type t = Grid.t(list(ore_layer));
+let cardinal_directions_3d = [
+  (0, 1, 0),
+  (0, 0, 1),
+  (1, 0, 0),
+  (0, 0, (-1)),
+  ((-1), 0, 0),
+  (0, (-1), 0),
+];
 
 let random_ore = () => Minecraft.Block.Iron_ore; /* TODO other ores */
 
-/**
-  make_layer creates one layer of ores. For any given x and z, only one type of
-  ore can occur. Therefore multiple ore layers should be stacked to create a
-  more interesting world, and to make certain ores only occur at certain depths.
- */
+/** can_place_ore determines whether ore can be inserted into the given material */
+let can_place_ore = (block: Minecraft.Block.material) =>
+  switch (block) {
+  | Stone => true
+  | _ => false
+  };
+
 let make_layer =
     (
       base: Grid.t(Base_overlay.tile),
-      ~name,
-      ~max_depth,
-      ~max_thickness,
-      ~ore_cloud,
+      ~min_density,
+      ~max_density,
+      ~depth,
+      ~min_deposit_size,
+      ~max_deposit_size,
+      ~ore,
     ) => {
-  Printf.printf("Creating %s ore layer\n", name);
-  /*
-    Create random ore layers, with avg height of 2 blocks and avg depth of 10
-    relative to surface
-   */
-  let r = 8;
-  let max_elevs_small =
-    Phase_chain.(
-      run_all(
-        phase("init max elevations", () =>
-          Grid.init(
-            base.side / r,
-            (x, y) => {
-              let surface_elev = Grid.at(base, x * r, y * r).elevation;
-              let max_elev = surface_elev - Random.int(max_depth + 1);
-              max_elev;
-            },
-          )
-        ),
-      )
+  let densities =
+    Point_cloud.init(
+      ~width=base.side, ~height=base.side, ~spacing=128, (_, _) =>
+      min_density +. Random.float(max_density -. min_density)
     );
-  let max_elevs =
-    Phase_chain.(
-      run_all(
-        phase("start", () => max_elevs_small)
-        @> phase_repeat(
-             2,
-             "random avg subdivide",
-             Subdivide.subdivide_with_fill(_, Fill.random_avg),
-           )
-        @> phase_repeat(
-             1,
-             "line subdivide",
-             Subdivide.subdivide_with_fill(_, Fill.(line() **> random)),
-           ),
-      )
-    );
-  let min_elevs =
-    Phase_chain.(
-      run_all(
-        phase("init min elevations", () =>
-          Grid.map(max_elevs_small, (_, _, max_elev) =>
-            max_elev - Random.int(max_thickness + 1)
-          )
-        )
-        @> phase_repeat(
-             2,
-             "random avg subdivide",
-             Subdivide.subdivide_with_fill(_, Fill.random_avg),
-           )
-        @> phase_repeat(
-             1,
-             "line subdivide",
-             Subdivide.subdivide_with_fill(_, Fill.(line() **> random)),
-           ),
-      )
-    );
+  {ore, densities, depth, min_deposit_size, max_deposit_size};
+};
 
-  /* Assign ores based on point cloud. Always a 2/3 chance of being nothing, even when next to an ore. */
-  let r = 8;
-  let ores =
-    Phase_chain.(
-      run_all(
-        phase("init ores", () =>
-          Grid.init(base.side / r, (x, y) =>
-            Random.int(100) < 33
-              ? Point_cloud.nearest(
-                  ore_cloud,
-                  float_of_int(x * r),
-                  float_of_int(y * r),
-                )
-              : None
-          )
-        )
-        @> phase_repeat(
-             1,
-             "random subdivide",
-             Subdivide.subdivide_with_fill(_, Fill.random),
-           )
-        @> phase_repeat(
-             2,
-             "line subdivide",
-             Subdivide.subdivide_with_fill(_, Fill.(line() **> random)),
-           ),
-      )
+let prepare = (base, ()) => {
+  let iron_surface =
+    make_layer(
+      base,
+      ~ore=Minecraft.Block.Iron_ore,
+      ~min_density=0.5,
+      ~max_density=0.75,
+      ~depth=From_surface(0, 15),
+      ~min_deposit_size=3,
+      ~max_deposit_size=10,
     );
+  let diamond =
+    make_layer(
+      base,
+      ~ore=Minecraft.Block.Diamond_ore,
+      ~min_density=0.1,
+      ~max_density=1.0,
+      ~depth=From_bedrock(1, 15),
+      ~min_deposit_size=15,
+      ~max_deposit_size=30,
+    );
+  [iron_surface, diamond];
+};
 
-  Phase_chain.(
-    run_all(
-      phase("zipping min and max elevations", () =>
-        Grid.zip_map(
-          ores,
-          Grid.zip(max_elevs, min_elevs),
-          (_x, _y, ore, (max_elev, min_elev)) => {
-          {max_elev, min_elev, ore}
-        })
-      )
-      @> Draw.phase(name ++ "-ores.ppm", colorize),
-    )
+let rec remove_i = (i, list) =>
+  switch (list) {
+  | [] => raise(Invalid_argument("index out of bounds"))
+  | [x, ...rest] when i == 0 => (x, rest)
+  | [not_x, ...rest] =>
+    let (x, rest) = remove_i(i - 1, rest);
+    (x, [not_x, ...rest]);
+  };
+
+let%expect_test "remove_i" = {
+  let l = [0, 10, 20, 30];
+  let (out_x, out_list) = remove_i(2, l);
+  Printf.printf("%d\n", out_x);
+  %expect
+  "20";
+  List.iter(n => Printf.printf("%d\n", n), out_list);
+  %expect
+  {|
+    0
+    10
+    30
+  |};
+};
+
+let random_sample = list => {
+  let length = List.length(list);
+  let i = Random.int(length);
+  remove_i(i, list);
+};
+
+let rec place_deposit = (~region, ~ore, ~deposit_size, ~available, ~touched) =>
+  switch (available) {
+  | [] => ()
+  | _ when deposit_size <= 0 => ()
+  | available =>
+    let ((x, y, z), available) = random_sample(available);
+    switch (Minecraft.Block_tree.get_block_opt(region, x, y, z)) {
+    | Some(block) when can_place_ore(block) =>
+      Minecraft.Block_tree.set_block(region, x, y, z, ore);
+      let deposit_size = deposit_size - 1;
+      let (available, touched) =
+        cardinal_directions_3d
+        |> List.fold_left(
+             ((available, touched) as no_change, (dx, dy, dz)) => {
+               let coord = (x + dx, y + dy, z + dz);
+               if (!List.mem(coord, touched)) {
+                 ([coord, ...available], [coord, ...touched]);
+               } else {
+                 no_change;
+               };
+             },
+             (available, touched),
+             _,
+           );
+      place_deposit(~region, ~ore, ~deposit_size, ~available, ~touched);
+
+    | Some(_)
+    | None =>
+      place_deposit(~region, ~ore, ~deposit_size, ~available, ~touched)
+    };
+  };
+let place_deposit = (~region, ~ore, ~deposit_size, x, y, z): unit => {
+  let coords = [(x, y, z)];
+  place_deposit(
+    ~region,
+    ~ore,
+    ~deposit_size,
+    ~available=coords,
+    ~touched=coords,
   );
 };
 
-let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
-  /* Create a point cloud with ore types */
-  let iron_cloud =
-    Point_cloud.init(
-      ~width=base.side, ~height=base.side, ~spacing=128, (_, _) =>
-      Random.int(100) < 10 ? Some(random_ore()) : None
-    );
-  let iron_layer =
-    make_layer(
-      base,
-      ~name="iron",
-      ~max_depth=20,
-      ~max_thickness=5,
-      ~ore_cloud=iron_cloud,
-    );
-  let diamond_cloud =
-    Point_cloud.init(
-      ~width=base.side, ~height=base.side, ~spacing=128, (_, _) =>
-      Random.int(100) < 10 ? Some(Minecraft.Block.Diamond_ore) : None
-    );
-  let diamond_layer =
-    make_layer(
-      base,
-      ~name="diamond",
-      ~max_depth=40,
-      ~max_thickness=3,
-      ~ore_cloud=diamond_cloud,
-    );
-  Grid.multizip([iron_layer, diamond_layer]);
+let find_depth = (depth, args, x, z) => {
+  let Minecraft_converter.{region, _} = args;
+  switch (depth) {
+  | From_surface(min_depth, max_depth) =>
+    switch (
+      Minecraft.Block_tree.highest_such_block(region, x, z, can_place_ore)
+    ) {
+    | None => None
+    | Some(stone_elev) =>
+      let depth = min_depth + Random.int(max_depth - min_depth);
+      let y = stone_elev - depth;
+      Some(y);
+    }
+  | From_bedrock(min_elev, max_elev) =>
+    let y = min_elev + Random.int(max_elev - min_elev);
+    Some(y);
+  };
 };
 
-let apply_region = (_base, state, args) => {
+let apply_layer = (layer, args) => {
   let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
-  Minecraft_converter.iter_blocks(
-    ~gx_offset,
-    ~gy_offset,
-    ~gsize,
-    (~gx, ~gy, ~x, ~z) => {
-      let layers = Grid.at(state, gx, gy);
-      List.iter(
-        Minecraft.Block_tree.(
-          layer =>
-            switch (layer) {
-            | {ore: Some(ore), min_elev, max_elev} =>
-              /* TODO catch this during layer generation */
-              let min_elev = max(0, min_elev);
-              let max_elev = max(0, max_elev);
-              for (y in min_elev to max_elev) {
-                switch (get_block(region, x, y, z)) {
-                | Dirt
-                | Grass
-                | Glass /* TODO */
-                | Stone => set_block(region, x, y, z, ore)
-                | _ => ()
-                };
-              };
-            | {ore: None, _} => ()
-            }
-        ),
-        layers,
-      );
-    },
+  let {ore, densities, depth, min_deposit_size, max_deposit_size} = layer;
+  let deposits =
+    Point_cloud.init(
+      ~width=gsize,
+      ~height=gsize,
+      ~spacing=8,
+      (x, z) => {
+        let x = x + gx_offset;
+        let z = z + gy_offset;
+        let prob =
+          Point_cloud.interpolate(
+            densities,
+            float_of_int(x),
+            float_of_int(z),
+          );
+        Random.float(1.) < prob;
+      },
+    );
+  List.iter(
+    (Point_cloud.{x, y: z, value}) =>
+      if (value) {
+        let deposit_size =
+          min_deposit_size + Random.int(max_deposit_size - min_deposit_size);
+        let x = int_of_float(x);
+        let z = int_of_float(z);
+        switch (find_depth(depth, args, x, z)) {
+        | Some(y) => place_deposit(~region, ~ore, ~deposit_size, x, y, z)
+        | None => ()
+        };
+      },
+    deposits.points,
   );
+};
+
+let apply_region = (_base: Grid.t(Base_overlay.tile), state, args): unit => {
+  List.iter(layer => apply_layer(layer, args), state);
 };
 
 let overlay = base =>

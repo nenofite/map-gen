@@ -93,7 +93,6 @@ let two_closest_points = (cloud, x, y) => {
   the edge is closer than any point.
  */
 let nearest_with_edge = (cloud, edge_value, x, y) => {
-  assert_within(cloud.width, cloud.height, x, y);
   let width_f = float_of_int(cloud.width);
   let height_f = float_of_int(cloud.height);
   let edge_distance = min(min(x, width_f -. x), min(y, height_f -. y));
@@ -109,7 +108,6 @@ let nearest_with_edge = (cloud, edge_value, x, y) => {
   nearest returns the value of the nearest point.
  */
 let nearest = (cloud, x, y) => {
-  assert_within(cloud.width, cloud.height, x, y);
   let (closest_point, _closest_point_distance) = closest_point(cloud, x, y);
   closest_point.value;
 };
@@ -119,7 +117,6 @@ let nearest = (cloud, x, y) => {
   on the relative distance to each.
  */
 let interpolate = (cloud, x, y) => {
-  assert_within(cloud.width, cloud.height, x, y);
   let (a, a_distance, b, b_distance) = two_closest_points(cloud, x, y);
   let frac = a_distance /. (a_distance +. b_distance);
   a.value *. (1. -. frac) +. b.value *. frac;

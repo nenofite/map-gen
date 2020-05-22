@@ -42,6 +42,14 @@ let reset = tree => {
   );
 };
 
+let within_region = (x, y, z) =>
+  0 <= x
+  && x < block_per_region
+  && 0 <= y
+  && y < block_per_region_vertical
+  && 0 <= z
+  && z < block_per_region;
+
 /* Chunk and block access */
 
 /**
@@ -134,19 +142,26 @@ let set_block_opt = (tree, x, y, z, block) =>
     set_block(tree, x, y, z, block);
   };
 
-let rec height_at' = (tree, x, y, z) =>
+let rec highest_such_block = (region, x, y, z, predicate) =>
   if (y > 0) {
-    switch (get_block(tree, x, y, z)) {
-    | Air => height_at'(tree, x, y - 1, z)
-    | _ => y
+    let here = get_block(region, x, y, z);
+    if (predicate(here)) {
+      Some(y);
+    } else {
+      highest_such_block(region, x, y - 1, z, predicate);
     };
   } else {
-    0;
+    None;
   };
+let highest_such_block = (region, x, z, predicate) =>
+  highest_such_block(region, x, block_per_region_vertical - 1, z, predicate);
+
 /** height_at is the y-coord of the highest non-Air block */
 let height_at = (tree, x, z) => {
-  let y = block_per_chunk * section_per_chunk - 1;
-  height_at'(tree, x, y, z);
+  switch (highest_such_block(tree, x, z, b => b != Block.Air)) {
+  | Some(y) => y
+  | None => 0
+  };
 };
 
 /** section_has_blocks is true iff the section contains at least one non-Air block */
