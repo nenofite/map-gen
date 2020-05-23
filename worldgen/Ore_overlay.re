@@ -91,6 +91,16 @@ let prepare = (base, ()) => {
            ),
          _,
        );
+  let gravel =
+    make_layer(
+      base,
+      ~ore=Minecraft.Block.Gravel,
+      ~min_density=0.05,
+      ~max_density=0.15,
+      ~depth=From_surface(3, 40),
+      ~min_deposit_size=1,
+      ~max_deposit_size=33,
+    );
   let diamond =
     make_layer(
       base,
@@ -101,7 +111,7 @@ let prepare = (base, ()) => {
       ~min_deposit_size=15,
       ~max_deposit_size=30,
     );
-  iron_low_density @ iron_high_density @ [diamond];
+  iron_low_density @ iron_high_density @ [diamond, gravel];
 };
 
 let rec remove_i = (i, list) =>
