@@ -191,8 +191,14 @@ let apply_dirt =
       | Mid(Desert) =>
         /* Sand with rocks sticking out */
         for (y in elev - dirt_depth + 1 to elev) {
-          overwrite_stone_air(region, x, y, z, y <= elev - 2 ? Sand : Air);
-        }
+          overwrite_stone_air(region, x, y, z, Sand);
+        };
+        if (dirt_depth == 0) {
+          /* Add some rock sticking out */
+          for (y in elev + 1 to elev + 2) {
+            overwrite_stone_air(region, x, y, z, Stone);
+          };
+        };
       | High(Barren) =>
         /* Gravel */
         let gravel_depth = max(0, dirt_depth - Dirt_overlay.max_depth + 2);
