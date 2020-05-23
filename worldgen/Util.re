@@ -32,3 +32,10 @@ let print_progress = (title: string, f: unit => 'a): 'a => {
 let mkdir = (path: string): unit => {
   Unix.system("mkdir -p " ++ path) |> ignore;
 };
+
+let read_file = (path, f) => {
+  let fin = open_in(path);
+  let result = f(fin);
+  close_in(fin);
+  result;
+};
