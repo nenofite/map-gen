@@ -6,8 +6,7 @@ type mid_biome =
 type shore_biome =
   | Sand
   | Gravel
-  | Clay
-  | No_shore;
+  | Clay;
 
 type high_biome =
   | Pine_forest
@@ -31,8 +30,7 @@ let colorize =
   | High(Snow) => 0xFDFDFD
   | Shore(Sand) => 0xF5EAB7
   | Shore(Gravel) => 0x828282
-  | Shore(Clay) => 0x8E7256
-  | Shore(No_shore) => 0; /* TODO */
+  | Shore(Clay) => 0x8E7256;
 
 let prepare_mid = side => {
   /* Start with a point cloud then subdivide a couple times */
@@ -74,11 +72,10 @@ let prepare_shore = side => {
   let r = 16;
   let cloud =
     Point_cloud.init(~width=side / r, ~height=side / r, ~spacing=32, (_x, _y) =>
-      switch (Random.int(4)) {
+      switch (Random.int(3)) {
       | 0 => Sand
       | 1 => Gravel
-      | 2 => Clay
-      | _ => No_shore
+      | _ => Clay
       }
     );
 
@@ -133,8 +130,7 @@ let zip_biomes = (base: Grid.t(Base_overlay.tile), ~mid, ~shore, ~high) => {
     all_biomes,
     (_x, _y, base, (mid, (shore, high))) => {
       let elevation = base.elevation;
-      if (elevation <= Heightmap.sea_level + 2) {
-        /* TODO check for distance to any water instead */
+      if (base.river || base.ocean || elevation <= Heightmap.sea_level + 2) {
         Shore(shore);
       } else if (elevation >= Heightmap.mountain_level - 40) {
         /* TODO use some sort of interp for mid-high cutoff, instead of flat line */
@@ -211,7 +207,16 @@ let apply_dirt =
           overwrite_stone_air(region, x, y, z, Dirt);
         };
         overwrite_stone_air(region, x, elev + 1, z, Snow_layer);
-      | Shore(_) => () /* TODO shores */
+      | Shore(m) =>
+        let material =
+          switch (m) {
+          | Sand => Minecraft.Block.Sand
+          | Gravel => Minecraft.Block.Gravel
+          | Clay => Minecraft.Block.Clay
+          };
+        for (y in elev - dirt_depth + 1 to elev) {
+          overwrite_stone_air(region, x, y, z, material);
+        };
       };
     },
   );
