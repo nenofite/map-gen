@@ -132,7 +132,7 @@ let zip_biomes = (base: Grid.t(Base_overlay.tile), ~mid, ~shore, ~high) => {
       let elevation = base.elevation;
       if (base.river || base.ocean || elevation <= Heightmap.sea_level + 2) {
         Shore(shore);
-      } else if (elevation >= Heightmap.mountain_level - 40) {
+      } else if (elevation >= Heightmap.mountain_level - 20) {
         /* TODO use some sort of interp for mid-high cutoff, instead of flat line */
         High(
           high,
