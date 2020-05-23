@@ -1,8 +1,12 @@
+let max_depth = 9;
+
 let prepare = (side, ()) => {
   Printf.printf("Making dirt heights\n");
   Phase_chain.(
     run_all(
-      phase("Init", () => Grid.init(side / 32, (_x, _y) => Random.int(10)))
+      phase("Init", () =>
+        Grid.init(side / 32, (_x, _y) => Random.int(max_depth + 1))
+      )
       @> phase_repeat(
            3,
            "Avg subdivide",

@@ -7,6 +7,7 @@ type intermediate = {
 };
 
 let sea_level = 62;
+let mountain_level = 150;
 
 let colorize = (tile: tile): int => {
   let frac = float_of_int(tile) /. 200.;
@@ -43,7 +44,7 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
       let {tectonic, distance_to_ocean, distance_to_mountain} = here;
       switch (tectonic) {
       | Ocean => 30 + Random.int(10) /* 30 - 40 */
-      | Mountain => 150 + Random.int(10) /* 150 - 160 */
+      | Mountain => mountain_level + Random.int(10) /* 150 - 160 */
       | Plain =>
         /* 62 - 140 */
         let distance_to_ocean =
