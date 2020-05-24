@@ -52,17 +52,25 @@ let check_collision = (template, tree, x, y, z) => {
 };
 
 /**
+  place_overwrite pastes a template at the given coordinate. Collisions are
+  ignored.
+ */
+let place_overwrite = (template, tree, x, y, z) => {
+  List.iter(
+    ((dx, dy, dz, material)) => {
+      Block_tree.set_block(tree, dx + x, dy + y, dz + z, material)
+    },
+    template.blocks,
+  );
+};
+
+/**
   place attempts to paste a template at the given coordinate. If any of the
   blocks are not air or are outside the region, it fails and returns false
  */
 let place = (template, tree, x, y, z) =>
   if (!check_collision(template, tree, x, y, z)) {
-    List.iter(
-      ((dx, dy, dz, material)) => {
-        Block_tree.set_block(tree, dx + x, dy + y, dz + z, material)
-      },
-      template.blocks,
-    );
+    place_overwrite(template, tree, x, y, z);
     true;
   } else {
     false;

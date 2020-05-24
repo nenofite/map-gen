@@ -116,33 +116,34 @@ let flatten_footprint =
       footprint,
     );
   /* Calculate average */
-  let avg_height =
+  let foundation_elev =
     List.fold_left((sum, (_x, y, _z)) => sum + y, 0, with_heights)
-    / List.length(with_heights);
-  /* Apply average height */
+    / List.length(with_heights)
+    - 1;
+  /* Apply foundation */
   List.iter(
     ((x, y, z)) =>
-      if (avg_height <= y) {
+      if (foundation_elev <= y) {
         /* Dig down then finish with Cobblestone */
-        for (y in avg_height + 1 to y) {
+        for (y in foundation_elev + 1 to y) {
           Minecraft.Block_tree.set_block(args.region, x, y, z, Air);
         };
         Minecraft.Block_tree.set_block(
           args.region,
           x,
-          avg_height,
+          foundation_elev,
           z,
           Cobblestone,
         );
-      } else if (avg_height > y) {
+      } else if (foundation_elev > y) {
         /* Build up with Cobblestone */
-        for (y in y + 1 to avg_height) {
+        for (y in y + 1 to foundation_elev) {
           Minecraft.Block_tree.set_block(args.region, x, y, z, Cobblestone);
         };
       },
     with_heights,
   );
-  avg_height + 1;
+  foundation_elev + 1;
 };
 
 let apply_piece =
@@ -166,9 +167,8 @@ let apply_assembly = (args: Minecraft_converter.region_args, assembly): unit => 
   );
 };
 
-/** levels the ground and places a single template */
-let apply_template =
-    (args: Minecraft_converter.region_args, ~x, ~z, template): unit => {
+let apply_template_y =
+    (args: Minecraft_converter.region_args, ~x, ~z, template): int => {
   /* Get the footprint of the template */
   let footprint = Minecraft.Template.footprint(template);
   /* Flatten the footprint and get an elevation */
@@ -178,7 +178,13 @@ let apply_template =
   if (!success) {
     raise(Building_failure("collision while applying template"));
   };
+  y;
 };
+/** levels the ground and places a single template */
+let apply_template =
+    (args: Minecraft_converter.region_args, ~x, ~z, template): unit =>
+  apply_template_y(args: Minecraft_converter.region_args, ~x, ~z, template)
+  |> ignore;
 
 let add_piece = (piece, ~dx, ~dz, assembly) => {
   if (List.mem_assoc((dx, dz), assembly.pieces)) {

@@ -13,9 +13,9 @@ let overlays = {
   let%bind base = Base_overlay.overlay;
   let%bind biomes = Biome_overlay.overlay(base, dirt);
   let%bind _ores = Ore_overlay.overlay(base);
-  let%bind _cavern = Cavern_overlay.overlay(base);
+  let%bind cavern = Cavern_overlay.overlay(base);
   let%bind _roads = Road_overlay.overlay(base);
-  let%bind _sites = Site_overlay.overlay(base);
+  let%bind _sites = Site_overlay.overlay(base, cavern);
   let%bind _plants = Plant_overlay.overlay(biomes);
   /* let%bind debug =
      Debug_overlay.overlay({

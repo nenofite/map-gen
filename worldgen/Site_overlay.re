@@ -1,15 +1,20 @@
-type template =
-  | Test;
-
 type site =
-  | From_template(template);
+  | Test
+  | Cavern_entrance(int);
+
+type template =
+  | Test_txt
+  | Cavern_entrance_txt
+  | Cavern_entrance_b_txt;
 
 type t = Point_cloud.t(site);
 
 let template_path = t => {
   let file =
     switch (t) {
-    | Test => "test"
+    | Test_txt => "test"
+    | Cavern_entrance_txt => "cavern_entrance"
+    | Cavern_entrance_b_txt => "cavern_entrance_b"
     };
   Filename.concat("sites", file ++ ".txt");
 };
@@ -19,14 +24,18 @@ let load_template = t =>
 
 let lazy_templates =
   lazy({
-    let test = load_template(Test);
+    let test = load_template(Test_txt);
+    let cavern_entrance = load_template(Cavern_entrance_txt);
+    let cavern_entrance_b = load_template(Cavern_entrance_b_txt);
     fun
-    | Test => test;
+    | Test_txt => test
+    | Cavern_entrance_txt => cavern_entrance
+    | Cavern_entrance_b_txt => cavern_entrance_b;
   });
 
 let get_template = t => Lazy.force(lazy_templates, t);
 
-let prepare = (base: Base_overlay.t, ()) => {
+let prepare = (base: Base_overlay.t, cavern: Cavern_overlay.t, ()) => {
   Point_cloud.init_f(
     ~width=base.side,
     ~height=base.side,
@@ -36,13 +45,34 @@ let prepare = (base: Base_overlay.t, ()) => {
       let y = int_of_float(yf);
       switch (Grid.at(base, x, y)) {
       | {ocean: false, river: false, _} =>
-        /* TODO remove */
-        Printf.printf("site at %d, %d\n", x, y);
-        Some(From_template(Test));
+        switch (Grid.at(cavern, x, y)) {
+        | {floor_elev, ceiling_elev} when ceiling_elev > floor_elev =>
+          /* TODO remove */
+          Printf.printf("cavern entrance at %d, %d\n", x, y);
+          Some(Cavern_entrance(floor_elev + 4));
+        | _ =>
+          /* TODO remove */
+          Printf.printf("test site at %d, %d\n", x, y);
+          Some(Test);
+        }
       | _ => None
       };
     },
   );
+};
+
+let apply_standard = (args, ~x, ~z, t) => {
+  let template = get_template(t);
+  Building.apply_template(args, ~x, ~z, template);
+};
+
+let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z) => {
+  let structure = get_template(Cavern_entrance_txt);
+  let y = Building.apply_template_y(args, ~x, ~z, structure);
+  let tube = get_template(Cavern_entrance_b_txt);
+  for (y in tube_depth to y - 1) {
+    Minecraft.Template.place_overwrite(tube, args.region, x, y, z);
+  };
 };
 
 let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit => {
@@ -60,9 +90,9 @@ let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit =
       let z = int_of_float(z) - gy_offset;
       if (0 <= x && x < gsize && 0 <= z && z < gsize) {
         switch (site) {
-        | Some(From_template(t)) =>
-          let template = get_template(t);
-          Building.apply_template(args, ~x, ~z, template);
+        | Some(Test) => apply_standard(args, ~x, ~z, Test_txt)
+        | Some(Cavern_entrance(tube_depth)) =>
+          apply_cavern_entrance(args, ~tube_depth, ~x, ~z)
         | None => ()
         };
       };
@@ -71,5 +101,5 @@ let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit =
   );
 };
 
-let overlay = base =>
-  Overlay.make("site", prepare(base), apply_region(base));
+let overlay = (base, cavern) =>
+  Overlay.make("site", prepare(base, cavern), apply_region(base));

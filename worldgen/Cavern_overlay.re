@@ -3,6 +3,8 @@ type tile = {
   ceiling_elev: int,
 };
 
+type t = Grid.t(tile);
+
 /*
    floor: 1 - 15
    ceiling: 30 - 40
@@ -199,11 +201,6 @@ let apply_region = (world: Grid.t(Base_overlay.tile), cavern, args) => {
         | Air => set_block(region, x, y, z, Lava)
         | _ => ()
         };
-      };
-      /* TODO remove */
-      if (floor_elev < ceiling_elev && x mod 8 == 0 && z mod 8 == 0) {
-        set_block(region, x, floor_elev, z, Minecraft.Block.Glowstone);
-        set_block(region, x, ceiling_elev, z, Minecraft.Block.Glowstone);
       };
     },
   );

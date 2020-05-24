@@ -1,12 +1,13 @@
-type palette = list((string, Minecraft.Block.material));
+type palette = list((string, option(Minecraft.Block.material)));
 
 let default_palette: palette =
   Minecraft.Block.[
-    ("-", Air),
-    ("X", Cobblestone),
-    ("=", Planks),
-    ("#", Glass),
-    ("D", Wooden_door),
+    (".", None),
+    ("-", Some(Air)),
+    ("X", Some(Cobblestone)),
+    ("=", Some(Planks)),
+    ("#", Some(Glass)),
+    ("D", Some(Wooden_door)),
   ];
 
 let rec read_slice = (fin, palette, blocks, ~y, ~z) => {
@@ -18,8 +19,10 @@ let rec read_slice = (fin, palette, blocks, ~y, ~z) => {
       |> List.mapi((i, sym) => (i, sym), _)
       |> List.fold_left(
            (blocks, (x, sym)) => {
-             let block = List.assoc(sym, palette);
-             [(x, y, z, block), ...blocks];
+             switch (List.assoc(sym, palette)) {
+             | Some(block) => [(x, y, z, block), ...blocks]
+             | None => blocks
+             }
            },
            blocks,
            _,
