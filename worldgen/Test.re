@@ -6,12 +6,8 @@ let test_building = region => {
       Template_txt.read_template(fin)
     );
   let piece = Building.{template, open_sides: [], usage: Common};
-  let assembly =
-    Building.{
-      pieces: [((0, 0), piece)],
-      elevation: 1,
-      center_piece: (0, 0),
-    };
+  let pieces = List.init(3, x => ((x, 0), piece));
+  let assembly = Building.{pieces, center_piece: (7, 17)};
   let args =
     Minecraft_converter.{
       region,
@@ -32,8 +28,11 @@ let test = () => {
 
   let tree = Block_tree.create();
   open Block_tree;
-  for (x in 0 to pred(Block_tree.block_per_chunk)) {
-    for (z in 0 to pred(Block_tree.block_per_chunk)) {
+  for (x in 0 to pred(Block_tree.block_per_chunk * 4)) {
+    for (z in 0 to pred(Block_tree.block_per_chunk * 4)) {
+      for (y in 1 to Random.int(6)) {
+        set_block(tree, x, y, z, Block.Grass);
+      };
       set_block(tree, x, 0, z, Block.Grass);
     };
   };
