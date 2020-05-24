@@ -1,5 +1,7 @@
 type tile = River.tile;
 
+type t = Grid.t(tile);
+
 let prepare = () =>
   Phase_chain.(
     run_all(

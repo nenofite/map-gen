@@ -49,7 +49,7 @@ let average_elevation_in_assembly =
   let {center_piece: (x, z), pieces} = assembly;
   let (sum, div) =
     List.fold_left(
-      ((sum, div), ((dx, dz), piece)) => {
+      ((sum, div), ((dx, dz), _piece)) => {
         let sum =
           sum
           + sum_elevation_in_piece(
@@ -102,6 +102,49 @@ let flatten_assembly_base =
   elev + 1;
 };
 
+let flatten_footprint =
+    (args: Minecraft_converter.region_args, ~x, ~z, footprint): int => {
+  /* Get ground height at each coord */
+  let with_heights =
+    List.map(
+      ((dx, dz)) => {
+        let x = dx + x;
+        let z = dz + z;
+        let y = Minecraft.Block_tree.height_at(args.region, x, z);
+        (x, y, z);
+      },
+      footprint,
+    );
+  /* Calculate average */
+  let avg_height =
+    List.fold_left((sum, (_x, y, _z)) => sum + y, 0, with_heights)
+    / List.length(with_heights);
+  /* Apply average height */
+  List.iter(
+    ((x, y, z)) =>
+      if (avg_height <= y) {
+        /* Dig down then finish with Cobblestone */
+        for (y in avg_height + 1 to y) {
+          Minecraft.Block_tree.set_block(args.region, x, y, z, Air);
+        };
+        Minecraft.Block_tree.set_block(
+          args.region,
+          x,
+          avg_height,
+          z,
+          Cobblestone,
+        );
+      } else if (avg_height > y) {
+        /* Build up with Cobblestone */
+        for (y in y + 1 to avg_height) {
+          Minecraft.Block_tree.set_block(args.region, x, y, z, Cobblestone);
+        };
+      },
+    with_heights,
+  );
+  avg_height + 1;
+};
+
 let apply_piece =
     (args: Minecraft_converter.region_args, ~x, ~y, ~z, ~dx, ~dz, piece): unit => {
   let x = x + dx * piece_side;
@@ -113,6 +156,7 @@ let apply_piece =
   };
 };
 
+/** levels the ground and places an assemly */
 let apply_assembly = (args: Minecraft_converter.region_args, assembly): unit => {
   let {center_piece: (x, z), pieces} = assembly;
   let y = flatten_assembly_base(args, assembly);
@@ -120,6 +164,20 @@ let apply_assembly = (args: Minecraft_converter.region_args, assembly): unit => 
     (((dx, dz), piece)) => apply_piece(args, ~x, ~y, ~z, ~dx, ~dz, piece),
     pieces,
   );
+};
+
+/** levels the ground and places a single template */
+let apply_template =
+    (args: Minecraft_converter.region_args, ~x, ~z, template): unit => {
+  /* Get the footprint of the template */
+  let footprint = Minecraft.Template.footprint(template);
+  /* Flatten the footprint and get an elevation */
+  let y = flatten_footprint(args, ~x, ~z, footprint);
+  /* Apply at the given elevation */
+  let success = Minecraft.Template.place(template, args.region, x, y, z);
+  if (!success) {
+    raise(Building_failure("collision while applying template"));
+  };
 };
 
 let add_piece = (piece, ~dx, ~dz, assembly) => {

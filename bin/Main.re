@@ -2,6 +2,9 @@ open Worldgen;
 
 Printexc.record_backtrace(true);
 
+/* Worldgen.Test.test();
+   exit(0); */
+
 let side = 4096;
 
 let overlays = {
@@ -12,6 +15,7 @@ let overlays = {
   let%bind _ores = Ore_overlay.overlay(base);
   let%bind _cavern = Cavern_overlay.overlay(base);
   let%bind _roads = Road_overlay.overlay(base);
+  let%bind _sites = Site_overlay.overlay(base);
   let%bind _plants = Plant_overlay.overlay(biomes);
   /* let%bind debug =
      Debug_overlay.overlay({

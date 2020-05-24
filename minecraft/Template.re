@@ -32,18 +32,21 @@ let stack = (base, addition) => {
 };
 
 /**
-  check_collision is true if the template would hit a non-air block or go out
-  of the region
+  check_collision is true if the template would hit a non-Air block or go out
+  of the region. Ignores Air in the template.
  */
 let check_collision = (template, tree, x, y, z) => {
   List.exists(
-    ((dx, dy, dz, _)) => {
-      switch (Block_tree.get_block_opt(tree, x + dx, y + dy, z + dz)) {
-      | Some(Air) => false
-      | None => true
-      | Some(_not_air) => true
-      }
-    },
+    ((dx, dy, dz, block)) =>
+      if (block != Block.Air) {
+        switch (Block_tree.get_block_opt(tree, x + dx, y + dy, z + dz)) {
+        | Some(Air) => false
+        | None => true
+        | Some(_not_air) => true
+        };
+      } else {
+        false;
+      },
     template.blocks,
   );
 };
@@ -64,3 +67,45 @@ let place = (template, tree, x, y, z) =>
   } else {
     false;
   };
+
+/**
+  footprint is the list of unique (x, z) coordinates where this template has at
+  least one block, regardless of its y. Ignores Air blocks in the template.
+  */
+let footprint = template => {
+  List.fold_left(
+    (footprint, (x, _y, z, block)) => {
+      switch (block) {
+      | Block.Air => footprint
+      | _ =>
+        let coord = (x, z);
+        if (!List.mem(coord, footprint)) {
+          [coord, ...footprint];
+        } else {
+          footprint;
+        };
+      }
+    },
+    [],
+    template.blocks,
+  );
+};
+
+let%expect_test "footprint" = {
+  let template = {
+    blocks:
+      Block.[
+        (0, 0, 0, Cobblestone),
+        (0, 1, 0, Cobblestone),
+        (1, 1, 0, Air),
+        (1, 1, 1, Log),
+      ],
+  };
+  footprint(template)
+  |> List.iter(((x, z)) => Printf.printf("%d, %d\n", x, z), _);
+  %expect
+  {|
+    1, 1
+    0, 0
+  |};
+};

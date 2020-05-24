@@ -20,14 +20,7 @@ let assert_within = (width, height, x, y) =>
     raise(Invalid_argument(msg));
   };
 
-/**
-  init creates a point cloud, randomizes the points, and initializes their
-  value by calling `f(x, y)`.
-
-  spacing determines how many points will fill the space. If width=10 and
-  spacing=2, then there will be 5 points horizontally.
- */
-let init = (~width, ~height, ~spacing=1, f) => {
+let init_f = (~width, ~height, ~spacing=1, f) => {
   let points = ref([]);
   for (yi in 0 to height / spacing) {
     for (xi in 0 to width / spacing) {
@@ -43,13 +36,24 @@ let init = (~width, ~height, ~spacing=1, f) => {
         *. float_of_int(spacing);
       /* Discard if the point is outside */
       if (is_within(width, height, xf, yf)) {
-        let point = {x: xf, y: yf, value: f(x, y)};
+        let point = {x: xf, y: yf, value: f(~xf, ~yf, ~xi=x, ~yi=y)};
         points := [point, ...points^];
       };
     };
   };
   {points: points^, width, height};
 };
+/**
+  init creates a point cloud, randomizes the points, and initializes their
+  value by calling `f(x, y)`.
+
+  spacing determines how many points will fill the space. If width=10 and
+  spacing=2, then there will be 5 points horizontally.
+ */
+let init = (~width, ~height, ~spacing=?, f) =>
+  init_f(~width, ~height, ~spacing?, (~xf as _, ~yf as _, ~xi, ~yi) =>
+    f(xi, yi)
+  );
 
 let distance = (ax, ay, bx, by) =>
   sqrt((ax -. bx) ** 2. +. (ay -. by) ** 2.);
