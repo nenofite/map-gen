@@ -15,6 +15,16 @@ type torch_dir =
   | N
   | Up;
 
+type bed_dir =
+  | S
+  | W
+  | N
+  | E;
+
+type bed_part =
+  | Foot
+  | Head;
+
 /* Materials list taken from https://github.com/MorbZ/J2Blocks/blob/master/src/net/morbz/minecraft/blocks/Material.java */
 type material =
   | Air
@@ -43,7 +53,7 @@ type material =
   | Dispenser
   | Sandstone
   | Noteblock
-  | Bed
+  | Bed(bed_dir, bed_part)
   | Golden_rail
   | Detector_rail
   | Sticky_piston
@@ -244,7 +254,7 @@ let id =
   | Dispenser => 23
   | Sandstone => 24
   | Noteblock => 25
-  | Bed => 26
+  | Bed(_, _) => 26
   | Golden_rail => 27
   | Detector_rail => 28
   | Sticky_piston => 29
@@ -436,12 +446,29 @@ let torch_dir_data: torch_dir => int =
   | N => 4
   | Up => 5;
 
+let bed_data = (dir: bed_dir, part: bed_part) => {
+  let lower =
+    switch (dir) {
+    | S => 0
+    | W => 1
+    | N => 2
+    | E => 3
+    };
+  let upper =
+    switch (part) {
+    | Foot => 0
+    | Head => 0x8
+    };
+  lower lor upper;
+};
+
 let data =
   fun
   | Flowing_water(level) => level
   | Sapling => 0x8
   | Tallgrass => 1
   | Torch(dir) => torch_dir_data(dir)
+  | Bed(dir, part) => bed_data(dir, part)
   /* Stairs */
   | Oak_stairs(dir)
   | Stone_stairs(dir)

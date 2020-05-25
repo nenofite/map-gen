@@ -1,4 +1,10 @@
-type town = (int, int);
+type building = unit;
+
+type town = {
+  x: int,
+  z: int,
+  buildings: list(((int, int), building)),
+};
 
 type t = list(town);
 
@@ -138,6 +144,25 @@ let rec first_suitable_towns =
   };
 };
 
+let prepare_town = (x, z) => {
+  /* TODO different building types */
+  let building = ();
+  let buildings =
+    Range.fold(0, 2, [], (buildings, zi) =>
+      Range.fold(
+        0,
+        2,
+        buildings,
+        (buildings, xi) => {
+          let x = x + xi * 15;
+          let z = z + zi * 15;
+          [((x, z), building), ...buildings];
+        },
+      )
+    );
+  {x, z, buildings};
+};
+
 let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
   /* Shuffle a list of all river tiles */
   print_endline("Finding river coords");
@@ -159,10 +184,10 @@ let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
     first_suitable_towns(base, obstacles, num_towns, river_coords, []);
   /* TODO make sure towns aren't too close to each other */
   List.iter(((x, z)) => Printf.printf("town at %d, %d\n", x, z), towns);
-  towns;
+  List.map(((x, z)) => prepare_town(x, z), towns);
 };
 
-let apply_region = (towns, args) => {
+let apply_region = (towns: t, args) => {
   let Minecraft_converter.{
         region: _,
         rx: _,
@@ -172,15 +197,17 @@ let apply_region = (towns, args) => {
         gsize,
       } = args;
   List.iter(
-    ((x, z)) => {
-      let x = x - gx_offset;
-      let z = z - gy_offset;
-      if (0 <= x && x < gsize && 0 <= z && z < gsize) {
-        let rect =
-          List.init(town_side, z => List.init(town_side, x => (x, z)))
-          |> List.concat;
-        Building.flatten_footprint(args, ~x, ~z, rect) |> ignore;
-      };
+    ({x: _, z: _, buildings}) => {
+      List.iter(
+        (((x, z), ())) => {
+          let x = x - gx_offset;
+          let z = z - gy_offset;
+          if (0 <= x && x < gsize && 0 <= z && z < gsize) {
+            Building.apply_template(args, ~x, ~z, Town_templates.bedroom_1);
+          };
+        },
+        buildings,
+      )
     },
     towns,
   );
