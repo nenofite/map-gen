@@ -23,8 +23,10 @@ let rec take = (amount, list) =>
 
 let print_progress = (title: string, f: unit => 'a): 'a => {
   ANSITerminal.printf([ANSITerminal.blue], "⌜ %s ⌝\n", title);
+  flush(stdout);
   let result = f();
   ANSITerminal.printf([ANSITerminal.green], "⌞ %s ⌟\n", title);
+  flush(stdout);
   result;
 };
 
