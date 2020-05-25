@@ -168,11 +168,15 @@ let apply_assembly = (args: Minecraft_converter.region_args, assembly): unit => 
 };
 
 let apply_template_y =
-    (args: Minecraft_converter.region_args, ~x, ~z, template): int => {
-  /* Get the footprint of the template */
-  let footprint = Minecraft.Template.footprint(template);
+    (
+      args: Minecraft_converter.region_args,
+      ~x,
+      ~z,
+      template: Minecraft.Template.t,
+    )
+    : int => {
   /* Flatten the footprint and get an elevation */
-  let y = flatten_footprint(args, ~x, ~z, footprint);
+  let y = flatten_footprint(args, ~x, ~z, template.footprint);
   /* Apply at the given elevation */
   let success = Minecraft.Template.place(template, args.region, x, y, z);
   if (!success) {

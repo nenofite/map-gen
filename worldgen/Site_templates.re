@@ -1,3 +1,41 @@
+let test =
+  Template_txt.parse_template(
+    {|
+X X X X
+X X X X
+X X X X
+X X X X
+
+X - X -
+X - - -
+- - - -
+X X - X
+
+X - X -
+X - - -
+- - - -
+X - - X
+
+X X - -
+X - - -
+- - - -
+X - - X
+
+X - - -
+X - - -
+- - - -
+X - - -
+
+- - - -
+X - - -
+- - - -
+X - - -
+|},
+  );
+
+let cavern_entrance =
+  Template_txt.parse_template(
+    {|
 X X X X X X X X X
 X X X X X X X X X
 X X X X X X X X X
@@ -117,3 +155,20 @@ X - - - - - - - X
 - - - - - - - - -
 - - - - - - - - -
 X - - - - - - - X
+|},
+  );
+
+let cavern_entrance_tube =
+  Template_txt.parse_template(
+    {|
+. . . . . . . . .
+. . . . . . . . .
+. . . . . . . . .
+. . . X X X . . .
+. . . X - X . . .
+. . . X X X . . .
+. . . . . . . . .
+. . . . . . . . .
+. . . . . . . . .
+|},
+  );

@@ -2,11 +2,13 @@ open Block;
 open Template;
 
 let trunk = height => {
-  {blocks: List.init(height, y => (0, y, 0, Log))};
+  let blocks = List.init(height, y => (0, y, 0, Log));
+  Template.of_blocks(blocks);
 };
 
 let leaves = {
-  blocks: [
+  /* TODO move to mapgen and use template parser */
+  let blocks = [
     (0, 0, 0, Log),
     (0, 1, 0, Log),
     (0, 2, 0, Log),
@@ -43,7 +45,8 @@ let leaves = {
     ((-1), 3, 0, Leaves),
     ((-1), 3, (-1), Leaves),
     (0, 3, 0, Leaves),
-  ],
+  ];
+  Template.of_blocks(blocks);
 };
 
 let tree = () => {
