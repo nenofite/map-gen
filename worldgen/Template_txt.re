@@ -1,5 +1,7 @@
 type palette = list((string, option(Minecraft.Block.material)));
 
+exception Template_txt_failure(string);
+
 let default_palette: palette =
   Minecraft.Block.[
     (".", None),
@@ -9,12 +11,32 @@ let default_palette: palette =
     ("#", Some(Glass)),
     ("D", Some(Wooden_door)),
     ("O", Some(Log)),
+    ("v", Some(Stone_stairs(N))),
+    ("<", Some(Stone_stairs(E))),
+    ("^", Some(Stone_stairs(S))),
+    (">", Some(Stone_stairs(W))),
+    ("s", Some(Torch(N))),
+    ("⇣", Some(Torch(N))),
+    ("w", Some(Torch(E))),
+    ("n", Some(Torch(S))),
+    ("⇡", Some(Torch(S))),
+    ("e", Some(Torch(W))),
+    ("i", Some(Torch(Up))),
   ];
 
 let parse_line = (~palette, ~y, ~z, blocks, line) => {
   line
   |> String.split_on_char(' ')
-  |> List.mapi((x, sym) => (x, List.assoc(sym, palette)))
+  |> List.mapi((x, sym) =>
+       (
+         x,
+         switch (List.assoc_opt(sym, palette)) {
+         | Some(block) => block
+         | None =>
+           raise(Template_txt_failure("Unknown template symbol: " ++ sym))
+         },
+       )
+     )
   |> List.fold_left(
        (blocks, (x, block)) => {
          switch (block) {
@@ -40,7 +62,7 @@ let parse_template = (~palette=default_palette, s) => {
   let lines =
     s |> String.trim |> String.split_on_char('\n') |> List.map(String.trim);
   let blocks = parse_template(~palette, ~y=0, ~z=0, [], lines);
-  Minecraft.Template.of_blocks(blocks);
+  Minecraft.Template.of_blocks(blocks) |> Minecraft.Template.flip_y;
 };
 
 let rec read_slice = (fin, palette, blocks, ~y, ~z) => {

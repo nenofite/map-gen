@@ -1,5 +1,4 @@
 type site =
-  | Test
   | Cavern_entrance(int);
 
 type t = Point_cloud.t(site);
@@ -18,11 +17,8 @@ let prepare = (base: Base_overlay.t, cavern: Cavern_overlay.t, ()) => {
         | {floor_elev, ceiling_elev} when ceiling_elev > floor_elev =>
           /* TODO remove */
           Printf.printf("cavern entrance at %d, %d\n", x, y);
-          Some(Cavern_entrance(floor_elev + 4));
-        | _ =>
-          /* TODO remove */
-          Printf.printf("test site at %d, %d\n", x, y);
-          Some(Test);
+          Some(Cavern_entrance(floor_elev));
+        | _ => None
         }
       | _ => None
       };
@@ -37,7 +33,13 @@ let apply_standard = (args, ~x, ~z, template) => {
 let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z) => {
   let y =
     Building.apply_template_y(args, ~x, ~z, Site_templates.cavern_entrance);
-  for (y in tube_depth to y - 1) {
+  let tube_height =
+    Minecraft.Template.height(Site_templates.cavern_entrance_tube);
+  let base_height =
+    Minecraft.Template.height(Site_templates.cavern_entrance_base);
+  let tube_sections = (y - tube_depth - base_height) / tube_height;
+  for (i in 1 to tube_sections) {
+    let y = y - i * tube_height;
     Minecraft.Template.place_overwrite(
       Site_templates.cavern_entrance_tube,
       args.region,
@@ -46,6 +48,14 @@ let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z) => {
       z,
     );
   };
+  let y = y - tube_sections * tube_height - base_height;
+  Minecraft.Template.place_overwrite(
+    Site_templates.cavern_entrance_base,
+    args.region,
+    x,
+    y,
+    z,
+  );
 };
 
 let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit => {
@@ -63,7 +73,6 @@ let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit =
       let z = int_of_float(z) - gy_offset;
       if (0 <= x && x < gsize && 0 <= z && z < gsize) {
         switch (site) {
-        | Some(Test) => apply_standard(args, ~x, ~z, Site_templates.test)
         | Some(Cavern_entrance(tube_depth)) =>
           apply_cavern_entrance(args, ~tube_depth, ~x, ~z)
         | None => ()

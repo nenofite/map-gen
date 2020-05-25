@@ -1,3 +1,16 @@
+type stair_dir =
+  | E
+  | W
+  | S
+  | N;
+
+type torch_dir =
+  | E
+  | W
+  | S
+  | N
+  | Up;
+
 /* Materials list taken from https://github.com/MorbZ/J2Blocks/blob/master/src/net/morbz/minecraft/blocks/Material.java */
 type material =
   | Air
@@ -50,10 +63,10 @@ type material =
   | Bookshelf
   | Mossy_cobblestone
   | Obsidian
-  | Torch
+  | Torch(torch_dir)
   | Fire
   | Mob_spawner
-  | Oak_stairs
+  | Oak_stairs(stair_dir)
   | Chest
   | Redstone_wire
   | Diamond_ore
@@ -67,7 +80,7 @@ type material =
   | Wooden_door
   | Ladder
   | Rail
-  | Stone_stairs
+  | Stone_stairs(stair_dir)
   | Wall_sign
   | Lever
   | Stone_pressure_plate
@@ -108,13 +121,13 @@ type material =
   | Melon_stem
   | Vine
   | Fence_gate
-  | Brick_stairs
-  | Stone_brick_stairs
+  | Brick_stairs(stair_dir)
+  | Stone_brick_stairs(stair_dir)
   | Mycelium
   | Waterlily
   | Nether_brick
   | Nether_brick_fence
-  | Nether_brick_stairs
+  | Nether_brick_stairs(stair_dir)
   | Nether_wart
   | Enchanting_table
   | Brewing_stand
@@ -128,15 +141,15 @@ type material =
   | Double_wooden_slab
   | Wooden_slab
   | Cocoa
-  | Sandstone_stairs
+  | Sandstone_stairs(stair_dir)
   | Emerald_ore
   | Ender_chest
   | Tripwire_hook
   | Tripwire
   | Emerald_block
-  | Spruce_stairs
-  | Birch_stairs
-  | Jungle_stairs
+  | Spruce_stairs(stair_dir)
+  | Birch_stairs(stair_dir)
+  | Jungle_stairs(stair_dir)
   | Command_block
   | Beacon
   | Cobblestone_wall
@@ -156,15 +169,15 @@ type material =
   | Quartz_ore
   | Hopper
   | Quartz_block
-  | Quartz_stairs
+  | Quartz_stairs(stair_dir)
   | Activator_rail
   | Dropper
   | Stained_hardened_clay
   | Stained_glass_pane
   | Leaves2
   | Log2
-  | Acacia_stairs
-  | Dark_oak_stairs
+  | Acacia_stairs(stair_dir)
+  | Dark_oak_stairs(stair_dir)
   | Slime_block
   | Barrier
   | Iron_trapdoor
@@ -180,7 +193,7 @@ type material =
   | Wall_banner
   | Daylight_detector_inverted
   | Red_sandstone
-  | Red_sandstone_stairs
+  | Red_sandstone_stairs(stair_dir)
   | Double_stone_slab2
   | Stone_slab2
   | Spruce_fence_gate
@@ -251,10 +264,10 @@ let id =
   | Bookshelf => 47
   | Mossy_cobblestone => 48
   | Obsidian => 49
-  | Torch => 50
+  | Torch(_) => 50
   | Fire => 51
   | Mob_spawner => 52
-  | Oak_stairs => 53
+  | Oak_stairs(_) => 53
   | Chest => 54
   | Redstone_wire => 55
   | Diamond_ore => 56
@@ -268,7 +281,7 @@ let id =
   | Wooden_door => 64
   | Ladder => 65
   | Rail => 66
-  | Stone_stairs => 67
+  | Stone_stairs(_) => 67
   | Wall_sign => 68
   | Lever => 69
   | Stone_pressure_plate => 70
@@ -309,13 +322,13 @@ let id =
   | Melon_stem => 105
   | Vine => 106
   | Fence_gate => 107
-  | Brick_stairs => 108
-  | Stone_brick_stairs => 109
+  | Brick_stairs(_) => 108
+  | Stone_brick_stairs(_) => 109
   | Mycelium => 110
   | Waterlily => 111
   | Nether_brick => 112
   | Nether_brick_fence => 113
-  | Nether_brick_stairs => 114
+  | Nether_brick_stairs(_) => 114
   | Nether_wart => 115
   | Enchanting_table => 116
   | Brewing_stand => 117
@@ -329,15 +342,15 @@ let id =
   | Double_wooden_slab => 125
   | Wooden_slab => 126
   | Cocoa => 127
-  | Sandstone_stairs => 128
+  | Sandstone_stairs(_) => 128
   | Emerald_ore => 129
   | Ender_chest => 130
   | Tripwire_hook => 131
   | Tripwire => 132
   | Emerald_block => 133
-  | Spruce_stairs => 134
-  | Birch_stairs => 135
-  | Jungle_stairs => 136
+  | Spruce_stairs(_) => 134
+  | Birch_stairs(_) => 135
+  | Jungle_stairs(_) => 136
   | Command_block => 137
   | Beacon => 138
   | Cobblestone_wall => 139
@@ -357,15 +370,15 @@ let id =
   | Quartz_ore => 153
   | Hopper => 154
   | Quartz_block => 155
-  | Quartz_stairs => 156
+  | Quartz_stairs(_) => 156
   | Activator_rail => 157
   | Dropper => 158
   | Stained_hardened_clay => 159
   | Stained_glass_pane => 160
   | Leaves2 => 161
   | Log2 => 162
-  | Acacia_stairs => 163
-  | Dark_oak_stairs => 164
+  | Acacia_stairs(_) => 163
+  | Dark_oak_stairs(_) => 164
   | Slime_block => 165
   | Barrier => 166
   | Iron_trapdoor => 167
@@ -381,7 +394,7 @@ let id =
   | Wall_banner => 177
   | Daylight_detector_inverted => 178
   | Red_sandstone => 179
-  | Red_sandstone_stairs => 180
+  | Red_sandstone_stairs(_) => 180
   | Double_stone_slab2 => 181
   | Stone_slab2 => 182
   | Spruce_fence_gate => 183
@@ -400,9 +413,40 @@ let id =
   | Acacia_door => 196
   | Dark_oak_door => 197;
 
+let stair_dir_data: stair_dir => int =
+  fun
+  | E => 0
+  | W => 1
+  | S => 2
+  | N => 3;
+
+let torch_dir_data: torch_dir => int =
+  fun
+  | E => 1
+  | W => 2
+  | S => 3
+  | N => 4
+  | Up => 5;
+
 let data =
   fun
   | Flowing_water(level) => level
   | Sapling => 0x8
   | Tallgrass => 1
+  | Torch(dir) => torch_dir_data(dir)
+  /* Stairs */
+  | Oak_stairs(dir)
+  | Stone_stairs(dir)
+  | Brick_stairs(dir)
+  | Stone_brick_stairs(dir)
+  | Nether_brick_stairs(dir)
+  | Sandstone_stairs(dir)
+  | Spruce_stairs(dir)
+  | Birch_stairs(dir)
+  | Jungle_stairs(dir)
+  | Quartz_stairs(dir)
+  | Acacia_stairs(dir)
+  | Dark_oak_stairs(dir)
+  | Red_sandstone_stairs(dir) => stair_dir_data(dir)
+  /* Other/unimplemented */
   | _ => 0;

@@ -10,6 +10,11 @@ type t = {
   footprint: list((int, int)),
 };
 
+let height = template => {
+  let (miny, maxy) = template.bounds_y;
+  maxy - miny + 1;
+};
+
 let combine_bounds = ((amin: int, amax: int), (bmin: int, bmax: int)) => (
   min(amin, bmin),
   max(amax, bmax),
@@ -181,4 +186,14 @@ let of_blocks = (blocks: _): t => {
     );
   let footprint = calc_footprint(blocks);
   {blocks, bounds_x, bounds_y, bounds_z, footprint};
+};
+
+let flip_y = template => {
+  let (_, max_y) = template.bounds_y;
+  let blocks =
+    List.map(
+      ((x, y, z, block)) => (x, max_y - y, z, block),
+      template.blocks,
+    );
+  {...template, blocks};
 };
