@@ -4,9 +4,9 @@ type t = list(town);
 
 type obstacles = Grid.t(bool);
 
-let town_side = 50;
-let max_elevation_range = 50;
-let tweak_dist = 100;
+let town_side = 100;
+let max_elevation_range = 10;
+let tweak_dist = 150;
 let tweak_tries = 100;
 let num_towns = 8;
 
@@ -71,7 +71,7 @@ let rec tweak_town_area = (base, obstacles, x, z, tries) =>
     let try_x = x + Random.int(tweak_dist * 2) - tweak_dist;
     let try_z = z + Random.int(tweak_dist * 2) - tweak_dist;
     if (town_area_clear(base, obstacles, try_x, try_z)) {
-      Some((x, z));
+      Some((try_x, try_z));
     } else {
       tweak_town_area(base, obstacles, x, z, tries - 1);
     };
@@ -115,7 +115,7 @@ let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
   let river_coords =
     Grid.filter_map(base, (x, z, base) => {
       switch (base) {
-      | {river: true, _} => Some((x, z))
+      | {river: true, _} => Some((x - town_side / 2, z - town_side / 2))
       | {river: false, _} => None
       }
     });
