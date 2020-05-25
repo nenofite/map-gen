@@ -2,7 +2,11 @@ type stair_dir =
   | E
   | W
   | S
-  | N;
+  | N
+  | Ed
+  | Wd
+  | Sd
+  | Nd;
 
 type torch_dir =
   | E
@@ -418,7 +422,11 @@ let stair_dir_data: stair_dir => int =
   | E => 0
   | W => 1
   | S => 2
-  | N => 3;
+  | N => 3
+  | Ed => 4
+  | Wd => 5
+  | Sd => 6
+  | Nd => 7;
 
 let torch_dir_data: torch_dir => int =
   fun

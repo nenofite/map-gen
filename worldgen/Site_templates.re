@@ -34,9 +34,9 @@ X - - - - - - - X
 X - - - - - - - X
 - - - - - - - - -
 - - X w - e X - -
-- - ⇡ - - - ⇡ - -
+- - n - - - n - -
 - - - - - - - - -
-- - ⇣ - - - ⇣ - -
+- - s - - - s - -
 - - X w - e X - -
 - - - - - - - - -
 X - - - - - - - X
@@ -110,6 +110,13 @@ let cavern_entrance_tube =
 
 let cavern_entrance_base =
   Template_txt.parse_template(
+    ~palette=
+      Minecraft.Block.[
+        ("N", Some(Stone_stairs(Nd))),
+        ("E", Some(Stone_stairs(Ed))),
+        ("S", Some(Stone_stairs(Sd))),
+        ("W", Some(Stone_stairs(Wd))),
+      ],
     {|
 . . . . . . . . .
 . . . . . . . . .
@@ -123,11 +130,11 @@ let cavern_entrance_base =
 
 . . . . . . . . .
 . . . . . . . . .
-. . X X X X X . .
-. . X - - - X . .
-. . X - - - X . .
-. . X - < X X . .
-. . X X X X X . .
+. . X W - E X . .
+. . N - - - N . .
+. . - - - - - . .
+. . S - < X S . .
+. . X W - E X . .
 . . . . . . . . .
 . . . . . . . . .
 

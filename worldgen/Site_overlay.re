@@ -14,7 +14,10 @@ let prepare = (base: Base_overlay.t, cavern: Cavern_overlay.t, ()) => {
       switch (Grid.at(base, x, y)) {
       | {ocean: false, river: false, _} =>
         switch (Grid.at(cavern, x, y)) {
-        | {floor_elev, ceiling_elev} when ceiling_elev > floor_elev =>
+        | {floor_elev, ceiling_elev}
+            when
+              ceiling_elev > floor_elev
+              && floor_elev > Cavern_overlay.magma_sea_elev =>
           /* TODO remove */
           Printf.printf("cavern entrance at %d, %d\n", x, y);
           Some(Cavern_entrance(floor_elev));
@@ -53,7 +56,14 @@ let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z): unit => {
   Minecraft.Template.place_overwrite(base, args.region, x, y, z);
   let (minx, maxx) = base.bounds_x;
   let (minz, maxz) = base.bounds_z;
-  Building.stair_foundation(args, ~minx, ~maxx, ~y, ~minz, ~maxz);
+  Building.stair_foundation(
+    args,
+    ~minx=minx + x,
+    ~maxx=maxx + x,
+    ~y,
+    ~minz=minz + z,
+    ~maxz=maxz + z,
+  );
 };
 
 let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit => {

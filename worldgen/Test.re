@@ -13,10 +13,10 @@ let test_stairs = region => {
   Building.stair_foundation(
     args,
     ~minx=14,
-    ~maxx=18,
+    ~maxx=15,
     ~y=10,
     ~minz=7,
-    ~maxz=11,
+    ~maxz=8,
   );
 };
 

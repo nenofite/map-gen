@@ -154,6 +154,8 @@ let%expect_test "calc_footprint" = {
 };
 
 let of_blocks = (blocks: _): t => {
+  /* Get starter values */
+  let (sx, sy, sz, _) = List.hd(blocks);
   let bounds_x =
     List.fold_left(
       ((amin, amax), (x, _y, _z, _b)) => {
@@ -161,7 +163,7 @@ let of_blocks = (blocks: _): t => {
         let amax = max(amax, x);
         (amin, amax);
       },
-      (0, 0),
+      (sx, sx),
       blocks,
     );
   let bounds_y =
@@ -171,7 +173,7 @@ let of_blocks = (blocks: _): t => {
         let amax = max(amax, y);
         (amin, amax);
       },
-      (0, 0),
+      (sy, sy),
       blocks,
     );
   let bounds_z =
@@ -181,7 +183,7 @@ let of_blocks = (blocks: _): t => {
         let amax = max(amax, z);
         (amin, amax);
       },
-      (0, 0),
+      (sz, sz),
       blocks,
     );
   let footprint = calc_footprint(blocks);

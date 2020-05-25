@@ -16,10 +16,8 @@ let default_palette: palette =
     ("^", Some(Stone_stairs(S))),
     (">", Some(Stone_stairs(W))),
     ("s", Some(Torch(N))),
-    ("⇣", Some(Torch(N))),
     ("w", Some(Torch(E))),
     ("n", Some(Torch(S))),
-    ("⇡", Some(Torch(S))),
     ("e", Some(Torch(W))),
     ("i", Some(Torch(Up))),
   ];
@@ -58,7 +56,8 @@ let rec parse_template = (~palette, ~y, ~z, blocks, lines) => {
     parse_template(~palette, ~y, ~z=z + 1, blocks, lines);
   };
 };
-let parse_template = (~palette=default_palette, s) => {
+let parse_template = (~palette=[], s) => {
+  let palette = palette @ default_palette;
   let lines =
     s |> String.trim |> String.split_on_char('\n') |> List.map(String.trim);
   let blocks = parse_template(~palette, ~y=0, ~z=0, [], lines);
