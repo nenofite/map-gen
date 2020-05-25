@@ -216,3 +216,87 @@ let is_assembly_closed = assembly => {
     assembly.pieces,
   );
 };
+
+let rec column_down =
+        (args: Minecraft_converter.region_args, ~x, ~y, ~z, block): unit => {
+  switch (Minecraft.Block_tree.get_block_opt(args.region, x, y, z)) {
+  | Some(Air) =>
+    Minecraft.Block_tree.set_block(args.region, x, y, z, block);
+    column_down(args, ~x, ~y=y - 1, ~z, block);
+  | Some(_)
+  | None => ()
+  };
+};
+
+let rectangle_foundation = (args, ~minx, ~maxx, ~y, ~minz, ~maxz): unit => {
+  for (z in minz to maxz) {
+    for (x in minx to maxx) {
+      column_down(args, ~x, ~y, ~z, Cobblestone);
+      /* Also do the level below in case a building is here */
+      column_down(args, ~x, ~y=y - 1, ~z, Cobblestone);
+    };
+  };
+};
+
+let rec lay_stairs =
+        (args: Minecraft_converter.region_args, ~x, ~y, ~z, block, ~dx, ~dz)
+        : unit => {
+  switch (Minecraft.Block_tree.get_block_opt(args.region, x, y, z)) {
+  | Some(Air) =>
+    Minecraft.Block_tree.set_block(args.region, x, y, z, block);
+    column_down(args, ~x, ~y=y - 1, ~z, Minecraft.Block.Cobblestone);
+    lay_stairs(args, ~x=x + dx, ~y=y - 1, ~z=z + dz, block, ~dx, ~dz);
+  | Some(_)
+  | None => ()
+  };
+};
+
+let stair_foundation = (args, ~minx, ~maxx, ~y, ~minz, ~maxz): unit => {
+  /* Fill the base rectangle */
+  rectangle_foundation(args, ~minx, ~maxx, ~y, ~minz, ~maxz);
+  /* Lay each side of stairs */
+  for (x in minx to maxx) {
+    /* N stairs */
+    lay_stairs(
+      args,
+      ~x,
+      ~y,
+      ~z=minz - 1,
+      Minecraft.Block.Stone_stairs(S),
+      ~dx=0,
+      ~dz=-1,
+    );
+    /* S stairs */
+    lay_stairs(
+      args,
+      ~x,
+      ~y,
+      ~z=maxz + 1,
+      Minecraft.Block.Stone_stairs(N),
+      ~dx=0,
+      ~dz=1,
+    );
+  };
+  for (z in minz to maxz) {
+    /* E stairs */
+    lay_stairs(
+      args,
+      ~x=maxx + 1,
+      ~y,
+      ~z,
+      Minecraft.Block.Stone_stairs(W),
+      ~dx=1,
+      ~dz=0,
+    );
+    /* W stairs */
+    lay_stairs(
+      args,
+      ~x=minx - 1,
+      ~y,
+      ~z,
+      Minecraft.Block.Stone_stairs(E),
+      ~dx=-1,
+      ~dz=0,
+    );
+  };
+};

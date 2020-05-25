@@ -2,9 +2,6 @@ open Worldgen;
 
 Printexc.record_backtrace(true);
 
-/* Worldgen.Test.test();
-   exit(0); */
-
 let side = 4096;
 
 let overlays = {

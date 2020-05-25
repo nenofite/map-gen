@@ -30,7 +30,7 @@ let apply_standard = (args, ~x, ~z, template) => {
   Building.apply_template(args, ~x, ~z, template);
 };
 
-let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z) => {
+let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z): unit => {
   let y =
     Building.apply_template_y(args, ~x, ~z, Site_templates.cavern_entrance);
   let tube_height =
@@ -49,13 +49,11 @@ let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z) => {
     );
   };
   let y = y - tube_sections * tube_height - base_height;
-  Minecraft.Template.place_overwrite(
-    Site_templates.cavern_entrance_base,
-    args.region,
-    x,
-    y,
-    z,
-  );
+  let base = Site_templates.cavern_entrance_base;
+  Minecraft.Template.place_overwrite(base, args.region, x, y, z);
+  let (minx, maxx) = base.bounds_x;
+  let (minz, maxz) = base.bounds_z;
+  Building.stair_foundation(args, ~minx, ~maxx, ~y, ~minz, ~maxz);
 };
 
 let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit => {

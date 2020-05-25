@@ -1,13 +1,6 @@
 /* Make a world and level, put some dirt in the center, and save */
 
-let test_building = region => {
-  let template =
-    Util.read_file("buildings/test.txt", fin =>
-      Template_txt.read_template(fin)
-    );
-  let piece = Building.{template, open_sides: [], usage: Common};
-  let pieces = List.init(3, x => ((x, 0), piece));
-  let assembly = Building.{pieces, center_piece: (7, 17)};
+let test_stairs = region => {
   let args =
     Minecraft_converter.{
       region,
@@ -17,7 +10,14 @@ let test_building = region => {
       gy_offset: 0,
       gsize: 0,
     };
-  Building.apply_assembly(args, assembly);
+  Building.stair_foundation(
+    args,
+    ~minx=14,
+    ~maxx=18,
+    ~y=10,
+    ~minz=7,
+    ~maxz=11,
+  );
 };
 
 let test = () => {
@@ -36,6 +36,6 @@ let test = () => {
       set_block(tree, x, 0, z, Block.Grass);
     };
   };
-  test_building(tree);
+  test_stairs(tree);
   Block_tree.save_region(region_path, tree, 0, 0);
 };

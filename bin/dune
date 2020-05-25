@@ -1,5 +1,5 @@
-(executable
-  (name Main)
-  (public_name Main)
+(executables
+  (names Main Test)
+  (public_names Main Test)
   (preprocess (pps ppx_let))
   (libraries Worldgen))
