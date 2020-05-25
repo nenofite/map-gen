@@ -191,7 +191,7 @@ let find_depth = (depth, args, x, z) => {
   switch (depth) {
   | From_surface(min_depth, max_depth) =>
     switch (
-      Minecraft.Block_tree.highest_such_block(region, x, z, can_place_ore)
+      Minecraft.Block_tree.highest_such_block(region, ~x, ~z, can_place_ore)
     ) {
     | None => None
     | Some(stone_elev) =>

@@ -33,26 +33,60 @@ let apply_standard = (args, ~x, ~z, template) => {
   Building.apply_template(args, ~x, ~z, template);
 };
 
+let max_height_within =
+    (
+      args: Minecraft_converter.region_args,
+      ~minx,
+      ~maxx,
+      ~y=?,
+      ~minz,
+      ~maxz,
+      (),
+    )
+    : int => {
+  let m = ref(0);
+  for (z in minz to maxz) {
+    for (x in minx to maxx) {
+      let here = Minecraft.Block_tree.height_at(args.region, ~x, ~y?, ~z, ());
+      m := max(m^, here);
+    };
+  };
+  m^;
+};
+
 let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z): unit => {
+  let top = Site_templates.cavern_entrance;
+  let tube = Site_templates.cavern_entrance_tube;
+  let base = Site_templates.cavern_entrance_base;
+  let (minx, maxx) = top.bounds_x;
+  let (minz, maxz) = top.bounds_z;
   let y =
-    Building.apply_template_y(args, ~x, ~z, Site_templates.cavern_entrance);
-  let tube_height =
-    Minecraft.Template.height(Site_templates.cavern_entrance_tube);
-  let base_height =
-    Minecraft.Template.height(Site_templates.cavern_entrance_base);
+    max_height_within(
+      args,
+      ~minx=minx + x,
+      ~maxx=maxx + x,
+      ~minz=minz + z,
+      ~maxz=maxz + z,
+      (),
+    )
+    + 3;
+  Building.stair_foundation(
+    args,
+    ~minx=minx + x,
+    ~maxx=maxx + x,
+    ~y,
+    ~minz=minz + z,
+    ~maxz=maxz + z,
+  );
+  Minecraft.Template.place_overwrite(top, args.region, x, y, z);
+  let tube_height = Minecraft.Template.height(tube);
+  let base_height = Minecraft.Template.height(base);
   let tube_sections = (y - tube_depth - base_height) / tube_height;
   for (i in 1 to tube_sections) {
     let y = y - i * tube_height;
-    Minecraft.Template.place_overwrite(
-      Site_templates.cavern_entrance_tube,
-      args.region,
-      x,
-      y,
-      z,
-    );
+    Minecraft.Template.place_overwrite(tube, args.region, x, y, z);
   };
   let y = y - tube_sections * tube_height - base_height;
-  let base = Site_templates.cavern_entrance_base;
   Minecraft.Template.place_overwrite(base, args.region, x, y, z);
   let (minx, maxx) = base.bounds_x;
   let (minz, maxz) = base.bounds_z;

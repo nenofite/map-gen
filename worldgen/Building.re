@@ -37,7 +37,7 @@ let sum_elevation_in_piece =
   let sum = ref(0);
   for (z in z to z + piece_side - 1) {
     for (x in x to x + piece_side - 1) {
-      sum := sum^ + Minecraft.Block_tree.height_at(args.region, x, z);
+      sum := sum^ + Minecraft.Block_tree.height_at(args.region, ~x, ~z, ());
     };
   };
   sum^;
@@ -67,7 +67,7 @@ let average_elevation_in_assembly =
 };
 
 let raise_lower_elev = (args: Minecraft_converter.region_args, x, z, elev) => {
-  let current_elev = Minecraft.Block_tree.height_at(args.region, x, z);
+  let current_elev = Minecraft.Block_tree.height_at(args.region, ~x, ~z, ());
   if (elev <= current_elev) {
     /* Dig down then finish with Cobblestone */
     for (y in elev + 1 to current_elev) {
@@ -110,7 +110,7 @@ let flatten_footprint =
       ((dx, dz)) => {
         let x = dx + x;
         let z = dz + z;
-        let y = Minecraft.Block_tree.height_at(args.region, x, z);
+        let y = Minecraft.Block_tree.height_at(args.region, ~x, ~z, ());
         (x, y, z);
       },
       footprint,

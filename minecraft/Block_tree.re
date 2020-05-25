@@ -153,12 +153,13 @@ let rec highest_such_block = (region, x, y, z, predicate) =>
   } else {
     None;
   };
-let highest_such_block = (region, x, z, predicate) =>
-  highest_such_block(region, x, block_per_region_vertical - 1, z, predicate);
+let highest_such_block =
+    (region, ~x, ~y=block_per_region_vertical - 1, ~z, predicate) =>
+  highest_such_block(region, x, y, z, predicate);
 
 /** height_at is the y-coord of the highest non-Air block */
-let height_at = (tree, x, z) => {
-  switch (highest_such_block(tree, x, z, b => b != Block.Air)) {
+let height_at = (tree, ~x, ~y=?, ~z, ()) => {
+  switch (highest_such_block(tree, ~x, ~y?, ~z, b => b != Block.Air)) {
   | Some(y) => y
   | None => 0
   };
@@ -244,7 +245,12 @@ let chunk_heightmap = (tree, cx, cz) => {
       let z = i / block_per_chunk;
       let i = i - z * block_per_chunk;
       let x = i;
-      height_at(tree, cx * block_per_chunk + x, cz * block_per_chunk + z)
+      height_at(
+        tree,
+        ~x=cx * block_per_chunk + x,
+        ~z=cz * block_per_chunk + z,
+        (),
+      )
       |> Int32.of_int;
     },
   );

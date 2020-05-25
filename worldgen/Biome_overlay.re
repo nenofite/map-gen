@@ -174,7 +174,7 @@ let apply_dirt =
     ~gsize,
     (~gx, ~gy, ~x, ~z) => {
       open Minecraft.Block_tree;
-      let elev = height_at(region, x, z);
+      let elev = height_at(region, ~x, ~z, ());
       let dirt_depth = Grid.at(dirt, gx, gy);
       switch (Grid.at(state, gx, gy)) {
       | Mid(Plain)

@@ -19,7 +19,7 @@ let apply_trees =
         let gy = z + gy_offset;
         switch (Grid.at(biomes, gx, gy)) {
         | Mid(Forest) =>
-          let y = Minecraft.Block_tree.height_at(region, x, z);
+          let y = Minecraft.Block_tree.height_at(region, ~x, ~z, ());
           let block = Minecraft.Block_tree.get_block(region, x, y, z);
           switch (block) {
           | Grass =>
@@ -57,7 +57,7 @@ let apply_tallgrass =
         switch (Grid.at(biomes, gx, gy)) {
         | Mid(Forest | Plain) =>
           /* TODO should pine forests have tallgrass? */
-          let y = Minecraft.Block_tree.height_at(region, x, z);
+          let y = Minecraft.Block_tree.height_at(region, ~x, ~z, ());
           let block = Minecraft.Block_tree.get_block(region, x, y, z);
           switch (block) {
           | Grass =>
