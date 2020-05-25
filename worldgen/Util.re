@@ -41,3 +41,11 @@ let read_file = (path, f) => {
   close_in(fin);
   result;
 };
+
+let distance = ((ax, ay), (bx, by)): float => {
+  sqrt((ax -. bx) ** 2. +. (ay -. by) ** 2.);
+};
+
+let distance_int = ((ax, ay), (bx, by)): int => {
+  Floats.(~~distance((~.ax, ~.ay), (~.bx, ~.by)));
+};

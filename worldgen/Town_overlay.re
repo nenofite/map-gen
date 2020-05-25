@@ -9,6 +9,8 @@ let max_elevation_range = 10;
 let tweak_dist = 150;
 let tweak_tries = 100;
 let num_towns = 8;
+let min_dist_between_towns = 500;
+let potential_sites_limit = 100;
 
 let calc_obstacles = (base: Base_overlay.t, road: Road_overlay.t): obstacles => {
   Grid.map(base, (x, z, base) => {
@@ -21,11 +23,26 @@ let calc_obstacles = (base: Base_overlay.t, road: Road_overlay.t): obstacles => 
   });
 };
 
-let town_area_clear = (base: Base_overlay.t, obstacles: obstacles, x, z) => {
-  let has_obstacle =
+let within_region_boundaries = (x, z) =>
+  Minecraft.Block_tree.(
+    x
+    mod block_per_region < block_per_region
+    - town_side
+    && z
+    mod block_per_region < block_per_region
+    - town_side
+  );
+
+let has_obstacle = (obstacles: obstacles, x, z) =>
+  try(
     Range.exists(z, z + town_side - 1, z =>
-      Range.exists(x, x + town_side - 1, x => {Grid.at(obstacles, x, z)})
-    );
+      Range.exists(x, x + town_side - 1, x => Grid.at(obstacles, x, z))
+    )
+  ) {
+  | Invalid_argument(_) => true
+  };
+
+let acceptable_elevations = (base: Base_overlay.t, x, z) => {
   let start_elev = Grid.at(base, x, z).elevation;
   let (emin, emax) =
     Range.fold(
@@ -42,29 +59,22 @@ let town_area_clear = (base: Base_overlay.t, obstacles: obstacles, x, z) => {
         },
       )
     );
-  let elev_acceptable = emax - emin <= max_elevation_range;
-  let within_region =
-    Minecraft.Block_tree.(
-      x
-      mod block_per_region < block_per_region
-      - town_side
-      && z
-      mod block_per_region < block_per_region
-      - town_side
-    );
-  if (has_obstacle) {
-    print_endline("obstacle");
-    false;
-  } else if (!elev_acceptable) {
-    print_endline("elevation");
-    false;
-  } else if (!within_region) {
+  emax - emin <= max_elevation_range;
+};
+
+let town_area_clear = (base: Base_overlay.t, obstacles: obstacles, x, z) =>
+  if (!within_region_boundaries(x, z)) {
     print_endline("region boundaries");
+    false;
+  } else if (has_obstacle(obstacles, x, z)) {
+    print_endline("has obstacle");
+    false;
+  } else if (!acceptable_elevations(base, x, z)) {
+    print_endline("elevation");
     false;
   } else {
     true;
   };
-};
 
 let rec tweak_town_area = (base, obstacles, x, z, tries) =>
   if (tries > 0) {
@@ -96,16 +106,35 @@ let rec first_suitable_towns =
   switch (coords) {
   | _ when remaining <= 0 => selected
   | [] => selected
-  | [(x, z), ...coords] =>
-    switch (tweak_town_area(base, obstacles, x, z)) {
-    | Some(coord) =>
-      print_endline("Selected town");
-      let selected = [coord, ...selected];
-      first_suitable_towns(base, obstacles, remaining - 1, coords, selected);
-    | None =>
-      print_endline("Failed to tweak town");
+  | [(x, z) as untweaked_coord, ...coords] =>
+    let too_close =
+      List.exists(
+        other_coord =>
+          Util.distance_int(untweaked_coord, other_coord)
+          < min_dist_between_towns,
+        selected,
+      );
+    if (!too_close) {
+      switch (tweak_town_area(base, obstacles, x, z)) {
+      | Some(coord) =>
+        print_endline("Selected town");
+        let selected = [coord, ...selected];
+        first_suitable_towns(
+          base,
+          obstacles,
+          remaining - 1,
+          coords,
+          selected,
+        );
+      | None =>
+        print_endline("Failed to tweak town");
+        first_suitable_towns(base, obstacles, remaining, coords, selected);
+      };
+    } else {
+      /* Too close to another town */
+      print_endline("Town too close");
       first_suitable_towns(base, obstacles, remaining, coords, selected);
-    }
+    };
   };
 };
 
@@ -120,7 +149,8 @@ let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
       }
     });
   print_endline("Shuffling river coords");
-  let river_coords = Util.shuffle(river_coords);
+  let river_coords =
+    Util.shuffle(river_coords) |> Util.take(potential_sites_limit);
   /* Pick and tweak town sites from this list */
   print_endline("Calculating obstacles");
   let obstacles = calc_obstacles(base, roads);
