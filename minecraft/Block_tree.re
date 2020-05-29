@@ -2,10 +2,27 @@
 type section = {blocks: array(Block.material)};
 
 /**
+  entity is a Minecraft entity[0] such as a villager
+
+  [0]: https://minecraft.gamepedia.com/Chunk_format#Entity_format
+ */
+type entity = {
+  id: string,
+  x: float,
+  y: float,
+  z: float,
+};
+
+/**
   t is one Anvil region, 32x32 chunks and each chunk is 16 sections stacked
   vertically. Sections are stored in [[x][z][y]] order
  */
-type t = {sections: array(section)};
+type t = {
+  mutable rx: int,
+  mutable rz: int,
+  sections: array(section),
+  mutable entities: list(entity),
+};
 
 let block_per_chunk = 16;
 let section_volume = block_per_chunk * block_per_chunk * block_per_chunk;
@@ -22,24 +39,30 @@ let make_empty_section = () => {
     ),
 };
 
-let create = () => {
+let create = (~rx, ~rz) => {
+  rx,
+  rz,
   sections:
     Array.init(chunk_per_region * chunk_per_region * section_per_chunk, _ =>
       make_empty_section()
     ),
+  entities: [],
 };
 
 /**
   reset clears all blocks to Air, restoring the region to a consistent state so
   it can be re-used
  */
-let reset = tree => {
+let reset = (tree, ~rx, ~rz) => {
   Array.(
     iter(
       section => fill(section.blocks, 0, section_volume, Block.Air),
       tree.sections,
     )
   );
+  tree.rx = rx;
+  tree.rz = rz;
+  tree.entities = [];
 };
 
 let within_region = (x, y, z) =>
@@ -49,6 +72,39 @@ let within_region = (x, y, z) =>
   && y < block_per_region_vertical
   && 0 <= z
   && z < block_per_region;
+
+let within_this_region = (tree, x, y, z) => {
+  let {rx, rz, _} = tree;
+  within_region(x - rx * block_per_region, y, z - rz * block_per_region);
+};
+
+/* Entities */
+
+/** adds the entity to the region in-place */
+let add_entity = (tree, ~id, ~x, ~y, ~z) => {
+  if (Floats.(!within_this_region(tree, ~~x, ~~y, ~~z))) {
+    let msg =
+      Printf.sprintf("entity is outside region (%f, %f, %f)", x, y, z);
+    raise(Invalid_argument(msg));
+  };
+  let entity = {id, x, y, z};
+  tree.entities = [entity, ...tree.entities];
+};
+
+/** filters down to entities within the given chunk */
+let find_entities = (tree, ~cx, ~cz) => {
+  let minx = tree.rx * block_per_region + cx * block_per_chunk;
+  let maxx = minx + block_per_chunk;
+  let minz = tree.rz * block_per_region + cz * block_per_chunk;
+  let maxz = minz + block_per_chunk;
+  List.filter(
+    ent =>
+      Floats.(
+        minx <= ~~ent.x && ~~ent.x < maxx && minz <= ~~ent.z && ~~ent.z < maxz
+      ),
+    tree.entities,
+  );
+};
 
 /* Chunk and block access */
 
@@ -285,6 +341,16 @@ let section_coords = (~rx, ~rz, ~cx, ~cz, ~sy) => {
   );
 };
 
+let entity_nbt = entity => {
+  let {id, x, y, z} = entity;
+  Nbt.Node.(
+    Compound([
+      "id" >: String(id),
+      "Pos" >: List([Double(x), Double(y), Double(z)]),
+    ])
+  );
+};
+
 let chunk_nbt = (tree, ~rx, ~rz, ~cx, ~cz) => {
   /* Save all non-empty sections */
   let sections =
@@ -297,6 +363,8 @@ let chunk_nbt = (tree, ~rx, ~rz, ~cx, ~cz) => {
            section_nbt(section, section_y).payload
          )
     );
+
+  let entities_nbt = find_entities(tree, ~cx, ~cz) |> List.map(entity_nbt);
 
   let heightmap = chunk_heightmap(tree, cx, cz);
   let global_cx = rx * chunk_per_region + cx;
@@ -314,6 +382,7 @@ let chunk_nbt = (tree, ~rx, ~rz, ~cx, ~cz) => {
               "LightPopulated" >: Byte(1),
               "TerrainPopulated" >: Byte(1),
               "HeightMap" >: make_int_array(heightmap),
+              "Entities" >: List(entities_nbt),
             ]),
        ])
   );
@@ -338,10 +407,10 @@ let sector_bytes = 4096;
   - One byte describing the version. We currently only use 2, which means Zlib-compressed NBT.
   - [length - 1] bytes of compressed chunk NBT data.
 */
-let save_region = (~memory=create_memory(), region_path, tree, rx, rz) => {
+let save_region = (~memory=create_memory(), region_path, tree) => {
   let {nbt_printer_memory} = memory;
+  let {rx, rz, _} = tree;
 
-  /* let region = get_region(tree, rx, rz); */
   let region_file_path =
     Printf.sprintf("r.%d.%d.mca", rx, rz) |> Filename.concat(region_path, _);
   Utils.write_file(

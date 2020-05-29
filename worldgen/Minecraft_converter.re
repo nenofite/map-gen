@@ -101,7 +101,7 @@ let save_region =
   Printf.printf("Creating region (%d, %d)\n", rx, rz);
   let start_time = Minecraft.Utils.time_ms();
   Printf.printf("Resetting region\n");
-  Minecraft.Block_tree.reset(region);
+  Minecraft.Block_tree.reset(region, ~rx, ~rz);
 
   let args = {region, rx, rz, gx_offset, gy_offset, gsize};
   apply_overlays(args);
@@ -109,7 +109,7 @@ let save_region =
   Printf.printf("Flowing water\n");
   Minecraft.Water.flow_water(region);
   Printf.printf("Saving region\n");
-  Minecraft.Block_tree.save_region(region_path, region, rx, rz);
+  Minecraft.Block_tree.save_region(region_path, region);
   let elapsed_time =
     Int64.sub(Minecraft.Utils.time_ms(), start_time) |> Int64.to_float;
   Printf.printf("Finished (%d, %d) in %fs\n", rx, rz, elapsed_time /. 1000.);
@@ -131,7 +131,11 @@ let save = (~side: int, ~apply_overlays: region_args => unit): unit => {
     };
 
   let region_path = Minecraft.World.save(world_config);
-  let region = Minecraft.Block_tree.create();
+  /*
+   * the rx and rz will be given when we reset the region, so no need to set
+   * them to anything meaningful
+   */
+  let region = Minecraft.Block_tree.create(~rx=0, ~rz=0);
   segment_grid_by_region(
     ~side,
     ~sub=((4, 1), (2, 2)),
