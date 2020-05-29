@@ -188,22 +188,28 @@ let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
 };
 
 let apply_region = (towns: t, args) => {
-  let Minecraft_converter.{
-        region: _,
-        rx: _,
-        rz: _,
-        gx_offset,
-        gy_offset,
-        gsize,
-      } = args;
+  let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
   List.iter(
     ({x: _, z: _, buildings}) => {
       List.iter(
-        (((x, z), ())) => {
-          let x = x - gx_offset;
-          let z = z - gy_offset;
+        (((gx, gz), ())) => {
+          let x = gx - gx_offset;
+          let z = gz - gy_offset;
           if (0 <= x && x < gsize && 0 <= z && z < gsize) {
-            Building.apply_template(args, ~x, ~z, Town_templates.bedroom_1);
+            let y =
+              Building.apply_template_y(
+                args,
+                ~x,
+                ~z,
+                Town_templates.bedroom_1,
+              );
+            Minecraft.Block_tree.add_entity(
+              region,
+              ~id="villager",
+              ~x=gx,
+              ~y=y + 20,
+              ~z=gz,
+            );
           };
         },
         buildings,

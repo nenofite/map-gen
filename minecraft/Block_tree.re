@@ -82,12 +82,12 @@ let within_this_region = (tree, x, y, z) => {
 
 /** adds the entity to the region in-place */
 let add_entity = (tree, ~id, ~x, ~y, ~z) => {
-  if (Floats.(!within_this_region(tree, ~~x, ~~y, ~~z))) {
+  if (!within_this_region(tree, x, y, z)) {
     let msg =
-      Printf.sprintf("entity is outside region (%f, %f, %f)", x, y, z);
+      Printf.sprintf("entity is outside region (%d, %d, %d)", x, y, z);
     raise(Invalid_argument(msg));
   };
-  let entity = {id, x, y, z};
+  let entity = Floats.{id, x: ~.x, y: ~.y, z: ~.z};
   tree.entities = [entity, ...tree.entities];
 };
 

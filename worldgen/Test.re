@@ -37,6 +37,6 @@ let test = () => {
     };
   };
   test_stairs(tree);
-  Block_tree.add_entity(tree, ~id="villager", ~x=4., ~y=10., ~z=5.);
+  Block_tree.add_entity(tree, ~id="villager", ~x=4, ~y=10, ~z=5);
   Block_tree.save_region(region_path, tree);
 };
