@@ -124,7 +124,7 @@ let make_layer =
           {max_elev, min_elev, ore}
         })
       )
-      @> Draw.phase(name ++ "-ores.ppm", colorize),
+      @> Draw.phase(name ++ "-ores.png", colorize),
     )
   );
 };

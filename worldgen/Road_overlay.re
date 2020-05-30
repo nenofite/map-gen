@@ -197,7 +197,7 @@ let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
   let roads = widen_road(roads);
   let roads = add_steps(roads);
   print_endline("Drawing");
-  Draw.draw_sparse_grid(colorizer, "roads.ppm", roads);
+  Draw.draw_sparse_grid(colorizer, "roads.png", roads);
   /* TODO: add "stairs" to large increases in elev */
   {pois, roads};
 };

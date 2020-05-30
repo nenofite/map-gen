@@ -113,7 +113,7 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
 let phase =
   Phase_chain.(
     phase("Generate tectonic plates", generate(_))
-    @> Draw.phase("plates.ppm", draw_intermediate)
+    @> Draw.phase("plates.png", draw_intermediate)
     @> phase("Convert", convert_intermediate(_))
     @> phase_repeat(1, "Subdivide tectonic", Subdivide.subdivide)
   );

@@ -172,7 +172,7 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
           {floor_elev, ceiling_elev}
         )
       )
-      @> Draw.phase("cavern.ppm", colorize),
+      @> Draw.phase("cavern.png", colorize),
     )
   );
 };

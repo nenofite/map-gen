@@ -151,7 +151,7 @@ let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
   Phase_chain.(
     run_all(
       phase("Zip biomes", () => zip_biomes(base, ~mid, ~shore, ~high))
-      @> Draw.phase("biome.ppm", colorize),
+      @> Draw.phase("biome.png", colorize),
     )
   );
 };

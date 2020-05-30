@@ -1,18 +1,21 @@
 let draw =
     (colorizer: (int, int) => int, width: int, height: int, file: string)
     : unit => {
-  let out = open_out(file);
-  Printf.fprintf(out, "P6\n%d %d\n255\n", width, height);
+  open Images;
+  open OImages;
+
+  let img = (new rgb24)(width, height);
   for (y in 0 to pred(height)) {
     for (x in 0 to pred(width)) {
       let rgb = colorizer(x, y);
-      output_char(out, char_of_int((rgb land 0xFF0000) lsr 16));
-      output_char(out, char_of_int((rgb land 0x00FF00) lsr 8));
-      output_char(out, char_of_int(rgb land 0x0000FF));
+      let r = (rgb land 0xFF0000) lsr 16;
+      let g = (rgb land 0x00FF00) lsr 8;
+      let b = rgb land 0x0000FF;
+      img#set(x, y, {r, g, b});
     };
   };
-  output_char(out, '\n');
-  close_out(out);
+  img#save(file, Some(Png), []);
+  ();
 };
 
 /** draw_grid creates a .PPM bitmap file with each pixel representing a tile on the grid */

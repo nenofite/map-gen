@@ -16,8 +16,8 @@ let prepare = (side, ()) => {
            2,
            "Line subdivide",
            Subdivide.subdivide_with_fill(_, Fill.(line() **> random_avg)),
-         ),
-      /* @> Draw.phase("dirt.ppm", i => i * 20 * 0x010101), */
+         )
+      @> Draw.phase("dirt.png", i => i * 20 * 0x010101),
     )
   );
 };
