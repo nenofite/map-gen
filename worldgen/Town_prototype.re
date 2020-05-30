@@ -3,16 +3,14 @@ type input = {
   obstacles: Sparse_grid.t(unit),
 };
 
-type split_direction =
-  | Along_x
-  | Along_z;
-
 type block = {
   min_x: int,
   max_x: int,
   min_z: int,
   max_z: int,
-  next_split: split_direction,
+  s_of_center: bool,
+  e_of_center: bool,
+  can_subdivide: bool,
 };
 
 type output = {
@@ -27,6 +25,7 @@ let base_elevation = 80;
 let elevation_range = 10;
 let min_cardinal_road_off = side / 3;
 let max_cardinal_road_off = side * 2 / 3;
+let max_block_area = 20 * 20;
 
 let make_input = () => {
   let elevation =
@@ -99,6 +98,11 @@ let draw = (input: input, output: output, file) => {
   ();
 };
 
+let block_area = block => {
+  let {min_x, max_x, min_z, max_z, _} = block;
+  (max_x - min_x) * (max_z - min_z);
+};
+
 let lay_cardinal_roads = (input: input) => {
   /* Find the line within middle 1/3 that has the flattest elevation */
   let calc_elevation_range = (min_x, max_x, min_z, max_z) => {
@@ -148,54 +152,118 @@ let lay_cardinal_roads = (input: input) => {
       },
     );
 
-  /* Slice blocks based on these cardinal roads */
-  let next_split = Random.bool() ? Along_x : Along_z;
+  /* Create blocks based on these cardinal roads */
   let nw = {
     min_x: 0,
     max_x: road_along_z - 1 - 1,
     min_z: 0,
     max_z: road_along_x - 1 - 1,
-    next_split,
+    s_of_center: false,
+    e_of_center: false,
+    can_subdivide: true,
   };
   let ne = {
     min_x: road_along_z + 1,
     max_x: side - 1,
     min_z: 0,
     max_z: road_along_x - 1 - 1,
-    next_split,
+    s_of_center: false,
+    e_of_center: true,
+    can_subdivide: true,
   };
   let sw = {
     min_x: 0,
     max_x: road_along_z - 1 - 1,
     min_z: road_along_x + 1,
     max_z: side - 1,
-    next_split,
+    s_of_center: true,
+    e_of_center: false,
+    can_subdivide: true,
   };
   let se = {
     min_x: road_along_z + 1,
     max_x: side - 1,
     min_z: road_along_x + 1,
     max_z: side - 1,
-    next_split,
+    s_of_center: true,
+    e_of_center: true,
+    can_subdivide: true,
   };
 
   [nw, ne, sw, se];
 };
 
+let split_block = block => {
+  /* Split along whichever dimension the block is longer */
+  let {min_x, max_x, min_z, max_z, s_of_center, e_of_center} = block;
+  let split_along_z = max_x - min_x > max_z - min_z;
+  if (split_along_z) {
+    let street_x = min_x + (max_x - min_x) / 2;
+    let w = {
+      min_x,
+      max_x: street_x - 1,
+      min_z,
+      max_z,
+      s_of_center,
+      e_of_center,
+      can_subdivide: e_of_center,
+    };
+    let e = {
+      min_x: street_x + 1,
+      max_x,
+      min_z,
+      max_z,
+      s_of_center,
+      e_of_center,
+      can_subdivide: !e_of_center,
+    };
+    (w, e);
+  } else {
+    let street_z = min_z + (max_z - min_z) / 2;
+    let n = {
+      min_x,
+      max_x,
+      min_z,
+      max_z: street_z - 1,
+      s_of_center,
+      e_of_center,
+      can_subdivide: s_of_center,
+    };
+    let s = {
+      min_x,
+      max_x,
+      min_z: street_z + 1,
+      max_z,
+      s_of_center,
+      e_of_center,
+      can_subdivide: !s_of_center,
+    };
+    (n, s);
+  };
+};
+
+let rec subdivide_blocks = (blocks, finished_blocks) => {
+  /* Subdivide any blocks over the desired size, until all are within that size */
+  switch (blocks) {
+  | [] => finished_blocks
+  | [block, ...blocks]
+      when !block.can_subdivide || block_area(block) <= max_block_area =>
+    subdivide_blocks(blocks, [block, ...finished_blocks])
+  | [block, ...blocks] =>
+    let (a, b) = split_block(block);
+    subdivide_blocks([a, b, ...blocks], finished_blocks);
+  };
+};
+let subdivide_blocks = blocks => subdivide_blocks(blocks, []);
+
 let run = (input: input): output => {
-  let add_elevation =
-    Grid.init(input.elevation.side, (x, y) =>
-      if (10 <= x && x < 200 && 20 <= y && y < 300) {
-        3;
-      } else {
-        0;
-      }
-    );
-  let blocks = lay_cardinal_roads(input);
+  let add_elevation = Grid.init(input.elevation.side, (_x, _y) => 0);
+  let blocks = lay_cardinal_roads(input) |> subdivide_blocks;
   {add_elevation, blocks};
 };
 
 let test = () => {
+  Random.init(1248);
   let input = make_input();
   let output = run(input);
   draw(input, output, "town_proto.png");
