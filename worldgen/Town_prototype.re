@@ -23,12 +23,15 @@ let max_elevation = 150;
 let min_elevation = 0;
 let base_elevation = 80;
 let elevation_range = 10;
+let min_population = 3;
+let max_population = 19;
 let min_cardinal_road_off = side / 3;
 let max_cardinal_road_off = side * 2 / 3;
 let max_block_area = 20 * 20;
 let block_split_randomization = 7;
 let min_block_side = 7;
 let random_grab_ahead = 5;
+let plaza_blocks = 3;
 
 let make_input = () => {
   let elevation =
@@ -298,15 +301,24 @@ let order_blocks_by_dist = (road_x, road_z, blocks) => {
   );
 };
 
-let rec grab = (index, list) => {
+let rec grab_one = (index, list) => {
   switch (list) {
   | [] => raise(Invalid_argument("grab index is outside list"))
   | [grabbed, ...rest] when index == 0 => (grabbed, rest)
   | [passed, ...rest] =>
-    let (grabbed, rest) = grab(index - 1, rest);
+    let (grabbed, rest) = grab_one(index - 1, rest);
     (grabbed, [passed, ...rest]);
   };
 };
+
+let rec grab = (amount, blocks, selected) => {
+  switch (blocks) {
+  | [] => (selected, [])
+  | blocks when amount <= 0 => (selected, blocks)
+  | [block, ...blocks] => grab(amount - 1, blocks, [block, ...selected])
+  };
+};
+let grab = (amount, blocks) => grab(amount, blocks, []);
 
 let rec random_grab = (amount, blocks, selected) => {
   switch (blocks) {
@@ -315,13 +327,16 @@ let rec random_grab = (amount, blocks, selected) => {
   | blocks =>
     let avail = min(random_grab_ahead, List.length(blocks));
     let grab_index = Random.int(avail);
-    let (block, blocks) = grab(grab_index, blocks);
+    let (block, blocks) = grab_one(grab_index, blocks);
     random_grab(amount - 1, blocks, [block, ...selected]);
   };
 };
 let random_grab = (amount, blocks) => random_grab(amount, blocks, []);
 
 let run = (input: input): output => {
+  let target_population =
+    min_population + Random.int(max_population - min_population);
+  Printf.printf("Target population = %d\n", target_population);
   let add_elevation = Grid.init(input.elevation.side, (_x, _y) => 0);
   let (road_x, road_z, blocks) = lay_cardinal_roads(input);
   let blocks =
@@ -329,10 +344,15 @@ let run = (input: input): output => {
     |> subdivide_blocks
     |> filter_sliver_blocks
     |> order_blocks_by_dist(road_x, road_z);
-  let num_blocks = List.length(blocks);
-  /* TODO grab based on block amount target */
-  ignore(num_blocks);
-  let (_discards, blocks) = random_grab(10, blocks);
+  let total_blocks = List.length(blocks);
+  let needed_blocks = target_population + plaza_blocks;
+  /* TODO deal with this more gracefully */
+  assert(needed_blocks <= total_blocks);
+  let blocks_to_discard = total_blocks - needed_blocks;
+  let (_discards, blocks) = random_grab(blocks_to_discard, blocks);
+  /* Take from the closest blocks for plaza */
+  let (plaza, blocks) = grab(plaza_blocks, List.rev(blocks));
+  let blocks = List.rev(blocks);
 
   {add_elevation, blocks};
 };
