@@ -1,6 +1,6 @@
 (library
     (name Worldgen)
     (inline_tests)
-    (libraries ANSITerminal Minecraft)
+    (libraries Util ANSITerminal Minecraft)
     (preprocess (pps ppx_inline_test ppx_expect))
 )

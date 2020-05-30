@@ -99,7 +99,7 @@ let save_region =
       ~gsize,
     ) => {
   Printf.printf("Creating region (%d, %d)\n", rx, rz);
-  let start_time = Minecraft.Utils.time_ms();
+  let start_time = Util.time_ms();
   Printf.printf("Resetting region\n");
   Minecraft.Block_tree.reset(region, ~rx, ~rz);
 
@@ -110,8 +110,7 @@ let save_region =
   Minecraft.Water.flow_water(region);
   Printf.printf("Saving region\n");
   Minecraft.Block_tree.save_region(region_path, region);
-  let elapsed_time =
-    Int64.sub(Minecraft.Utils.time_ms(), start_time) |> Int64.to_float;
+  let elapsed_time = Int64.sub(Util.time_ms(), start_time) |> Int64.to_float;
   Printf.printf("Finished (%d, %d) in %fs\n", rx, rz, elapsed_time /. 1000.);
 };
 

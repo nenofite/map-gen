@@ -1,5 +1,5 @@
 (library
     (name Minecraft)
     (inline_tests)
-    (libraries Nbt bitstring)
+    (libraries Util Nbt bitstring)
     (preprocess (pps bitstring.ppx ppx_inline_test ppx_expect)))
