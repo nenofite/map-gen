@@ -12,7 +12,9 @@ type block = {
 
 type output = {
   add_elevation: Grid.t(int),
-  blocks: list(block),
+  farms: list(block),
+  plazas: list(block),
+  houses: list(block),
 };
 
 let side = 128;
@@ -28,7 +30,8 @@ let max_block_area = 20 * 20;
 let block_split_randomization = 7;
 let min_block_side = 7;
 let random_grab_ahead = 5;
-let plaza_blocks = 3;
+let pop_per_farm = 2;
+let num_plazas = 3;
 
 let make_input = () => {
   let elevation =
@@ -87,15 +90,21 @@ let draw = (input: input, output: output, file) => {
   let side = combined.side;
   let img = (new rgb24)(side, side);
 
+  let draw_blocks = (color, blocks) => {
+    List.iter(
+      block => {
+        let {min_x, max_x, min_z, max_z, _} = block;
+        draw_rect(img, min_x, max_x, min_z, max_z, color);
+      },
+      blocks,
+    );
+  };
+
   Grid.iter(combined, (x, y, c) => {img#set(x, y, colorize_elevation(c))});
 
-  List.iter(
-    block => {
-      let {min_x, max_x, min_z, max_z, _} = block;
-      draw_rect(img, min_x, max_x, min_z, max_z, {r: 0, g: 0, b: 255});
-    },
-    output.blocks,
-  );
+  draw_blocks({r: 0, g: 255, b: 0}, output.farms);
+  draw_blocks({r: 0, g: 0, b: 0}, output.plazas);
+  draw_blocks({r: 0, g: 0, b: 255}, output.houses);
 
   img#save(file, Some(Png), []);
   ();
@@ -281,6 +290,16 @@ let rec random_grab = (amount, blocks, selected) => {
 };
 let random_grab = (amount, blocks) => random_grab(amount, blocks, []);
 
+let warn_if_mismatch = (expected, actual, label) =>
+  if (expected != actual) {
+    Printf.printf(
+      "warning: %s should be %d, but is %d\n",
+      label,
+      expected,
+      actual,
+    );
+  };
+
 let run = (input: input): output => {
   let target_population =
     min_population + Random.int(max_population - min_population);
@@ -293,16 +312,23 @@ let run = (input: input): output => {
     |> filter_sliver_blocks
     |> order_blocks_by_dist(road_x, road_z);
   let total_blocks = List.length(blocks);
-  let needed_blocks = target_population + plaza_blocks;
+  let num_farms = target_population / pop_per_farm;
+  let num_houses = target_population;
+  let needed_blocks = num_farms + num_houses + num_plazas;
   /* TODO deal with this more gracefully */
   assert(needed_blocks <= total_blocks);
   let blocks_to_discard = total_blocks - needed_blocks;
   let (_discards, blocks) = random_grab(blocks_to_discard, blocks);
   /* Take from the closest blocks for plaza */
-  let (plaza, blocks) = grab(plaza_blocks, List.rev(blocks));
+  let (plazas, blocks) = grab(num_plazas, List.rev(blocks));
+  warn_if_mismatch(num_plazas, List.length(plazas), "num plazas");
   let blocks = List.rev(blocks);
+  let (farms, blocks) = random_grab(num_farms, blocks);
+  warn_if_mismatch(num_farms, List.length(farms), "num farms");
+  let houses = blocks;
+  warn_if_mismatch(num_houses, List.length(houses), "num houses");
 
-  {add_elevation, blocks};
+  {add_elevation, farms, houses, plazas};
 };
 
 let test = () => {
