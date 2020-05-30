@@ -8,9 +8,6 @@ type block = {
   max_x: int,
   min_z: int,
   max_z: int,
-  s_of_center: bool,
-  e_of_center: bool,
-  can_subdivide: bool,
 };
 
 type output = {
@@ -166,41 +163,24 @@ let lay_cardinal_roads = (input: input) => {
     );
 
   /* Create blocks based on these cardinal roads */
-  let nw = {
-    min_x: 0,
-    max_x: road_x - 1 - 1,
-    min_z: 0,
-    max_z: road_z - 1 - 1,
-    s_of_center: false,
-    e_of_center: false,
-    can_subdivide: true,
-  };
+  let nw = {min_x: 0, max_x: road_x - 1 - 1, min_z: 0, max_z: road_z - 1 - 1};
   let ne = {
     min_x: road_x + 1,
     max_x: side - 1,
     min_z: 0,
     max_z: road_z - 1 - 1,
-    s_of_center: false,
-    e_of_center: true,
-    can_subdivide: true,
   };
   let sw = {
     min_x: 0,
     max_x: road_x - 1 - 1,
     min_z: road_z + 1,
     max_z: side - 1,
-    s_of_center: true,
-    e_of_center: false,
-    can_subdivide: true,
   };
   let se = {
     min_x: road_x + 1,
     max_x: side - 1,
     min_z: road_z + 1,
     max_z: side - 1,
-    s_of_center: true,
-    e_of_center: true,
-    can_subdivide: true,
   };
   let blocks = [nw, ne, sw, se];
 
@@ -209,7 +189,7 @@ let lay_cardinal_roads = (input: input) => {
 
 let split_block = block => {
   /* Split along whichever dimension the block is longer */
-  let {min_x, max_x, min_z, max_z, s_of_center, e_of_center} = block;
+  let {min_x, max_x, min_z, max_z} = block;
   let split_along_z = max_x - min_x > max_z - min_z;
   if (split_along_z) {
     let street_x =
@@ -218,24 +198,8 @@ let split_block = block => {
       / 2
       + Random.int(2 * block_split_randomization)
       - block_split_randomization;
-    let w = {
-      min_x,
-      max_x: street_x - 1,
-      min_z,
-      max_z,
-      s_of_center,
-      e_of_center,
-      can_subdivide: e_of_center,
-    };
-    let e = {
-      min_x: street_x + 1,
-      max_x,
-      min_z,
-      max_z,
-      s_of_center,
-      e_of_center,
-      can_subdivide: !e_of_center,
-    };
+    let w = {min_x, max_x: street_x - 1, min_z, max_z};
+    let e = {min_x: street_x + 1, max_x, min_z, max_z};
     (w, e);
   } else {
     let street_z =
@@ -244,24 +208,8 @@ let split_block = block => {
       / 2
       + Random.int(2 * block_split_randomization)
       - block_split_randomization;
-    let n = {
-      min_x,
-      max_x,
-      min_z,
-      max_z: street_z - 1,
-      s_of_center,
-      e_of_center,
-      can_subdivide: s_of_center,
-    };
-    let s = {
-      min_x,
-      max_x,
-      min_z: street_z + 1,
-      max_z,
-      s_of_center,
-      e_of_center,
-      can_subdivide: !s_of_center,
-    };
+    let n = {min_x, max_x, min_z, max_z: street_z - 1};
+    let s = {min_x, max_x, min_z: street_z + 1, max_z};
     (n, s);
   };
 };
