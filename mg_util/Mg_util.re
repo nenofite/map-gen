@@ -28,6 +28,13 @@ let rec take = (amount, list) =>
   | [] => []
   };
 
+let rec drop = (amount, list) =>
+  switch (list) {
+  | [] => []
+  | list when amount <= 0 => list
+  | [_, ...rest] => drop(amount - 1, rest)
+  };
+
 let print_progress = (title: string, f: unit => 'a): 'a => {
   ANSITerminal.printf([ANSITerminal.blue], "⌜ %s ⌝\n", title);
   flush(stdout);

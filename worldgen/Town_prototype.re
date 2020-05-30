@@ -27,6 +27,8 @@ let min_cardinal_road_off = side / 3;
 let max_cardinal_road_off = side * 2 / 3;
 let max_block_area = 20 * 20;
 let block_split_randomization = 7;
+let min_block_side = 7;
+let random_grab_ahead = 5;
 
 let make_input = () => {
   let elevation =
@@ -104,6 +106,13 @@ let block_area = block => {
   (max_x - min_x) * (max_z - min_z);
 };
 
+let block_center = block => {
+  let {min_x, max_x, min_z, max_z, _} = block;
+  let x = min_x + (max_x - min_x) / 2;
+  let z = min_z + (max_z - min_z) / 2;
+  (x, z);
+};
+
 let lay_cardinal_roads = (input: input) => {
   /* Find the line within middle 1/3 that has the flattest elevation */
   let calc_elevation_range = (min_x, max_x, min_z, max_z) => {
@@ -123,7 +132,7 @@ let lay_cardinal_roads = (input: input) => {
     max_elev - min_elev;
   };
 
-  let (road_along_z, _) =
+  let (road_x, _) =
     Range.fold(
       min_cardinal_road_off,
       max_cardinal_road_off,
@@ -138,7 +147,7 @@ let lay_cardinal_roads = (input: input) => {
       },
     );
 
-  let (road_along_x, _) =
+  let (road_z, _) =
     Range.fold(
       min_cardinal_road_off,
       max_cardinal_road_off,
@@ -156,42 +165,43 @@ let lay_cardinal_roads = (input: input) => {
   /* Create blocks based on these cardinal roads */
   let nw = {
     min_x: 0,
-    max_x: road_along_z - 1 - 1,
+    max_x: road_x - 1 - 1,
     min_z: 0,
-    max_z: road_along_x - 1 - 1,
+    max_z: road_z - 1 - 1,
     s_of_center: false,
     e_of_center: false,
     can_subdivide: true,
   };
   let ne = {
-    min_x: road_along_z + 1,
+    min_x: road_x + 1,
     max_x: side - 1,
     min_z: 0,
-    max_z: road_along_x - 1 - 1,
+    max_z: road_z - 1 - 1,
     s_of_center: false,
     e_of_center: true,
     can_subdivide: true,
   };
   let sw = {
     min_x: 0,
-    max_x: road_along_z - 1 - 1,
-    min_z: road_along_x + 1,
+    max_x: road_x - 1 - 1,
+    min_z: road_z + 1,
     max_z: side - 1,
     s_of_center: true,
     e_of_center: false,
     can_subdivide: true,
   };
   let se = {
-    min_x: road_along_z + 1,
+    min_x: road_x + 1,
     max_x: side - 1,
-    min_z: road_along_x + 1,
+    min_z: road_z + 1,
     max_z: side - 1,
     s_of_center: true,
     e_of_center: true,
     can_subdivide: true,
   };
+  let blocks = [nw, ne, sw, se];
 
-  [nw, ne, sw, se];
+  (road_x, road_z, blocks);
 };
 
 let split_block = block => {
@@ -257,8 +267,7 @@ let rec subdivide_blocks = (blocks, finished_blocks) => {
   /* Subdivide any blocks over the desired size, until all are within that size */
   switch (blocks) {
   | [] => finished_blocks
-  | [block, ...blocks]
-      when !block.can_subdivide || block_area(block) <= max_block_area =>
+  | [block, ...blocks] when block_area(block) <= max_block_area =>
     subdivide_blocks(blocks, [block, ...finished_blocks])
   | [block, ...blocks] =>
     let (a, b) = split_block(block);
@@ -267,9 +276,64 @@ let rec subdivide_blocks = (blocks, finished_blocks) => {
 };
 let subdivide_blocks = blocks => subdivide_blocks(blocks, []);
 
+let filter_sliver_blocks = blocks => {
+  List.filter(
+    b =>
+      b.max_x
+      - b.min_x >= min_block_side
+      && b.max_z
+      - b.min_z >= min_block_side,
+    blocks,
+  );
+};
+
+let order_blocks_by_dist = (road_x, road_z, blocks) => {
+  let dist = block => {
+    Mg_util.distance_int((road_x, road_z), block_center(block));
+  };
+  List.(
+    map(b => (dist(b), b), blocks)
+    |> fast_sort(((a, _), (b, _)) => - compare(a, b))
+    |> map(((_dist, b)) => b)
+  );
+};
+
+let rec grab = (index, list) => {
+  switch (list) {
+  | [] => raise(Invalid_argument("grab index is outside list"))
+  | [grabbed, ...rest] when index == 0 => (grabbed, rest)
+  | [passed, ...rest] =>
+    let (grabbed, rest) = grab(index - 1, rest);
+    (grabbed, [passed, ...rest]);
+  };
+};
+
+let rec random_grab = (amount, blocks, selected) => {
+  switch (blocks) {
+  | [] => (selected, [])
+  | blocks when amount <= 0 => (selected, blocks)
+  | blocks =>
+    let avail = min(random_grab_ahead, List.length(blocks));
+    let grab_index = Random.int(avail);
+    let (block, blocks) = grab(grab_index, blocks);
+    random_grab(amount - 1, blocks, [block, ...selected]);
+  };
+};
+let random_grab = (amount, blocks) => random_grab(amount, blocks, []);
+
 let run = (input: input): output => {
   let add_elevation = Grid.init(input.elevation.side, (_x, _y) => 0);
-  let blocks = lay_cardinal_roads(input) |> subdivide_blocks;
+  let (road_x, road_z, blocks) = lay_cardinal_roads(input);
+  let blocks =
+    blocks
+    |> subdivide_blocks
+    |> filter_sliver_blocks
+    |> order_blocks_by_dist(road_x, road_z);
+  let num_blocks = List.length(blocks);
+  /* TODO grab based on block amount target */
+  ignore(num_blocks);
+  let (_discards, blocks) = random_grab(10, blocks);
+
   {add_elevation, blocks};
 };
 
