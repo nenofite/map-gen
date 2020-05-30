@@ -31,7 +31,8 @@ let assert_side_is_log2 = side =>
 
 let assert_within = (side, x, y) =>
   if (x < 0 || x >= side || y < 0 || y >= side) {
-    raise(Invalid_argument("Coordinate out of bounds"));
+    let msg = Printf.sprintf("Coordinate out of bounds: (%d, %d)", x, y);
+    raise(Invalid_argument(msg));
   };
 
 let wrap_coord' = (side, x, y) => {
