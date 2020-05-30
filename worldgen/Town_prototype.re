@@ -26,6 +26,7 @@ let elevation_range = 10;
 let min_cardinal_road_off = side / 3;
 let max_cardinal_road_off = side * 2 / 3;
 let max_block_area = 20 * 20;
+let block_split_randomization = 7;
 
 let make_input = () => {
   let elevation =
@@ -198,7 +199,12 @@ let split_block = block => {
   let {min_x, max_x, min_z, max_z, s_of_center, e_of_center} = block;
   let split_along_z = max_x - min_x > max_z - min_z;
   if (split_along_z) {
-    let street_x = min_x + (max_x - min_x) / 2;
+    let street_x =
+      min_x
+      + (max_x - min_x)
+      / 2
+      + Random.int(2 * block_split_randomization)
+      - block_split_randomization;
     let w = {
       min_x,
       max_x: street_x - 1,
@@ -219,7 +225,12 @@ let split_block = block => {
     };
     (w, e);
   } else {
-    let street_z = min_z + (max_z - min_z) / 2;
+    let street_z =
+      min_z
+      + (max_z - min_z)
+      / 2
+      + Random.int(2 * block_split_randomization)
+      - block_split_randomization;
     let n = {
       min_x,
       max_x,
