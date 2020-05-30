@@ -32,7 +32,7 @@ let read_cache = f => {
 let save_cache = (name, state) => {
   Printf.printf("Saving to cache...");
   flush(stdout);
-  Util.mkdir("overlays");
+  Mg_util.mkdir("overlays");
   let f = open_out_bin(cache_path(name));
   output_binary_int(f, magic);
   Marshal.to_channel(f, state, []);
@@ -52,12 +52,12 @@ let make =
     let state =
       switch (open_in_bin(cache_path(name))) {
       | f =>
-        Util.print_progress("Reading " ++ name ++ " overlay from cache", () =>
+        Mg_util.print_progress("Reading " ++ name ++ " overlay from cache", () =>
           read_cache(f)
         )
       | exception (Sys_error(_)) =>
         /* If cache doesn't exist, generate */
-        Util.print_progress(
+        Mg_util.print_progress(
           "Preparing " ++ name ++ " overlay",
           () => {
             let state = prepare();
@@ -67,7 +67,7 @@ let make =
         )
       };
     let apply_region = args =>
-      Util.print_progress("Applying " ++ name ++ " overlay", () =>
+      Mg_util.print_progress("Applying " ++ name ++ " overlay", () =>
         apply_region(state, args)
       );
     (state, apply_region);

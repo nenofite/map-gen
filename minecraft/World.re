@@ -25,7 +25,7 @@ let level_dat = config => {
               "allowCommands" >: Byte(1),
               "GameType" >: Int(1l), /* creative */
               "generatorName" >: String(Generator.name(config.generator)),
-              "LastPlayed" >: Long(Util.time_ms()),
+              "LastPlayed" >: Long(Mg_util.time_ms()),
               "LevelName" >: String(config.name),
               "MapFeatures" >: Byte(0), /* don't generate structures */
               "RandomSeed" >: Long(1L),
@@ -49,24 +49,24 @@ let save = config => {
   let worlds_path = Filename.concat(base_path, "worlds");
   let level_path = Filename.concat(worlds_path, config.name);
 
-  Util.mkdir(level_path);
+  Mg_util.mkdir(level_path);
 
   /* Create the lock file */
   let session_lock_path = Filename.concat(level_path, "session.lock");
-  Util.write_file(session_lock_path, f => {
-    Util.output_int64_be(f, Util.time_ms())
+  Mg_util.write_file(session_lock_path, f => {
+    Mg_util.output_int64_be(f, Mg_util.time_ms())
   });
 
   /* Create level.dat */
   let level_dat_path = Filename.concat(level_path, "level.dat");
   let level_dat_nbt = level_dat(config);
-  Util.write_file(level_dat_path, f => {
+  Mg_util.write_file(level_dat_path, f => {
     Nbt.Nbt_printer.print_nbt_f(f, level_dat_nbt)
   });
 
   /* Create the region directory */
   let region_path = Filename.concat(level_path, "region");
-  Util.mkdir(region_path);
+  Mg_util.mkdir(region_path);
 
   region_path;
 };

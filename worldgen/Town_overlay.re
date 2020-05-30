@@ -116,7 +116,7 @@ let rec first_suitable_towns =
     let too_close =
       List.exists(
         other_coord =>
-          Util.distance_int(untweaked_coord, other_coord)
+          Mg_util.distance_int(untweaked_coord, other_coord)
           < min_dist_between_towns,
         selected,
       );
@@ -175,7 +175,7 @@ let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
     });
   print_endline("Shuffling river coords");
   let river_coords =
-    Util.shuffle(river_coords) |> Util.take(potential_sites_limit);
+    Mg_util.shuffle(river_coords) |> Mg_util.take(potential_sites_limit);
   /* Pick and tweak town sites from this list */
   print_endline("Calculating obstacles");
   let obstacles = calc_obstacles(base, roads);

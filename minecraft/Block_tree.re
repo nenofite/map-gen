@@ -377,7 +377,7 @@ let chunk_nbt = (tree, ~rx, ~rz, ~cx, ~cz) => {
               "Sections" >: List(sections_nbt),
               "xPos" >: Int(global_cx |> Int32.of_int),
               "zPos" >: Int(global_cz |> Int32.of_int),
-              "LastUpdate" >: Long(Util.time_ms()),
+              "LastUpdate" >: Long(Mg_util.time_ms()),
               "V" >: Byte(1),
               "LightPopulated" >: Byte(1),
               "TerrainPopulated" >: Byte(1),
@@ -413,7 +413,7 @@ let save_region = (~memory=create_memory(), region_path, tree) => {
 
   let region_file_path =
     Printf.sprintf("r.%d.%d.mca", rx, rz) |> Filename.concat(region_path, _);
-  Util.write_file(
+  Mg_util.write_file(
     region_file_path,
     f => {
       /* Write chunk sector offsets & lengths */
@@ -427,7 +427,7 @@ let save_region = (~memory=create_memory(), region_path, tree) => {
       output_bytes(f, chunk_offset_sizes);
 
       /* Write modification times (repeat current time 32 * 32 times) */
-      let now = Util.time_ms() |> Int64.to_int32(_);
+      let now = Mg_util.time_ms() |> Int64.to_int32(_);
       let now_bytes = Bytes.create(4);
       Bytes.set_int32_be(now_bytes, 0, now);
       for (_ in 0 to pred(chunk_per_region * chunk_per_region)) {

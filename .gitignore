@@ -7,6 +7,7 @@ _release
 *.native
 *.install
 *.ppm
+*.png
 .DS_Store
 /worlds/
 /overlays/

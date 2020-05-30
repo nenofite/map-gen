@@ -1,5 +1,5 @@
 (executables
-  (names Main Test)
-  (public_names Main Test)
+  (names Main Test Town)
+  (public_names Main Test Town)
   (preprocess (pps ppx_let))
   (libraries Worldgen))

@@ -57,7 +57,7 @@ let diag = (~eq=(==), ~subfill, ~next, a, b, c, d) => {
   let sides =
     [(a, b), (b, c), (c, d), (d, a)]
     |> List.filter(((n, m)) => eq(n, m), _)
-    |> Util.shuffle;
+    |> Mg_util.shuffle;
   switch (sides) {
   | [(n, m), ..._] => subfill(n, m)
   | [] => next(a, b, c, d)

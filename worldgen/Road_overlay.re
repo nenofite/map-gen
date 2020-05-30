@@ -168,7 +168,7 @@ let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
        });
   /* Run A* to go from each point to each other point */
   let roads = Sparse_grid.make(base.side);
-  let poi_pairs = all_pairs(pois, []) |> Util.take(10, _);
+  let poi_pairs = all_pairs(pois, []) |> Mg_util.take(10, _);
   print_endline("Pathfinding roads");
   let roads =
     List.fold_left(

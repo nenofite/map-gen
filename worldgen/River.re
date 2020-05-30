@@ -78,7 +78,7 @@ let fall_to_with_flat_dir = (here, neighbors, flat_dir) => {
   } else if (compare_elevations(flat_dir_n, (here, 0, 0)) <= 0) {
     Some(flat_dir);
   } else {
-    Util.shuffle(neighbors)
+    Mg_util.shuffle(neighbors)
     |> List.find_opt(x => compare_elevations(x, (here, 0, 0)) <= 0, _)
     |> Option.map(((_, x, y)) => (x, y), _);
   };
@@ -202,7 +202,7 @@ let river = (grid: Grid.t(tile), _id: int, source_x: int, source_y: int) => {
 };
 
 let add_rivers = (grid, amount): Grid.t(tile) => {
-  let sources = river_sources(grid) |> Util.take(amount, _);
+  let sources = river_sources(grid) |> Mg_util.take(amount, _);
   let amount = min(amount, List.length(sources));
 
   let (grid, succeeded) =
