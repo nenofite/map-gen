@@ -33,9 +33,9 @@ let min_population = 3;
 let max_population = 19;
 let min_cardinal_road_off = side / 3;
 let max_cardinal_road_off = side * 2 / 3;
-let max_block_area = 20 * 20;
-let block_split_randomization = 7;
-let min_block_side = 7;
+let max_block_area = 9 * 8;
+let block_split_randomization = 4;
+let min_block_side = 4;
 let random_grab_ahead = 5;
 let pop_per_farm = 2;
 let num_plazas = 3;
@@ -360,7 +360,10 @@ let run = (input: input): output => {
 
 let test = () => {
   Random.init(1248);
-  let input = make_input();
-  let output = run(input);
-  draw(input, output, "town_proto.png");
+  for (i in 1 to 5) {
+    let input = make_input();
+    let output = run(input);
+    let path = Printf.sprintf("town_proto_%d.png", i);
+    draw(input, output, path);
+  };
 };
