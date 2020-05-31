@@ -82,6 +82,25 @@ let raise_lower_elev = (args: Minecraft_converter.region_args, x, z, elev) => {
   };
 };
 
+let raise_lower_elev_match =
+    (args: Minecraft_converter.region_args, x, z, elev) => {
+  let current_elev = Minecraft.Block_tree.height_at(args.region, ~x, ~z, ());
+  let current_mat =
+    Minecraft.Block_tree.get_block(args.region, x, current_elev, z);
+  if (elev <= current_elev) {
+    /* Dig down */
+    for (y in elev + 1 to current_elev) {
+      Minecraft.Block_tree.set_block(args.region, x, y, z, Air);
+    };
+    Minecraft.Block_tree.set_block(args.region, x, elev, z, current_mat);
+  } else if (elev > current_elev) {
+    /* Build up with matching material */
+    for (y in current_elev + 1 to elev) {
+      Minecraft.Block_tree.set_block(args.region, x, y, z, current_mat);
+    };
+  };
+};
+
 /** creates a flat base on which to build the assembly, and returns the assembly elevation */
 let flatten_assembly_base =
     (args: Minecraft_converter.region_args, assembly): int => {

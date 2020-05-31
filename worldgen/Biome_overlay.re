@@ -180,9 +180,9 @@ let apply_dirt =
       | Mid(Plain)
       | Mid(Forest)
       | High(Pine_forest) =>
-        /* Dirt and grass */
+        /* Dirt (will become grass in Plant_overlay) */
         for (y in elev - dirt_depth + 1 to elev) {
-          overwrite_stone_air(region, x, y, z, y == elev ? Grass : Dirt);
+          overwrite_stone_air(region, x, y, z, Dirt);
         }
       | Mid(Desert) =>
         /* Sand with rocks sticking out */
@@ -202,11 +202,10 @@ let apply_dirt =
           overwrite_stone_air(region, x, y, z, Gravel);
         };
       | High(Snow) =>
-        /* Dirt and snow */
+        /* Dirt (will add snow in Plant_overlay) */
         for (y in elev - dirt_depth + 1 to elev) {
           overwrite_stone_air(region, x, y, z, Dirt);
-        };
-        overwrite_stone_air(region, x, elev + 1, z, Snow_layer);
+        }
       | Shore(m) =>
         let material =
           switch (m) {

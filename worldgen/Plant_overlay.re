@@ -40,6 +40,29 @@ let apply_trees =
   );
 };
 
+let apply_ground_cover =
+    (biomes: Biome_overlay.t, args: Minecraft_converter.region_args) => {
+  let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
+  /* Change dirt => grass and add snow */
+  Minecraft_converter.iter_blocks(
+    ~gx_offset,
+    ~gy_offset,
+    ~gsize,
+    (~gx, ~gy, ~x, ~z) => {
+      open Minecraft.Block_tree;
+      let y = height_at(region, ~x, ~z, ());
+      let top = get_block(region, x, y, z);
+      let biome = Grid.at(biomes, gx, gy);
+      switch (biome, top) {
+      | (Mid(Plain | Forest) | High(Pine_forest), Dirt) =>
+        set_block(region, x, y, z, Grass)
+      | (High(Snow), _) => set_block(region, x, y + 1, z, Snow_layer)
+      | (_, _) => ()
+      };
+    },
+  );
+};
+
 let apply_tallgrass =
     (biomes: Biome_overlay.t, args: Minecraft_converter.region_args) => {
   let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
@@ -78,6 +101,7 @@ let apply_tallgrass =
 };
 
 let apply_region = (biomes, (), args: Minecraft_converter.region_args) => {
+  apply_ground_cover(biomes, args);
   apply_trees(biomes, args);
   apply_tallgrass(biomes, args);
 };

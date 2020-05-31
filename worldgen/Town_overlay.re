@@ -196,7 +196,7 @@ let apply_region = (towns: t, args) => {
         gsize: _,
       } = args;
   List.iter(
-    ({x, z, town: {adjusted_elevation, farms, houses, plazas}}) => {
+    ({x, z, town: {farms, houses, plazas}}) => {
       let x = x - gx_offset;
       let z = z - gy_offset;
       if (0 <= x
@@ -204,13 +204,25 @@ let apply_region = (towns: t, args) => {
           && 0 <= z
           && z < Minecraft.Block_tree.block_per_region) {
         /* Apply elevation changes */
-        Grid.iter(adjusted_elevation, (town_x, town_z, target_elev) => {
-          Building.raise_lower_elev(args, x + town_x, z + town_z, target_elev)
-        });
+        let apply_block_elevation = block => {
+          let Town_prototype.{min_x, max_x, min_z, max_z, elevation} = block;
+          let min_x = min_x + x;
+          let max_x = max_x + x;
+          let min_z = min_z + z;
+          let max_z = max_z + z;
+          for (z in min_z to max_z) {
+            for (x in min_x to max_x) {
+              Building.raise_lower_elev_match(args, x, z, elevation);
+            };
+          };
+        };
+        List.iter(apply_block_elevation, farms);
+        List.iter(apply_block_elevation, houses);
+        List.iter(apply_block_elevation, plazas);
 
         /* Place wool on town blocks */
         let place_wool = (wool, block) => {
-          let Town_prototype.{min_x, max_x, min_z, max_z, _} = block;
+          let Town_prototype.{min_x, max_x, min_z, max_z, elevation: _} = block;
           let min_x = min_x + x;
           let max_x = max_x + x;
           let min_z = min_z + z;
