@@ -114,7 +114,7 @@ let draw = (input: input, output: output, file) => {
 
 let block_area = block => {
   let {min_x, max_x, min_z, max_z, _} = block;
-  (max_x - min_x) * (max_z - min_z);
+  (max_x - min_x + 1) * (max_z - min_z + 1);
 };
 
 let block_center = block => {
