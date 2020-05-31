@@ -3,15 +3,13 @@ type building = unit;
 type town = {
   x: int,
   z: int,
-  buildings: list(((int, int), building)),
+  town: Town_prototype.output,
 };
 
 type t = list(town);
 
 type obstacles = Grid.t(bool);
 
-let town_side = 100;
-let max_elevation_range = 10;
 let tweak_dist = 150;
 let tweak_tries = 100;
 let num_towns = 8;
@@ -33,16 +31,18 @@ let within_region_boundaries = (x, z) =>
   Minecraft.Block_tree.(
     x
     mod block_per_region < block_per_region
-    - town_side
+    - Town_prototype.side
     && z
     mod block_per_region < block_per_region
-    - town_side
+    - Town_prototype.side
   );
 
 let has_obstacle = (obstacles: obstacles, x, z) =>
   try(
-    Range.exists(z, z + town_side - 1, z =>
-      Range.exists(x, x + town_side - 1, x => Grid.at(obstacles, x, z))
+    Range.exists(z, z + Town_prototype.side - 1, z =>
+      Range.exists(x, x + Town_prototype.side - 1, x =>
+        Grid.at(obstacles, x, z)
+      )
     )
   ) {
   | Invalid_argument(_) => true
@@ -52,10 +52,13 @@ let acceptable_elevations = (base: Base_overlay.t, x, z) => {
   let start_elev = Grid.at(base, x, z).elevation;
   let (emin, emax) =
     Range.fold(
-      z, z + town_side - 1, (start_elev, start_elev), ((emin, emax), z) =>
+      z,
+      z + Town_prototype.side - 1,
+      (start_elev, start_elev),
+      ((emin, emax), z) =>
       Range.fold(
         x,
-        x + town_side - 1,
+        x + Town_prototype.side - 1,
         (emin, emax),
         ((emin, emax), x) => {
           let here_elev = Grid.at(base, x, z).elevation;
@@ -65,7 +68,7 @@ let acceptable_elevations = (base: Base_overlay.t, x, z) => {
         },
       )
     );
-  emax - emin <= max_elevation_range;
+  emax - emin <= Town_prototype.elevation_range;
 };
 
 let town_area_clear = (base: Base_overlay.t, obstacles: obstacles, x, z) =>
@@ -144,23 +147,19 @@ let rec first_suitable_towns =
   };
 };
 
-let prepare_town = (x, z) => {
-  /* TODO different building types */
-  let building = ();
-  let buildings =
-    Range.fold(0, 2, [], (buildings, zi) =>
-      Range.fold(
-        0,
-        2,
-        buildings,
-        (buildings, xi) => {
-          let x = x + xi * 15;
-          let z = z + zi * 15;
-          [((x, z), building), ...buildings];
-        },
-      )
-    );
-  {x, z, buildings};
+let prepare_town = (base: Base_overlay.t, x, z) => {
+  /* Slice elevations from base overlay */
+  let elevation =
+    Grid.init(Town_prototype.side, (town_x, town_z) => {
+      Grid.at(base, town_x + x, town_z + z).elevation
+    });
+
+  /* TODO do we actually need obstacles? */
+  let obstacles = Sparse_grid.make(Town_prototype.side);
+
+  let town = Town_prototype.run({elevation, obstacles});
+
+  {x, z, town};
 };
 
 let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
@@ -169,7 +168,8 @@ let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
   let river_coords =
     Grid.filter_map(base, (x, z, base) => {
       switch (base) {
-      | {river: true, _} => Some((x - town_side / 2, z - town_side / 2))
+      | {river: true, _} =>
+        Some((x - Town_prototype.side / 2, z - Town_prototype.side / 2))
       | {river: false, _} => None
       }
     });
@@ -182,38 +182,51 @@ let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
   print_endline("Finding suitable towns");
   let towns =
     first_suitable_towns(base, obstacles, num_towns, river_coords, []);
-  /* TODO make sure towns aren't too close to each other */
   List.iter(((x, z)) => Printf.printf("town at %d, %d\n", x, z), towns);
-  List.map(((x, z)) => prepare_town(x, z), towns);
+  List.map(((x, z)) => prepare_town(base, x, z), towns);
 };
 
 let apply_region = (towns: t, args) => {
-  let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
+  let Minecraft_converter.{
+        region,
+        rx: _,
+        rz: _,
+        gx_offset,
+        gy_offset,
+        gsize: _,
+      } = args;
   List.iter(
-    ({x: _, z: _, buildings}) => {
-      List.iter(
-        (((gx, gz), ())) => {
-          let x = gx - gx_offset;
-          let z = gz - gy_offset;
-          if (0 <= x && x < gsize && 0 <= z && z < gsize) {
-            let y =
-              Building.apply_template_y(
-                args,
-                ~x,
-                ~z,
-                Town_templates.bedroom_1,
-              );
-            Minecraft.Block_tree.add_entity(
-              region,
-              ~id="villager",
-              ~x=gx,
-              ~y=y + 20,
-              ~z=gz,
-            );
+    ({x, z, town: {adjusted_elevation, farms, houses, plazas}}) => {
+      let x = x - gx_offset;
+      let z = z - gy_offset;
+      if (0 <= x
+          && x < Minecraft.Block_tree.block_per_region
+          && 0 <= z
+          && z < Minecraft.Block_tree.block_per_region) {
+        /* Apply elevation changes */
+        Grid.iter(adjusted_elevation, (town_x, town_z, target_elev) => {
+          Building.raise_lower_elev(args, x + town_x, z + town_z, target_elev)
+        });
+
+        /* Place wool on town blocks */
+        let place_wool = (wool, block) => {
+          let Town_prototype.{min_x, max_x, min_z, max_z, _} = block;
+          let min_x = min_x + x;
+          let max_x = max_x + x;
+          let min_z = min_z + z;
+          let max_z = max_z + z;
+          for (z in min_z to max_z) {
+            for (x in min_x to max_x) {
+              let y = 1 + Minecraft.Block_tree.height_at(region, ~x, ~z, ());
+              Minecraft.Block_tree.set_block(region, x, y, z, wool);
+            };
           };
-        },
-        buildings,
-      )
+        };
+
+        List.iter(place_wool(Minecraft.Block.Wool), farms);
+        List.iter(place_wool(Minecraft.Block.Stonebrick), plazas);
+        List.iter(place_wool(Minecraft.Block.Brick_block), houses);
+      };
     },
     towns,
   );

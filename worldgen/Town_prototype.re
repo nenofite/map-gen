@@ -11,7 +11,7 @@ type block = {
 };
 
 type output = {
-  add_elevation: Grid.t(int),
+  adjusted_elevation: Grid.t(int),
   farms: list(block),
   plazas: list(block),
   houses: list(block),
@@ -88,7 +88,7 @@ let draw = (input: input, output: output, file) => {
     };
   };
 
-  let combined = Grid.zip(input.elevation, output.add_elevation);
+  let combined = Grid.zip(input.elevation, output.adjusted_elevation);
   let side = combined.side;
   let img = (new rgb24)(side, side);
 
@@ -319,29 +319,19 @@ let flatten_blocks = (input: input, blocks) => {
     sum / ((max_z - min_z + 1) * (max_x - min_x + 1));
   };
 
-  let flatten_block = (add_elevation, block) => {
+  let flatten_block = (adjusted_elevation, block) => {
     let {min_x, max_x, min_z, max_z, _} = block;
     let target_elev = calc_average_elevation(min_x, max_x, min_z, max_z);
-    let add_elevation =
-      Range.fold(min_z, max_z, add_elevation, (add_elevation, z) =>
-        Range.fold(
-          min_x,
-          max_x,
-          add_elevation,
-          (add_elevation, x) => {
-            let here = Grid.at(input.elevation, x, z);
-            Grid.put(add_elevation, x, z, target_elev - here);
-          },
-        )
+    let adjusted_elevation =
+      Range.fold(min_z, max_z, adjusted_elevation, (adjusted_elevation, z) =>
+        Range.fold(min_x, max_x, adjusted_elevation, (adjusted_elevation, x) => {
+          Grid.put(adjusted_elevation, x, z, target_elev)
+        })
       );
-    add_elevation;
+    adjusted_elevation;
   };
 
-  List.fold_left(
-    flatten_block,
-    Grid.init(input.elevation.side, (_x, _y) => 0),
-    blocks,
-  );
+  List.fold_left(flatten_block, input.elevation, blocks);
 };
 
 let run = (input: input): output => {
@@ -362,7 +352,7 @@ let run = (input: input): output => {
   assert(needed_blocks <= total_blocks);
   let blocks_to_discard = total_blocks - needed_blocks;
   let (_discards, blocks) = random_grab(blocks_to_discard, blocks);
-  let add_elevation = flatten_blocks(input, blocks);
+  let adjusted_elevation = flatten_blocks(input, blocks);
   /* Take from the closest blocks for plaza */
   let (plazas, blocks) = grab(num_plazas, List.rev(blocks));
   warn_if_mismatch(num_plazas, List.length(plazas), "num plazas");
@@ -372,7 +362,7 @@ let run = (input: input): output => {
   let houses = blocks;
   warn_if_mismatch(num_houses, List.length(houses), "num houses");
 
-  {add_elevation, farms, houses, plazas};
+  {adjusted_elevation, farms, houses, plazas};
 };
 
 let test = () => {
