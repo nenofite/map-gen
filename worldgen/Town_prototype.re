@@ -1,6 +1,6 @@
 type input = {
   elevation: Grid.t(int),
-  obstacles: Sparse_grid.t(unit),
+  roads: Sparse_grid.t(unit),
 };
 
 type block = {
@@ -20,7 +20,6 @@ type block_no_elevation = {
 
 type output = {
   farms: list(block),
-  plazas: list(block),
   houses: list(block),
 };
 
@@ -31,11 +30,12 @@ let base_elevation = 80;
 let elevation_range = 10;
 let min_population = 3;
 let max_population = 19;
-let min_cardinal_road_off = side / 3;
-let max_cardinal_road_off = side * 2 / 3;
-let max_block_area = 9 * 8;
-let block_split_randomization = 4;
-let min_block_side = 4;
+let block_center_spacing = 10;
+let min_block_spacing = 2;
+let min_house_side = 5;
+let max_house_side = 10;
+let min_farm_side = 8;
+let max_farm_side = 12;
 let random_grab_ahead = 5;
 let pop_per_farm = 2;
 let num_plazas = 3;
@@ -57,8 +57,21 @@ let make_input = () => {
            ),
       )
     );
-  let obstacles = Sparse_grid.make(elevation.side);
-  {elevation, obstacles};
+  /* Roads to the center */
+  let roads = Sparse_grid.make(elevation.side);
+  let center_x = elevation.side / 2;
+  let center_z = elevation.side / 2;
+  /* Start with boring roads */
+  let roads =
+    Range.fold(0, elevation.side - 1, roads, (roads, z) => {
+      Sparse_grid.put(roads, center_x, z, ())
+    });
+  let roads =
+    Range.fold(0, elevation.side - 1, roads, (roads, x) => {
+      Sparse_grid.put(roads, x, center_z, ())
+    });
+
+  {elevation, roads};
 };
 
 let draw_rect = (img, min_x, max_x, min_z, max_z, border_color) => {
@@ -102,9 +115,12 @@ let draw = (input: input, output: output, file) => {
   Grid.iter(input.elevation, (x, y, c) => {
     img#set(x, y, colorize_elevation(c))
   });
+  let road_color = {r: 0, g: 0, b: 0};
+  Sparse_grid.iter(input.roads, ((x, y), ()) => {
+    img#set(x, y, road_color)
+  });
 
   draw_blocks({r: 0, g: 255, b: 0}, output.farms);
-  draw_blocks({r: 0, g: 0, b: 0}, output.plazas);
   draw_blocks({r: 0, g: 0, b: 255}, output.houses);
 
   img#save(file, Some(Png), []);
@@ -123,142 +139,6 @@ let block_center = block => {
   (x, z);
 };
 
-let lay_cardinal_roads = (input: input) => {
-  /* Find the line within middle 1/3 that has the flattest elevation */
-  let calc_elevation_range = (min_x, max_x, min_z, max_z) => {
-    let start = Grid.at(input.elevation, min_x, min_z);
-    let (min_elev, max_elev) =
-      Range.fold(min_z, max_z, (start, start), (cur, z) =>
-        Range.fold(
-          min_x,
-          max_x,
-          cur,
-          ((cur_min, cur_max), x) => {
-            let here = Grid.at(input.elevation, x, z);
-            (min(cur_min, here), max(cur_max, here));
-          },
-        )
-      );
-    max_elev - min_elev;
-  };
-
-  let (road_x, _) =
-    Range.fold(
-      min_cardinal_road_off,
-      max_cardinal_road_off,
-      ((-1), Int.max_int),
-      ((_, cur_range) as cur, x) => {
-        let here_range = calc_elevation_range(x - 1, x, 0, side - 1);
-        if (here_range < cur_range) {
-          (x, here_range);
-        } else {
-          cur;
-        };
-      },
-    );
-
-  let (road_z, _) =
-    Range.fold(
-      min_cardinal_road_off,
-      max_cardinal_road_off,
-      ((-1), Int.max_int),
-      ((_, cur_range) as cur, z) => {
-        let here_range = calc_elevation_range(0, side - 1, z - 1, z);
-        if (here_range < cur_range) {
-          (z, here_range);
-        } else {
-          cur;
-        };
-      },
-    );
-
-  /* Create blocks based on these cardinal roads */
-  let nw = {min_x: 0, max_x: road_x - 1 - 1, min_z: 0, max_z: road_z - 1 - 1};
-  let ne = {
-    min_x: road_x + 1,
-    max_x: side - 1,
-    min_z: 0,
-    max_z: road_z - 1 - 1,
-  };
-  let sw = {
-    min_x: 0,
-    max_x: road_x - 1 - 1,
-    min_z: road_z + 1,
-    max_z: side - 1,
-  };
-  let se = {
-    min_x: road_x + 1,
-    max_x: side - 1,
-    min_z: road_z + 1,
-    max_z: side - 1,
-  };
-  let blocks = [nw, ne, sw, se];
-
-  (road_x, road_z, blocks);
-};
-
-let split_block = block => {
-  /* Split along whichever dimension the block is longer */
-  let {min_x, max_x, min_z, max_z} = block;
-  let split_along_z = max_x - min_x > max_z - min_z;
-  if (split_along_z) {
-    let street_x =
-      min_x
-      + (max_x - min_x)
-      / 2
-      + Random.int(2 * block_split_randomization)
-      - block_split_randomization;
-    let w = {min_x, max_x: street_x - 1, min_z, max_z};
-    let e = {min_x: street_x + 1, max_x, min_z, max_z};
-    (w, e);
-  } else {
-    let street_z =
-      min_z
-      + (max_z - min_z)
-      / 2
-      + Random.int(2 * block_split_randomization)
-      - block_split_randomization;
-    let n = {min_x, max_x, min_z, max_z: street_z - 1};
-    let s = {min_x, max_x, min_z: street_z + 1, max_z};
-    (n, s);
-  };
-};
-
-let rec subdivide_blocks = (blocks, finished_blocks) => {
-  /* Subdivide any blocks over the desired size, until all are within that size */
-  switch (blocks) {
-  | [] => finished_blocks
-  | [block, ...blocks] when block_area(block) <= max_block_area =>
-    subdivide_blocks(blocks, [block, ...finished_blocks])
-  | [block, ...blocks] =>
-    let (a, b) = split_block(block);
-    subdivide_blocks([a, b, ...blocks], finished_blocks);
-  };
-};
-let subdivide_blocks = blocks => subdivide_blocks(blocks, []);
-
-let filter_sliver_blocks = blocks => {
-  List.filter(
-    b =>
-      b.max_x
-      - b.min_x >= min_block_side
-      && b.max_z
-      - b.min_z >= min_block_side,
-    blocks,
-  );
-};
-
-let order_blocks_by_dist = (road_x, road_z, blocks) => {
-  let dist = block => {
-    Mg_util.distance_int((road_x, road_z), block_center(block));
-  };
-  List.(
-    map(b => (dist(b), b), blocks)
-    |> fast_sort(((a, _), (b, _)) => - compare(a, b))
-    |> map(((_dist, b)) => b)
-  );
-};
-
 let rec grab_one = (index, list) => {
   switch (list) {
   | [] => raise(Invalid_argument("grab index is outside list"))
@@ -269,37 +149,28 @@ let rec grab_one = (index, list) => {
   };
 };
 
-let rec grab = (amount, blocks, selected) => {
+let random_grab_one = blocks => {
   switch (blocks) {
-  | [] => (selected, [])
-  | blocks when amount <= 0 => (selected, blocks)
-  | [block, ...blocks] => grab(amount - 1, blocks, [block, ...selected])
-  };
-};
-let grab = (amount, blocks) => grab(amount, blocks, []);
-
-let rec random_grab = (amount, blocks, selected) => {
-  switch (blocks) {
-  | [] => (selected, [])
-  | blocks when amount <= 0 => (selected, blocks)
+  | [] => (None, [])
   | blocks =>
     let avail = min(random_grab_ahead, List.length(blocks));
     let grab_index = Random.int(avail);
     let (block, blocks) = grab_one(grab_index, blocks);
-    random_grab(amount - 1, blocks, [block, ...selected]);
+    (Some(block), blocks);
   };
 };
-let random_grab = (amount, blocks) => random_grab(amount, blocks, []);
 
-let warn_if_mismatch = (expected, actual, label) =>
-  if (expected != actual) {
-    Printf.printf(
-      "warning: %s should be %d, but is %d\n",
-      label,
-      expected,
-      actual,
-    );
+let rec random_grab = (amount, blocks, selected) =>
+  if (amount <= 0) {
+    (selected, blocks);
+  } else {
+    switch (random_grab_one(blocks)) {
+    | (None, blocks) => (selected, blocks)
+    | (Some(block), blocks) =>
+      random_grab(amount - 1, blocks, [block, ...selected])
+    };
   };
+let random_grab = (amount, blocks) => random_grab(amount, blocks, []);
 
 let flatten_blocks = (input: input, blocks) => {
   let calc_average_elevation = (min_x, max_x, min_z, max_z) => {
@@ -327,35 +198,182 @@ let flatten_blocks = (input: input, blocks) => {
   List.map(flatten_block, blocks);
 };
 
+let sort_by_distance_to_center = (center, block_centers) => {
+  List.(
+    block_centers
+    |> map(((x, z)) => (Mg_util.distance_int((x, z), center), x, z))
+    |> fast_sort(((a, _, _), (b, _, _)) => Int.compare(a, b))
+    |> map(((_dist, x, z)) => (x, z))
+  );
+};
+
+let blocks_collide = (a, b) => {
+  (
+    /* Top side of A within B */
+    b.min_z <= a.min_z
+    && a.min_z <= b.max_z
+    /* Top side of B within A */
+    || a.min_z <= b.min_z
+    && b.min_z <= a.max_z
+  )
+  && (
+    /* Left side of A within B */
+    b.min_x <= a.min_x
+    && a.min_x <= b.max_x
+    /* Left side of B within A */
+    || a.min_x <= b.min_x
+    && b.min_x <= a.max_x
+  );
+};
+
+let check_block_obstacles = (obstacles, other_blocks, block) => {
+  let {min_x, max_x, min_z, max_z} = block;
+  let hit_other_block =
+    List.exists(
+      other_block => blocks_collide(other_block, block),
+      other_blocks,
+    );
+  let hit_obstacle =
+    Range.exists(min_x, max_x, x =>
+      Range.exists(min_z, max_z, z =>
+        Sparse_grid.at(obstacles, x, z) |> Option.is_some
+      )
+    );
+  !hit_other_block && !hit_obstacle;
+};
+
+let make_block_from_center = ((x, z), side_x, side_z) => {
+  let min_x = x - side_x / 2;
+  let min_z = z - side_z / 2;
+  let max_x = min_x + side_x;
+  let max_z = min_z + side_z;
+  {min_x, max_x, min_z, max_z};
+};
+
+let pad_block = (block, amount) => {
+  {
+    min_x: block.min_x - amount,
+    max_x: block.max_x + amount,
+    min_z: block.min_z - amount,
+    max_z: block.max_z + amount,
+  };
+};
+
+/**
+  place_block pulls randomly from near the front of the list of available
+  block centers until it finds one where the block will fit. Rejected block
+  centers are discarded from the list.
+ */
+let rec place_block = (obstacles, other_blocks, block_centers, side_x, side_z) => {
+  switch (random_grab_one(block_centers)) {
+  | (None, block_centers) => (block_centers, None)
+  | (Some(center), block_centers) =>
+    let new_block = make_block_from_center(center, side_x, side_z);
+    if (check_block_obstacles(
+          obstacles,
+          other_blocks,
+          pad_block(new_block, min_block_spacing),
+        )) {
+      (block_centers, Some(new_block));
+    } else {
+      place_block(obstacles, other_blocks, block_centers, side_x, side_z);
+    };
+  };
+};
+
+let rec make_blocks =
+        (
+          obstacles,
+          other_blocks,
+          block_centers,
+          new_blocks,
+          min_side,
+          max_side,
+          amount,
+        ) =>
+  if (amount <= 0) {
+    (other_blocks, block_centers, new_blocks);
+  } else {
+    let side_x = Random.int(max_side - min_side) + min_side;
+    let side_z = Random.int(max_side - min_side) + min_side;
+    switch (
+      place_block(obstacles, other_blocks, block_centers, side_x, side_z)
+    ) {
+    | (block_centers, None) =>
+      /* Couldn't place the block, so quit */
+      (other_blocks, block_centers, new_blocks)
+    | (block_centers, Some(new_block)) =>
+      let new_blocks = [new_block, ...new_blocks];
+      let other_blocks = [new_block, ...other_blocks];
+      make_blocks(
+        obstacles,
+        other_blocks,
+        block_centers,
+        new_blocks,
+        min_side,
+        max_side,
+        amount - 1,
+      );
+    };
+  };
+let make_blocks =
+    (obstacles, other_blocks, block_centers, min_side, max_side, amount) =>
+  make_blocks(
+    obstacles,
+    other_blocks,
+    block_centers,
+    [],
+    min_side,
+    max_side,
+    amount,
+  );
+
 let run = (input: input): output => {
+  let town_side = input.elevation.side;
+  let town_center = (town_side / 2, town_side / 2);
   let target_population =
     min_population + Random.int(max_population - min_population);
   Printf.printf("Target population = %d\n", target_population);
-  let (road_x, road_z, blocks) = lay_cardinal_roads(input);
-  let blocks =
-    blocks
-    |> subdivide_blocks
-    |> filter_sliver_blocks
-    |> order_blocks_by_dist(road_x, road_z);
-  let total_blocks = List.length(blocks);
   let num_farms = target_population / pop_per_farm;
   let num_houses = target_population;
-  let needed_blocks = num_farms + num_houses + num_plazas;
-  /* TODO deal with this more gracefully */
-  assert(needed_blocks <= total_blocks);
-  let blocks_to_discard = total_blocks - needed_blocks;
-  let (_discards, blocks) = random_grab(blocks_to_discard, blocks);
-  let blocks = flatten_blocks(input, blocks);
-  /* Take from the closest blocks for plaza */
-  let (plazas, blocks) = grab(num_plazas, List.rev(blocks));
-  warn_if_mismatch(num_plazas, List.length(plazas), "num plazas");
-  let blocks = List.rev(blocks);
-  let (farms, blocks) = random_grab(num_farms, blocks);
-  warn_if_mismatch(num_farms, List.length(farms), "num farms");
-  let houses = blocks;
-  warn_if_mismatch(num_houses, List.length(houses), "num houses");
 
-  {farms, houses, plazas};
+  /* Use a point cloud for block centers */
+  let centers =
+    Point_cloud.make_list(
+      ~width=town_side,
+      ~height=town_side,
+      ~spacing=block_center_spacing,
+      (),
+    )
+    |> List.map(((x, z)) => Mg_util.Floats.(~~x, ~~z))
+    /* Sort block centers by how close they are to the center plaza */
+    |> sort_by_distance_to_center(town_center);
+  /* Grab houses first */
+  let other_blocks = [];
+  let (other_blocks, centers, houses) =
+    make_blocks(
+      input.roads,
+      other_blocks,
+      centers,
+      min_house_side,
+      max_house_side,
+      num_houses,
+    );
+  /* Grab farms */
+  let (other_blocks, centers, farms) =
+    make_blocks(
+      input.roads,
+      other_blocks,
+      centers,
+      min_farm_side,
+      max_farm_side,
+      num_farms,
+    );
+
+  let houses = flatten_blocks(input, houses);
+  let farms = flatten_blocks(input, farms);
+
+  {farms, houses};
 };
 
 let test = () => {

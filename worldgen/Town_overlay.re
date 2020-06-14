@@ -155,9 +155,9 @@ let prepare_town = (base: Base_overlay.t, x, z) => {
     });
 
   /* TODO do we actually need obstacles? */
-  let obstacles = Sparse_grid.make(Town_prototype.side);
+  let roads = Sparse_grid.make(Town_prototype.side);
 
-  let town = Town_prototype.run({elevation, obstacles});
+  let town = Town_prototype.run({elevation, roads});
 
   {x, z, town};
 };
@@ -196,7 +196,7 @@ let apply_region = (towns: t, args) => {
         gsize: _,
       } = args;
   List.iter(
-    ({x, z, town: {farms, houses, plazas}}) => {
+    ({x, z, town: {farms, houses}}) => {
       let x = x - gx_offset;
       let z = z - gy_offset;
       if (0 <= x
@@ -218,7 +218,6 @@ let apply_region = (towns: t, args) => {
         };
         List.iter(apply_block_elevation, farms);
         List.iter(apply_block_elevation, houses);
-        List.iter(apply_block_elevation, plazas);
 
         /* Place wool on town blocks */
         let place_wool = (wool, block) => {
@@ -236,7 +235,6 @@ let apply_region = (towns: t, args) => {
         };
 
         List.iter(place_wool(Minecraft.Block.Wool), farms);
-        List.iter(place_wool(Minecraft.Block.Stonebrick), plazas);
         List.iter(place_wool(Minecraft.Block.Brick_block), houses);
       };
     },

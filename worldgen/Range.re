@@ -1,5 +1,5 @@
 let rec exists = (min, max, f) =>
-  if (min >= max) {
+  if (min > max) {
     false;
   } else if (f(min)) {
     true;
