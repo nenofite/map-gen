@@ -15,6 +15,7 @@ let tweak_tries = 100;
 let num_towns = 8;
 let min_dist_between_towns = 500;
 let potential_sites_limit = 100;
+let wall_height = 4;
 
 let calc_obstacles = (base: Base_overlay.t, road: Road_overlay.t): obstacles => {
   Grid.map(base, (x, z, base) => {
@@ -157,9 +158,28 @@ let prepare_town = (base: Base_overlay.t, x, z) => {
   /* TODO do we actually need obstacles? */
   let roads = Sparse_grid.make(Town_prototype.side);
 
-  let town = Town_prototype.run({elevation, roads});
+  let Town_prototype.{houses, farms} =
+    Town_prototype.run({elevation, roads});
 
-  {x, z, town};
+  /* Translate blocks into global coords */
+  let translate_block = (b: Town_prototype.block) => {
+    ...b,
+    min_x: b.min_x + x,
+    max_x: b.max_x + x,
+    min_z: b.min_z + z,
+    max_z: b.max_z + z,
+  };
+  let houses = List.map(translate_block, houses);
+  let farms = List.map(translate_block, farms);
+
+  {
+    x,
+    z,
+    town: {
+      houses,
+      farms,
+    },
+  };
 };
 
 let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
@@ -186,6 +206,60 @@ let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
   List.map(((x, z)) => prepare_town(base, x, z), towns);
 };
 
+let create_house =
+    (house: Town_prototype.block, args: Minecraft_converter.region_args) => {
+  let floor_material = Minecraft.Block.Stone;
+  let wall_material = Minecraft.Block.Planks;
+  let ceiling_material = Minecraft.Block.Stone;
+
+  let min_x = house.min_x - args.gx_offset;
+  let max_x = house.max_x - args.gx_offset;
+  let min_z = house.min_z - args.gy_offset;
+  let max_z = house.max_z - args.gy_offset;
+
+  /* Foundation */
+  for (x in min_x to max_x) {
+    for (z in min_z to max_z) {
+      Building.raise_lower_elev_match(args, x, z, house.elevation);
+      Minecraft.Block_tree.set_block(
+        args.region,
+        x,
+        house.elevation,
+        z,
+        floor_material,
+      );
+    };
+  };
+
+  /* Walls */
+  for (y in house.elevation + 1 to house.elevation + wall_height) {
+    for (x in min_x to max_x) {
+      Minecraft.Block_tree.set_block(args.region, x, y, min_z, wall_material);
+      Minecraft.Block_tree.set_block(args.region, x, y, max_z, wall_material);
+    };
+    for (z in min_z to max_z) {
+      Minecraft.Block_tree.set_block(args.region, min_x, y, z, wall_material);
+      Minecraft.Block_tree.set_block(args.region, max_x, y, z, wall_material);
+    };
+  };
+
+  /* Ceiling */
+  for (x in min_x to max_x) {
+    for (z in min_z to max_z) {
+      Minecraft.Block_tree.set_block(
+        args.region,
+        x,
+        house.elevation + wall_height + 1,
+        z,
+        ceiling_material,
+      );
+    };
+  };
+
+  /* Door and bed */
+  ();
+};
+
 let apply_region = (towns: t, args) => {
   let Minecraft_converter.{
         region,
@@ -203,39 +277,7 @@ let apply_region = (towns: t, args) => {
           && x < Minecraft.Block_tree.block_per_region
           && 0 <= z
           && z < Minecraft.Block_tree.block_per_region) {
-        /* Apply elevation changes */
-        let apply_block_elevation = block => {
-          let Town_prototype.{min_x, max_x, min_z, max_z, elevation} = block;
-          let min_x = min_x + x;
-          let max_x = max_x + x;
-          let min_z = min_z + z;
-          let max_z = max_z + z;
-          for (z in min_z to max_z) {
-            for (x in min_x to max_x) {
-              Building.raise_lower_elev_match(args, x, z, elevation);
-            };
-          };
-        };
-        List.iter(apply_block_elevation, farms);
-        List.iter(apply_block_elevation, houses);
-
-        /* Place wool on town blocks */
-        let place_wool = (wool, block) => {
-          let Town_prototype.{min_x, max_x, min_z, max_z, elevation: _} = block;
-          let min_x = min_x + x;
-          let max_x = max_x + x;
-          let min_z = min_z + z;
-          let max_z = max_z + z;
-          for (z in min_z to max_z) {
-            for (x in min_x to max_x) {
-              let y = 1 + Minecraft.Block_tree.height_at(region, ~x, ~z, ());
-              Minecraft.Block_tree.set_block(region, x, y, z, wool);
-            };
-          };
-        };
-
-        List.iter(place_wool(Minecraft.Block.Wool), farms);
-        List.iter(place_wool(Minecraft.Block.Brick_block), houses);
+        List.iter(house => create_house(house, args), houses);
       };
     },
     towns,

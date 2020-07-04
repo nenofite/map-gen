@@ -153,6 +153,10 @@ let set_block_in_section = (section, x, y, z, block) => {
 };
 
 let get_block = (tree, x, y, z) => {
+  if (!within_region(x, y, z)) {
+    let msg = Printf.sprintf("outside bounds: %d,%d,%d", x, y, z);
+    raise(Invalid_argument(msg));
+  };
   let cx = x / block_per_chunk;
   let sy = y / block_per_chunk;
   let cz = z / block_per_chunk;
