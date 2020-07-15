@@ -262,7 +262,7 @@ let create_house =
 
 let apply_region = (towns: t, args) => {
   let Minecraft_converter.{
-        region,
+        region: _,
         rx: _,
         rz: _,
         gx_offset,
@@ -270,7 +270,7 @@ let apply_region = (towns: t, args) => {
         gsize: _,
       } = args;
   List.iter(
-    ({x, z, town: {farms, houses}}) => {
+    ({x, z, town: {farms: _, houses}}) => {
       let x = x - gx_offset;
       let z = z - gy_offset;
       if (0 <= x

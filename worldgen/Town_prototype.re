@@ -360,7 +360,7 @@ let run = (input: input): output => {
       num_houses,
     );
   /* Grab farms */
-  let (other_blocks, centers, farms) =
+  let (_other_blocks, _centers, farms) =
     make_blocks(
       input.roads,
       other_blocks,
