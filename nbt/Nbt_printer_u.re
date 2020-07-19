@@ -1,12 +1,12 @@
 /** print_tag prints the one-byte representation of a tag */
-let print_tag = (buffer: Buffer.t, tag: Node.tag): unit => {
+let print_tag = (buffer: Buffer.t, tag: Node_u.tag): unit => {
   let tag_byte: int = Obj.magic(tag);
   Buffer.add_int8(buffer, tag_byte);
 };
 
 /** print_payload_contents prints a payload without its tag  */
 let rec print_payload_contents =
-        (buffer: Buffer.t, payload: Node.payload): unit =>
+        (buffer: Buffer.t, payload: Node_u.payload): unit =>
   switch (payload) {
   | Byte(int) => Buffer.add_int8(buffer, int)
   | Short(int) => Buffer.add_int16_be(buffer, int)
@@ -22,7 +22,7 @@ let rec print_payload_contents =
     print_payload_contents(buffer, Short(String.length(string)));
     Buffer.add_string(buffer, string);
   | List(list) =>
-    let tag = Node.check_list_type(list);
+    let tag = Node_u.check_list_type(list);
     print_tag(buffer, tag);
     print_payload_contents(buffer, Int(List.length(list) |> Int32.of_int));
     List.iter(elem => print_payload_contents(buffer, elem), list);
@@ -40,8 +40,8 @@ let rec print_payload_contents =
   }
 
 /** print_node prints the tag, node name, then node payload */
-and print_node = (buffer: Buffer.t, node: Node.t): unit => {
-  print_tag(buffer, Node.tag_of_payload(node.payload));
+and print_node = (buffer: Buffer.t, node: Node_u.t): unit => {
+  print_tag(buffer, Node_u.tag_of_payload(node.payload));
   print_payload_contents(buffer, Short(String.length(node.name)));
   Buffer.add_string(buffer, node.name);
   print_payload_contents(buffer, node.payload);
@@ -75,7 +75,7 @@ let create_memory = () => {
   If gzip is false, the output is deflated rather than gzip'd
  */
 let print_nbt =
-    (~memory=create_memory(), ~gzip=true, node: Node.t): big_string => {
+    (~memory=create_memory(), ~gzip=true, node: Node_u.t): big_string => {
   let {input_buffer, zlib_gzip, zlib_deflate} = memory;
 
   /* Print uncompressed NBT to a buffer */
@@ -120,7 +120,7 @@ let print_nbt =
 };
 
 /** print_nbt_f runs print_nbt and outputs the result */
-let print_nbt_f = (~gzip=?, f: out_channel, node: Node.t): unit => {
+let print_nbt_f = (~gzip=?, f: out_channel, node: Node_u.t): unit => {
   let bigstr = print_nbt(~gzip?, node);
   for (i in 0 to pred(Bigarray.Array1.dim(bigstr))) {
     output_char(f, bigstr.{i});
@@ -130,7 +130,7 @@ let print_nbt_f = (~gzip=?, f: out_channel, node: Node.t): unit => {
 /** test prints every possible tag type to make sure it works */
 let test = () => {
   let n =
-    Node.(
+    Node_u.(
       ""
       >: Compound([
            "compound"
@@ -141,11 +141,11 @@ let test = () => {
                 "long" >: Long(12345L),
                 "float" >: Float(1.3),
                 "double" >: Double(1.4),
-                "byte array" >: ([1, 2, 3]),
+                "byte array" >: Byte_array([1, 2, 3]),
                 "string" >: String("hello world"),
                 "list" >: List([String("a"), String("b"), String("c")]),
-                "int array" >: [4l, 5l, 6l],
-                "long array" >: [7L, 8L, 9L],
+                "int array" >: Int_array([4l, 5l, 6l]),
+                "long array" >: Long_array([7L, 8L, 9L]),
                 "empty list" >: List([]),
               ]),
          ])

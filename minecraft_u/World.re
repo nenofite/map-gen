@@ -1,27 +1,20 @@
-/**
-  config describes a world and single level. Theoretically it could contain
-  multiple levels, however we don't need that functionality so it's not
-  implemented
- */
-type config = {
-  name: string,
-  spawn: (int, int, int),
-  generator: Generator.t,
-};
+open Mg_util;
 
-type game_type = Survival | Creative;
+type game_type =
+  | Survival
+  | Creative;
 
 type builder = {
   path: string,
-  mutable cached_region: option(t),
+  mutable cached_region: option(Region.t),
   memory: Nbt.Nbt_printer_u.nbt_printer_memory,
 };
 
 /** level_dat is the NBT that should be written to "level.dat" */
-let level_dat = config => {
-  let (x, y, z) = config.spawn;
+let level_dat = (~name, ~spawn, ~mode, ~generator) => {
+  let (x, y, z) = spawn;
   let generator_options =
-    switch (Generator.options(config.generator)) {
+    switch (Generator.options(generator)) {
     | Some(options) => Nbt.Node.["generatorOptions" >: String(options)]
     | None => []
     };
@@ -31,10 +24,16 @@ let level_dat = config => {
          "Data"
          >: Compound([
               "allowCommands" >: Byte(1),
-              "GameType" >: Int(1l), /* creative */
-              "generatorName" >: String(Generator.name(config.generator)),
+              "GameType"
+              >: Int(
+                   switch (mode) {
+                   | Survival => 0l
+                   | Creative => 1l
+                   },
+                 ),
+              "generatorName" >: String(Generator.name(generator)),
               "LastPlayed" >: Long(Mg_util.time_ms()),
-              "LevelName" >: String(config.name),
+              "LevelName" >: String(name),
               "MapFeatures" >: Byte(0), /* don't generate structures */
               "RandomSeed" >: Long(1L),
               "SpawnX" >: Int(Int32.of_int(x)),
@@ -48,65 +47,77 @@ let level_dat = config => {
 };
 
 /* let iter_blocks_in_section = (~cx, ~sy, ~cz, r, fn) => {
-  let y_off = sy * Region.block_per_section_vertical;
-  let z_off = cz * Region.block_per_chunk_side + r.rz + Region.block_per_region_side;
-  let x_off = cx * Region.block_per_chunk_side + r.rx + Region.block_per_region_side;
-  for (y in 0 to pred(Region.block_per_section_vertical)) {
-    for (z in 0 to pred(Region.block_per_chunk_side)) {
-      for (x in 0 to pred(Region.block_per_chunk_side)) {
-        fn(~x = x + x_off, ~y=y + y_off, ~z=z+z_off);
-      }
-    }
-  }
-}; */
+     let y_off = sy * Region.block_per_section_vertical;
+     let z_off = cz * Region.block_per_chunk_side + r.rz + Region.block_per_region_side;
+     let x_off = cx * Region.block_per_chunk_side + r.rx + Region.block_per_region_side;
+     for (y in 0 to pred(Region.block_per_section_vertical)) {
+       for (z in 0 to pred(Region.block_per_chunk_side)) {
+         for (x in 0 to pred(Region.block_per_chunk_side)) {
+           fn(~x = x + x_off, ~y=y + y_off, ~z=z+z_off);
+         }
+       }
+     }
+   }; */
 
 let exists_block_in_section = (~cx, ~sy, ~cz, r, fn) => {
-  let y_off = Region.section_offset(~sy,r);
-  let (x_off, z_off) = Region.chunk_offset(~cx,~cz,r);
-  Range.exists(0, pred(Region.block_per_section_vertical),  ( y) => {
-    Range.exists(0, pred(Region.block_per_chunk_side),  ( z) => {
-      Range.exists(0, pred(Region.block_per_chunk_side),  ( x) => {
-        fn(~x = x + x_off, ~y=y + y_off, ~z=z+z_off);
-      });
-    });
+  open Mg_util;
+  let y_off = Region.section_offset(~sy, r);
+  let (x_off, z_off) = Region.chunk_offset(~cx, ~cz, r);
+  Range.exists(0, pred(Region.block_per_section_vertical), y => {
+    Range.exists(0, pred(Region.block_per_chunk_side), z => {
+      Range.exists(0, pred(Region.block_per_chunk_side), x => {
+        fn(~x=x + x_off, ~y=y + y_off, ~z=z + z_off)
+      })
+    })
   });
 };
 
 let map_blocks_in_section = (~cx, ~sy, ~cz, r, fn) => {
-  let y_off = Region.section_offset(~sy,r);
-  let (x_off, z_off) = Region.chunk_offset(~cx,~cz,r);
+  open Mg_util;
+  let y_off = Region.section_offset(~sy, r);
+  let (x_off, z_off) = Region.chunk_offset(~cx, ~cz, r);
   Range.fold(0, pred(Region.block_per_section_vertical), [], (ls, y) => {
     Range.fold(0, pred(Region.block_per_chunk_side), ls, (ls, z) => {
       Range.fold(0, pred(Region.block_per_chunk_side), ls, (ls, x) => {
-        [fn(~x = x + x_off, ~y=y + y_off, ~z=z+z_off), ...ls];
-      });
-    });
-  }) |> List.rev;
+        [fn(~x=x + x_off, ~y=y + y_off, ~z=z + z_off), ...ls]
+      })
+    })
+  })
+  |> List.rev;
 };
 
 let exists_block_in_chunk = (~cx, ~cz, r, fn) => {
-  Range.exists(0, pred(Region.section_per_chunk_vertical), (sy) => {
-    exists_block_in_section(~cx, ~sy, ~cz, r, fn);
-  });
+  Mg_util.(
+    Range.exists(0, pred(Region.section_per_chunk_vertical), sy => {
+      exists_block_in_section(~cx, ~sy, ~cz, r, fn)
+    })
+  );
 };
 
 /* let iter_sections_in_chunk = (~cx, ~cz, r, fn) => {
-  for (sy in 0 to pred(Region.section_per_chunk_vertical)) {
-    fn(~sy);
-  }
-};
+     for (sy in 0 to pred(Region.section_per_chunk_vertical)) {
+       fn(~sy);
+     }
+   };
 
-let iter_chunks_in_region = (_r, fn) => {
-  for (cz in 0 to pred(Region.chunk_per_region_side)) {
-    for (cx in 0 to pred(Region.chunk_per_region_side)) {
-      fn(~cx, ~cz);
-    }
-  }
-}; */
+   let iter_chunks_in_region = (_r, fn) => {
+     for (cz in 0 to pred(Region.chunk_per_region_side)) {
+       for (cx in 0 to pred(Region.chunk_per_region_side)) {
+         fn(~cx, ~cz);
+       }
+     }
+   }; */
 
 let section_nbt = (~cx, ~sy, ~cz, r) => {
-  let block_ids = map_blocks_in_section(~cx,~sy,~cz,r,(~x,~y,~z)=>Block.id(Region.get_block(~x,~y,~z,r)));
-  let block_data =map_blocks_in_section(~cx,~sy,~cz,r,(~x,~y,~z)=>Block.data(Region.get_block(~x,~y,~z,r))) |> Node_u.make_nibble_list;
+  let block_ids =
+    map_blocks_in_section(~cx, ~sy, ~cz, r, (~x, ~y, ~z) =>
+      Block.id(Region.get_block(~x, ~y, ~z, r))
+    );
+  let block_data =
+    map_blocks_in_section(~cx, ~sy, ~cz, r, (~x, ~y, ~z) =>
+      Block.data(Region.get_block(~x, ~y, ~z, r))
+    )
+    |> Nbt.Node_u.make_nibble_list;
   Nbt.Node_u.(
     ""
     >: Compound([
@@ -121,26 +132,36 @@ let section_nbt = (~cx, ~sy, ~cz, r) => {
   );
 };
 
-let chunk_heightmap = (~cx,~cz,r) => {
-  let (x_off, z_off) = Region.chunk_offset(~cx,~cz,r);
-  Range.fold(0, Region.block_per_chunk_side, [], (ls,z) => {
-    Range.fold(0, Region.block_per_chunk_side, ls, (ls, x) => {
-      let height = Region.height_at(~x=x+x_off,~z=z+z_off,r);
-      [height,...ls];
-    });
-  }) |> List.rev;
+let chunk_heightmap = (~cx, ~cz, r) => {
+  let (x_off, z_off) = Region.chunk_offset(~cx, ~cz, r);
+  Range.fold(0, Region.block_per_chunk_side, [], (ls, z) => {
+    Range.fold(
+      0,
+      Region.block_per_chunk_side,
+      ls,
+      (ls, x) => {
+        let height = Region.height_at(~x=x + x_off, ~z=z + z_off, r);
+        [Int32.of_int(height), ...ls];
+      },
+    )
+  })
+  |> List.rev;
 };
 
-let entities_in_chunk = (~cx,~cz, r) => {
-  List.filter((ent) => {
-    let ent_cx = ent.x / Region.block_per_chunk_side;
-    let ent_cz = ent.z / Region.block_per_chunk_side;
-    cx == ent_cx && cz == ent_cz;
-  }, Region.all_entities(r));
+let entities_in_chunk = (~cx, ~cz, r) => {
+  List.filter(
+    (ent: Entity.t) => {
+      open Floats;
+      let ent_cx = ~~ent.x / Region.block_per_chunk_side;
+      let ent_cz = ~~ent.z / Region.block_per_chunk_side;
+      cx == ent_cx && cz == ent_cz;
+    },
+    Region.all_entities(r),
+  );
 };
 
 let entity_nbt = (entity: Entity.t) => {
-  let {id, x, y, z} = entity;
+  let Entity.{id, x, y, z} = entity;
   Nbt.Node_u.(
     Compound([
       "id" >: String(id),
@@ -149,14 +170,18 @@ let entity_nbt = (entity: Entity.t) => {
   );
 };
 
-let chunk_nbt = (~cx,~cz,r) => {
+let chunk_nbt = (~cx, ~cz, r) => {
   /* Save all non-empty sections */
-  let sections_nbt = List.init(Region.section_per_chunk_vertical, sy => sy)
-    |> List.filter(sy => exists_block_in_section(~cx,~sy,~cz,r,(~x,~y,~z) => Region.get_block(~x,~y,~z,r) != Block.Air))
-    |> List.map((sy) => section_nbt(~cx,~sy,~cz,r));
+  let sections_nbt =
+    List.init(Region.section_per_chunk_vertical, sy => sy)
+    |> List.filter(sy =>
+         exists_block_in_section(~cx, ~sy, ~cz, r, (~x, ~y, ~z) =>
+           Region.get_block(~x, ~y, ~z, r) != Block.Air
+         )
+       )
+    |> List.map(sy => section_nbt(~cx, ~sy, ~cz, r).payload);
 
-  let entities_nbt = entities_in_chunk(~cx, ~cz, r)
-    |> List.map(entity_nbt);
+  let entities_nbt = entities_in_chunk(~cx, ~cz, r) |> List.map(entity_nbt);
 
   let heightmap = chunk_heightmap(~cx, ~cz, r);
   let global_cx = r.rx * Region.chunk_per_region_side + cx;
@@ -200,7 +225,7 @@ let sector_bytes = 4096;
   - [length - 1] bytes of compressed chunk NBT data.
 */
 let save_region = (memory, region_path, r: Region.t) => {
-  let {rx, rz, _} = r;
+  let Region.{rx, rz, _} = r;
 
   let region_file_path =
     Printf.sprintf("r.%d.%d.mca", rx, rz) |> Filename.concat(region_path, _);
@@ -214,14 +239,19 @@ let save_region = (memory, region_path, r: Region.t) => {
         the updated bytes.
        */
       let chunk_offset_sizes =
-        Bytes.make(4 * Region.chunk_per_region_side * Region.chunk_per_region_side, Char.chr(0));
+        Bytes.make(
+          4 * Region.chunk_per_region_side * Region.chunk_per_region_side,
+          Char.chr(0),
+        );
       output_bytes(f, chunk_offset_sizes);
 
       /* Write modification times (repeat current time 32 * 32 times) */
       let now = Mg_util.time_ms() |> Int64.to_int32(_);
       let now_bytes = Bytes.create(4);
       Bytes.set_int32_be(now_bytes, 0, now);
-      for (_ in 0 to pred(Region.chunk_per_region_side * Region.chunk_per_region_side)) {
+      for (_ in
+           0 to
+           pred(Region.chunk_per_region_side * Region.chunk_per_region_side)) {
         output_bytes(f, now_bytes);
       };
 
@@ -229,18 +259,16 @@ let save_region = (memory, region_path, r: Region.t) => {
       for (cz in 0 to pred(Region.chunk_per_region_side)) {
         for (cx in 0 to pred(Region.chunk_per_region_side)) {
           let i = cz * Region.chunk_per_region_side + cx;
-          if (exists_block_in_chunk(~cx, ~cz, r, (block) => block != Block.Air)) {
+          if (exists_block_in_chunk(~cx, ~cz, r, (~x, ~y, ~z) =>
+                Region.get_block(~x, ~y, ~z, r) != Block.Air
+              )) {
             /* Make sure we're at the start of a sector */
             assert(pos_out(f) mod sector_bytes == 0);
 
             /* Deflate chunk NBT. Keep chunk NBT and buffer in smaller scope to reduce memory, perhaps */
             let chunk_deflated = {
               let nbt = chunk_nbt(~cx, ~cz, r);
-              Nbt.Nbt_printer_u.print_nbt(
-                ~memory,
-                ~gzip=false,
-                nbt,
-              );
+              Nbt.Nbt_printer_u.print_nbt(~memory, ~gzip=false, nbt);
             };
 
             let start = pos_out(f);
@@ -293,7 +321,8 @@ let save_region = (memory, region_path, r: Region.t) => {
   );
 };
 
-let make = (name, ~generator=Generator.Flat, ~mode=Creative, ~spawn=(0,0,0), fn) => {
+let make =
+    (name, ~generator=Generator.Flat, ~mode=Creative, ~spawn=(0, 0, 0), fn) => {
   /* Create the directory structure: worlds, level, region */
   let base_path = Filename.current_dir_name;
   let worlds_path = Filename.concat(base_path, "worlds");
@@ -309,7 +338,7 @@ let make = (name, ~generator=Generator.Flat, ~mode=Creative, ~spawn=(0,0,0), fn)
 
   /* Create level.dat */
   let level_dat_path = Filename.concat(level_path, "level.dat");
-  let level_dat_nbt = level_dat(config);
+  let level_dat_nbt = level_dat(~name, ~spawn, ~mode, ~generator);
   Mg_util.write_file(level_dat_path, f => {
     Nbt.Nbt_printer.print_nbt_f(f, level_dat_nbt)
   });
@@ -318,19 +347,25 @@ let make = (name, ~generator=Generator.Flat, ~mode=Creative, ~spawn=(0,0,0), fn)
   let region_path = Filename.concat(level_path, "region");
   Mg_util.mkdir(region_path);
 
-  fn({path: region_path,cached_region:None, memory: Nbt.Nbt_printer_u.create_memory()});
+  fn({
+    path: region_path,
+    cached_region: None,
+    memory: Nbt.Nbt_printer_u.create_memory(),
+  });
 };
 
 let make_region = (~rx: int, ~rz: int, builder: builder, fn) => {
-    let r = switch (builder.cached_region) {
-    | Some(r) => 
-        reset(~rx,~rz,r);
-        r;
-    | None => let r = create(~rx,~rz);
-       builder.cached_region = Some(r);
-       r;
+  let r =
+    switch (builder.cached_region) {
+    | Some(r) =>
+      Region.reset(~rx, ~rz, r);
+      r;
+    | None =>
+      let r = Region.create(~rx, ~rz);
+      builder.cached_region = Some(r);
+      r;
     };
-    let result = fn(r);
-    save_region(builder.memory, builder.path, r);
-    result;
+  let result = fn(r);
+  save_region(builder.memory, builder.path, r);
+  result;
 };
