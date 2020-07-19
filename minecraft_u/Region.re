@@ -107,7 +107,10 @@ let get_block_opt = (~x, ~y, ~z, r) =>
 let add_entity = (entity: Entity.t, r) => {
   open Floats;
   let Entity.{x, y, z, _} = entity;
-  ignore(assert_and_localize(~x=~~x, ~y=~~y, ~z=~~z, r));
+  let x = ~~x;
+  let y = ~~y;
+  let z = ~~z;
+  ignore(assert_and_localize(~x, ~y, ~z, r));
   r.entities = [entity, ...r.entities];
 };
 

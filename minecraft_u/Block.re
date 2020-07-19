@@ -1,4 +1,4 @@
-exception Invalid_block;
+exception Invalid_block(string);
 
 type stair_dir =
   | E
@@ -450,39 +450,26 @@ let stair_dir_parse: int => stair_dir =
   | 5 => Wd
   | 6 => Sd
   | 7 => Nd
-  | _ => raise(Invalid_block);
-
-let torch_dir_data: torch_dir => int =
-  fun
-  | E => 1
-  | W => 2
-  | S => 3
-  | N => 4
-  | Up => 5;
-
-let bed_data = (dir: bed_dir, part: bed_part) => {
-  let lower =
-    switch (dir) {
-    | S => 0
-    | W => 1
-    | N => 2
-    | E => 3
-    };
-  let upper =
-    switch (part) {
-    | Foot => 0
-    | Head => 0x8
-    };
-  lower lor upper;
-};
+  | x => raise(Invalid_block(Printf.sprintf("stair dir %d", x)));
 
 let data =
   fun
   | Flowing_water(level) => level
   | Sapling => 0x8
   | Tallgrass => 1
-  | Torch(dir) => torch_dir_data(dir)
-  | Bed(dir, part) => bed_data(dir, part)
+  | Torch(E) => 1
+  | Torch(W) => 2
+  | Torch(S) => 3
+  | Torch(N) => 4
+  | Torch(Up) => 5
+  | Bed(S, Foot) => 0
+  | Bed(W, Foot) => 1
+  | Bed(N, Foot) => 2
+  | Bed(E, Foot) => 3
+  | Bed(S, Head) => 4
+  | Bed(W, Head) => 5
+  | Bed(N, Head) => 6
+  | Bed(E, Head) => 7
   /* Stairs */
   | Oak_stairs(dir)
   | Stone_stairs(dir)
@@ -529,13 +516,13 @@ let parse = (id, data) =>
   | (24, _) => Sandstone
   | (25, _) => Noteblock
   | (26, 0) => Bed(S, Foot)
-  | (26, 0x1) => Bed(W, Foot)
-  | (26, 0x2) => Bed(N, Foot)
-  | (26, 0x3) => Bed(E, Foot)
-  | (26, 0x80) => Bed(S, Head)
-  | (26, 0x81) => Bed(W, Head)
-  | (26, 0x82) => Bed(N, Head)
-  | (26, 0x83) => Bed(E, Head)
+  | (26, 1) => Bed(W, Foot)
+  | (26, 2) => Bed(N, Foot)
+  | (26, 3) => Bed(E, Foot)
+  | (26, 4) => Bed(S, Head)
+  | (26, 5) => Bed(W, Head)
+  | (26, 6) => Bed(N, Head)
+  | (26, 7) => Bed(E, Head)
   | (27, _) => Golden_rail
   | (28, _) => Detector_rail
   | (29, _) => Sticky_piston
@@ -711,5 +698,7 @@ let parse = (id, data) =>
   | (195, _) => Jungle_door
   | (196, _) => Acacia_door
   | (197, _) => Dark_oak_door
-  | (_, _) => raise(Invalid_block)
+  | (id, data) =>
+    let msg = Printf.sprintf("id=%d data=%x", id, data);
+    raise(Invalid_block(msg));
   };
