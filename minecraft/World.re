@@ -355,6 +355,9 @@ let make =
 };
 
 let make_region = (~rx: int, ~rz: int, builder: builder, fn) => {
+  Printf.printf("Creating region (%d, %d)\n", rx, rz);
+  let start_time = Mg_util.time_ms();
+
   let r =
     switch (builder.cached_region) {
     | Some(r) =>
@@ -367,5 +370,10 @@ let make_region = (~rx: int, ~rz: int, builder: builder, fn) => {
     };
   let result = fn(r);
   save_region(builder.memory, builder.path, r);
+
+  let elapsed_time =
+    Int64.sub(Mg_util.time_ms(), start_time) |> Int64.to_float;
+  Printf.printf("Finished (%d, %d) in %fs\n", rx, rz, elapsed_time /. 1000.);
+
   result;
 };
