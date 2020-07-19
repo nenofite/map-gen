@@ -14,13 +14,6 @@ type tag =
   | Int_array_tag
   | Long_array_tag;
 
-type byte_array =
-  Bigarray.Array1.t(int, Bigarray.int8_signed_elt, Bigarray.c_layout);
-type int_array =
-  Bigarray.Array1.t(int32, Bigarray.int32_elt, Bigarray.c_layout);
-type long_array =
-  Bigarray.Array1.t(int64, Bigarray.int64_elt, Bigarray.c_layout);
-
 /** payload represents both the tag and payload contents */
 type payload =
   | Byte(int)
@@ -29,12 +22,12 @@ type payload =
   | Long(int64)
   | Float(float)
   | Double(float)
-  | Byte_array(byte_array)
+  | Byte_array(list(int))
   | String(string)
   | List(list(payload)) /* all members must be the same type, but we can enforce that at runtime for now */
   | Compound(list(t))
-  | Int_array(int_array)
-  | Long_array(long_array)
+  | Int_array(list(int32))
+  | Long_array(list(int64))
 
 /** t is a full node with name, tag, and payload */
 and t = {
@@ -84,20 +77,16 @@ let check_list_type = list => {
 
 let (>:) = (name, payload) => {name, payload};
 
-/** make_byte_array provides convenience by converting an array into a Bigarray */
-let make_byte_array = arr => {
-  let ba = Bigarray.(Array1.of_array(Int8_signed, C_layout, arr));
-  Byte_array(ba);
-};
-
-/** make_int_array provides convenience by converting an array into a Bigarray */
-let make_int_array = arr => {
-  let ba = Bigarray.(Array1.of_array(Int32, C_layout, arr));
-  Int_array(ba);
-};
-
-/** make_long_array provides convenience by converting an array into a Bigarray */
-let make_long_array = arr => {
-  let ba = Bigarray.(Array1.of_array(Int64, C_layout, arr));
-  Long_array(ba);
-};
+let rec make_nibble_list = (bytes, nibbles) =>
+  switch (bytes) {
+  | [] => List.rev(nibbles)
+  | [first, second, ...bytes] =>
+    let nibble_pair = (second land 0xF) lsl 4 lor (first land 0xF);
+    let nibbles = [nibble_pair, ...nibbles];
+    make_nibble_list(bytes, nibbles);
+  | [_lone_byte] =>
+    raise(
+      Invalid_argument("nibble lists only work on an even number of bytes"),
+    )
+  };
+let make_nibble_list = bytes => make_nibble_list(bytes, []);

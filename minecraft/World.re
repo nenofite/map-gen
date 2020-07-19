@@ -7,7 +7,7 @@ type game_type =
 type builder = {
   path: string,
   mutable cached_region: option(Region.t),
-  memory: Nbt.Nbt_printer_u.nbt_printer_memory,
+  memory: Nbt.Nbt_printer.nbt_printer_memory,
 };
 
 /** level_dat is the NBT that should be written to "level.dat" */
@@ -117,8 +117,8 @@ let section_nbt = (~cx, ~sy, ~cz, r) => {
     map_blocks_in_section(~cx, ~sy, ~cz, r, (~x, ~y, ~z) =>
       Block.data(Region.get_block(~x, ~y, ~z, r))
     )
-    |> Nbt.Node_u.make_nibble_list;
-  Nbt.Node_u.(
+    |> Nbt.Node.make_nibble_list;
+  Nbt.Node.(
     ""
     >: Compound([
          "Blocks" >: Byte_array(block_ids),
@@ -162,7 +162,7 @@ let entities_in_chunk = (~cx, ~cz, r) => {
 
 let entity_nbt = (entity: Entity.t) => {
   let Entity.{id, x, y, z} = entity;
-  Nbt.Node_u.(
+  Nbt.Node.(
     Compound([
       "id" >: String(id),
       "Pos" >: List([Double(x), Double(y), Double(z)]),
@@ -186,7 +186,7 @@ let chunk_nbt = (~cx, ~cz, r) => {
   let heightmap = chunk_heightmap(~cx, ~cz, r);
   let global_cx = r.rx * Region.chunk_per_region_side + cx;
   let global_cz = r.rz * Region.chunk_per_region_side + cz;
-  Nbt.Node_u.(
+  Nbt.Node.(
     ""
     >: Compound([
          "Level"
@@ -268,7 +268,7 @@ let save_region = (memory, region_path, r: Region.t) => {
             /* Deflate chunk NBT. Keep chunk NBT and buffer in smaller scope to reduce memory, perhaps */
             let chunk_deflated = {
               let nbt = chunk_nbt(~cx, ~cz, r);
-              Nbt.Nbt_printer_u.print_nbt(~memory, ~gzip=false, nbt);
+              Nbt.Nbt_printer.print_nbt(~memory, ~gzip=false, nbt);
             };
 
             let start = pos_out(f);
@@ -350,7 +350,7 @@ let make =
   fn({
     path: region_path,
     cached_region: None,
-    memory: Nbt.Nbt_printer_u.create_memory(),
+    memory: Nbt.Nbt_printer.create_memory(),
   });
 };
 
