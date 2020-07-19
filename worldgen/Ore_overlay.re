@@ -150,9 +150,9 @@ let rec place_deposit = (~region, ~ore, ~deposit_size, ~available, ~touched) =>
   | _ when deposit_size <= 0 => ()
   | available =>
     let ((x, y, z), available) = random_sample(available);
-    switch (Minecraft.Block_tree.get_block_opt(region, x, y, z)) {
+    switch (Minecraft.Region.get_block_opt(region, ~x, ~y, ~z)) {
     | Some(block) when can_place_ore(block) =>
-      Minecraft.Block_tree.set_block(region, x, y, z, ore);
+      Minecraft.Region.set_block(~x, ~y, ~z, ore, region);
       let deposit_size = deposit_size - 1;
       let (available, touched) =
         cardinal_directions_3d
@@ -191,7 +191,7 @@ let find_depth = (depth, args, x, z) => {
   switch (depth) {
   | From_surface(min_depth, max_depth) =>
     switch (
-      Minecraft.Block_tree.highest_such_block(region, ~x, ~z, can_place_ore)
+      Minecraft.Region.highest_such_block(region, ~x, ~z, can_place_ore)
     ) {
     | None => None
     | Some(stone_elev) =>

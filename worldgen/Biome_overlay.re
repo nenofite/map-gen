@@ -158,25 +158,23 @@ let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
 
 /** overwrite_stone_air only sets the block if it is Stone or Air, to avoid overwriting rivers etc. */
 let overwrite_stone_air = (region, x, y, z, block) =>
-  switch (Minecraft.Block_tree.get_block_opt(region, x, y, z)) {
+  switch (Minecraft.Region.get_block_opt(region, ~x, ~y, ~z)) {
   | Some(Air)
-  | Some(Stone) => Minecraft.Block_tree.set_block(region, x, y, z, block)
+  | Some(Stone) => Minecraft.Region.set_block(~x, ~y, ~z, block, region)
   | Some(_)
   | None => ()
   };
 
 let apply_dirt =
     (dirt: Grid.t(int), state, args: Minecraft_converter.region_args) => {
-  let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
+  let region = args.region;
   Minecraft_converter.iter_blocks(
-    ~gx_offset,
-    ~gy_offset,
-    ~gsize,
-    (~gx, ~gy, ~x, ~z) => {
-      open Minecraft.Block_tree;
-      let elev = height_at(region, ~x, ~z, ());
-      let dirt_depth = Grid.at(dirt, gx, gy);
-      switch (Grid.at(state, gx, gy)) {
+    region,
+    (~x, ~z) => {
+      open Minecraft.Region;
+      let elev = height_at(~x, ~z, region);
+      let dirt_depth = Grid.at(dirt, x, z);
+      switch (Grid.at(state, x, z)) {
       | Mid(Plain)
       | Mid(Forest)
       | High(Pine_forest) =>

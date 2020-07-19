@@ -160,16 +160,14 @@ let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
   Grid.multizip([iron_layer, diamond_layer]);
 };
 
-let apply_region = (_base, state, args) => {
-  let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
+let apply_region = (_base, state, args: Minecraft_converter.region_args) => {
+  let region = args.region;
   Minecraft_converter.iter_blocks(
-    ~gx_offset,
-    ~gy_offset,
-    ~gsize,
-    (~gx, ~gy, ~x, ~z) => {
-      let layers = Grid.at(state, gx, gy);
+    region,
+    (~x, ~z) => {
+      let layers = Grid.at(state, x, z);
       List.iter(
-        Minecraft.Block_tree.(
+        Minecraft.Region.(
           layer =>
             switch (layer) {
             | {ore: Some(ore), min_elev, max_elev} =>
@@ -177,11 +175,11 @@ let apply_region = (_base, state, args) => {
               let min_elev = max(0, min_elev);
               let max_elev = max(0, max_elev);
               for (y in min_elev to max_elev) {
-                switch (get_block(region, x, y, z)) {
+                switch (get_block(~x, ~y, ~z, region)) {
                 | Dirt
                 | Grass
                 | Glass /* TODO */
-                | Stone => set_block(region, x, y, z, ore)
+                | Stone => set_block(~x, ~y, ~z, ore, region)
                 | _ => ()
                 };
               };

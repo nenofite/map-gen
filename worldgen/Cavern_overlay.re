@@ -177,28 +177,31 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
   );
 };
 
-let apply_region = (world: Grid.t(Base_overlay.tile), cavern, args) => {
-  let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
+let apply_region =
+    (
+      world: Grid.t(Base_overlay.tile),
+      cavern,
+      args: Minecraft_converter.region_args,
+    ) => {
+  let region = args.region;
   Minecraft_converter.iter_blocks(
-    ~gx_offset,
-    ~gy_offset,
-    ~gsize,
-    (~gx, ~gy, ~x, ~z) => {
-      open Minecraft.Block_tree;
+    region,
+    (~x, ~z) => {
+      open Minecraft.Region;
 
-      let surface_elev = Grid.at(world, gx, gy).elevation;
-      let {floor_elev, ceiling_elev} = Grid.at(cavern, gx, gy);
+      let surface_elev = Grid.at(world, x, z).elevation;
+      let {floor_elev, ceiling_elev} = Grid.at(cavern, x, z);
 
       /* Don't go above the maximum */
       let ceiling_elev =
         min(ceiling_elev, surface_elev - min_dist_to_surface);
       for (y in floor_elev + 1 to pred(ceiling_elev)) {
-        set_block(region, x, y, z, Minecraft.Block.Air);
+        set_block(~x, ~y, ~z, Minecraft.Block.Air, region);
       };
       /* Add magma sea */
       for (y in 1 to magma_sea_elev) {
-        switch (get_block(region, x, y, z)) {
-        | Air => set_block(region, x, y, z, Lava)
+        switch (get_block(region, ~x, ~y, ~z)) {
+        | Air => set_block(~x, ~y, ~z, Lava, region)
         | _ => ()
         };
       };
