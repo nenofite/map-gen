@@ -72,11 +72,11 @@ let stack = (base, addition) => {
   check_collision is true if the template would hit a non-Air block or go out
   of the region. Ignores Air in the template.
  */
-let check_collision = (template, ~x,~y,~z, r) => {
+let check_collision = (template, ~x, ~y, ~z, r) => {
   List.exists(
     ((dx, dy, dz, block)) =>
       if (block != Block.Air) {
-        switch (Region.get_block_opt(~x= x + dx, ~y=y + dy, ~z=z + dz,r)) {
+        switch (Region.get_block_opt(~x=x + dx, ~y=y + dy, ~z=z + dz, r)) {
         | Some(Air) => false
         | None => true
         | Some(_not_air) => true
@@ -92,7 +92,7 @@ let check_collision = (template, ~x,~y,~z, r) => {
   place_overwrite pastes a template at the given coordinate. Collisions are
   ignored.
  */
-let place_overwrite = (template, ~x,~y,~z,r) => {
+let place_overwrite = (template, ~x, ~y, ~z, r) => {
   List.iter(
     ((dx, dy, dz, material)) => {
       Region.set_block(~x=dx + x, ~y=dy + y, ~z=dz + z, material, r)
@@ -105,9 +105,9 @@ let place_overwrite = (template, ~x,~y,~z,r) => {
   place attempts to paste a template at the given coordinate. If any of the
   blocks are not air or are outside the region, it fails and returns false
  */
-let place = (template, ~x,~y,~z,r) =>
-  if (!check_collision(template, ~x,~y,~z,r)) {
-    place_overwrite(template, ~x,~y,~z,r);
+let place = (template, ~x, ~y, ~z, r) =>
+  if (!check_collision(template, ~x, ~y, ~z, r)) {
+    place_overwrite(template, ~x, ~y, ~z, r);
     true;
   } else {
     false;

@@ -23,11 +23,11 @@ let rec next_in_queue' = (array, i) =>
 let next_in_queue = next_in_queue'(_, 0);
 
 let flow_to_block = (region, need_updates, x, y, z, level) => {
-  switch (Region.get_block_opt(~x,~y,~z,region)) {
+  switch (Region.get_block_opt(~x, ~y, ~z, region)) {
   | Some(Flowing_water(old_level)) when old_level <= level => ()
   | Some(Flowing_water(_))
   | Some(Air) =>
-    Region.set_block(~x,~y,~z,Flowing_water(level),region);
+    Region.set_block(~x, ~y, ~z, Flowing_water(level), region);
     need_updates[level] = [(x, y, z, level), ...need_updates[level]];
   | Some(_)
   | None => ()
@@ -35,7 +35,7 @@ let flow_to_block = (region, need_updates, x, y, z, level) => {
 };
 
 let on_solid_ground = (region, x, y, z) => {
-  switch (Region.get_block_opt( ~x, ~y=y - 1, ~z,region)) {
+  switch (Region.get_block_opt(~x, ~y=y - 1, ~z, region)) {
   /* Negative cases: air, end of world, or any flowing water */
   | Some(Air)
   | Some(Flowing_water(_))
@@ -46,7 +46,7 @@ let on_solid_ground = (region, x, y, z) => {
 };
 
 let flow_single_water = (region, need_updates, should_be_level, x, y, z) => {
-  switch (Region.get_block( ~x, ~y, ~z,region)) {
+  switch (Region.get_block(~x, ~y, ~z, region)) {
   | Flowing_water(here_level)
       when here_level == should_be_level && here_level < max_level =>
     /* If below is air or flowing water, try setting with level = 1 */
@@ -99,7 +99,7 @@ let flow_water = region => {
   for (y in 0 to pred(Region.block_per_region_vertical)) {
     for (z in 0 to pred(Region.block_per_region_side)) {
       for (x in 0 to pred(Region.block_per_region_side)) {
-        switch (Region.get_block( ~x, ~y, ~z,region)) {
+        switch (Region.get_block(~x, ~y, ~z, region)) {
         | Flowing_water(0) =>
           need_updates[0] = [(x, y, z, 0), ...need_updates[0]]
         | _ => ()

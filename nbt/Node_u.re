@@ -77,11 +77,16 @@ let check_list_type = list => {
 
 let (>:) = (name, payload) => {name, payload};
 
-let rec make_nibble_list = (bytes, nibbles) => switch (bytes) {
-| [] => List.rev(nibbles)
-| [first, second, ...bytes] => let nibble_pair = (second land 0xF) lsl 4 lor (first land 0xF);
+let rec make_nibble_list = (bytes, nibbles) =>
+  switch (bytes) {
+  | [] => List.rev(nibbles)
+  | [first, second, ...bytes] =>
+    let nibble_pair = (second land 0xF) lsl 4 lor (first land 0xF);
     let nibbles = [nibble_pair, ...nibbles];
     make_nibble_list(bytes, nibbles);
-| [_lone_byte] => raise(Invalid_argument("nibble lists only work on an even number of bytes"));
-};
+  | [_lone_byte] =>
+    raise(
+      Invalid_argument("nibble lists only work on an even number of bytes"),
+    )
+  };
 let make_nibble_list = bytes => make_nibble_list(bytes, []);
