@@ -99,3 +99,13 @@ let save = (~side: int, ~apply_overlays: region_args => unit): unit => {
   });
   ();
 };
+
+let iter_blocks = (r: Minecraft.Region.t, fn): unit => {
+  open Minecraft.Region;
+  let (x_off, z_off) = chunk_offset(~cx=0, ~cz=0, r);
+  for (z in 0 to pred(block_per_region_side)) {
+    for (x in 0 to pred(block_per_region_side)) {
+      fn(~x=x + x_off, ~z=z + z_off);
+    };
+  };
+};
