@@ -76,7 +76,7 @@ and print_node = (channel, node) => {
   print_payload(channel, node.payload);
 };
 
-let test = () => {
+let%expect_test "snbt" = {
   let n =
     Node.(
       "root"
@@ -93,4 +93,17 @@ let test = () => {
     );
   print_node(stdout, n);
   print_newline();
+
+  %expect
+  {|
+    "root": {
+    "something": [B;1b,2b,3b],
+    "else": ["hello","world"],
+    "many \"things\"": {
+    "one": 1,
+    "two": 2.000000f,
+    "three": 3.141593d
+    }
+    }
+  |};
 };
