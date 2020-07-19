@@ -96,9 +96,10 @@ let flow_water = region => {
   let need_updates = Array.make(max_level + 1, []);
 
   /* First, populate need_updates[0] with all sources */
+  let (x_off, z_off) = Region.chunk_offset(~cx=0, ~cz=0, region);
   for (y in 0 to pred(Region.block_per_region_vertical)) {
-    for (z in 0 to pred(Region.block_per_region_side)) {
-      for (x in 0 to pred(Region.block_per_region_side)) {
+    for (z in z_off to z_off + pred(Region.block_per_region_side)) {
+      for (x in x_off to x_off + pred(Region.block_per_region_side)) {
         switch (Region.get_block(~x, ~y, ~z, region)) {
         | Flowing_water(0) =>
           need_updates[0] = [(x, y, z, 0), ...need_updates[0]]

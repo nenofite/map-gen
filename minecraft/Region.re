@@ -125,7 +125,7 @@ let rec highest_such_block = (~x, ~y, ~z, r, predicate) =>
     if (predicate(here)) {
       Some(y);
     } else {
-      highest_such_block(~x, ~y=y + 1, ~z, r, predicate);
+      highest_such_block(~x, ~y=y - 1, ~z, r, predicate);
     };
   } else {
     None;
@@ -146,8 +146,8 @@ let height_at = (~x, ~y=?, ~z, r) => {
 
 /** calculates the global offset in number of blocks of the given chunk's min corner */
 let chunk_offset = (~cx, ~cz, r) => {
-  let z_off = cz * block_per_chunk_side + r.rz + block_per_region_side;
-  let x_off = cx * block_per_chunk_side + r.rx + block_per_region_side;
+  let z_off = cz * block_per_chunk_side + r.rz * block_per_region_side;
+  let x_off = cx * block_per_chunk_side + r.rx * block_per_region_side;
   (x_off, z_off);
 };
 

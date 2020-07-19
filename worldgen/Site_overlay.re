@@ -101,19 +101,11 @@ let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z): unit => {
 };
 
 let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit => {
-  let Minecraft_converter.{
-        region: _,
-        rx: _,
-        rz: _,
-        gx_offset,
-        gy_offset,
-        gsize,
-      } = args;
   List.iter(
     (Point_cloud.{x, y: z, value: site}) => {
-      let x = int_of_float(x) - gx_offset;
-      let z = int_of_float(z) - gy_offset;
-      if (0 <= x && x < gsize && 0 <= z && z < gsize) {
+      let x = int_of_float(x);
+      let z = int_of_float(z);
+      if (Minecraft.Region.is_within(~x, ~y=0, ~z, args.region)) {
         switch (site) {
         | Some(Cavern_entrance(tube_depth)) =>
           apply_cavern_entrance(args, ~tube_depth, ~x, ~z)

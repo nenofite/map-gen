@@ -213,10 +213,7 @@ let create_house =
   let wall_material = Minecraft.Block.Planks;
   let ceiling_material = Minecraft.Block.Stone;
 
-  let min_x = house.min_x - args.gx_offset;
-  let max_x = house.max_x - args.gx_offset;
-  let min_z = house.min_z - args.gy_offset;
-  let max_z = house.max_z - args.gy_offset;
+  let Town_prototype.{min_x, max_x, min_z, max_z, elevation: _, _} = house;
 
   /* Foundation */
   for (x in min_x to max_x) {
@@ -255,26 +252,12 @@ let create_house =
   ();
 };
 
-let apply_region = (towns: t, args) => {
-  let Minecraft_converter.{
-        region: _,
-        rx: _,
-        rz: _,
-        gx_offset,
-        gy_offset,
-        gsize: _,
-      } = args;
+let apply_region = (towns: t, args: Minecraft_converter.region_args) => {
   List.iter(
-    ({x, z, town: {farms: _, houses}}) => {
-      let x = x - gx_offset;
-      let z = z - gy_offset;
-      if (0 <= x
-          && x < Minecraft.Region.block_per_region_side
-          && 0 <= z
-          && z < Minecraft.Region.block_per_region_side) {
+    ({x, z, town: {farms: _, houses}}) =>
+      if (Minecraft.Region.is_within(~x, ~y=0, ~z, args.region)) {
         List.iter(house => create_house(house, args), houses);
-      };
-    },
+      },
     towns,
   );
 };

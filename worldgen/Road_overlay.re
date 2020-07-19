@@ -249,21 +249,16 @@ let apply_region =
       args: Minecraft_converter.region_args,
     ) => {
   let region = args.region;
-  Sparse_grid.iter(
-    state.roads,
-    ((gx, gy), road) => {
-      let x = gx - args.gx_offset;
-      let z = gy - args.gy_offset;
-      if (0 <= x && x < args.gsize && 0 <= z && z < args.gsize) {
-        let {road: {elevation: y, niceness}, step_down} = road;
-        ignore(niceness); /* TODO dirt paths */
-        if (step_down) {
-          place_step_block(region, x, y, z);
-        } else {
-          place_road_block(region, x, y, z);
-        };
+  Sparse_grid.iter(state.roads, ((x, z), road) =>
+    if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
+      let {road: {elevation: y, niceness}, step_down} = road;
+      ignore(niceness); /* TODO dirt paths */
+      if (step_down) {
+        place_step_block(region, x, y, z);
+      } else {
+        place_road_block(region, x, y, z);
       };
-    },
+    }
   );
 };
 

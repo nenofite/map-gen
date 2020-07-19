@@ -13,11 +13,9 @@ let apply_trees =
   List.iter(
     (Point_cloud.{x, y: z, value}) =>
       if (value) {
-        let x = int_of_float(x);
-        let z = int_of_float(z);
-        let gx = x + gx_offset;
-        let gy = z + gy_offset;
-        switch (Grid.at(biomes, gx, gy)) {
+        let x = int_of_float(x) + gx_offset;
+        let z = int_of_float(z) + gy_offset;
+        switch (Grid.at(biomes, x, z)) {
         | Mid(Forest) =>
           let y = Minecraft.Region.height_at(region, ~x, ~z);
           let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
@@ -71,11 +69,9 @@ let apply_tallgrass =
   List.iter(
     (Point_cloud.{x, y: z, value}) =>
       if (value) {
-        let x = int_of_float(x);
-        let z = int_of_float(z);
-        let gx = x + gx_offset;
-        let gy = z + gy_offset;
-        switch (Grid.at(biomes, gx, gy)) {
+        let x = int_of_float(x) + gx_offset;
+        let z = int_of_float(z) + gy_offset;
+        switch (Grid.at(biomes, x, z)) {
         | Mid(Forest | Plain) =>
           /* TODO should pine forests have tallgrass? */
           let y = Minecraft.Region.height_at(region, ~x, ~z);

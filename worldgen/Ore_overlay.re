@@ -230,8 +230,8 @@ let apply_layer = (layer, args) => {
       if (value) {
         let deposit_size =
           min_deposit_size + Random.int(max_deposit_size - min_deposit_size);
-        let x = int_of_float(x);
-        let z = int_of_float(z);
+        let x = int_of_float(x) + gx_offset;
+        let z = int_of_float(z) + gy_offset;
         switch (find_depth(depth, args, x, z)) {
         | Some(y) => place_deposit(~region, ~ore, ~deposit_size, x, y, z)
         | None => ()
