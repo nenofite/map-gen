@@ -46,19 +46,6 @@ let level_dat = (~name, ~spawn, ~mode, ~generator) => {
   );
 };
 
-/* let iter_blocks_in_section = (~cx, ~sy, ~cz, r, fn) => {
-     let y_off = sy * Region.block_per_section_vertical;
-     let z_off = cz * Region.block_per_chunk_side + r.rz + Region.block_per_region_side;
-     let x_off = cx * Region.block_per_chunk_side + r.rx + Region.block_per_region_side;
-     for (y in 0 to pred(Region.block_per_section_vertical)) {
-       for (z in 0 to pred(Region.block_per_chunk_side)) {
-         for (x in 0 to pred(Region.block_per_chunk_side)) {
-           fn(~x = x + x_off, ~y=y + y_off, ~z=z+z_off);
-         }
-       }
-     }
-   }; */
-
 let exists_block_in_section = (~cx, ~sy, ~cz, r, fn) => {
   open Mg_util;
   let y_off = Region.section_offset(~sy, r);
@@ -94,20 +81,6 @@ let exists_block_in_chunk = (~cx, ~cz, r, fn) => {
   );
 };
 
-/* let iter_sections_in_chunk = (~cx, ~cz, r, fn) => {
-     for (sy in 0 to pred(Region.section_per_chunk_vertical)) {
-       fn(~sy);
-     }
-   };
-
-   let iter_chunks_in_region = (_r, fn) => {
-     for (cz in 0 to pred(Region.chunk_per_region_side)) {
-       for (cx in 0 to pred(Region.chunk_per_region_side)) {
-         fn(~cx, ~cz);
-       }
-     }
-   }; */
-
 let section_nbt = (~cx, ~sy, ~cz, r) => {
   let block_ids =
     map_blocks_in_section(~cx, ~sy, ~cz, r, (~x, ~y, ~z) =>
@@ -134,10 +107,10 @@ let section_nbt = (~cx, ~sy, ~cz, r) => {
 
 let chunk_heightmap = (~cx, ~cz, r) => {
   let (x_off, z_off) = Region.chunk_offset(~cx, ~cz, r);
-  Range.fold(0, Region.block_per_chunk_side, [], (ls, z) => {
+  Range.fold(0, Region.block_per_chunk_side - 1, [], (ls, z) => {
     Range.fold(
       0,
-      Region.block_per_chunk_side,
+      Region.block_per_chunk_side - 1,
       ls,
       (ls, x) => {
         let height = Region.height_at(~x=x + x_off, ~z=z + z_off, r);

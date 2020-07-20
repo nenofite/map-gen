@@ -74,6 +74,7 @@ let convert_region =
   apply_overlays(args);
 
   Printf.printf("Flowing water\n");
+  flush(stdout);
   Minecraft.Water.flow_water(region);
 };
 
