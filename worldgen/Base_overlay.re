@@ -15,29 +15,34 @@ let prepare = () =>
     )
   );
 
-let apply_region = (world: Grid.t(tile), args) => {
-  let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
+let apply_region =
+    (world: Grid.t(tile), args: Minecraft_converter.region_args) => {
+  let region = args.region;
   Minecraft_converter.iter_blocks(
-    ~gx_offset,
-    ~gy_offset,
-    ~gsize,
-    (~gx, ~gy, ~x, ~z) => {
-      open Minecraft.Block_tree;
+    region,
+    (~x, ~z) => {
+      open Minecraft.Region;
 
-      let here = Grid.at(world, gx, gy);
+      let here = Grid.at(world, x, z);
       let elevation = here.elevation;
 
-      set_block(region, x, 0, z, Minecraft.Block.Bedrock);
+      set_block(~x, ~y=0, ~z, Minecraft.Block.Bedrock, region);
 
       for (y in 1 to elevation) {
-        set_block(region, x, y, z, Stone);
+        set_block(~x, ~y, ~z, Stone, region);
       };
       if (here.ocean) {
         for (y in elevation to Heightmap.sea_level) {
-          set_block(region, x, y, z, Minecraft.Block.Water);
+          set_block(~x, ~y, ~z, Minecraft.Block.Water, region);
         };
       } else if (here.river) {
-        set_block(region, x, elevation, z, Minecraft.Block.Flowing_water(0));
+        set_block(
+          ~x,
+          ~y=elevation,
+          ~z,
+          Minecraft.Block.Flowing_water(0),
+          region,
+        );
       };
     },
   );

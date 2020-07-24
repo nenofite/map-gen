@@ -14,12 +14,10 @@ let rec print_payload_contents =
   | Long(int64) => Buffer.add_int64_be(buffer, int64)
   | Float(float) => Buffer.add_int32_be(buffer, Int32.bits_of_float(float))
   | Double(float) => Buffer.add_int64_be(buffer, Int64.bits_of_float(float))
-  | Byte_array(byte_array) =>
-    let size = Bigarray.Array1.dim(byte_array);
+  | Byte_array(bytes) =>
+    let size = List.length(bytes);
     print_payload_contents(buffer, Int(Int32.of_int(size)));
-    for (i in 0 to pred(size)) {
-      Buffer.add_int8(buffer, byte_array.{i});
-    };
+    List.iter(b => Buffer.add_int8(buffer, b), bytes);
   | String(string) =>
     print_payload_contents(buffer, Short(String.length(string)));
     Buffer.add_string(buffer, string);
@@ -31,18 +29,14 @@ let rec print_payload_contents =
   | Compound(list) =>
     List.iter(print_node(buffer, _), list);
     print_tag(buffer, End_tag);
-  | Int_array(int_array) =>
-    let size = Bigarray.Array1.dim(int_array);
+  | Int_array(ints) =>
+    let size = List.length(ints);
     print_payload_contents(buffer, Int(Int32.of_int(size)));
-    for (i in 0 to pred(size)) {
-      print_payload_contents(buffer, Int(int_array.{i}));
-    };
-  | Long_array(long_array) =>
-    let size = Bigarray.Array1.dim(long_array);
+    List.iter(i => print_payload_contents(buffer, Int(i)), ints);
+  | Long_array(longs) =>
+    let size = List.length(longs);
     print_payload_contents(buffer, Int(Int32.of_int(size)));
-    for (i in 0 to pred(size)) {
-      print_payload_contents(buffer, Long(long_array.{i}));
-    };
+    List.iter(l => print_payload_contents(buffer, Long(l)), longs);
   }
 
 /** print_node prints the tag, node name, then node payload */
@@ -147,11 +141,11 @@ let test = () => {
                 "long" >: Long(12345L),
                 "float" >: Float(1.3),
                 "double" >: Double(1.4),
-                "byte array" >: make_byte_array([|1, 2, 3|]),
+                "byte array" >: Byte_array([1, 2, 3]),
                 "string" >: String("hello world"),
                 "list" >: List([String("a"), String("b"), String("c")]),
-                "int array" >: make_int_array([|4l, 5l, 6l|]),
-                "long array" >: make_long_array([|7L, 8L, 9L|]),
+                "int array" >: Int_array([4l, 5l, 6l]),
+                "long array" >: Long_array([7L, 8L, 9L]),
                 "empty list" >: List([]),
               ]),
          ])

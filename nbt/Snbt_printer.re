@@ -9,13 +9,15 @@ let rec print_payload = (channel: out_channel, payload: Node.payload): unit =>
   | Double(float) => Printf.fprintf(channel, "%fd", float)
   | Byte_array(byte_array) =>
     output_string(channel, "[B;");
-    let size = Bigarray.Array1.dim(byte_array);
-    for (i in 0 to pred(size)) {
-      if (i > 0) {
-        output_string(channel, ",");
-      };
-      Printf.fprintf(channel, "%db", byte_array.{i});
-    };
+    List.iteri(
+      (i, el) => {
+        if (i > 0) {
+          output_string(channel, ",");
+        };
+        Printf.fprintf(channel, "%db", el);
+      },
+      byte_array,
+    );
     output_string(channel, "]");
   | String(string) => Printf.fprintf(channel, "%S", string)
   | List(list) =>
@@ -44,23 +46,27 @@ let rec print_payload = (channel: out_channel, payload: Node.payload): unit =>
     output_string(channel, "\n}");
   | Int_array(int_array) =>
     output_string(channel, "[I;");
-    let size = Bigarray.Array1.dim(int_array);
-    for (i in 0 to pred(size)) {
-      if (i > 0) {
-        output_string(channel, ",");
-      };
-      Printf.fprintf(channel, "%ld", int_array.{i});
-    };
+    List.iteri(
+      (i, el) => {
+        if (i > 0) {
+          output_string(channel, ",");
+        };
+        Printf.fprintf(channel, "%ld", el);
+      },
+      int_array,
+    );
     output_string(channel, "]");
   | Long_array(long_array) =>
     output_string(channel, "[I;");
-    let size = Bigarray.Array1.dim(long_array);
-    for (i in 0 to pred(size)) {
-      if (i > 0) {
-        output_string(channel, ",");
-      };
-      Printf.fprintf(channel, "%Ldl", long_array.{i});
-    };
+    List.iteri(
+      (i, el) => {
+        if (i > 0) {
+          output_string(channel, ",");
+        };
+        Printf.fprintf(channel, "%Ldl", el);
+      },
+      long_array,
+    );
     output_string(channel, "]");
   }
 
@@ -70,12 +76,12 @@ and print_node = (channel, node) => {
   print_payload(channel, node.payload);
 };
 
-let test = () => {
+let%expect_test "snbt" = {
   let n =
     Node.(
       "root"
       >: Compound([
-           "something" >: make_byte_array([|1, 2, 3|]),
+           "something" >: Byte_array([1, 2, 3]),
            "else" >: List([String("hello"), String("world")]),
            "many \"things\""
            >: Compound([
@@ -87,4 +93,17 @@ let test = () => {
     );
   print_node(stdout, n);
   print_newline();
+
+  %expect
+  {|
+    "root": {
+    "something": [B;1b,2b,3b],
+    "else": ["hello","world"],
+    "many \"things\"": {
+    "one": 1,
+    "two": 2.000000f,
+    "three": 3.141593d
+    }
+    }
+  |};
 };

@@ -37,7 +37,7 @@ let sum_elevation_in_piece =
   let sum = ref(0);
   for (z in z to z + piece_side - 1) {
     for (x in x to x + piece_side - 1) {
-      sum := sum^ + Minecraft.Block_tree.height_at(args.region, ~x, ~z, ());
+      sum := sum^ + Minecraft.Region.height_at(~x, ~z, args.region);
     };
   };
   sum^;
@@ -67,36 +67,36 @@ let average_elevation_in_assembly =
 };
 
 let raise_lower_elev = (args: Minecraft_converter.region_args, x, z, elev) => {
-  let current_elev = Minecraft.Block_tree.height_at(args.region, ~x, ~z, ());
+  let current_elev = Minecraft.Region.height_at(~x, ~z, args.region);
   if (elev <= current_elev) {
     /* Dig down then finish with Cobblestone */
     for (y in elev + 1 to current_elev) {
-      Minecraft.Block_tree.set_block(args.region, x, y, z, Air);
+      Minecraft.Region.set_block(~x, ~y, ~z, Air, args.region);
     };
-    Minecraft.Block_tree.set_block(args.region, x, elev, z, Cobblestone);
+    Minecraft.Region.set_block(~x, ~y=elev, ~z, Cobblestone, args.region);
   } else if (elev > current_elev) {
     /* Build up with Cobblestone */
     for (y in current_elev + 1 to elev) {
-      Minecraft.Block_tree.set_block(args.region, x, y, z, Cobblestone);
+      Minecraft.Region.set_block(~x, ~y, ~z, Cobblestone, args.region);
     };
   };
 };
 
 let raise_lower_elev_match =
     (args: Minecraft_converter.region_args, x, z, elev) => {
-  let current_elev = Minecraft.Block_tree.height_at(args.region, ~x, ~z, ());
+  let current_elev = Minecraft.Region.height_at(~x, ~z, args.region);
   let current_mat =
-    Minecraft.Block_tree.get_block(args.region, x, current_elev, z);
+    Minecraft.Region.get_block(~x, ~y=current_elev, ~z, args.region);
   if (elev <= current_elev) {
     /* Dig down */
     for (y in elev + 1 to current_elev) {
-      Minecraft.Block_tree.set_block(args.region, x, y, z, Air);
+      Minecraft.Region.set_block(~x, ~y, ~z, Air, args.region);
     };
-    Minecraft.Block_tree.set_block(args.region, x, elev, z, current_mat);
+    Minecraft.Region.set_block(~x, ~y=elev, ~z, current_mat, args.region);
   } else if (elev > current_elev) {
     /* Build up with matching material */
     for (y in current_elev + 1 to elev) {
-      Minecraft.Block_tree.set_block(args.region, x, y, z, current_mat);
+      Minecraft.Region.set_block(~x, ~y, ~z, current_mat, args.region);
     };
   };
 };
@@ -129,7 +129,7 @@ let flatten_footprint =
       ((dx, dz)) => {
         let x = dx + x;
         let z = dz + z;
-        let y = Minecraft.Block_tree.height_at(args.region, ~x, ~z, ());
+        let y = Minecraft.Region.height_at(~x, ~z, args.region);
         (x, y, z);
       },
       footprint,
@@ -145,19 +145,19 @@ let flatten_footprint =
       if (foundation_elev <= y) {
         /* Dig down then finish with Cobblestone */
         for (y in foundation_elev + 1 to y) {
-          Minecraft.Block_tree.set_block(args.region, x, y, z, Air);
+          Minecraft.Region.set_block(~x, ~y, ~z, Air, args.region);
         };
-        Minecraft.Block_tree.set_block(
-          args.region,
-          x,
-          foundation_elev,
-          z,
+        Minecraft.Region.set_block(
+          ~x,
+          ~y=foundation_elev,
+          ~z,
           Cobblestone,
+          args.region,
         );
       } else if (foundation_elev > y) {
         /* Build up with Cobblestone */
         for (y in y + 1 to foundation_elev) {
-          Minecraft.Block_tree.set_block(args.region, x, y, z, Cobblestone);
+          Minecraft.Region.set_block(~x, ~y, ~z, Cobblestone, args.region);
         };
       },
     with_heights,
@@ -170,7 +170,7 @@ let apply_piece =
   let x = x + dx * piece_side;
   let z = z + dz * piece_side;
   let success =
-    Minecraft.Template.place(piece.template, args.region, x, y, z);
+    Minecraft.Template.place(piece.template, args.region, ~x, ~y, ~z);
   if (!success) {
     raise(Building_failure("collision while placing piece"));
   };
@@ -197,7 +197,7 @@ let apply_template_y =
   /* Flatten the footprint and get an elevation */
   let y = flatten_footprint(args, ~x, ~z, template.footprint);
   /* Apply at the given elevation */
-  let success = Minecraft.Template.place(template, args.region, x, y, z);
+  let success = Minecraft.Template.place(template, args.region, ~x, ~y, ~z);
   if (!success) {
     raise(Building_failure("collision while applying template"));
   };
@@ -238,9 +238,9 @@ let is_assembly_closed = assembly => {
 
 let rec column_down =
         (args: Minecraft_converter.region_args, ~x, ~y, ~z, block): unit => {
-  switch (Minecraft.Block_tree.get_block_opt(args.region, x, y, z)) {
+  switch (Minecraft.Region.get_block_opt(~x, ~y, ~z, args.region)) {
   | Some(Air) =>
-    Minecraft.Block_tree.set_block(args.region, x, y, z, block);
+    Minecraft.Region.set_block(~x, ~y, ~z, block, args.region);
     column_down(args, ~x, ~y=y - 1, ~z, block);
   | Some(_)
   | None => ()
@@ -260,9 +260,9 @@ let rectangle_foundation = (args, ~minx, ~maxx, ~y, ~minz, ~maxz): unit => {
 let rec lay_stairs =
         (args: Minecraft_converter.region_args, ~x, ~y, ~z, block, ~dx, ~dz)
         : unit => {
-  switch (Minecraft.Block_tree.get_block_opt(args.region, x, y, z)) {
+  switch (Minecraft.Region.get_block_opt(~x, ~y, ~z, args.region)) {
   | Some(Air) =>
-    Minecraft.Block_tree.set_block(args.region, x, y, z, block);
+    Minecraft.Region.set_block(~x, ~y, ~z, block, args.region);
     column_down(args, ~x, ~y=y - 1, ~z, Minecraft.Block.Cobblestone);
     lay_stairs(args, ~x=x + dx, ~y=y - 1, ~z=z + dz, block, ~dx, ~dz);
   | Some(_)

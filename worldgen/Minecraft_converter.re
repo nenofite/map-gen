@@ -2,23 +2,12 @@
   region_params are the numerous arguments provided when generating a region
  */
 type region_args = {
-  region: Minecraft.Block_tree.t,
+  region: Minecraft.Region.t,
   rx: int,
   rz: int,
   gx_offset: int,
   gy_offset: int,
   gsize: int,
-};
-
-/**
-  xz_of_gxy is for use within callbacks passed to segment_grid_by_region. It
-  converts the grid coordinates to region-local block coordinates.
- */
-let xz_of_gxy = (gx, gy) => {
-  /* Truncate to region-local coordinates. We know the coords are >= 0 so we can use mod */
-  let x = gx mod Minecraft.Block_tree.block_per_region;
-  let z = gy mod Minecraft.Block_tree.block_per_region;
-  (x, z);
 };
 
 /**
@@ -34,7 +23,7 @@ let xz_of_gxy = (gx, gy) => {
   1)) to export a 1x1 slice of regions starting with region r.2.3
  */
 let segment_grid_by_region = (~side: int, ~sub=?, f): unit => {
-  let block_per_region = Minecraft.Block_tree.block_per_region;
+  let block_per_region = Minecraft.Region.block_per_region_side;
   /* The grid must split evenly into regions */
   if (side mod block_per_region != 0) {
     let msg =
@@ -68,6 +57,7 @@ let segment_grid_by_region = (~side: int, ~sub=?, f): unit => {
         f(
           ~rx,
           ~rz,
+          /* TODO can probably get rid of these, since it's always 1:1 */
           ~gx_offset=rx * block_per_region,
           ~gy_offset=rz * block_per_region,
           ~gsize=block_per_region,
@@ -77,68 +67,46 @@ let segment_grid_by_region = (~side: int, ~sub=?, f): unit => {
   };
 };
 
-let iter_blocks = (~gx_offset, ~gy_offset, ~gsize, f) => {
-  for (gx in gx_offset to pred(gx_offset + gsize)) {
-    for (gy in gy_offset to pred(gy_offset + gsize)) {
-      let (x, z) = xz_of_gxy(gx, gy);
-      f(~gx, ~gy, ~x, ~z);
-    };
-  };
-};
-
-/** save_region creates a region, fills it with blocks from the grid, and saves */
-let save_region =
-    (
-      ~region_path: string,
-      ~region,
-      ~apply_overlays,
-      ~rx,
-      ~rz,
-      ~gx_offset,
-      ~gy_offset,
-      ~gsize,
-    ) => {
-  Printf.printf("Creating region (%d, %d)\n", rx, rz);
-  let start_time = Mg_util.time_ms();
-  Printf.printf("Resetting region\n");
-  Minecraft.Block_tree.reset(region, ~rx, ~rz);
-
+/** fills the region with blocks from the grid */
+let convert_region =
+    (~region, ~apply_overlays, ~rx, ~rz, ~gx_offset, ~gy_offset, ~gsize) => {
   let args = {region, rx, rz, gx_offset, gy_offset, gsize};
   apply_overlays(args);
 
   Printf.printf("Flowing water\n");
+  flush(stdout);
   Minecraft.Water.flow_water(region);
-  Printf.printf("Saving region\n");
-  Minecraft.Block_tree.save_region(region_path, region);
-  let elapsed_time =
-    Int64.sub(Mg_util.time_ms(), start_time) |> Int64.to_float;
-  Printf.printf("Finished (%d, %d) in %fs\n", rx, rz, elapsed_time /. 1000.);
-};
-
-let make_dirt_cloud = side => {
-  Point_cloud.init(~width=side, ~height=side, ~spacing=20, (_x, _y) =>
-    Random.int(8) |> float_of_int
-  );
 };
 
 /** save creates a Minecraft world with the given heightmap */
 let save = (~side: int, ~apply_overlays: region_args => unit): unit => {
-  let world_config =
-    Minecraft.World.{
-      name: "heightmap",
-      spawn: (2600, 120, 600),
-      generator: Minecraft.Generator.Flat,
-    };
+  Minecraft.World.make("heightmap", ~spawn=(2600, 120, 600), builder => {
+    segment_grid_by_region(
+      ~side,
+      ~sub=((4, 1), (2, 2)),
+      (~rx, ~rz, ~gx_offset, ~gy_offset, ~gsize) => {
+      Minecraft.World.make_region(~rx, ~rz, builder, region => {
+        convert_region(
+          ~region,
+          ~apply_overlays,
+          ~rx,
+          ~rz,
+          ~gx_offset,
+          ~gy_offset,
+          ~gsize,
+        )
+      })
+    })
+  });
+  ();
+};
 
-  let region_path = Minecraft.World.save(world_config);
-  /*
-   * the rx and rz will be given when we reset the region, so no need to set
-   * them to anything meaningful
-   */
-  let region = Minecraft.Block_tree.create(~rx=0, ~rz=0);
-  segment_grid_by_region(
-    ~side,
-    ~sub=((4, 1), (2, 2)),
-    save_region(~region_path, ~region, ~apply_overlays),
-  );
+let iter_blocks = (r: Minecraft.Region.t, fn): unit => {
+  open Minecraft.Region;
+  let (x_off, z_off) = chunk_offset(~cx=0, ~cz=0, r);
+  for (z in 0 to pred(block_per_region_side)) {
+    for (x in 0 to pred(block_per_region_side)) {
+      fn(~x=x + x_off, ~z=z + z_off);
+    };
+  };
 };

@@ -1,3 +1,6 @@
 (library
     (name Nbt)
-    (libraries zlib))
+    (inline_tests)
+    (libraries zlib)
+    (preprocess (pps ppx_inline_test ppx_expect))
+)

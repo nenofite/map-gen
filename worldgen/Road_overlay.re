@@ -204,10 +204,10 @@ let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
 
 /** fill_beneath_road places a column of cobblestone until it reaches solid ground */
 let rec fill_beneath_road = (region, x, y, z) => {
-  Minecraft.Block_tree.(
-    switch (get_block_opt(region, x, y, z)) {
+  Minecraft.Region.(
+    switch (get_block_opt(region, ~x, ~y, ~z)) {
     | Some(Air | Flowing_water(_) | Water) =>
-      set_block(region, x, y, z, Cobblestone);
+      set_block(~x, ~y, ~z, Cobblestone, region);
       fill_beneath_road(region, x, y - 1, z);
     | None
     | Some(_) => ()
@@ -218,13 +218,13 @@ let rec fill_beneath_road = (region, x, y, z) => {
 /** clear_above_road clears a short column above the road */
 let clear_above_road = (region, x, y, z) => {
   for (dy in 0 to 10) {
-    Minecraft.Block_tree.set_block_opt(region, x, y + dy, z, Air);
+    Minecraft.Region.set_block_opt(~x, ~y=y + dy, ~z, Air, region);
   };
 };
 
 let place_road_block = (region, x, y, z) => {
   clear_above_road(region, x, y + 1, z);
-  Minecraft.Block_tree.(set_block_opt(region, x, y, z, Stone_slab));
+  Minecraft.Region.set_block_opt(~x, ~y, ~z, Stone_slab, region);
   fill_beneath_road(region, x, y - 1, z);
 };
 
@@ -232,8 +232,12 @@ let place_step_block = (region, x, y, z) => {
   /* Step blocks are actually full blocks at y - 1 */
   let y = y - 1;
   clear_above_road(region, x, y + 1, z);
-  Minecraft.Block_tree.(
-    set_block(region, x, y, z, Minecraft.Block.Double_stone_slab)
+  Minecraft.Region.set_block(
+    ~x,
+    ~y,
+    ~z,
+    Minecraft.Block.Double_stone_slab,
+    region,
   );
   fill_beneath_road(region, x, y - 1, z);
 };
@@ -245,21 +249,16 @@ let apply_region =
       args: Minecraft_converter.region_args,
     ) => {
   let region = args.region;
-  Sparse_grid.iter(
-    state.roads,
-    ((gx, gy), road) => {
-      let x = gx - args.gx_offset;
-      let z = gy - args.gy_offset;
-      if (0 <= x && x < args.gsize && 0 <= z && z < args.gsize) {
-        let {road: {elevation: y, niceness}, step_down} = road;
-        ignore(niceness); /* TODO dirt paths */
-        if (step_down) {
-          place_step_block(region, x, y, z);
-        } else {
-          place_road_block(region, x, y, z);
-        };
+  Sparse_grid.iter(state.roads, ((x, z), road) =>
+    if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
+      let {road: {elevation: y, niceness}, step_down} = road;
+      ignore(niceness); /* TODO dirt paths */
+      if (step_down) {
+        place_step_block(region, x, y, z);
+      } else {
+        place_road_block(region, x, y, z);
       };
-    },
+    }
   );
 };
 

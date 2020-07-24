@@ -29,12 +29,12 @@ let calc_obstacles = (base: Base_overlay.t, road: Road_overlay.t): obstacles => 
 };
 
 let within_region_boundaries = (x, z) =>
-  Minecraft.Block_tree.(
+  Minecraft.Region.(
     x
-    mod block_per_region < block_per_region
+    mod block_per_region_side < block_per_region_side
     - Town_prototype.side
     && z
-    mod block_per_region < block_per_region
+    mod block_per_region_side < block_per_region_side
     - Town_prototype.side
   );
 
@@ -208,50 +208,42 @@ let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
 
 let create_house =
     (house: Town_prototype.block, args: Minecraft_converter.region_args) => {
+  open Minecraft.Region;
   let floor_material = Minecraft.Block.Stone;
   let wall_material = Minecraft.Block.Planks;
   let ceiling_material = Minecraft.Block.Stone;
 
-  let min_x = house.min_x - args.gx_offset;
-  let max_x = house.max_x - args.gx_offset;
-  let min_z = house.min_z - args.gy_offset;
-  let max_z = house.max_z - args.gy_offset;
+  let Town_prototype.{min_x, max_x, min_z, max_z, elevation: _, _} = house;
 
   /* Foundation */
   for (x in min_x to max_x) {
     for (z in min_z to max_z) {
       Building.raise_lower_elev_match(args, x, z, house.elevation);
-      Minecraft.Block_tree.set_block(
-        args.region,
-        x,
-        house.elevation,
-        z,
-        floor_material,
-      );
+      set_block(~x, ~y=house.elevation, ~z, floor_material, args.region);
     };
   };
 
   /* Walls */
   for (y in house.elevation + 1 to house.elevation + wall_height) {
     for (x in min_x to max_x) {
-      Minecraft.Block_tree.set_block(args.region, x, y, min_z, wall_material);
-      Minecraft.Block_tree.set_block(args.region, x, y, max_z, wall_material);
+      set_block(~x, ~y, ~z=min_z, wall_material, args.region);
+      set_block(~x, ~y, ~z=max_z, wall_material, args.region);
     };
     for (z in min_z to max_z) {
-      Minecraft.Block_tree.set_block(args.region, min_x, y, z, wall_material);
-      Minecraft.Block_tree.set_block(args.region, max_x, y, z, wall_material);
+      set_block(~x=min_x, ~y, ~z, wall_material, args.region);
+      set_block(~x=max_x, ~y, ~z, wall_material, args.region);
     };
   };
 
   /* Ceiling */
   for (x in min_x to max_x) {
     for (z in min_z to max_z) {
-      Minecraft.Block_tree.set_block(
-        args.region,
-        x,
-        house.elevation + wall_height + 1,
-        z,
+      set_block(
+        ~x,
+        ~y=house.elevation + wall_height + 1,
+        ~z,
         ceiling_material,
+        args.region,
       );
     };
   };
@@ -260,26 +252,12 @@ let create_house =
   ();
 };
 
-let apply_region = (towns: t, args) => {
-  let Minecraft_converter.{
-        region,
-        rx: _,
-        rz: _,
-        gx_offset,
-        gy_offset,
-        gsize: _,
-      } = args;
+let apply_region = (towns: t, args: Minecraft_converter.region_args) => {
   List.iter(
-    ({x, z, town: {farms, houses}}) => {
-      let x = x - gx_offset;
-      let z = z - gy_offset;
-      if (0 <= x
-          && x < Minecraft.Block_tree.block_per_region
-          && 0 <= z
-          && z < Minecraft.Block_tree.block_per_region) {
+    ({x, z, town: {farms: _, houses}}) =>
+      if (Minecraft.Region.is_within(~x, ~y=0, ~z, args.region)) {
         List.iter(house => create_house(house, args), houses);
-      };
-    },
+      },
     towns,
   );
 };

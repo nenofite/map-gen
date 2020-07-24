@@ -47,7 +47,7 @@ let max_height_within =
   let m = ref(0);
   for (z in minz to maxz) {
     for (x in minx to maxx) {
-      let here = Minecraft.Block_tree.height_at(args.region, ~x, ~y?, ~z, ());
+      let here = Minecraft.Region.height_at(args.region, ~x, ~y?, ~z);
       m := max(m^, here);
     };
   };
@@ -78,16 +78,16 @@ let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z): unit => {
     ~minz=minz + z,
     ~maxz=maxz + z,
   );
-  Minecraft.Template.place_overwrite(top, args.region, x, y, z);
+  Minecraft.Template.place_overwrite(top, args.region, ~x, ~y, ~z);
   let tube_height = Minecraft.Template.height(tube);
   let base_height = Minecraft.Template.height(base);
   let tube_sections = (y - tube_depth - base_height) / tube_height;
   for (i in 1 to tube_sections) {
     let y = y - i * tube_height;
-    Minecraft.Template.place_overwrite(tube, args.region, x, y, z);
+    Minecraft.Template.place_overwrite(tube, args.region, ~x, ~y, ~z);
   };
   let y = y - tube_sections * tube_height - base_height;
-  Minecraft.Template.place_overwrite(base, args.region, x, y, z);
+  Minecraft.Template.place_overwrite(base, args.region, ~x, ~y, ~z);
   let (minx, maxx) = base.bounds_x;
   let (minz, maxz) = base.bounds_z;
   Building.stair_foundation(
@@ -101,19 +101,11 @@ let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z): unit => {
 };
 
 let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit => {
-  let Minecraft_converter.{
-        region: _,
-        rx: _,
-        rz: _,
-        gx_offset,
-        gy_offset,
-        gsize,
-      } = args;
   List.iter(
     (Point_cloud.{x, y: z, value: site}) => {
-      let x = int_of_float(x) - gx_offset;
-      let z = int_of_float(z) - gy_offset;
-      if (0 <= x && x < gsize && 0 <= z && z < gsize) {
+      let x = int_of_float(x);
+      let z = int_of_float(z);
+      if (Minecraft.Region.is_within(~x, ~y=0, ~z, args.region)) {
         switch (site) {
         | Some(Cavern_entrance(tube_depth)) =>
           apply_cavern_entrance(args, ~tube_depth, ~x, ~z)
