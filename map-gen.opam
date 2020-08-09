@@ -1,0 +1,26 @@
+opam-version: "2.0"
+name: "map-gen"
+version: "0.1"
+synopsis: "One-line description"
+description: """
+Longer description
+"""
+maintainer: "Benjamin Tucker <benjamin.tucker@hey.com>"
+authors: "Benjamin Tucker <benjamin.tucker@hey.com>"
+depends: [
+    "ocaml" {>= "4.9.0"}
+    "reason"
+    "dune" {>= "2.6.0"}
+    "ANSITerminal"
+    "bitstring"
+    "camlimages"
+    "graphics"
+    "ppx_expect"
+    "ppx_inline_test"
+    "ppx_let"
+    "zlib" {= "0.6"}
+    "merlin" {dev}
+    "odoc" {dev}
+    "utop" {dev}
+]
+build: ["dune" "build" "-p" name "-j" jobs]
