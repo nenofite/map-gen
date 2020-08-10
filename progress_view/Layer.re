@@ -21,9 +21,9 @@ let make_layer_stack = () => {layers: []};
 
 let push_layer =
     (
-      ~state,
       ~draw_sparse=default_draw_sparse,
       ~draw_dense=default_draw_dense,
+      state,
       stack: stack,
     ) => {
   let l = {state, draw_sparse, draw_dense};
@@ -37,10 +37,10 @@ let update = (~state: 's, layer: layer('s), _stack: stack) => {
 
 let draw_all_layers =
     (
+      stack: stack,
       ~x: (int, int),
       ~z: (int, int),
       set_coord: (int, int, color) => unit,
-      stack: stack,
     ) => {
   let (min_x, max_x) = x;
   let (min_z, max_z) = z;
@@ -69,22 +69,22 @@ let%expect_test "draw two layers" = {
   let stack = make_layer_stack();
   let a =
     push_layer(
-      ~state=0,
       ~draw_dense=(i, x, z) => Some((i, x, z)),
       ~draw_sparse=i => [(3, 0, (i + 22, 3, 0))],
+      0,
       stack,
     );
   let _b =
     push_layer(
-      ~state=10,
       ~draw_sparse=i => [(0, 0, (i, 0, 0)), (0, 1, (i, 1, 0))],
+      10,
       stack,
     );
   update(~state=1, a, stack);
 
   let set_coord = (x, z, (r, g, b)) =>
     Printf.printf("set %d,%d to %d,%d,%d\n", x, z, r, g, b);
-  draw_all_layers(~x=(0, 3), ~z=(0, 0), set_coord, stack);
+  draw_all_layers(stack, ~x=(0, 3), ~z=(0, 0), set_coord);
 
   %expect
   {|
