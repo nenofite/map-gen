@@ -28,6 +28,7 @@ let overlays = {
   Overlay.return();
 };
 
+Progress_view.init();
 let apply_overlays = Overlay.prepare(135, overlays);
 
 Minecraft_converter.save(~side, ~apply_overlays);

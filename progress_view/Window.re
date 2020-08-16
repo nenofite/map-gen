@@ -49,7 +49,7 @@ let update =
 
   let draw_tile = (x, z, (r, g, b)) => {
     let wx = (x - min_x) * w.pixels_per_tile;
-    let wy = (max_z - z) * w.pixels_per_tile;
+    let wy = (z - min_z) * w.pixels_per_tile;
     set_color(rgb(r, g, b));
     fill_rect(wx, wy, w.pixels_per_tile, w.pixels_per_tile);
   };
