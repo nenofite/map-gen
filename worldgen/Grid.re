@@ -29,6 +29,9 @@ let assert_side_is_log2 = side =>
     raise(Invalid_argument(msg));
   };
 
+let is_within = (grid: t('a), x, y) =>
+  x >= 0 && x < grid.side && y >= 0 && y < grid.side;
+
 let assert_within = (side, x, y) =>
   if (x < 0 || x >= side || y < 0 || y >= side) {
     let msg = Printf.sprintf("Coordinate out of bounds: (%d, %d)", x, y);
