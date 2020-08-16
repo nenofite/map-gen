@@ -2,40 +2,31 @@ type tile = River.tile;
 
 type t = Grid.t(tile);
 
-type preview_pair =
-  | No_pair: preview_pair
-  | Preview_pair(Grid.t('a), 'a => int): preview_pair;
-
-let preview_init = () => {
-  Progress_view.push_layer(
-    ~draw_dense=
-      (s, x, y) =>
-        switch (s) {
-        | Preview_pair(grid, colorizer) =>
-          if (Grid.is_within(grid, x, y)) {
-            let rgb = colorizer(Grid.at(grid, x, y));
-            let r = (rgb land 0xFF0000) lsr 16;
-            let g = (rgb land 0x00FF00) lsr 8;
-            let b = rgb land 0x0000FF;
-            Some((r, g, b));
-          } else {
-            None;
-          }
-        | No_pair => None
-        },
-    No_pair,
-  );
-};
+let preview_dense = (colorizer, grid, x, y) =>
+  if (Grid.is_within(grid, x, y)) {
+    let rgb = colorizer(Grid.at(grid, x, y));
+    let r = (rgb land 0xFF0000) lsr 16;
+    let g = (rgb land 0x00FF00) lsr 8;
+    let b = rgb land 0x0000FF;
+    Some((r, g, b));
+  } else {
+    None;
+  };
 
 let preview_phase = (~title=?, layer, colorizer) => {
   Phase_chain.phase("preview", grid => {
-    Progress_view.update(~title?, Preview_pair(grid, colorizer), layer);
+    Progress_view.update(
+      ~title?,
+      ~draw_dense=preview_dense(colorizer),
+      ~state=grid,
+      layer,
+    );
     grid;
   });
 };
 
 let prepare = () => {
-  let layer = preview_init();
+  let layer = Progress_view.push_layer();
   Phase_chain.(
     run_all(
       Tectonic.phase

@@ -60,17 +60,16 @@ let apply_optionals = (center, title) => {
   };
 };
 
-let push_layer = (~center=?, ~title=?, ~draw_sparse=?, ~draw_dense=?, state) => {
+let push_layer = () => {
   let s = unwrap_state();
-  apply_optionals(center, title);
-  let l = Layer.push_layer(~draw_sparse?, ~draw_dense?, state, s.stack);
-  update_window();
+  let l = Layer.push_layer(s.stack);
   l;
 };
 
-let update = (~center=?, ~title=?, state, layer) => {
+let update =
+    (~center=?, ~title=?, ~draw_sparse=?, ~draw_dense=?, ~state, layer) => {
   let s = unwrap_state();
   apply_optionals(center, title);
-  Layer.update(~state, layer, s.stack);
+  Layer.update(~state, ~draw_dense?, ~draw_sparse?, layer, s.stack);
   update_window();
 };
