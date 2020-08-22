@@ -66,6 +66,11 @@ let push_layer = () => {
   l;
 };
 
+let remove_layer = layer => {
+  let s = unwrap_state();
+  Layer.remove_layer(layer, s.stack);
+};
+
 let update =
     (~center=?, ~title=?, ~draw_sparse=?, ~draw_dense=?, ~state, layer) => {
   let s = unwrap_state();

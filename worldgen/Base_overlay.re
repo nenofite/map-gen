@@ -2,45 +2,36 @@ type tile = River.tile;
 
 type t = Grid.t(tile);
 
-let preview_dense = (colorizer, grid, x, y) =>
-  if (Grid.is_within(grid, x, y)) {
-    let rgb = colorizer(Grid.at(grid, x, y));
-    let r = (rgb land 0xFF0000) lsr 16;
-    let g = (rgb land 0x00FF00) lsr 8;
-    let b = rgb land 0x0000FF;
-    Some((r, g, b));
-  } else {
-    None;
-  };
-
-let preview_phase = (~title=?, layer, colorizer) => {
-  Phase_chain.phase("preview", grid => {
-    Progress_view.update(
-      ~title?,
-      ~draw_dense=preview_dense(colorizer),
-      ~state=grid,
-      layer,
-    );
-    grid;
-  });
+let apply_progress_view = world => {
+  let layer = Progress_view.push_layer();
+  Progress_view.update(
+    ~draw_dense=Progress_view_helper.dense(River.colorize),
+    ~state=world,
+    layer,
+  );
+  ();
 };
 
 let prepare = () => {
+  module Pvh = Progress_view_helper;
   let layer = Progress_view.push_layer();
-  Phase_chain.(
-    run_all(
-      Tectonic.phase
-      @> Heightmap.phase
-      @> preview_phase(~title="height", layer, Heightmap.colorize)
-      @> Draw.phase("grid-height.png", Heightmap.colorize)
-      @> River.phase
-      @> preview_phase(~title="river", layer, River.colorize)
-      @> Draw.phase("grid-river.png", River.colorize)
-      @> Sites.phase
-      @> preview_phase(~title="sites", layer, River.colorize)
-      @> Draw.phase("grid-sites.png", River.colorize),
-    )
-  );
+  let s =
+    Phase_chain.(
+      run_all(
+        Tectonic.phase
+        @> Heightmap.phase
+        @> Pvh.phase(~title="height", layer, Heightmap.colorize)
+        @> Draw.phase("grid-height.png", Heightmap.colorize)
+        @> River.phase
+        @> Pvh.phase(~title="river", layer, River.colorize)
+        @> Draw.phase("grid-river.png", River.colorize)
+        @> Sites.phase
+        @> Pvh.phase(~title="sites", layer, River.colorize)
+        @> Draw.phase("grid-sites.png", River.colorize),
+      )
+    );
+  Progress_view.remove_layer(layer);
+  s;
 };
 
 let apply_region =
@@ -76,4 +67,5 @@ let apply_region =
   );
 };
 
-let overlay = Overlay.make("base", prepare, apply_region);
+let overlay =
+  Overlay.make("base", ~apply_progress_view, prepare, apply_region);
