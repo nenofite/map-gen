@@ -21,6 +21,10 @@ let push_layer = (stack: stack) => {
   l;
 };
 
+let remove_layer = (layer: layer, stack: stack) => {
+  stack.layers = List.filter(n => n !== layer, stack.layers);
+};
+
 let update =
     (
       ~draw_sparse=default_draw_sparse,
