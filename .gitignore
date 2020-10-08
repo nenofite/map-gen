@@ -12,3 +12,4 @@ _release
 /worlds/
 /overlays/
 /.vscode/
+*.dll
