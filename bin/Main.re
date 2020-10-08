@@ -2,6 +2,12 @@ open Worldgen;
 
 Printexc.record_backtrace(true);
 
+/* exception Howdy;
+raise(Howdy);
+
+Printf.printf("hello\n");
+flush(stdout); */
+
 let side = 4096;
 
 let overlays = {
