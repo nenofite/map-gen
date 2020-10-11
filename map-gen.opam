@@ -13,9 +13,7 @@ depends: [
     "dune" {>= "2.6.0"}
     "ANSITerminal"
     "bitstring"
-    "conf-libpng"
     "camlimages"
-    "graphics"
     "ppx_expect"
     "ppx_inline_test"
     "ppx_let"

@@ -2,35 +2,35 @@ type tile = River.tile;
 
 type t = Grid.t(tile);
 
-let apply_progress_view = world => {
-  let layer = Progress_view.push_layer();
-  Progress_view.update(
-    ~draw_dense=Progress_view_helper.dense(River.colorize),
-    ~state=world,
-    layer,
-  );
+let apply_progress_view = _world => {
+  // let layer = Progress_view.push_layer();
+  // Progress_view.update(
+  //   ~draw_dense=Progress_view_helper.dense(River.colorize),
+  //   ~state=world,
+  //   layer,
+  // );
   ();
 };
 
 let prepare = () => {
-  module Pvh = Progress_view_helper;
-  let layer = Progress_view.push_layer();
+  // module Pvh = Progress_view_helper;
+  // let layer = Progress_view.push_layer();
   let s =
     Phase_chain.(
       run_all(
         Tectonic.phase
         @> Heightmap.phase
-        @> Pvh.phase(~title="height", layer, Heightmap.colorize)
+        // @> Pvh.phase(~title="height", layer, Heightmap.colorize)
         @> Draw.phase("grid-height.png", Heightmap.colorize)
         @> River.phase
-        @> Pvh.phase(~title="river", layer, River.colorize)
+        // @> Pvh.phase(~title="river", layer, River.colorize)
         @> Draw.phase("grid-river.png", River.colorize)
         @> Sites.phase
-        @> Pvh.phase(~title="sites", layer, River.colorize)
+        // @> Pvh.phase(~title="sites", layer, River.colorize)
         @> Draw.phase("grid-sites.png", River.colorize),
       )
     );
-  Progress_view.remove_layer(layer);
+  // Progress_view.remove_layer(layer);
   s;
 };
 
