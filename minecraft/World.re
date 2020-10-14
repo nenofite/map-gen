@@ -87,40 +87,10 @@ let exists_block_in_chunk = (~cx, ~cz, r, fn) => {
   );
 };
 
-let add_to_lookup = (block, lookup) =>
-  if (!List.mem_assoc(block, lookup)) {
-    let n = List.length(lookup);
-    [(block, n), ...lookup];
-  } else {
-    lookup;
-  };
-
-let index_of_material = (block, lookup) => List.assoc(block, lookup);
-
 let construct_lookup_for_section = (~cx, ~sy, ~cz, r) => {
   fold_blocks_in_section(~cx, ~sy, ~cz, [], r, (~x, ~y, ~z, lookup) => {
     add_to_lookup(Region.get_block(~x, ~y, ~z, r), lookup)
   });
-};
-
-let%expect_test "namespace lookups" = {
-  let r = Region.create(~rx=0, ~rz=0);
-  Region.set_block(Block.Grass, ~x=1, ~y=2, ~z=3, r);
-  Region.set_block(Block.Stone, ~x=1, ~y=2, ~z=4, r);
-  let lookup = construct_lookup_for_section(~cx=0, ~sy=0, ~cz=0, r);
-
-  Printf.printf("Length %d\n", List.length(lookup));
-  Printf.printf("Air %d\n", index_of_material(Block.Air, lookup));
-  Printf.printf("Grass %d\n", index_of_material(Block.Grass, lookup));
-  Printf.printf("Stone %d\n", index_of_material(Block.Stone, lookup));
-
-  %expect
-  {|
-  Length 3
-  Air 0
-  Grass 1
-  Stone 2
-  |};
 };
 
 let section_nbt = (~cx, ~sy, ~cz, r) => {
@@ -129,8 +99,15 @@ let section_nbt = (~cx, ~sy, ~cz, r) => {
       Block.id(Region.get_block(~x, ~y, ~z, r))
     );
   let block_data =
-    map_blocks_in_section(~cx, ~sy, ~cz, r, (~x, ~y, ~z) =>
-      Block.data(Region.get_block(~x, ~y, ~z, r))
+    map_blocks_in_section(
+      ~cx,
+      ~sy,
+      ~cz,
+      r,
+      (~x, ~y, ~z) => {
+        ignore(Block.data(Region.get_block(~x, ~y, ~z, r)));
+        0;
+      },
     )
     |> Nbt.Node.make_nibble_list;
   Nbt.Node.(
