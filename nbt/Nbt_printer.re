@@ -1,6 +1,21 @@
 /** print_tag prints the one-byte representation of a tag */
 let print_tag = (buffer: Buffer.t, tag: Node.tag): unit => {
-  let tag_byte: int = Obj.magic(tag);
+  let tag_byte =
+    switch (tag) {
+    | End_tag => 0
+    | Byte_tag => 1
+    | Short_tag => 2
+    | Int_tag => 3
+    | Long_tag => 4
+    | Float_tag => 5
+    | Double_tag => 6
+    | Byte_array_tag => 7
+    | String_tag => 8
+    | List_tag => 9
+    | Compound_tag => 10
+    | Int_array_tag => 11
+    | Long_array_tag => 12
+    };
   Buffer.add_int8(buffer, tag_byte);
 };
 
