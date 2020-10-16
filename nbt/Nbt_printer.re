@@ -64,13 +64,14 @@ type nbt_printer_memory = {
   output_bs: bigstring,
 };
 
+let buffer_size = 256 * 1024;
 let create_memory = () => {
   /* TODO tune initial sizes of buffer, queue, bigstrings */
-  buffer: Buffer.create(16),
+  buffer: Buffer.create(buffer_size),
   window: De.make_window(~bits=15),
   queue: De.Queue.create(4096),
-  input_bs: De.bigstring_create(De.io_buffer_size),
-  output_bs: De.bigstring_create(De.io_buffer_size),
+  input_bs: De.bigstring_create(buffer_size),
+  output_bs: De.bigstring_create(buffer_size),
 };
 
 /**
