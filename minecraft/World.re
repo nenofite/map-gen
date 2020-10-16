@@ -246,15 +246,12 @@ let save_region = (memory, region_path, r: Region.t) => {
 
             let start = pos_out(f);
             let offset_sectors = start / sector_bytes;
-            let length =
-              Int32.of_int(Bigarray.Array1.dim(chunk_deflated) + 1);
+            let length = Int32.of_int(Buffer.length(chunk_deflated) + 1);
             /* 4 bytes of length. Always use version 2 */
             let%bitstring sector_header = {| length : 32; 2 : 8 |};
             Bitstring.bitstring_to_chan(sector_header, f);
             /* Write the deflated chunk */
-            for (cd_i in 0 to pred(Bigarray.Array1.dim(chunk_deflated))) {
-              output_char(f, chunk_deflated.{cd_i});
-            };
+            Buffer.output_buffer(f, chunk_deflated);
 
             /* Move up to the next 4 KB sector */
             let until_next_sector =
