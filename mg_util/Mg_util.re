@@ -87,7 +87,7 @@ let output_int64_be = (f: out_channel, i: int64): unit => {
 let write_file = (path, f) => {
   print_string("Writing file " ++ path ++ "...");
   flush(stdout);
-  let file = open_out(path);
+  let file = open_out_bin(path);
   f(file);
   close_out(file);
   print_endline(" done.");
