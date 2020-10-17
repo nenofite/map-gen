@@ -248,8 +248,8 @@ let save_region = (memory, region_path, r: Region.t) => {
             let offset_sectors = start / sector_bytes;
             let length = Int32.of_int(Buffer.length(chunk_deflated) + 1);
             /* 4 bytes of length. Always use version 2 */
-            let%bitstring sector_header = {| length : 32; 2 : 8 |};
-            Bitstring.bitstring_to_chan(sector_header, f);
+            output_int32_be(f, length);
+            output_byte(f, 2);
             /* Write the deflated chunk */
             Buffer.output_buffer(f, chunk_deflated);
 

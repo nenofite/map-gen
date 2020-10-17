@@ -14,7 +14,7 @@ let draw =
       img#set(x, y, {r, g, b});
     };
   };
-  img#save(file, Some(Png), []);
+  img#save(file, Some(Bmp), []);
   ();
 };
 

@@ -11,3 +11,5 @@ _release
 .DS_Store
 /worlds/
 /overlays/
+/.vscode/
+*.dll
