@@ -11,14 +11,14 @@ let dense = (colorizer, grid, x, y) =>
   };
 
 /** creates a Phase_chain phase that updates the Progress_view */
-let phase = (~title as _=?, _layer, _colorizer) => {
+let phase = (~title=?, layer, colorizer) => {
   Phase_chain.phase("preview", grid => {
-    // Progress_view.update(
-    //   ~title?,
-    //   ~draw_dense=dense(colorizer),
-    //   ~state=grid,
-    //   layer,
-    // );
+    Progress_view.update(
+      ~title?,
+      ~draw_dense=dense(colorizer),
+      ~state=grid,
+      layer,
+    );
     grid;
   });
 };

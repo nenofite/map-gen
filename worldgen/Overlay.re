@@ -43,7 +43,7 @@ let save_cache = (name, state) => {
 let make =
     (
       name: string,
-      ~apply_progress_view as _: 'a => unit=_ => (),
+      ~apply_progress_view: 'a => unit=_ => (),
       prepare: unit => 'a,
       apply_region: ('a, Minecraft_converter.region_args) => unit,
     )
@@ -67,7 +67,7 @@ let make =
           },
         )
       };
-    // apply_progress_view(state);
+    apply_progress_view(state);
     let apply_region = args =>
       Mg_util.print_progress("Applying " ++ name ++ " overlay", () =>
         apply_region(state, args)

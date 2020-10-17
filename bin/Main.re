@@ -2,12 +2,6 @@ open Worldgen;
 
 Printexc.record_backtrace(true);
 
-/* exception Howdy;
-raise(Howdy);
-
-Printf.printf("hello\n");
-flush(stdout); */
-
 let side = 4096;
 
 let overlays = {
@@ -34,7 +28,7 @@ let overlays = {
   Overlay.return();
 };
 
-// Progress_view.init();
+Progress_view.init();
 let apply_overlays = Overlay.prepare(135, overlays);
 
 Minecraft_converter.save(~side, ~apply_overlays);
