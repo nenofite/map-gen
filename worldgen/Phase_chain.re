@@ -40,10 +40,11 @@ let rec run_all':
     | Empty => grid
     | Phase(name, f, rest) =>
       let completed = completed + 1;
-      let grid = Mg_util.print_progress(
-        Printf.sprintf("[%d of %d] %s", completed, total, name),
-        () => f(grid)
-      );
+      let grid =
+        Mg_util.print_progress(
+          Printf.sprintf("[%d of %d] %s", completed, total, name), () =>
+          f(grid)
+        );
       ANSITerminal.printf(
         [],
         "[%d of %d] [%d x %d] %s\n",
