@@ -265,15 +265,12 @@ let save_region = (memory, region_path, r: Region.t) => {
 
             let start = pos_out(f);
             let offset_sectors = start / sector_bytes;
-            let length =
-              Int32.of_int(Bigarray.Array1.dim(chunk_deflated) + 1);
+            let length = Int32.of_int(Buffer.length(chunk_deflated) + 1);
             /* 4 bytes of length. Always use version 2 */
-            let%bitstring sector_header = {| length : 32; 2 : 8 |};
-            Bitstring.bitstring_to_chan(sector_header, f);
+            output_int32_be(f, length);
+            output_byte(f, 2);
             /* Write the deflated chunk */
-            for (cd_i in 0 to pred(Bigarray.Array1.dim(chunk_deflated))) {
-              output_char(f, chunk_deflated.{cd_i});
-            };
+            Buffer.output_buffer(f, chunk_deflated);
 
             /* Move up to the next 4 KB sector */
             let until_next_sector =
@@ -366,6 +363,7 @@ let make_region = (~rx: int, ~rz: int, builder: builder, fn) => {
   let elapsed_time =
     Int64.sub(Mg_util.time_ms(), start_time) |> Int64.to_float;
   Printf.printf("Finished (%d, %d) in %fs\n", rx, rz, elapsed_time /. 1000.);
+  Stats.recordf(`Region_time, elapsed_time);
 
   result;
 };

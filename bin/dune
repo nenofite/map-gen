@@ -2,4 +2,4 @@
   (names Main Test Town)
   (public_names Main Test Town)
   (preprocess (pps ppx_let))
-  (libraries Worldgen))
+  (libraries Worldgen Stats))

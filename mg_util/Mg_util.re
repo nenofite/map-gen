@@ -45,9 +45,12 @@ let print_progress = (title: string, f: unit => 'a): 'a => {
 };
 
 /** mkdir creates all directories in path, using the shell command [mkdir -p <path>] */
-let mkdir = (path: string): unit => {
-  Unix.system("mkdir -p " ++ path) |> ignore;
-};
+let mkdir = (path: string): unit =>
+  if (Sys.os_type == "Win32") {
+    Unix.system("mkdir " ++ path) |> ignore;
+  } else {
+    Unix.system("mkdir -p " ++ path) |> ignore;
+  };
 
 let read_file = (path, f) => {
   let fin = open_in(path);
@@ -87,7 +90,7 @@ let output_int64_be = (f: out_channel, i: int64): unit => {
 let write_file = (path, f) => {
   print_string("Writing file " ++ path ++ "...");
   flush(stdout);
-  let file = open_out(path);
+  let file = open_out_bin(path);
   f(file);
   close_out(file);
   print_endline(" done.");

@@ -1,6 +1,21 @@
 /** print_tag prints the one-byte representation of a tag */
 let print_tag = (buffer: Buffer.t, tag: Node.tag): unit => {
-  let tag_byte: int = Obj.magic(tag);
+  let tag_byte =
+    switch (tag) {
+    | End_tag => 0
+    | Byte_tag => 1
+    | Short_tag => 2
+    | Int_tag => 3
+    | Long_tag => 4
+    | Float_tag => 5
+    | Double_tag => 6
+    | Byte_array_tag => 7
+    | String_tag => 8
+    | List_tag => 9
+    | Compound_tag => 10
+    | Int_array_tag => 11
+    | Long_array_tag => 12
+    };
   Buffer.add_int8(buffer, tag_byte);
 };
 
@@ -47,7 +62,7 @@ and print_node = (buffer: Buffer.t, node: Node.t): unit => {
   print_payload_contents(buffer, node.payload);
 };
 
-type big_string =
+type bigstring =
   Bigarray.Array1.t(char, Bigarray.int8_unsigned_elt, Bigarray.c_layout);
 
 /**
@@ -57,74 +72,95 @@ type big_string =
   [create_memory()]
  */
 type nbt_printer_memory = {
-  input_buffer: Buffer.t,
-  zlib_gzip: Zlib.t(Zlib.deflate),
-  zlib_deflate: Zlib.t(Zlib.deflate),
+  buffer: Buffer.t,
+  window: De.window,
+  queue: De.Queue.t,
+  input_bs: bigstring,
+  output_bs: bigstring,
 };
 
+let buffer_size = 128 * 1024;
 let create_memory = () => {
-  input_buffer: Buffer.create(16),
-  zlib_gzip: Zlib.create_deflate(~window_bits=15 + 16, ()),
-  /* TODO maybe consider switching strategy to RLE */
-  zlib_deflate: Zlib.create_deflate(~window_bits=15, ~strategy=Zlib.RLE, ()),
+  /* TODO tune initial sizes of buffer, queue, bigstrings */
+  buffer: Buffer.create(buffer_size),
+  window: De.make_window(~bits=15),
+  queue: De.Queue.create(4096),
+  input_bs: De.bigstring_create(buffer_size),
+  output_bs: De.bigstring_create(buffer_size),
 };
 
 /**
   print_nbt prints a full NBT file, Gzips it, and returns the bytes
 
+  The returned buffer is `memory.buffer`, so be sure to copy out the contents
+  before calling print_nbt again with the same memory.
+
   If gzip is false, the output is deflated rather than gzip'd
  */
-let print_nbt =
-    (~memory=create_memory(), ~gzip=true, node: Node.t): big_string => {
-  let {input_buffer, zlib_gzip, zlib_deflate} = memory;
+let print_nbt = (~memory=create_memory(), ~gzip=true, node: Node.t): Buffer.t => {
+  let {buffer, window, queue, input_bs, output_bs} = memory;
 
   /* Print uncompressed NBT to a buffer */
-  Buffer.clear(input_buffer);
-  print_node(input_buffer, node);
+  Buffer.clear(buffer);
+  print_node(buffer, node);
 
   /* Buffer -> Bigarray */
-  let input_length = Buffer.length(input_buffer);
-  let input = Bigarray.(Array1.create(Char, C_layout, input_length));
+  let input_length = Buffer.length(buffer);
+  Stats.record(`In_buffer, input_length);
   for (i in 0 to pred(input_length)) {
-    input.{i} = Buffer.nth(input_buffer, i);
+    input_bs.{i} = Buffer.nth(buffer, i);
   };
 
-  /*
-     Run Zlib. window_bits > 15 to ask it to produce Gzip headers, negative
-     window_bits to ask it to do a raw deflate
-   */
-  let zlib = if (gzip) {zlib_gzip} else {zlib_deflate};
-  Zlib.reset(zlib);
-  /*
-    Zlib.reset seems broken/misdocumented, we have to manually reset the
-    mutable fields. These match the initial state
-   */
-  zlib.in_ofs = 0;
-  zlib.out_ofs = 0;
-  zlib.in_len = (-1);
-  zlib.out_len = (-1);
-  zlib.in_total = 0;
-  zlib.out_total = 0;
-  zlib.data_type = 2;
-  zlib.cksum = 0l;
-  /* Add 1KB breathing room for Gzip header--should be more than enough */
-  let output_upper_bound =
-    Zlib.deflate_bound(zlib.state, input_length) + 1024;
-  zlib.in_buf = input;
-  zlib.out_buf = Bigarray.(Array1.create(Char, C_layout, output_upper_bound));
-  let status = Zlib.(flate(zlib, Finish));
-  assert(status == Zlib.Stream_end);
+  /* Clear the buffer to prepare for output */
+  Buffer.clear(buffer);
 
-  /* Trim output */
-  Bigarray.Array1.sub(zlib.out_buf, 0, zlib.out_total);
+  /* Run Decompress */
+  let consumed_i = ref(false);
+  let refill = _i =>
+    if (! consumed_i^) {
+      consumed_i := true;
+      input_length;
+    } else {
+      0;
+    };
+  let flush = (o, out_length) => {
+    for (i in 0 to pred(out_length)) {
+      Buffer.add_char(buffer, o.{i});
+    };
+  };
+  if (gzip) {
+    let config = Gz.Higher.configuration(Gz.Unix, () => 1l);
+    Gz.Higher.compress(
+      ~level=0,
+      ~w=window,
+      ~q=queue,
+      ~i=input_bs,
+      ~o=output_bs,
+      ~refill,
+      ~flush,
+      (),
+      config,
+    );
+  } else {
+    Zl.Higher.compress(
+      ~level=0,
+      ~w=window,
+      ~q=queue,
+      ~i=input_bs,
+      ~o=output_bs,
+      ~refill,
+      ~flush,
+    );
+  };
+
+  Stats.record(`Out_buffer, Buffer.length(buffer));
+  buffer;
 };
 
 /** print_nbt_f runs print_nbt and outputs the result */
-let print_nbt_f = (~gzip=?, f: out_channel, node: Node.t): unit => {
-  let bigstr = print_nbt(~gzip?, node);
-  for (i in 0 to pred(Bigarray.Array1.dim(bigstr))) {
-    output_char(f, bigstr.{i});
-  };
+let print_nbt_f = (~memory=?, ~gzip=?, f: out_channel, node: Node.t): unit => {
+  let buffer = print_nbt(~memory?, ~gzip?, node);
+  Buffer.output_buffer(f, buffer);
 };
 
 /** test prints every possible tag type to make sure it works */

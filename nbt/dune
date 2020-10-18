@@ -1,6 +1,6 @@
 (library
     (name Nbt)
     (inline_tests)
-    (libraries zlib)
+    (libraries checkseum.c decompress.zl decompress.gz Stats)
     (preprocess (pps ppx_inline_test ppx_expect))
 )
