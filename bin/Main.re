@@ -1,6 +1,7 @@
 open Worldgen;
 
 Printexc.record_backtrace(true);
+Stats.init();
 
 let side = 4096;
 
@@ -32,3 +33,5 @@ Progress_view.init();
 let apply_overlays = Overlay.prepare(135, overlays);
 
 Minecraft_converter.save(~side, ~apply_overlays);
+
+Stats.finalize();

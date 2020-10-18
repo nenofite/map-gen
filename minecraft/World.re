@@ -344,6 +344,7 @@ let make_region = (~rx: int, ~rz: int, builder: builder, fn) => {
   let elapsed_time =
     Int64.sub(Mg_util.time_ms(), start_time) |> Int64.to_float;
   Printf.printf("Finished (%d, %d) in %fs\n", rx, rz, elapsed_time /. 1000.);
+  Stats.recordf(`Region_time, elapsed_time);
 
   result;
 };

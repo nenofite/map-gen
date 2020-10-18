@@ -79,7 +79,7 @@ type nbt_printer_memory = {
   output_bs: bigstring,
 };
 
-let buffer_size = 256 * 1024;
+let buffer_size = 128 * 1024;
 let create_memory = () => {
   /* TODO tune initial sizes of buffer, queue, bigstrings */
   buffer: Buffer.create(buffer_size),
@@ -106,6 +106,7 @@ let print_nbt = (~memory=create_memory(), ~gzip=true, node: Node.t): Buffer.t =>
 
   /* Buffer -> Bigarray */
   let input_length = Buffer.length(buffer);
+  Stats.record(`In_buffer, input_length);
   for (i in 0 to pred(input_length)) {
     input_bs.{i} = Buffer.nth(buffer, i);
   };
@@ -152,6 +153,7 @@ let print_nbt = (~memory=create_memory(), ~gzip=true, node: Node.t): Buffer.t =>
     );
   };
 
+  Stats.record(`Out_buffer, Buffer.length(buffer));
   buffer;
 };
 
