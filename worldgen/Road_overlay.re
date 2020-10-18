@@ -236,7 +236,7 @@ let place_step_block = (region, x, y, z) => {
     ~x,
     ~y,
     ~z,
-    Minecraft.Block.Double_stone_slab,
+    Minecraft.Block.(Smooth_stone_slab(Double)),
     region,
   );
   fill_beneath_road(region, x, y - 1, z);

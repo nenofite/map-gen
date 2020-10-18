@@ -59,16 +59,22 @@ let exists_block_in_section = (~cx, ~sy, ~cz, r, fn) => {
   });
 };
 
-let map_blocks_in_section = (~cx, ~sy, ~cz, r, fn) => {
+let fold_blocks_in_section = (~cx, ~sy, ~cz, acc, r, fn) => {
   open Mg_util;
   let y_off = Region.section_offset(~sy, r);
   let (x_off, z_off) = Region.chunk_offset(~cx, ~cz, r);
-  Range.fold(0, pred(Region.block_per_section_vertical), [], (ls, y) => {
-    Range.fold(0, pred(Region.block_per_chunk_side), ls, (ls, z) => {
-      Range.fold(0, pred(Region.block_per_chunk_side), ls, (ls, x) => {
-        [fn(~x=x + x_off, ~y=y + y_off, ~z=z + z_off), ...ls]
+  Range.fold(0, pred(Region.block_per_section_vertical), acc, (acc, y) => {
+    Range.fold(0, pred(Region.block_per_chunk_side), acc, (acc, z) => {
+      Range.fold(0, pred(Region.block_per_chunk_side), acc, (acc, x) => {
+        fn(~x=x + x_off, ~y=y + y_off, ~z=z + z_off, acc)
       })
     })
+  });
+};
+
+let map_blocks_in_section = (~cx, ~sy, ~cz, r, fn) => {
+  fold_blocks_in_section(~cx, ~sy, ~cz, [], r, (~x, ~y, ~z, ls) => {
+    [fn(~x, ~y, ~z), ...ls]
   })
   |> List.rev;
 };
@@ -81,22 +87,44 @@ let exists_block_in_chunk = (~cx, ~cz, r, fn) => {
   );
 };
 
+let construct_lookup_for_section = (~cx, ~sy, ~cz, r) => {
+  fold_blocks_in_section(
+    ~cx, ~sy, ~cz, Block_palette.empty_lookup, r, (~x, ~y, ~z, lookup) => {
+    Block_palette.construct_lookup(Region.get_block(~x, ~y, ~z, r), lookup)
+  });
+};
+
+let pack_block_states_for_section = (~cx, ~sy, ~cz, lookup, r) => {
+  Block_palette.packer_of_lookup(lookup)
+  |> fold_blocks_in_section(~cx, ~sy, ~cz, _, r, (~x, ~y, ~z, packer) => {
+       Block_palette.pack_block(Region.get_block(~x, ~y, ~z, r), packer)
+     })
+  |> Block_palette.block_states;
+};
+
 let section_nbt = (~cx, ~sy, ~cz, r) => {
-  let block_ids =
-    map_blocks_in_section(~cx, ~sy, ~cz, r, (~x, ~y, ~z) =>
-      Block.id(Region.get_block(~x, ~y, ~z, r))
+  let lookup = construct_lookup_for_section(~cx, ~sy, ~cz, r);
+  Stats.record(`Palette_size, List.length(lookup));
+  let block_states = pack_block_states_for_section(~cx, ~sy, ~cz, lookup, r);
+
+  let palette_nbt =
+    List.map(
+      block =>
+        Nbt.Node.(
+          Compound([
+            "Name" >: String(Block.namespace(block)),
+            "Properties" >: Block.data(block),
+          ])
+        ),
+      Block_palette.palette(lookup),
     );
-  let block_data =
-    map_blocks_in_section(~cx, ~sy, ~cz, r, (~x, ~y, ~z) =>
-      Block.data(Region.get_block(~x, ~y, ~z, r))
-    )
-    |> Nbt.Node.make_nibble_list;
+
   Nbt.Node.(
     ""
     >: Compound([
-         "Blocks" >: Byte_array(block_ids),
-         "Data" >: Byte_array(block_data),
          "Y" >: Byte(sy),
+         "Palette" >: List(palette_nbt),
+         "BlockStates" >: Long_array(block_states),
          /*
            Luckily we don't need to calculate and include light levels.
            Minecraft will do it for us when fixing the chunk

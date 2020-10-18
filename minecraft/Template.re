@@ -142,7 +142,7 @@ let%expect_test "calc_footprint" = {
       (0, 0, 0, Cobblestone),
       (0, 1, 0, Cobblestone),
       (1, 1, 0, Air),
-      (1, 1, 1, Log),
+      (1, 1, 1, Oak_log),
     ];
   calc_footprint(blocks)
   |> List.iter(((x, z)) => Printf.printf("%d, %d\n", x, z), _);

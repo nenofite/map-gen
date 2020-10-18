@@ -210,7 +210,7 @@ let create_house =
     (house: Town_prototype.block, args: Minecraft_converter.region_args) => {
   open Minecraft.Region;
   let floor_material = Minecraft.Block.Stone;
-  let wall_material = Minecraft.Block.Planks;
+  let wall_material = Minecraft.Block.Oak_planks;
   let ceiling_material = Minecraft.Block.Stone;
 
   let Town_prototype.{min_x, max_x, min_z, max_z, elevation: _, _} = house;

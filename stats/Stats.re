@@ -1,4 +1,4 @@
-type stat = [ | `In_buffer | `Out_buffer | `Region_time];
+type stat = [ | `In_buffer | `Out_buffer | `Region_time | `Palette_size];
 
 let file: ref(option(out_channel)) = ref(None);
 
@@ -28,7 +28,8 @@ let name: stat => string =
   fun
   | `In_buffer => "in buffer (B)"
   | `Out_buffer => "out buffer (B)"
-  | `Region_time => "region elapsed time (s)";
+  | `Region_time => "region elapsed time (s)"
+  | `Palette_size => "palette size";
 
 let record = (stat: stat, value: int): unit => {
   switch (file^) {

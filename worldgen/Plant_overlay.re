@@ -20,7 +20,7 @@ let apply_trees =
           let y = Minecraft.Region.height_at(region, ~x, ~z);
           let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
           switch (block) {
-          | Grass =>
+          | Grass_block =>
             Minecraft.Template.place(
               Minecraft.Template_data.tree(),
               region,
@@ -51,8 +51,8 @@ let apply_ground_cover =
       let biome = Grid.at(biomes, x, z);
       switch (biome, top) {
       | (Mid(Plain | Forest) | High(Pine_forest), Dirt) =>
-        set_block(~x, ~y, ~z, Grass, region)
-      | (High(Snow), _) => set_block(~x, ~y=y + 1, ~z, Snow_layer, region)
+        set_block(~x, ~y, ~z, Grass_block, region)
+      | (High(Snow), _) => set_block(~x, ~y=y + 1, ~z, Snow, region)
       | (_, _) => ()
       };
     },
@@ -77,12 +77,12 @@ let apply_tallgrass =
           let y = Minecraft.Region.height_at(region, ~x, ~z);
           let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
           switch (block) {
-          | Grass =>
+          | Grass_block =>
             Minecraft.Region.set_block(
               ~x,
               ~y=y + 1,
               ~z,
-              Minecraft.Block.Tallgrass,
+              Minecraft.Block.Grass,
               region,
             )
           | _ => ()
