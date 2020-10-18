@@ -39,6 +39,8 @@ let packer_of_lookup = (lookup: lookup) => {
   };
 };
 
+let palette = (lookup: lookup) => List.map(((block, _i)) => block, lookup);
+
 let block_states = (packer: packer) => List.rev(packer.block_states);
 
 let pack_block = (block: Block.material, packer: packer) => {
