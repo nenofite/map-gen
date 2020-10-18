@@ -14,8 +14,7 @@ type torch_dir =
   | E
   | W
   | S
-  | N
-  | Up;
+  | N;
 
 type bed_dir =
   | S
@@ -26,6 +25,11 @@ type bed_dir =
 type bed_part =
   | Foot
   | Head;
+
+type slab_type =
+  | Bottom
+  | Top
+  | Double;
 
 /* Materials list taken from https://minecraft.gamepedia.com/Java_Edition_data_value */
 type material =
@@ -173,7 +177,7 @@ type material =
   | Coarse_dirt
   | Cobblestone
   | Cobblestone_slab
-  | Cobblestone_stairs
+  | Cobblestone_stairs(stair_dir)
   | Cobblestone_wall
   | Cobweb
   | Cocoa
@@ -666,7 +670,7 @@ type material =
   | Smooth_sandstone_slab
   | Smooth_sandstone_stairs
   | Smooth_stone
-  | Smooth_stone_slab
+  | Smooth_stone_slab(slab_type)
   | Snow_block
   | Snow
   | Soul_campfire
@@ -730,7 +734,7 @@ type material =
   | Target
   | Terracotta
   | Tnt
-  | Torch(torch_dir)
+  | Torch
   | Trapped_chest
   | Tripwire_hook
   | Tripwire
@@ -743,7 +747,7 @@ type material =
   | Twisting_vines_plant
   | Vine
   | Void_air
-  | Wall_torch
+  | Wall_torch(torch_dir)
   | Warped_button
   | Warped_door
   | Warped_fence_gate
@@ -963,7 +967,7 @@ let namespace =
   | Coarse_dirt => "minecraft:coarse_dirt"
   | Cobblestone => "minecraft:cobblestone"
   | Cobblestone_slab => "minecraft:cobblestone_slab"
-  | Cobblestone_stairs => "minecraft:cobblestone_stairs"
+  | Cobblestone_stairs(_) => "minecraft:cobblestone_stairs"
   | Cobblestone_wall => "minecraft:cobblestone_wall"
   | Cobweb => "minecraft:cobweb"
   | Cocoa => "minecraft:cocoa"
@@ -1456,7 +1460,7 @@ let namespace =
   | Smooth_sandstone_slab => "minecraft:smooth_sandstone_slab"
   | Smooth_sandstone_stairs => "minecraft:smooth_sandstone_stairs"
   | Smooth_stone => "minecraft:smooth_stone"
-  | Smooth_stone_slab => "minecraft:smooth_stone_slab"
+  | Smooth_stone_slab(_) => "minecraft:smooth_stone_slab"
   | Snow_block => "minecraft:snow_block"
   | Snow => "minecraft:snow"
   | Soul_campfire => "minecraft:soul_campfire"
@@ -1520,7 +1524,7 @@ let namespace =
   | Target => "minecraft:target"
   | Terracotta => "minecraft:terracotta"
   | Tnt => "minecraft:tnt"
-  | Torch(_) => "minecraft:torch"
+  | Torch => "minecraft:torch"
   | Trapped_chest => "minecraft:trapped_chest"
   | Tripwire_hook => "minecraft:tripwire_hook"
   | Tripwire => "minecraft:tripwire"
@@ -1533,7 +1537,7 @@ let namespace =
   | Twisting_vines_plant => "minecraft:twisting_vines_plant"
   | Vine => "minecraft:vine"
   | Void_air => "minecraft:void_air"
-  | Wall_torch => "minecraft:wall_torch"
+  | Wall_torch(_) => "minecraft:wall_torch"
   | Warped_button => "minecraft:warped_button"
   | Warped_door => "minecraft:warped_door"
   | Warped_fence_gate => "minecraft:warped_fence_gate"
@@ -1592,6 +1596,19 @@ let data = block => {
   let properties =
     switch (block) {
     | Flowing_water(level) => ["level" >: String(string_of_int(level))]
+    | Smooth_stone_slab(t) => [
+        "type"
+        >: String(
+             switch (t) {
+             | Bottom => "bottom"
+             | Top => "top"
+             | Double => "double"
+             },
+           ),
+        "waterlogged" >: String("false"),
+      ]
+    | Snow => ["layers" >: String("1")]
+    | Cobblestone_stairs(dir)
     | Stone_stairs(dir) => [
         "facing"
         >: String(
@@ -1622,12 +1639,10 @@ let data = block => {
         "shape" >: String("straight"),
         "waterlogged" >: String("false"),
       ]
-    | Torch(dir) => [
+    | Wall_torch(dir) => [
         "facing"
         >: String(
              switch (dir) {
-             /* TODO different namespace? */
-             | Up => "top"
              | N => "north"
              | E => "east"
              | S => "south"

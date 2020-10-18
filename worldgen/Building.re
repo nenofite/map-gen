@@ -281,7 +281,7 @@ let stair_foundation = (args, ~minx, ~maxx, ~y, ~minz, ~maxz): unit => {
       ~x,
       ~y,
       ~z=minz - 1,
-      Minecraft.Block.Stone_stairs(S),
+      Minecraft.Block.Cobblestone_stairs(S),
       ~dx=0,
       ~dz=-1,
     );
@@ -291,7 +291,7 @@ let stair_foundation = (args, ~minx, ~maxx, ~y, ~minz, ~maxz): unit => {
       ~x,
       ~y,
       ~z=maxz + 1,
-      Minecraft.Block.Stone_stairs(N),
+      Minecraft.Block.Cobblestone_stairs(N),
       ~dx=0,
       ~dz=1,
     );
@@ -303,7 +303,7 @@ let stair_foundation = (args, ~minx, ~maxx, ~y, ~minz, ~maxz): unit => {
       ~x=maxx + 1,
       ~y,
       ~z,
-      Minecraft.Block.Stone_stairs(W),
+      Minecraft.Block.Cobblestone_stairs(W),
       ~dx=1,
       ~dz=0,
     );
@@ -313,7 +313,7 @@ let stair_foundation = (args, ~minx, ~maxx, ~y, ~minz, ~maxz): unit => {
       ~x=minx - 1,
       ~y,
       ~z,
-      Minecraft.Block.Stone_stairs(E),
+      Minecraft.Block.Cobblestone_stairs(E),
       ~dx=-1,
       ~dz=0,
     );

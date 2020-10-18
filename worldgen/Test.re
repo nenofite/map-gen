@@ -22,7 +22,7 @@ let test_stairs = region => {
 
 let test = () => {
   Minecraft.(
-    World.make("hopefully", ~generator=Generator.Flat, builder => {
+    World.make("heightmap", ~generator=Generator.Flat, builder => {
       World.make_region(
         ~rx=0,
         ~rz=0,
@@ -31,10 +31,13 @@ let test = () => {
           open Region;
           for (x in 0 to pred(block_per_chunk_side * 4)) {
             for (z in 0 to pred(block_per_chunk_side * 4)) {
-              for (y in 1 to Random.int(6)) {
-                set_block(~x, ~y, ~z, Block.Grass, r);
+              let height = Random.int(6);
+              set_block(~x, ~y=0, ~z, Block.Bedrock, r);
+              for (y in 1 to height - 1) {
+                set_block(~x, ~y, ~z, Block.Dirt, r);
               };
-              set_block(~x, ~y=0, ~z, Block.Grass, r);
+              set_block(~x, ~y=height, ~z, Block.Grass_block, r);
+              set_block(~x, ~y=height + 1, ~z, Block.Torch, r);
             };
           };
           test_stairs(r);

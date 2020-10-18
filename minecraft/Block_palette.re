@@ -7,10 +7,8 @@ type lookup = list((Block.material, int));
 
 type packer = {
   lookup,
-  block_states: list(int64),
-  block_states_len: int,
+  block_states: Long_packer.t,
   bits_per_block: int,
-  blocks_per_long: int,
 };
 
 /** fewest bits to use per block index. This is determined by Minecraft, not us */
@@ -31,50 +29,25 @@ let index_of_material = (block: Block.material, lookup: lookup) =>
 
 let packer_of_lookup = (lookup: lookup) => {
   let bits_per_block =
-    Mg_util.Floats.(~~ceil(log(~.List.length(lookup)) /. log(2.)))
-    |> max(min_bits_per_block);
-  let blocks_per_long = 64 / bits_per_block;
-  {
-    lookup,
-    block_states: [],
-    block_states_len: 0,
-    bits_per_block,
-    blocks_per_long,
-  };
+    Base.Int.ceil_log2(List.length(lookup)) |> max(min_bits_per_block);
+  {lookup, block_states: Long_packer.empty, bits_per_block};
 };
 
 let palette = (lookup: lookup) =>
   List.rev_map(((block, _i)) => block, lookup);
 
-let block_states = (packer: packer) => List.rev(packer.block_states);
+let block_states = (packer: packer) =>
+  Long_packer.packed_longs(packer.block_states);
 
 let pack_block = (block: Block.material, packer: packer) => {
-  let (block_states, long) =
-    switch (packer.block_states) {
-    | block_states when packer.block_states_len mod packer.blocks_per_long == 0 => (
-        block_states,
-        0L,
-      )
-    | [long, ...block_states] => (block_states, long)
-    | [] =>
-      raise(
-        Invalid_argument(
-          "packer block_states_len does not match block_states list",
-        ),
-      )
-    };
-  let bits_before =
-    packer.block_states_len mod packer.blocks_per_long * packer.bits_per_block;
-  let block_bits =
-    Int64.(
-      shift_left(
-        of_int(index_of_material(block, packer.lookup)),
-        bits_before,
-      )
+  let block_value = index_of_material(block, packer.lookup);
+  let block_states =
+    Long_packer.add_bits(
+      Int64.of_int(block_value),
+      ~bits=packer.bits_per_block,
+      packer.block_states,
     );
-
-  let block_states = [Int64.logor(long, block_bits), ...block_states];
-  {...packer, block_states, block_states_len: packer.block_states_len + 1};
+  {...packer, block_states};
 };
 
 let utop_test_a = () => {

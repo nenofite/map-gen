@@ -81,7 +81,6 @@ type nbt_printer_memory = {
 
 let buffer_size = 128 * 1024;
 let create_memory = () => {
-  /* TODO tune initial sizes of buffer, queue, bigstrings */
   buffer: Buffer.create(buffer_size),
   window: De.make_window(~bits=15),
   queue: De.Queue.create(4096),

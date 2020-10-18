@@ -12,6 +12,7 @@ depends: [
     "reason"
     "dune" {>= "2.6.0"}
     "ANSITerminal"
+    "base"
     "bitstring"
     "camlimages"
     "graphics"

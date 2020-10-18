@@ -177,7 +177,7 @@ let apply_region = (_base, state, args: Minecraft_converter.region_args) => {
               for (y in min_elev to max_elev) {
                 switch (get_block(~x, ~y, ~z, region)) {
                 | Dirt
-                | Grass
+                | Grass_block
                 | Glass /* TODO */
                 | Stone => set_block(~x, ~y, ~z, ore, region)
                 | _ => ()

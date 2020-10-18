@@ -15,11 +15,11 @@ let default_palette: palette =
     ("<", Some(Stone_stairs(E))),
     ("^", Some(Stone_stairs(S))),
     (">", Some(Stone_stairs(W))),
-    ("s", Some(Torch(N))),
-    ("w", Some(Torch(E))),
-    ("n", Some(Torch(S))),
-    ("e", Some(Torch(W))),
-    ("i", Some(Torch(Up))),
+    ("s", Some(Wall_torch(N))),
+    ("w", Some(Wall_torch(E))),
+    ("n", Some(Wall_torch(S))),
+    ("e", Some(Wall_torch(W))),
+    ("i", Some(Torch)),
   ];
 
 let parse_line = (~palette, ~y, ~z, blocks, line) => {

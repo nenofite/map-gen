@@ -26,7 +26,7 @@ let random_ore = () => Minecraft.Block.Iron_ore; /* TODO other ores */
 /** can_place_ore determines whether ore can be inserted into the given material */
 let can_place_ore = (block: Minecraft.Block.material) =>
   switch (block) {
-  | Grass
+  | Grass_block
   | Dirt
   | Stone => true
   | _ => false
