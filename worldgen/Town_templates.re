@@ -1,10 +1,14 @@
 let bedroom_1 =
   Template_txt.parse_template(
     ~palette=
-      Minecraft.Block.[
-        ("B", Some(Bed(N, Head))),
-        ("b", Some(Bed(N, Foot))),
-      ],
+      Minecraft.Block.
+        [
+          /* TODO beds */
+          ("B", Some(Stone)),
+          ("b", Some(Stone)),
+        ],
+        /* ("B", Some(Bed(N, Head))),
+           ("b", Some(Bed(N, Foot))), */
     {|
 X X X X X X X
 X - - - - - X

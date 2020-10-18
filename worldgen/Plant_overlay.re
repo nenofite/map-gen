@@ -52,7 +52,8 @@ let apply_ground_cover =
       switch (biome, top) {
       | (Mid(Plain | Forest) | High(Pine_forest), Dirt) =>
         set_block(~x, ~y, ~z, Grass, region)
-      | (High(Snow), _) => set_block(~x, ~y=y + 1, ~z, Snow_layer, region)
+      /* TODO snow layers */
+      | (High(Snow), _) => set_block(~x, ~y=y + 1, ~z, Snow, region)
       | (_, _) => ()
       };
     },
@@ -82,7 +83,7 @@ let apply_tallgrass =
               ~x,
               ~y=y + 1,
               ~z,
-              Minecraft.Block.Tallgrass,
+              Minecraft.Block.Tall_grass,
               region,
             )
           | _ => ()
