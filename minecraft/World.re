@@ -104,6 +104,7 @@ let pack_block_states_for_section = (~cx, ~sy, ~cz, lookup, r) => {
 
 let section_nbt = (~cx, ~sy, ~cz, r) => {
   let lookup = construct_lookup_for_section(~cx, ~sy, ~cz, r);
+  Stats.record(`Palette_size, List.length(lookup));
   let block_states = pack_block_states_for_section(~cx, ~sy, ~cz, lookup, r);
 
   let palette_nbt =
