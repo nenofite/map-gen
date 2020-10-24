@@ -170,7 +170,11 @@ let prepare_town = (base: Base_overlay.t, x, z) => {
     max_z: b.max_z + z,
   };
   let bell = translate_block(bell);
-  let houses = List.map(translate_block, houses);
+  let houses =
+    List.map(
+      h => Town_prototype.{...h, block: translate_block(h.block)},
+      houses,
+    );
   let farms = List.map(translate_block, farms);
 
   {
@@ -232,25 +236,38 @@ let create_bell =
   );
 };
 
+let worksite_material = (worksite: Town_prototype.worksite) => {
+  Minecraft.Block.(
+    switch (worksite) {
+    | Butcher => Smoker
+    | Fisherman => Barrel
+    | Shepherd => Loom
+    }
+  );
+};
+
 let create_house =
-    (house: Town_prototype.block, args: Minecraft_converter.region_args) => {
+    (house: Town_prototype.house, args: Minecraft_converter.region_args) => {
   open Minecraft.Region;
   let floor_material = Minecraft.Block.Stone;
   let wall_material = Minecraft.Block.Oak_planks;
   let ceiling_material = Minecraft.Block.Stone;
 
-  let Town_prototype.{min_x, max_x, min_z, max_z, elevation: _, _} = house;
+  let Town_prototype.{
+        block: {min_x, max_x, min_z, max_z, elevation, _},
+        worksite,
+      } = house;
 
   /* Foundation */
   for (x in min_x to max_x) {
     for (z in min_z to max_z) {
-      Building.raise_lower_elev_match(args, x, z, house.elevation);
-      set_block(~x, ~y=house.elevation, ~z, floor_material, args.region);
+      Building.raise_lower_elev_match(args, x, z, elevation);
+      set_block(~x, ~y=elevation, ~z, floor_material, args.region);
     };
   };
 
   /* Walls */
-  for (y in house.elevation + 1 to house.elevation + wall_height) {
+  for (y in elevation + 1 to elevation + wall_height) {
     for (x in min_x to max_x) {
       set_block(~x, ~y, ~z=min_z, wall_material, args.region);
       set_block(~x, ~y, ~z=max_z, wall_material, args.region);
@@ -266,7 +283,7 @@ let create_house =
   set_block(
     Minecraft.Block.(Wall_torch(S)),
     ~x=(min_x + max_x) / 2,
-    ~y=house.elevation + 2,
+    ~y=elevation + 2,
     ~z=min_z + 1,
     args.region,
   );
@@ -274,7 +291,7 @@ let create_house =
   set_block(
     Minecraft.Block.(Wall_torch(W)),
     ~x=max_x - 1,
-    ~y=house.elevation + 2,
+    ~y=elevation + 2,
     ~z=(min_z + max_z) / 2,
     args.region,
   );
@@ -282,7 +299,7 @@ let create_house =
   set_block(
     Minecraft.Block.(Wall_torch(N)),
     ~x=(min_x + max_x) / 2,
-    ~y=house.elevation + 2,
+    ~y=elevation + 2,
     ~z=max_z - 1,
     args.region,
   );
@@ -290,7 +307,7 @@ let create_house =
   set_block(
     Minecraft.Block.(Wall_torch(E)),
     ~x=min_x + 1,
-    ~y=house.elevation + 2,
+    ~y=elevation + 2,
     ~z=(min_z + max_z) / 2,
     args.region,
   );
@@ -300,7 +317,7 @@ let create_house =
     for (z in min_z to max_z) {
       set_block(
         ~x,
-        ~y=house.elevation + wall_height + 1,
+        ~y=elevation + wall_height + 1,
         ~z,
         ceiling_material,
         args.region,
@@ -311,7 +328,7 @@ let create_house =
   /* Door on N wall */
   let door_x = min_x + 1;
   let door_z = min_z;
-  let door_y = house.elevation + 1;
+  let door_y = elevation + 1;
   set_block(
     Minecraft.Block.(Oak_door(S, Lower)),
     ~x=door_x,
@@ -326,13 +343,13 @@ let create_house =
     ~z=door_z,
     args.region,
   );
-  Building.raise_lower_elev_match(args, door_x, door_z - 1, house.elevation);
+  Building.raise_lower_elev_match(args, door_x, door_z - 1, elevation);
 
   /* Torch on outside wall next to door */
   set_block(
     Minecraft.Block.(Wall_torch(N)),
     ~x=min_x,
-    ~y=house.elevation + 2,
+    ~y=elevation + 2,
     ~z=min_z - 1,
     args.region,
   );
@@ -340,7 +357,7 @@ let create_house =
   /* Bed in NE corner */
   let bed_x = max_x - 1;
   let bed_z = min_z + 1;
-  let bed_y = house.elevation + 1;
+  let bed_y = elevation + 1;
   set_block(
     Minecraft.Block.(Orange_bed(E, Head)),
     ~x=bed_x,
@@ -353,6 +370,15 @@ let create_house =
     ~x=bed_x - 1,
     ~y=bed_y,
     ~z=bed_z,
+    args.region,
+  );
+
+  /* Worksite in SE corner */
+  set_block(
+    worksite_material(worksite),
+    ~x=max_x - 1,
+    ~y=elevation + 1,
+    ~z=max_z - 1,
     args.region,
   );
 

@@ -18,10 +18,20 @@ type block_no_elevation = {
   max_z: int,
 };
 
+type worksite =
+  | Butcher
+  | Fisherman
+  | Shepherd;
+
+type house = {
+  block,
+  worksite,
+};
+
 type output = {
   bell: block,
   farms: list(block),
-  houses: list(block),
+  houses: list(house),
 };
 
 let side = 128;
@@ -122,10 +132,19 @@ let draw = (input: input, output: output, file) => {
   });
 
   draw_blocks({r: 0, g: 255, b: 0}, output.farms);
-  draw_blocks({r: 0, g: 0, b: 255}, output.houses);
+  draw_blocks({r: 0, g: 0, b: 255}, output.houses |> List.map(h => h.block));
 
   img#save(file, Some(Png), []);
   ();
+};
+
+let random_worksite = () => {
+  switch (Random.int(3)) {
+  | 0 => Butcher
+  | 1 => Fisherman
+  | 2
+  | _ => Shepherd
+  };
 };
 
 let block_area = block => {
@@ -389,6 +408,10 @@ let run = (input: input): output => {
   let bell = flatten_block(input, bell);
   let houses = flatten_blocks(input, houses);
   let farms = flatten_blocks(input, farms);
+
+  /* Assign jobs */
+  let houses =
+    List.map(block => {block, worksite: random_worksite()}, houses);
 
   {bell, farms, houses};
 };
