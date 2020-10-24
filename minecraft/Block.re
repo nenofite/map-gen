@@ -703,7 +703,7 @@ type material =
   | Sticky_piston
   | Stone
   | Stone_brick_slab
-  | Stone_brick_stairs
+  | Stone_brick_stairs(stair_dir)
   | Stone_brick_wall
   | Stone_bricks
   | Stone_button
@@ -1493,7 +1493,7 @@ let namespace =
   | Sticky_piston => "minecraft:sticky_piston"
   | Stone => "minecraft:stone"
   | Stone_brick_slab => "minecraft:stone_brick_slab"
-  | Stone_brick_stairs => "minecraft:stone_brick_stairs"
+  | Stone_brick_stairs(_) => "minecraft:stone_brick_stairs"
   | Stone_brick_wall => "minecraft:stone_brick_wall"
   | Stone_bricks => "minecraft:stone_bricks"
   | Stone_button => "minecraft:stone_button"
@@ -1647,6 +1647,7 @@ let data = block => {
       ]
     | Snow => ["layers" >: String("1")]
     | Cobblestone_stairs(dir)
+    | Stone_brick_stairs(dir)
     | Stone_stairs(dir) => [
         "facing"
         >: String(
