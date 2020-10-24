@@ -171,12 +171,16 @@ let chunk_heightmap = (~cx, ~cz, r) => {
 };
 
 let entities_in_chunk = (~cx, ~cz, r) => {
+  let (x_off, z_off) = Region.chunk_offset(~cx, ~cz, r);
   List.filter(
     (ent: Entity.t) => {
       open Floats;
-      let ent_cx = ~~ent.x / Region.block_per_chunk_side;
-      let ent_cz = ~~ent.z / Region.block_per_chunk_side;
-      cx == ent_cx && cz == ent_cz;
+      let bx = ~~ent.x - x_off;
+      let bz = ~~ent.z - z_off;
+      0 <= bx
+      && bx < Region.block_per_chunk_side
+      && 0 <= bz
+      && bz < Region.block_per_chunk_side;
     },
     Region.all_entities(r),
   );
