@@ -114,3 +114,11 @@ module Range = {
       acc;
     };
 };
+
+/** is the same as Random.int, but handles zero nicely */
+let random = var =>
+  if (var > 0) {
+    Random.int(var);
+  } else {
+    0;
+  };

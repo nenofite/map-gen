@@ -19,6 +19,7 @@ type block_no_elevation = {
 };
 
 type output = {
+  bell: block,
   farms: list(block),
   houses: list(block),
 };
@@ -172,30 +173,30 @@ let rec random_grab = (amount, blocks, selected) =>
   };
 let random_grab = (amount, blocks) => random_grab(amount, blocks, []);
 
+let calc_average_elevation = (input: input, min_x, max_x, min_z, max_z) => {
+  let sum =
+    Range.fold(min_z, max_z, 0, (cur, z) =>
+      Range.fold(
+        min_x,
+        max_x,
+        cur,
+        (cur, x) => {
+          let here = Grid.at(input.elevation, x, z);
+          cur + here;
+        },
+      )
+    );
+  sum / ((max_z - min_z + 1) * (max_x - min_x + 1));
+};
+
+let flatten_block = (input: input, block) => {
+  let {min_x, max_x, min_z, max_z} = block;
+  let elevation = calc_average_elevation(input, min_x, max_x, min_z, max_z);
+  {min_x, max_x, min_z, max_z, elevation};
+};
+
 let flatten_blocks = (input: input, blocks) => {
-  let calc_average_elevation = (min_x, max_x, min_z, max_z) => {
-    let sum =
-      Range.fold(min_z, max_z, 0, (cur, z) =>
-        Range.fold(
-          min_x,
-          max_x,
-          cur,
-          (cur, x) => {
-            let here = Grid.at(input.elevation, x, z);
-            cur + here;
-          },
-        )
-      );
-    sum / ((max_z - min_z + 1) * (max_x - min_x + 1));
-  };
-
-  let flatten_block = block => {
-    let {min_x, max_x, min_z, max_z} = block;
-    let elevation = calc_average_elevation(min_x, max_x, min_z, max_z);
-    {min_x, max_x, min_z, max_z, elevation};
-  };
-
-  List.map(flatten_block, blocks);
+  List.map(flatten_block(input), blocks);
 };
 
 let sort_by_distance_to_center = (center, block_centers) => {
@@ -245,8 +246,8 @@ let check_block_obstacles = (obstacles, other_blocks, block) => {
 let make_block_from_center = ((x, z), side_x, side_z) => {
   let min_x = x - side_x / 2;
   let min_z = z - side_z / 2;
-  let max_x = min_x + side_x;
-  let max_z = min_z + side_z;
+  let max_x = min_x + side_x - 1;
+  let max_z = min_z + side_z - 1;
   {min_x, max_x, min_z, max_z};
 };
 
@@ -294,8 +295,8 @@ let rec make_blocks =
   if (amount <= 0) {
     (other_blocks, block_centers, new_blocks);
   } else {
-    let side_x = Random.int(max_side - min_side) + min_side;
-    let side_z = Random.int(max_side - min_side) + min_side;
+    let side_x = Mg_util.random(max_side - min_side) + min_side;
+    let side_z = Mg_util.random(max_side - min_side) + min_side;
     switch (
       place_block(obstacles, other_blocks, block_centers, side_x, side_z)
     ) {
@@ -348,8 +349,23 @@ let run = (input: input): output => {
     |> List.map(((x, z)) => Mg_util.Floats.(~~x, ~~z))
     /* Sort block centers by how close they are to the center plaza */
     |> sort_by_distance_to_center(town_center);
-  /* Grab houses first */
+  /* Grab town bell */
   let other_blocks = [];
+  let bell_side = 3;
+  let (other_blocks, centers, bells) =
+    make_blocks(input.roads, other_blocks, centers, bell_side, bell_side, 1);
+  let bell =
+    switch (bells) {
+    | [bell] => bell
+    | _ =>
+      failwith(
+        Printf.sprintf(
+          "Unexpected number of town bells: %d",
+          List.length(bells),
+        ),
+      )
+    };
+  /* Grab houses */
   let (other_blocks, centers, houses) =
     make_blocks(
       input.roads,
@@ -370,10 +386,11 @@ let run = (input: input): output => {
       num_farms,
     );
 
+  let bell = flatten_block(input, bell);
   let houses = flatten_blocks(input, houses);
   let farms = flatten_blocks(input, farms);
 
-  {farms, houses};
+  {bell, farms, houses};
 };
 
 let test = () => {

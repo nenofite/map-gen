@@ -158,7 +158,7 @@ let prepare_town = (base: Base_overlay.t, x, z) => {
   /* TODO do we actually need obstacles? */
   let roads = Sparse_grid.make(Town_prototype.side);
 
-  let Town_prototype.{houses, farms} =
+  let Town_prototype.{bell, houses, farms} =
     Town_prototype.run({elevation, roads});
 
   /* Translate blocks into global coords */
@@ -169,6 +169,7 @@ let prepare_town = (base: Base_overlay.t, x, z) => {
     min_z: b.min_z + z,
     max_z: b.max_z + z,
   };
+  let bell = translate_block(bell);
   let houses = List.map(translate_block, houses);
   let farms = List.map(translate_block, farms);
 
@@ -176,6 +177,7 @@ let prepare_town = (base: Base_overlay.t, x, z) => {
     x,
     z,
     town: {
+      bell,
       houses,
       farms,
     },
@@ -204,6 +206,30 @@ let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
     first_suitable_towns(base, obstacles, num_towns, river_coords, []);
   List.iter(((x, z)) => Printf.printf("town at %d, %d\n", x, z), towns);
   List.map(((x, z)) => prepare_town(base, x, z), towns);
+};
+
+let create_bell =
+    (bell: Town_prototype.block, args: Minecraft_converter.region_args) => {
+  open Minecraft.Region;
+  let base_material = Minecraft.Block.Stone;
+
+  let Town_prototype.{min_x, max_x, min_z, max_z, elevation: _, _} = bell;
+
+  /* Foundation */
+  for (x in min_x to max_x) {
+    for (z in min_z to max_z) {
+      Building.raise_lower_elev_match(args, x, z, bell.elevation);
+      set_block(~x, ~y=bell.elevation, ~z, base_material, args.region);
+    };
+  };
+
+  set_block(
+    Minecraft.Block.Bell,
+    ~x=(min_x + max_x) / 2,
+    ~y=bell.elevation + 1,
+    ~z=(min_z + max_z) / 2,
+    args.region,
+  );
 };
 
 let create_house =
@@ -346,8 +372,9 @@ let create_house =
 
 let apply_region = (towns: t, args: Minecraft_converter.region_args) => {
   List.iter(
-    ({x, z, town: {farms: _, houses}}) =>
+    ({x, z, town: {bell, farms: _, houses}}) =>
       if (Minecraft.Region.is_within(~x, ~y=0, ~z, args.region)) {
+        create_bell(bell, args);
         List.iter(house => create_house(house, args), houses);
       },
     towns,
