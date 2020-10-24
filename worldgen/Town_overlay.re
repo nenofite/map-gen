@@ -373,27 +373,31 @@ let create_house =
     args.region,
   );
 
-  /* Worksite in SE corner */
-  set_block(
-    worksite_material(worksite),
-    ~x=max_x - 1,
-    ~y=elevation + 1,
-    ~z=max_z - 1,
-    args.region,
-  );
-
-  /* Villager at foot of bed */
-  add_entity(
-    Mg_util.Floats.(
-      Minecraft.Entity.{
-        id: "villager",
-        x: ~.(bed_x - 2),
-        y: ~.bed_y,
-        z: ~.bed_z,
-      }
-    ),
-    args.region,
-  );
+  /* Only add worksite and villager when one is specified */
+  switch (worksite) {
+  | None => ()
+  | Some(worksite) =>
+    /* Worksite in SE corner */
+    set_block(
+      worksite_material(worksite),
+      ~x=max_x - 1,
+      ~y=elevation + 1,
+      ~z=max_z - 1,
+      args.region,
+    );
+    /* Villager at foot of bed */
+    add_entity(
+      Mg_util.Floats.(
+        Minecraft.Entity.{
+          id: "villager",
+          x: ~.(bed_x - 2),
+          y: ~.bed_y,
+          z: ~.bed_z,
+        }
+      ),
+      args.region,
+    );
+  };
 };
 
 let create_farm =
@@ -413,6 +417,19 @@ let create_farm =
 
   /* Composter on NE corner */
   set_block(Composter, ~x=max_x, ~y=elevation + 1, ~z=min_z, args.region);
+
+  /* Villager next to the composter */
+  add_entity(
+    Mg_util.Floats.(
+      Minecraft.Entity.{
+        id: "villager",
+        x: ~.(max_x - 1),
+        y: ~.(elevation + 3),
+        z: ~.min_z,
+      }
+    ),
+    args.region,
+  );
 
   /* Alternate water and crops */
   let crop = Wheat(Random.int(8));

@@ -28,6 +28,14 @@ let rec take = (amount, list) =>
   | [] => []
   };
 
+let rec take_both = (amount, list, result) =>
+  switch (list) {
+  | [a, ...b] when amount > 0 => take_both(amount - 1, b, [a, ...result])
+  | [_, ..._]
+  | [] => (List.rev(result), list)
+  };
+let take_both = (amount, list) => take_both(amount, list, []);
+
 let rec drop = (amount, list) =>
   switch (list) {
   | [] => []

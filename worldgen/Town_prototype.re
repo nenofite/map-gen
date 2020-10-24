@@ -25,7 +25,7 @@ type worksite =
 
 type house = {
   block,
-  worksite,
+  worksite: option(worksite),
 };
 
 type output = {
@@ -248,18 +248,24 @@ let blocks_collide = (a, b) => {
 
 let check_block_obstacles = (obstacles, other_blocks, block) => {
   let {min_x, max_x, min_z, max_z} = block;
-  let hit_other_block =
-    List.exists(
-      other_block => blocks_collide(other_block, block),
-      other_blocks,
-    );
-  let hit_obstacle =
-    Range.exists(min_x, max_x, x =>
-      Range.exists(min_z, max_z, z =>
-        Sparse_grid.at(obstacles, x, z) |> Option.is_some
-      )
-    );
-  !hit_other_block && !hit_obstacle;
+  /* within town */
+  0 <= min_x
+  && max_x < side
+  && 0 <= min_z
+  && max_z < side
+  /* doesn't hit other block */
+  && !
+       List.exists(
+         other_block => blocks_collide(other_block, block),
+         other_blocks,
+       )
+  /* doesn't hit obstacle */
+  && !
+       Range.exists(min_x, max_x, x =>
+         Range.exists(min_z, max_z, z =>
+           Sparse_grid.at(obstacles, x, z) |> Option.is_some
+         )
+       );
 };
 
 let make_block_from_center = ((x, z), side_x, side_z) => {
@@ -410,8 +416,14 @@ let run = (input: input): output => {
   let farms = flatten_blocks(input, farms);
 
   /* Assign jobs */
+  let (farm_houses, prof_houses) =
+    Mg_util.take_both(List.length(farms), houses);
   let houses =
-    List.map(block => {block, worksite: random_worksite()}, houses);
+    List.map(block => {block, worksite: None}, farm_houses)
+    @ List.map(
+        block => {block, worksite: Some(random_worksite())},
+        prof_houses,
+      );
 
   {bell, farms, houses};
 };
