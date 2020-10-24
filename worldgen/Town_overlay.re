@@ -235,6 +235,40 @@ let create_house =
     };
   };
 
+  /* Torch on the inside center of each wall */
+  /* N wall */
+  set_block(
+    Minecraft.Block.(Wall_torch(S)),
+    ~x=(min_x + max_x) / 2,
+    ~y=house.elevation + 2,
+    ~z=min_z + 1,
+    args.region,
+  );
+  /* E wall */
+  set_block(
+    Minecraft.Block.(Wall_torch(W)),
+    ~x=max_x - 1,
+    ~y=house.elevation + 2,
+    ~z=(min_z + max_z) / 2,
+    args.region,
+  );
+  /* S wall */
+  set_block(
+    Minecraft.Block.(Wall_torch(N)),
+    ~x=(min_x + max_x) / 2,
+    ~y=house.elevation + 2,
+    ~z=max_z - 1,
+    args.region,
+  );
+  /* W wall */
+  set_block(
+    Minecraft.Block.(Wall_torch(E)),
+    ~x=min_x + 1,
+    ~y=house.elevation + 2,
+    ~z=(min_z + max_z) / 2,
+    args.region,
+  );
+
   /* Ceiling */
   for (x in min_x to max_x) {
     for (z in min_z to max_z) {
@@ -248,7 +282,7 @@ let create_house =
     };
   };
 
-  /* Door and bed */
+  /* Door on N wall */
   let door_x = min_x + 1;
   let door_z = min_z;
   let door_y = house.elevation + 1;
@@ -266,7 +300,18 @@ let create_house =
     ~z=door_z,
     args.region,
   );
+  Building.raise_lower_elev_match(args, door_x, door_z - 1, house.elevation);
 
+  /* Torch on outside wall next to door */
+  set_block(
+    Minecraft.Block.(Wall_torch(N)),
+    ~x=min_x,
+    ~y=house.elevation + 2,
+    ~z=min_z - 1,
+    args.region,
+  );
+
+  /* Bed in NE corner */
   let bed_x = max_x - 1;
   let bed_z = min_z + 1;
   let bed_y = house.elevation + 1;
