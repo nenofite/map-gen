@@ -29,6 +29,11 @@ type slab_type =
   | Top
   | Double;
 
+type axis =
+  | X
+  | Y
+  | Z;
+
 /* Materials list taken from https://minecraft.gamepedia.com/Java_Edition_data_value */
 type material =
   /* Air needs to be 0 */
@@ -478,7 +483,7 @@ type material =
   | Oak_fence_gate
   | Oak_fence
   | Oak_leaves
-  | Oak_log
+  | Oak_log(axis)
   | Oak_planks
   | Oak_pressure_plate
   | Oak_sapling
@@ -1268,7 +1273,7 @@ let namespace =
   | Oak_fence_gate => "minecraft:oak_fence_gate"
   | Oak_fence => "minecraft:oak_fence"
   | Oak_leaves => "minecraft:oak_leaves"
-  | Oak_log => "minecraft:oak_log"
+  | Oak_log(_) => "minecraft:oak_log"
   | Oak_planks => "minecraft:oak_planks"
   | Oak_pressure_plate => "minecraft:oak_pressure_plate"
   | Oak_sapling => "minecraft:oak_sapling"
@@ -1596,6 +1601,12 @@ let string_of_dir =
   | S => "south"
   | W => "west";
 
+let string_of_axis =
+  fun
+  | X => "x"
+  | Y => "y"
+  | Z => "z";
+
 let data = block => {
   open Nbt.Node;
   let properties =
@@ -1612,6 +1623,7 @@ let data = block => {
              },
            ),
       ]
+    | Oak_log(axis) => ["axis" >: String(string_of_axis(axis))]
     | Orange_bed(dir, part) => [
         "facing" >: String(string_of_dir(dir)),
         "part"

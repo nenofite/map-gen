@@ -249,16 +249,21 @@ let worksite_material = (worksite: Town_prototype.worksite) => {
 let create_house =
     (house: Town_prototype.house, args: Minecraft_converter.region_args) => {
   open Minecraft.Region;
-  let floor_material = Minecraft.Block.Stone;
-  let wall_material = Minecraft.Block.Oak_planks;
-  let ceiling_material = Minecraft.Block.Stone;
+  open Minecraft.Block;
+  let floor_material = Oak_planks;
+  let lower_edge_material = Cobblestone;
+  let wall_material = Oak_planks;
+  let wall_post_material = Oak_log(Y);
+  let wall_ns_beam_material = Oak_log(Z);
+  let wall_ew_beam_material = Oak_log(X);
+  let ceiling_material = Oak_planks;
 
   let Town_prototype.{
         block: {min_x, max_x, min_z, max_z, elevation, _},
         worksite,
       } = house;
 
-  /* Foundation */
+  /* Foundation and floor */
   for (x in min_x to max_x) {
     for (z in min_z to max_z) {
       Building.raise_lower_elev_match(args, x, z, elevation);
@@ -266,8 +271,20 @@ let create_house =
     };
   };
 
+  /* Lower edge of walls */
+  for (y in elevation to elevation + 1) {
+    for (x in min_x to max_x) {
+      set_block(~x, ~y, ~z=min_z, lower_edge_material, args.region);
+      set_block(~x, ~y, ~z=max_z, lower_edge_material, args.region);
+    };
+    for (z in min_z to max_z) {
+      set_block(~x=min_x, ~y, ~z, lower_edge_material, args.region);
+      set_block(~x=max_x, ~y, ~z, lower_edge_material, args.region);
+    };
+  };
+
   /* Walls */
-  for (y in elevation + 1 to elevation + wall_height) {
+  for (y in elevation + 2 to elevation + wall_height) {
     for (x in min_x to max_x) {
       set_block(~x, ~y, ~z=min_z, wall_material, args.region);
       set_block(~x, ~y, ~z=max_z, wall_material, args.region);
@@ -275,6 +292,63 @@ let create_house =
     for (z in min_z to max_z) {
       set_block(~x=min_x, ~y, ~z, wall_material, args.region);
       set_block(~x=max_x, ~y, ~z, wall_material, args.region);
+    };
+  };
+
+  /* Wall beams */
+  /* east-west */
+  for (x in min_x + 1 to max_x - 1) {
+    set_block(
+      ~x,
+      ~y=elevation + wall_height,
+      ~z=min_z,
+      wall_ew_beam_material,
+      args.region,
+    );
+    set_block(
+      ~x,
+      ~y=elevation + wall_height,
+      ~z=max_z,
+      wall_ew_beam_material,
+      args.region,
+    );
+  };
+  /* north-south */
+  for (z in min_z + 1 to max_z - 1) {
+    set_block(
+      ~x=min_x,
+      ~y=elevation + wall_height,
+      ~z,
+      wall_ns_beam_material,
+      args.region,
+    );
+    set_block(
+      ~x=max_x,
+      ~y=elevation + wall_height,
+      ~z,
+      wall_ns_beam_material,
+      args.region,
+    );
+  };
+
+  /* Wall posts - clockwise order */
+  for (y in elevation to elevation + wall_height) {
+    set_block(~x=min_x, ~y, ~z=min_z, wall_post_material, args.region);
+    set_block(~x=max_x, ~y, ~z=min_z, wall_post_material, args.region);
+    set_block(~x=max_x, ~y, ~z=max_z, wall_post_material, args.region);
+    set_block(~x=min_x, ~y, ~z=max_z, wall_post_material, args.region);
+  };
+
+  /* Ceiling */
+  for (x in min_x + 1 to max_x - 1) {
+    for (z in min_z + 1 to max_z - 1) {
+      set_block(
+        ~x,
+        ~y=elevation + wall_height,
+        ~z,
+        ceiling_material,
+        args.region,
+      );
     };
   };
 
@@ -311,19 +385,6 @@ let create_house =
     ~z=(min_z + max_z) / 2,
     args.region,
   );
-
-  /* Ceiling */
-  for (x in min_x to max_x) {
-    for (z in min_z to max_z) {
-      set_block(
-        ~x,
-        ~y=elevation + wall_height + 1,
-        ~z,
-        ceiling_material,
-        args.region,
-      );
-    };
-  };
 
   /* Door on N wall */
   let door_x = min_x + 1;

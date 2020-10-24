@@ -2,16 +2,16 @@ open Block;
 open Template;
 
 let trunk = height => {
-  let blocks = List.init(height, y => (0, y, 0, Oak_log));
+  let blocks = List.init(height, y => (0, y, 0, Oak_log(Y)));
   Template.of_blocks(blocks);
 };
 
 let leaves = {
   /* TODO move to mapgen and use template parser */
   let blocks = [
-    (0, 0, 0, Oak_log),
-    (0, 1, 0, Oak_log),
-    (0, 2, 0, Oak_log),
+    (0, 0, 0, Oak_log(Y)),
+    (0, 1, 0, Oak_log(Y)),
+    (0, 2, 0, Oak_log(Y)),
     (0, 0, (-1), Oak_leaves),
     (1, 0, (-1), Oak_leaves),
     (1, 0, 0, Oak_leaves),
