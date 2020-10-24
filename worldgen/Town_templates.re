@@ -1,14 +1,12 @@
 let bedroom_1 =
   Template_txt.parse_template(
     ~palette=
-      Minecraft.Block.
-        [
-          /* TODO beds */
-          ("B", Some(Stone)),
-          ("b", Some(Stone)),
-        ],
-        /* ("B", Some(Bed(N, Head))),
-           ("b", Some(Bed(N, Foot))), */
+      Minecraft.Block.[
+        ("B", Some(Orange_bed(N, Head))),
+        ("b", Some(Orange_bed(N, Foot))),
+        ("D", Some(Oak_door(N, Upper))),
+        ("d", Some(Oak_door(N, Lower))),
+      ],
     {|
 X X X X X X X
 X - - - - - X
@@ -42,7 +40,7 @@ X - - - - X X
 X - - - - - X
 X X X X X X X
 
-X X X D X X X
+X X X d X X X
 X - - - - - X
 X B - - - ^ X
 X b - - - X X

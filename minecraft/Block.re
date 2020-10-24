@@ -10,26 +10,29 @@ type stair_dir =
   | Sd
   | Nd;
 
-type torch_dir =
-  | E
-  | W
-  | S
-  | N;
-
-type bed_dir =
-  | S
-  | W
+type dir =
   | N
-  | E;
+  | E
+  | S
+  | W;
 
 type bed_part =
   | Foot
   | Head;
 
+type door_part =
+  | Lower
+  | Upper;
+
 type slab_type =
   | Bottom
   | Top
   | Double;
+
+type axis =
+  | X
+  | Y
+  | Z;
 
 /* Materials list taken from https://minecraft.gamepedia.com/Java_Edition_data_value */
 type material =
@@ -476,11 +479,11 @@ type material =
   | Netherrack
   | Note_block
   | Oak_button
-  | Oak_door
+  | Oak_door(dir, door_part)
   | Oak_fence_gate
   | Oak_fence
   | Oak_leaves
-  | Oak_log
+  | Oak_log(axis)
   | Oak_planks
   | Oak_pressure_plate
   | Oak_sapling
@@ -493,7 +496,7 @@ type material =
   | Observer
   | Obsidian
   | Orange_banner
-  | Orange_bed
+  | Orange_bed(dir, bed_part)
   | Orange_carpet
   | Orange_concrete_powder
   | Orange_concrete
@@ -700,7 +703,7 @@ type material =
   | Sticky_piston
   | Stone
   | Stone_brick_slab
-  | Stone_brick_stairs
+  | Stone_brick_stairs(stair_dir)
   | Stone_brick_wall
   | Stone_bricks
   | Stone_button
@@ -747,7 +750,7 @@ type material =
   | Twisting_vines_plant
   | Vine
   | Void_air
-  | Wall_torch(torch_dir)
+  | Wall_torch(dir)
   | Warped_button
   | Warped_door
   | Warped_fence_gate
@@ -769,7 +772,7 @@ type material =
   | Weeping_vines
   | Weeping_vines_plant
   | Wet_sponge
-  | Wheat
+  | Wheat(int)
   | White_banner
   | White_bed
   | White_carpet
@@ -1266,11 +1269,11 @@ let namespace =
   | Netherrack => "minecraft:netherrack"
   | Note_block => "minecraft:note_block"
   | Oak_button => "minecraft:oak_button"
-  | Oak_door => "minecraft:oak_door"
+  | Oak_door(_, _) => "minecraft:oak_door"
   | Oak_fence_gate => "minecraft:oak_fence_gate"
   | Oak_fence => "minecraft:oak_fence"
   | Oak_leaves => "minecraft:oak_leaves"
-  | Oak_log => "minecraft:oak_log"
+  | Oak_log(_) => "minecraft:oak_log"
   | Oak_planks => "minecraft:oak_planks"
   | Oak_pressure_plate => "minecraft:oak_pressure_plate"
   | Oak_sapling => "minecraft:oak_sapling"
@@ -1283,7 +1286,7 @@ let namespace =
   | Observer => "minecraft:observer"
   | Obsidian => "minecraft:obsidian"
   | Orange_banner => "minecraft:orange_banner"
-  | Orange_bed => "minecraft:orange_bed"
+  | Orange_bed(_, _) => "minecraft:orange_bed"
   | Orange_carpet => "minecraft:orange_carpet"
   | Orange_concrete_powder => "minecraft:orange_concrete_powder"
   | Orange_concrete => "minecraft:orange_concrete"
@@ -1490,7 +1493,7 @@ let namespace =
   | Sticky_piston => "minecraft:sticky_piston"
   | Stone => "minecraft:stone"
   | Stone_brick_slab => "minecraft:stone_brick_slab"
-  | Stone_brick_stairs => "minecraft:stone_brick_stairs"
+  | Stone_brick_stairs(_) => "minecraft:stone_brick_stairs"
   | Stone_brick_wall => "minecraft:stone_brick_wall"
   | Stone_bricks => "minecraft:stone_bricks"
   | Stone_button => "minecraft:stone_button"
@@ -1559,7 +1562,7 @@ let namespace =
   | Weeping_vines => "minecraft:weeping_vines"
   | Weeping_vines_plant => "minecraft:weeping_vines_plant"
   | Wet_sponge => "minecraft:wet_sponge"
-  | Wheat => "minecraft:wheat"
+  | Wheat(_) => "minecraft:wheat"
   | White_banner => "minecraft:white_banner"
   | White_bed => "minecraft:white_bed"
   | White_carpet => "minecraft:white_carpet"
@@ -1591,11 +1594,46 @@ let namespace =
   | Zombie_head => "minecraft:zombie_head"
   | Zombie_wall_head => "minecraft:zombie_wall_head";
 
+let string_of_dir =
+  fun
+  | N => "north"
+  | E => "east"
+  | S => "south"
+  | W => "west";
+
+let string_of_axis =
+  fun
+  | X => "x"
+  | Y => "y"
+  | Z => "z";
+
 let data = block => {
   open Nbt.Node;
   let properties =
     switch (block) {
+    | Farmland => ["moisture" >: String("7")]
     | Flowing_water(level) => ["level" >: String(string_of_int(level))]
+    | Oak_door(dir, part) => [
+        "facing" >: String(string_of_dir(dir)),
+        "half"
+        >: String(
+             switch (part) {
+             | Lower => "lower"
+             | Upper => "upper"
+             },
+           ),
+      ]
+    | Oak_log(axis) => ["axis" >: String(string_of_axis(axis))]
+    | Orange_bed(dir, part) => [
+        "facing" >: String(string_of_dir(dir)),
+        "part"
+        >: String(
+             switch (part) {
+             | Foot => "foot"
+             | Head => "head"
+             },
+           ),
+      ]
     | Smooth_stone_slab(t) => [
         "type"
         >: String(
@@ -1609,6 +1647,7 @@ let data = block => {
       ]
     | Snow => ["layers" >: String("1")]
     | Cobblestone_stairs(dir)
+    | Stone_brick_stairs(dir)
     | Stone_stairs(dir) => [
         "facing"
         >: String(
@@ -1639,18 +1678,19 @@ let data = block => {
         "shape" >: String("straight"),
         "waterlogged" >: String("false"),
       ]
-    | Wall_torch(dir) => [
-        "facing"
-        >: String(
-             switch (dir) {
-             | N => "north"
-             | E => "east"
-             | S => "south"
-             | W => "west"
-             },
-           ),
-      ]
+    | Wall_torch(dir) => ["facing" >: String(string_of_dir(dir))]
+    | Wheat(age) => ["age" >: String(string_of_int(age))]
     | _ => []
     };
   Compound(properties);
+};
+
+let block_entity = block => {
+  Nbt.Node.(
+    switch (block) {
+    | Bell => Some(["id" >: String("bell")])
+    | Orange_bed(_, _) => Some(["id" >: String("bed")])
+    | _ => None
+    }
+  );
 };
