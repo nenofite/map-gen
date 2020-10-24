@@ -767,7 +767,7 @@ type material =
   | Weeping_vines
   | Weeping_vines_plant
   | Wet_sponge
-  | Wheat
+  | Wheat(int)
   | White_banner
   | White_bed
   | White_carpet
@@ -1557,7 +1557,7 @@ let namespace =
   | Weeping_vines => "minecraft:weeping_vines"
   | Weeping_vines_plant => "minecraft:weeping_vines_plant"
   | Wet_sponge => "minecraft:wet_sponge"
-  | Wheat => "minecraft:wheat"
+  | Wheat(_) => "minecraft:wheat"
   | White_banner => "minecraft:white_banner"
   | White_bed => "minecraft:white_bed"
   | White_carpet => "minecraft:white_carpet"
@@ -1600,6 +1600,7 @@ let data = block => {
   open Nbt.Node;
   let properties =
     switch (block) {
+    | Farmland => ["moisture" >: String("7")]
     | Flowing_water(level) => ["level" >: String(string_of_int(level))]
     | Oak_door(dir, part) => [
         "facing" >: String(string_of_dir(dir)),
@@ -1665,6 +1666,7 @@ let data = block => {
         "waterlogged" >: String("false"),
       ]
     | Wall_torch(dir) => ["facing" >: String(string_of_dir(dir))]
+    | Wheat(age) => ["age" >: String(string_of_int(age))]
     | _ => []
     };
   Compound(properties);

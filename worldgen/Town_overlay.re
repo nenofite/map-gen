@@ -396,12 +396,45 @@ let create_house =
   );
 };
 
+let create_farm =
+    (farm: Town_prototype.block, args: Minecraft_converter.region_args) => {
+  open Minecraft.Region;
+  open Minecraft.Block;
+
+  let Town_prototype.{min_x, max_x, min_z, max_z, elevation, _} = farm;
+  let elevation = elevation + 1;
+
+  /* Foundation */
+  for (x in min_x to max_x) {
+    for (z in min_z to max_z) {
+      Building.raise_lower_elev_match(args, x, z, elevation);
+    };
+  };
+
+  /* Composter on NE corner */
+  set_block(Composter, ~x=max_x, ~y=elevation + 1, ~z=min_z, args.region);
+
+  /* Alternate water and crops */
+  let crop = Wheat(Random.int(8));
+  for (x in min_x + 1 to max_x - 1) {
+    for (z in min_z + 1 to max_z - 1) {
+      if (z mod 2 == 0) {
+        set_block(Water, ~x, ~y=elevation, ~z, args.region);
+      } else {
+        set_block(Farmland, ~x, ~y=elevation, ~z, args.region);
+        set_block(crop, ~x, ~y=elevation + 1, ~z, args.region);
+      };
+    };
+  };
+};
+
 let apply_region = (towns: t, args: Minecraft_converter.region_args) => {
   List.iter(
-    ({x, z, town: {bell, farms: _, houses}}) =>
+    ({x, z, town: {bell, farms, houses}}) =>
       if (Minecraft.Region.is_within(~x, ~y=0, ~z, args.region)) {
         create_bell(bell, args);
         List.iter(house => create_house(house, args), houses);
+        List.iter(farm => create_farm(farm, args), farms);
       },
     towns,
   );
