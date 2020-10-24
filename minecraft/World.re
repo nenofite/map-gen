@@ -102,10 +102,29 @@ let pack_block_states_for_section = (~cx, ~sy, ~cz, lookup, r) => {
   |> Block_palette.block_states;
 };
 
-let section_nbt = (~cx, ~sy, ~cz, r) => {
+let block_entities_for_section = (~cx, ~sy, ~cz, r) => {
+  fold_blocks_in_section(~cx, ~sy, ~cz, [], r, (~x, ~y, ~z, ents) => {
+    switch (Block.block_entity(Region.get_block(~x, ~y, ~z, r))) {
+    | Some(props) =>
+      let ent =
+        Nbt.Node.[
+          "x" >: Int(Int32.of_int(x)),
+          "y" >: Int(Int32.of_int(y)),
+          "z" >: Int(Int32.of_int(z)),
+          "keepPacked" >: Byte(0),
+          ...props,
+        ];
+      [Nbt.Node.Compound(ent), ...ents];
+    | None => ents
+    }
+  });
+};
+
+let section_nbt_and_info = (~cx, ~sy, ~cz, r) => {
   let lookup = construct_lookup_for_section(~cx, ~sy, ~cz, r);
   Stats.record(`Palette_size, List.length(lookup));
   let block_states = pack_block_states_for_section(~cx, ~sy, ~cz, lookup, r);
+  let block_entities = block_entities_for_section(~cx, ~sy, ~cz, r);
 
   let palette_nbt =
     List.map(
@@ -119,17 +138,19 @@ let section_nbt = (~cx, ~sy, ~cz, r) => {
       Block_palette.palette(lookup),
     );
 
-  Nbt.Node.(
-    ""
-    >: Compound([
-         "Y" >: Byte(sy),
-         "Palette" >: List(palette_nbt),
-         "BlockStates" >: Long_array(block_states),
-         /*
-           Luckily we don't need to calculate and include light levels.
-           Minecraft will do it for us when fixing the chunk
-          */
-       ])
+  (
+    Nbt.Node.(
+      Compound([
+        "Y" >: Byte(sy),
+        "Palette" >: List(palette_nbt),
+        "BlockStates" >: Long_array(block_states),
+        /*
+          Luckily we don't need to calculate and include light levels.
+          Minecraft will do it for us when fixing the chunk
+         */
+      ])
+    ),
+    block_entities,
   );
 };
 
@@ -173,14 +194,15 @@ let entity_nbt = (entity: Entity.t) => {
 
 let chunk_nbt = (~cx, ~cz, r) => {
   /* Save all non-empty sections */
-  let sections_nbt =
+  let (sections_nbt, sections_ents) =
     List.init(Region.section_per_chunk_vertical, sy => sy)
     |> List.filter(sy =>
          exists_block_in_section(~cx, ~sy, ~cz, r, (~x, ~y, ~z) =>
            Region.get_block(~x, ~y, ~z, r) != Block.Air
          )
        )
-    |> List.map(sy => section_nbt(~cx, ~sy, ~cz, r).payload);
+    |> List.map(sy => section_nbt_and_info(~cx, ~sy, ~cz, r))
+    |> List.split;
 
   let entities_nbt = entities_in_chunk(~cx, ~cz, r) |> List.map(entity_nbt);
 
@@ -201,6 +223,7 @@ let chunk_nbt = (~cx, ~cz, r) => {
               "TerrainPopulated" >: Byte(1),
               "HeightMap" >: Int_array(heightmap),
               "Entities" >: List(entities_nbt),
+              "TileEntities" >: List(List.concat(sections_ents)),
             ]),
        ])
   );

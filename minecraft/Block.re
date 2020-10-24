@@ -1669,3 +1669,12 @@ let data = block => {
     };
   Compound(properties);
 };
+
+let block_entity = block => {
+  Nbt.Node.(
+    switch (block) {
+    | Orange_bed(_, _) => Some(["id" >: String("bed")])
+    | _ => None
+    }
+  );
+};

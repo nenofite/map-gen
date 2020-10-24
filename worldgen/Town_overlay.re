@@ -249,7 +249,54 @@ let create_house =
   };
 
   /* Door and bed */
-  ();
+  let door_x = min_x + 1;
+  let door_z = min_z;
+  let door_y = house.elevation + 1;
+  set_block(
+    Minecraft.Block.(Oak_door(S, Lower)),
+    ~x=door_x,
+    ~y=door_y,
+    ~z=door_z,
+    args.region,
+  );
+  set_block(
+    Minecraft.Block.(Oak_door(S, Upper)),
+    ~x=door_x,
+    ~y=door_y + 1,
+    ~z=door_z,
+    args.region,
+  );
+
+  let bed_x = max_x - 1;
+  let bed_z = min_z + 1;
+  let bed_y = house.elevation + 1;
+  set_block(
+    Minecraft.Block.(Orange_bed(E, Head)),
+    ~x=bed_x,
+    ~y=bed_y,
+    ~z=bed_z,
+    args.region,
+  );
+  set_block(
+    Minecraft.Block.(Orange_bed(E, Foot)),
+    ~x=bed_x - 1,
+    ~y=bed_y,
+    ~z=bed_z,
+    args.region,
+  );
+
+  /* Villager at foot of bed */
+  add_entity(
+    Mg_util.Floats.(
+      Minecraft.Entity.{
+        id: "villager",
+        x: ~.(bed_x - 2),
+        y: ~.bed_y,
+        z: ~.bed_z,
+      }
+    ),
+    args.region,
+  );
 };
 
 let apply_region = (towns: t, args: Minecraft_converter.region_args) => {
