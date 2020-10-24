@@ -9,7 +9,6 @@ let default_palette: palette =
     ("X", Some(Cobblestone)),
     ("=", Some(Oak_planks)),
     ("#", Some(Glass)),
-    ("D", Some(Oak_door)),
     ("O", Some(Oak_log)),
     ("v", Some(Stone_stairs(N))),
     ("<", Some(Stone_stairs(E))),

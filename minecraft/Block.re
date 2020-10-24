@@ -10,21 +10,19 @@ type stair_dir =
   | Sd
   | Nd;
 
-type torch_dir =
-  | E
-  | W
-  | S
-  | N;
-
-type bed_dir =
-  | S
-  | W
+type dir =
   | N
-  | E;
+  | E
+  | S
+  | W;
 
 type bed_part =
   | Foot
   | Head;
+
+type door_part =
+  | Lower
+  | Upper;
 
 type slab_type =
   | Bottom
@@ -476,7 +474,7 @@ type material =
   | Netherrack
   | Note_block
   | Oak_button
-  | Oak_door
+  | Oak_door(dir, door_part)
   | Oak_fence_gate
   | Oak_fence
   | Oak_leaves
@@ -493,7 +491,7 @@ type material =
   | Observer
   | Obsidian
   | Orange_banner
-  | Orange_bed
+  | Orange_bed(dir, bed_part)
   | Orange_carpet
   | Orange_concrete_powder
   | Orange_concrete
@@ -747,7 +745,7 @@ type material =
   | Twisting_vines_plant
   | Vine
   | Void_air
-  | Wall_torch(torch_dir)
+  | Wall_torch(dir)
   | Warped_button
   | Warped_door
   | Warped_fence_gate
@@ -1266,7 +1264,7 @@ let namespace =
   | Netherrack => "minecraft:netherrack"
   | Note_block => "minecraft:note_block"
   | Oak_button => "minecraft:oak_button"
-  | Oak_door => "minecraft:oak_door"
+  | Oak_door(_, _) => "minecraft:oak_door"
   | Oak_fence_gate => "minecraft:oak_fence_gate"
   | Oak_fence => "minecraft:oak_fence"
   | Oak_leaves => "minecraft:oak_leaves"
@@ -1283,7 +1281,7 @@ let namespace =
   | Observer => "minecraft:observer"
   | Obsidian => "minecraft:obsidian"
   | Orange_banner => "minecraft:orange_banner"
-  | Orange_bed => "minecraft:orange_bed"
+  | Orange_bed(_, _) => "minecraft:orange_bed"
   | Orange_carpet => "minecraft:orange_carpet"
   | Orange_concrete_powder => "minecraft:orange_concrete_powder"
   | Orange_concrete => "minecraft:orange_concrete"
@@ -1591,11 +1589,38 @@ let namespace =
   | Zombie_head => "minecraft:zombie_head"
   | Zombie_wall_head => "minecraft:zombie_wall_head";
 
+let string_of_dir =
+  fun
+  | N => "north"
+  | E => "east"
+  | S => "south"
+  | W => "west";
+
 let data = block => {
   open Nbt.Node;
   let properties =
     switch (block) {
     | Flowing_water(level) => ["level" >: String(string_of_int(level))]
+    | Oak_door(dir, part) => [
+        "facing" >: String(string_of_dir(dir)),
+        "half"
+        >: String(
+             switch (part) {
+             | Lower => "lower"
+             | Upper => "upper"
+             },
+           ),
+      ]
+    | Orange_bed(dir, part) => [
+        "facing" >: String(string_of_dir(dir)),
+        "part"
+        >: String(
+             switch (part) {
+             | Foot => "foot"
+             | Head => "head"
+             },
+           ),
+      ]
     | Smooth_stone_slab(t) => [
         "type"
         >: String(
@@ -1639,17 +1664,7 @@ let data = block => {
         "shape" >: String("straight"),
         "waterlogged" >: String("false"),
       ]
-    | Wall_torch(dir) => [
-        "facing"
-        >: String(
-             switch (dir) {
-             | N => "north"
-             | E => "east"
-             | S => "south"
-             | W => "west"
-             },
-           ),
-      ]
+    | Wall_torch(dir) => ["facing" >: String(string_of_dir(dir))]
     | _ => []
     };
   Compound(properties);
