@@ -1,4 +1,4 @@
-type t = unit;
+open Core_kernel;
 
 type options = {glassify: Minecraft.Block.material => bool};
 
@@ -19,4 +19,10 @@ let apply_region = (options, (), args: Minecraft_converter.region_args) => {
 };
 
 let overlay = options =>
-  Overlay.make("debug", prepare, apply_region(options));
+  Overlay.make(
+    "debug",
+    prepare,
+    apply_region(options),
+    bin_reader_unit,
+    bin_writer_unit,
+  );

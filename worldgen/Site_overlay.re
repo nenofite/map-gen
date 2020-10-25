@@ -1,7 +1,11 @@
+open Core_kernel;
+
+[@deriving bin_io]
 type site =
   | Cavern_entrance(int);
 
-type t = Point_cloud.t(site);
+[@deriving bin_io]
+type t = Point_cloud.t(option(site));
 
 let prepare = (base: Base_overlay.t, cavern: Cavern_overlay.t, ()) => {
   Point_cloud.init_f(
@@ -102,7 +106,8 @@ let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z): unit => {
 
 let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit => {
   List.iter(
-    (Point_cloud.{x, y: z, value: site}) => {
+    Point_cloud.(sites.points),
+    ~f=(Point_cloud.{x, y: z, value: site}) => {
       let x = int_of_float(x);
       let z = int_of_float(z);
       if (Minecraft.Region.is_within(~x, ~y=0, ~z, args.region)) {
@@ -113,9 +118,14 @@ let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit =
         };
       };
     },
-    Point_cloud.(sites.points),
   );
 };
 
 let overlay = (base, cavern) =>
-  Overlay.make("site", prepare(base, cavern), apply_region(base));
+  Overlay.make(
+    "site",
+    prepare(base, cavern),
+    apply_region(base),
+    bin_reader_t,
+    bin_writer_t,
+  );

@@ -1,23 +1,30 @@
+open Core_kernel;
+
+[@deriving bin_io]
 type mid_biome =
   | Plain
   | Forest
   | Desert;
 
+[@deriving bin_io]
 type shore_biome =
   | Sand
   | Gravel
   | Clay;
 
+[@deriving bin_io]
 type high_biome =
   | Pine_forest
   | Barren
   | Snow;
 
+[@deriving bin_io]
 type biome =
   | Mid(mid_biome)
   | Shore(shore_biome)
   | High(high_biome);
 
+[@deriving bin_io]
 type t = Grid.t(biome);
 
 let colorize =
@@ -230,4 +237,10 @@ let apply_region =
 };
 
 let overlay = (base: Grid.t(River.tile), dirt: Grid.t(int)) =>
-  Overlay.make("biome", prepare(base), apply_region(base, dirt));
+  Overlay.make(
+    "biome",
+    prepare(base),
+    apply_region(base, dirt),
+    bin_reader_t,
+    bin_writer_t,
+  );

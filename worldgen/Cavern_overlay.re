@@ -1,8 +1,12 @@
+open Bin_prot.Std;
+
+[@deriving bin_io]
 type tile = {
   floor_elev: int,
   ceiling_elev: int,
 };
 
+[@deriving bin_io]
 type t = Grid.t(tile);
 
 /*
@@ -210,4 +214,10 @@ let apply_region =
 };
 
 let overlay = world =>
-  Overlay.make("cavern", prepare(world), apply_region(world));
+  Overlay.make(
+    "cavern",
+    prepare(world),
+    apply_region(world),
+    bin_reader_t,
+    bin_writer_t,
+  );

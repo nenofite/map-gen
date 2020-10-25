@@ -1,11 +1,18 @@
+open Core_kernel;
+
 let max_depth = 9;
+
+[@deriving bin_io]
+type t = Grid.t(int);
 
 let prepare = (side, ()) => {
   Printf.printf("Making dirt heights\n");
   Phase_chain.(
     run_all(
       phase("Init", () =>
-        Grid.init(side / 32, (_x, _y) => Random.int(max_depth + 1))
+        Grid.init(side / 32, (_x, _y) =>
+          /* TODO */ Caml.Random.int(max_depth + 1)
+        )
       )
       @> phase_repeat(
            3,
@@ -23,4 +30,10 @@ let prepare = (side, ()) => {
 };
 
 let overlay = side =>
-  Overlay.make("dirt height", prepare(side), (_, _) => ());
+  Overlay.make(
+    "dirt height",
+    prepare(side),
+    (_, _) => (),
+    bin_reader_t,
+    bin_writer_t,
+  );

@@ -1,42 +1,37 @@
+open Core_kernel;
+
 type monad('state) = {
   prepare: unit => ('state, Minecraft_converter.region_args => unit),
 };
 
 exception Overlay_cache_error(string);
 
-let magic = 89809344;
 let cache_path = name => Filename.concat("overlays", name ++ ".overlay");
 
-let assert_magic = f => {
-  let matched =
-    switch (input_binary_int(f)) {
-    | num => num == magic
-    | exception End_of_file => false
-    };
-  if (!matched) {
-    raise(Overlay_cache_error("cached overlay does not have magic value"));
+let read_cache = (reader, path) => {
+  switch (In_channel.read_all(path)) {
+  | str =>
+    switch (Bigstring.(of_string(str) |> read_bin_prot(_, reader))) {
+    | Ok((state, _)) => Some(state)
+    | Error(_) => None
+    }
+  | exception (Sys_error(_)) => None
   };
 };
 
-let read_cache = f => {
-  assert_magic(f);
-  let state: 'a =
-    try(Marshal.from_channel(f)) {
-    | End_of_file
-    | Failure(_) => raise(Overlay_cache_error("could not read cache file"))
-    };
-  close_in(f);
-  state;
-};
-
-let save_cache = (name, state) => {
+let save_cache = (name, writer, state) => {
+  open Out_channel;
   Printf.printf("Saving to cache...");
   flush(stdout);
   Mg_util.mkdir("overlays");
-  let f = open_out_bin(cache_path(name));
-  output_binary_int(f, magic);
-  Marshal.to_channel(f, state, []);
-  close_out(f);
+  with_file(
+    cache_path(name),
+    ~f=f => {
+      let buf = Bin_prot.Utils.bin_dump(writer, state);
+      /* TODO this is probably not efficient */
+      output_bytes(f, Bigstring.to_bytes(buf));
+    },
+  );
   Printf.printf(" done\n");
 };
 
@@ -46,23 +41,23 @@ let make =
       ~apply_progress_view: 'a => unit=_ => (),
       prepare: unit => 'a,
       apply_region: ('a, Minecraft_converter.region_args) => unit,
+      reader: Bin_prot.Type_class.reader('a),
+      writer: Bin_prot.Type_class.writer('a),
     )
     : monad('a) => {
   let prepare = () => {
     /* Try to read a cached version first */
     let state =
-      switch (open_in_bin(cache_path(name))) {
-      | f =>
-        Mg_util.print_progress("Reading " ++ name ++ " overlay from cache", () =>
-          read_cache(f)
-        )
-      | exception (Sys_error(_)) =>
-        /* If cache doesn't exist, generate */
+      switch (read_cache(reader, cache_path(name))) {
+      | Some(state) =>
+        Printf.printf("Read %s overlay from cache\n", name);
+        state;
+      | None =>
         Mg_util.print_progress(
           "Preparing " ++ name ++ " overlay",
           () => {
             let state = prepare();
-            save_cache(name, state);
+            save_cache(name, writer, state);
             state;
           },
         )

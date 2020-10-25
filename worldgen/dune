@@ -2,6 +2,7 @@
     (name Worldgen)
     (inline_tests)
     (libraries
+        core_kernel
         Mg_util
         Progress_view
         ANSITerminal
@@ -11,5 +12,11 @@
         camlimages.png
         bin_prot
     )
-    (preprocess (pps ppx_inline_test ppx_expect ppx_bin_prot))
+    (preprocess (pps
+        ppx_inline_test
+        ppx_expect
+        ppx_sexp_conv
+        ppx_deriving.ord
+        ppx_bin_prot
+    ))
 )

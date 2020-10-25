@@ -1,7 +1,11 @@
+open Bin_prot.Std;
+
+[@deriving bin_io]
 type depth =
   | From_surface(int, int)
   | From_bedrock(int, int);
 
+[@deriving bin_io]
 type ore_layer = {
   ore: Minecraft.Block.material,
   densities: Point_cloud.t(float),
@@ -10,6 +14,7 @@ type ore_layer = {
   max_deposit_size: int,
 };
 
+[@deriving bin_io]
 type t = list(ore_layer);
 
 let cardinal_directions_3d = [
@@ -246,4 +251,10 @@ let apply_region = (_base: Grid.t(Base_overlay.tile), state, args): unit => {
 };
 
 let overlay = base =>
-  Overlay.make("ores", prepare(base), apply_region(base));
+  Overlay.make(
+    "ores",
+    prepare(base),
+    apply_region(base),
+    bin_reader_t,
+    bin_writer_t,
+  );

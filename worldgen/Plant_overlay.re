@@ -1,3 +1,6 @@
+open Bin_prot.Std;
+
+[@deriving bin_io]
 type t = unit;
 
 let prepare = () => ();
@@ -101,4 +104,10 @@ let apply_region = (biomes, (), args: Minecraft_converter.region_args) => {
 };
 
 let overlay = (biomes: Biome_overlay.t) =>
-  Overlay.make("plant", prepare, apply_region(biomes));
+  Overlay.make(
+    "plant",
+    prepare,
+    apply_region(biomes),
+    bin_reader_t,
+    bin_writer_t,
+  );

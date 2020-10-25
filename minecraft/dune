@@ -1,5 +1,5 @@
 (library
     (name Minecraft)
     (inline_tests)
-    (libraries base Mg_util Nbt)
-    (preprocess (pps ppx_inline_test ppx_expect)))
+    (libraries core_kernel Mg_util Nbt)
+    (preprocess (pps ppx_inline_test ppx_expect ppx_bin_prot)))

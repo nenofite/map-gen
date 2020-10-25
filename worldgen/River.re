@@ -1,3 +1,6 @@
+open Bin_prot.Std;
+
+[@deriving bin_io]
 type tile = {
   elevation: int,
   river: bool,

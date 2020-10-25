@@ -1,11 +1,13 @@
-type building = unit;
+open Bin_prot.Std;
 
+[@deriving bin_io]
 type town = {
   x: int,
   z: int,
   town: Town_prototype.output,
 };
 
+[@deriving bin_io]
 type t = list(town);
 
 type obstacles = Grid.t(bool);
@@ -519,4 +521,10 @@ let apply_region = (towns: t, args: Minecraft_converter.region_args) => {
 };
 
 let overlay = (base, roads) =>
-  Overlay.make("towns", prepare(base, roads), apply_region);
+  Overlay.make(
+    "towns",
+    prepare(base, roads),
+    apply_region,
+    bin_reader_t,
+    bin_writer_t,
+  );

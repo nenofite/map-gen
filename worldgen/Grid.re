@@ -1,7 +1,10 @@
+open Bin_prot.Std;
+
 /**
   - Tile is a leaf node, storing a single tile in the grid
   - Quad is a branch node with four children in clockwise order: NW, NE, SE, SW
  */
+[@deriving bin_io]
 type node('a) =
   | Tile('a)
   | Quad(node('a), node('a), node('a), node('a));
@@ -11,6 +14,7 @@ type node('a) =
   has the same depth. The grid must be a square and the side length must be a
   power of 2.
  */
+[@deriving bin_io]
 type t('a) = {
   side: int,
   root: node('a),

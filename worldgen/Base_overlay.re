@@ -1,5 +1,9 @@
+open Core_kernel;
+
+[@deriving bin_io]
 type tile = River.tile;
 
+[@deriving bin_io]
 type t = Grid.t(tile);
 
 let apply_progress_view = world => {
@@ -67,5 +71,12 @@ let apply_region =
   );
 };
 
-let overlay =
-  Overlay.make("base", ~apply_progress_view, prepare, apply_region);
+let overlay: Overlay.monad(_) =
+  Overlay.make(
+    "base",
+    ~apply_progress_view,
+    prepare,
+    apply_region,
+    bin_reader_t,
+    bin_writer_t,
+  );

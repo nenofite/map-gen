@@ -1,17 +1,29 @@
-type niceness =
-  | Dirt
-  | Paved;
+open Core_kernel;
 
-type road = {
-  elevation: int,
-  niceness,
+module Niceness = {
+  module T = {
+    [@deriving (ord, sexp, bin_io)]
+    type t =
+      | Dirt
+      | Paved;
+  };
+  include T;
+  include Comparable.Make(T);
 };
 
+[@deriving bin_io]
+type road = {
+  elevation: int,
+  niceness: Niceness.t,
+};
+
+[@deriving bin_io]
 type stepped_road = {
   road,
   step_down: bool,
 };
 
+[@deriving bin_io]
 type t = {
   pois: list((int, int)),
   roads: Sparse_grid.t(stepped_road),
@@ -26,7 +38,7 @@ let rec all_pairs = (list, result) =>
   switch (list) {
   | [] => result
   | [a, ...list] =>
-    let result = List.map(b => (a, b), list) @ result;
+    let result = List.map(list, ~f=b => (a, b)) @ result;
     all_pairs(list, result);
   };
 
@@ -54,9 +66,9 @@ let edge_cost = (base: Grid.t(Base_overlay.tile), (ax, ay), (bx, by)) => {
 let heighten_road = (roads, x, y, up_to_niceness, up_to_elevation) => {
   switch (Sparse_grid.at(roads, x, y)) {
   | Some({elevation, niceness})
-      when elevation < up_to_elevation || niceness < up_to_niceness =>
+      when elevation < up_to_elevation || Niceness.(niceness < up_to_niceness) =>
     let new_elevation = max(elevation, up_to_elevation);
-    let new_niceness = max(niceness, up_to_niceness);
+    let new_niceness = Niceness.max(niceness, up_to_niceness);
     Sparse_grid.put(
       roads,
       x,
@@ -87,11 +99,8 @@ let widen_road = (roads: Sparse_grid.t(road)) => {
       | Dirt => widened_roads /* TODO */
       | Paved =>
         Grid.eight_directions
-        |> List.fold_left(
-             (roads, (dx, dy)) =>
-               heighten_road(roads, x + dx, y + dy, niceness, elevation),
-             widened_roads,
-             _,
+        |> List.fold_left(~init=widened_roads, ~f=(roads, (dx, dy)) =>
+             heighten_road(roads, x + dx, y + dy, niceness, elevation)
            )
       };
     },
@@ -110,16 +119,14 @@ let add_steps = (roads: Sparse_grid.t(road)) => {
       let {elevation, _} = road;
       let has_lower_neighbor =
         Grid.four_directions
-        |> List.exists(
-             ((dx, dy)) =>
-               switch (Sparse_grid.at(roads, x + dx, y + dy)) {
-               | Some({elevation: neighbor_elevation, _})
-                   when neighbor_elevation == elevation - 1 =>
-                 true
-               | Some(_)
-               | None => false
-               },
-             _,
+        |> List.exists(~f=((dx, dy)) =>
+             switch (Sparse_grid.at(roads, x + dx, y + dy)) {
+             | Some({elevation: neighbor_elevation, _})
+                 when neighbor_elevation == elevation - 1 =>
+               true
+             | Some(_)
+             | None => false
+             }
            );
       {road, step_down: has_lower_neighbor};
     },
@@ -139,11 +146,11 @@ let place_road =
   /* Add elevations */
   let path =
     List.map(
-      ((x, y)) => {
+      path,
+      ~f=((x, y)) => {
         let elevation = Grid.at(base, x, y).elevation;
         (x, y, {elevation, niceness: Paved /* TODO */});
       },
-      path,
     );
   /* Add to grid */
   add_road_to_grid(roads, path);
@@ -158,7 +165,7 @@ let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
       ()
     ).
       points
-    |> List.filter_map((Point_cloud.{x, y, _}) => {
+    |> List.filter_map(~f=(Point_cloud.{x, y, _}) => {
          let x = int_of_float(x);
          let y = int_of_float(y);
          switch (Grid.at(base, x, y)) {
@@ -171,28 +178,24 @@ let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
   let poi_pairs = all_pairs(pois, []) |> Mg_util.take(10, _);
   print_endline("Pathfinding roads");
   let roads =
-    List.fold_left(
-      (roads, (start, goal)) => {
-        switch (
-          A_star.run(
-            ~grid_side=base.side,
-            ~start,
-            ~goal,
-            ~edge_cost=edge_cost(base),
-            ~heuristic=heuristic(base),
-          )
-        ) {
-        | Some(path) =>
-          print_endline("found a road");
-          place_road(base, roads, path); /* Add the path to the grid */
-        | None =>
-          print_endline("couldn't find road");
-          roads;
-        }
-      },
-      roads,
-      poi_pairs,
-    );
+    List.fold_left(poi_pairs, ~init=roads, ~f=(roads, (start, goal)) => {
+      switch (
+        A_star.run(
+          ~grid_side=base.side,
+          ~start,
+          ~goal,
+          ~edge_cost=edge_cost(base),
+          ~heuristic=heuristic(base),
+        )
+      ) {
+      | Some(path) =>
+        print_endline("found a road");
+        place_road(base, roads, path); /* Add the path to the grid */
+      | None =>
+        print_endline("couldn't find road");
+        roads;
+      }
+    });
   print_endline("Widening roads and adding steps");
   let roads = widen_road(roads);
   let roads = add_steps(roads);
@@ -263,4 +266,10 @@ let apply_region =
 };
 
 let overlay = base =>
-  Overlay.make("roads", prepare(base), apply_region(base));
+  Overlay.make(
+    "roads",
+    prepare(base),
+    apply_region(base),
+    bin_reader_t,
+    bin_writer_t,
+  );

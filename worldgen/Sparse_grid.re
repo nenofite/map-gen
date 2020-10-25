@@ -1,18 +1,24 @@
+open Core_kernel;
+
 module Coord = {
-  type t = (int, int);
-  let compare = ((ax, ay), (bx, by)) => {
-    /*
-      Order first by Y, then by X. This way the memory layout (for caching)
-      will hopefully by more similar to Grid's
-     */
-    switch (Int.compare(ay, by)) {
-    | 0 => Int.compare(ax, bx)
-    | n => n
+  module T = {
+    [@deriving (sexp, bin_io)]
+    type t = (int, int);
+
+    let compare = ((ax, ay), (bx, by)) => {
+      /*
+        Order first by Y, then by X. This way the memory layout (for caching)
+        will hopefully by more similar to Grid's
+       */
+      switch (Int.compare(ay, by)) {
+      | 0 => Int.compare(ax, bx)
+      | n => n
+      };
     };
   };
+  include T;
+  include Comparable.Make_binable(T);
 };
-
-module Coord_map = Map.Make(Coord);
 
 /**
   t is a grid that's expected to be mostly empty. Instead of storing every
@@ -20,12 +26,13 @@ module Coord_map = Map.Make(Coord);
 
   Sparse_grid tries to mirror the interface of Grid as much as is practical.
  */
+[@deriving bin_io]
 type t('a) = {
   side: int,
-  map: Coord_map.t('a),
+  map: Coord.Map.t('a),
 };
 
-let make = side => {side, map: Coord_map.empty};
+let make = side => {side, map: Coord.Map.empty};
 
 let is_within = (side, x, y) => 0 <= x && x < side && 0 <= y && y < side;
 
@@ -51,12 +58,12 @@ let wrap_coord = (grid, x, y) => wrap_coord'(grid.side, x, y);
 
 let at = (grid, x, y) => {
   assert_within(grid.side, x, y);
-  Coord_map.find_opt((x, y), grid.map);
+  Coord.Map.find(grid.map, (x, y));
 };
 
 let put = (grid, x, y, n) => {
   assert_within(grid.side, x, y);
-  let map = Coord_map.add((x, y), n, grid.map);
+  let map = Coord.Map.set(grid.map, ~key=(x, y), ~data=n);
   {...grid, map};
 };
 
@@ -71,14 +78,17 @@ let put_w = (grid, x, y, n) => {
 };
 
 let map = (grid, f) => {
-  let map = Coord_map.mapi(f, grid.map);
+  let f = (~key, ~data) => f(key, data);
+  let map = Coord.Map.mapi(grid.map, ~f);
   {...grid, map};
 };
 
 let fold = (grid, f, acc) => {
-  Coord_map.fold(f, grid.map, acc);
+  let f = (~key, ~data, acc) => f(key, data, acc);
+  Coord.Map.fold(grid.map, ~init=acc, ~f);
 };
 
 let iter = (grid, f) => {
-  Coord_map.iter(f, grid.map);
+  let f = (~key, ~data) => f(key, data);
+  Coord.Map.iteri(grid.map, ~f);
 };
