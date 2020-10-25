@@ -78,16 +78,16 @@ let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z): unit => {
     ~minz=minz + z,
     ~maxz=maxz + z,
   );
-  Minecraft.Template.place_overwrite(top, args.region, ~x, ~y, ~z);
-  let tube_height = Minecraft.Template.height(tube);
-  let base_height = Minecraft.Template.height(base);
+  Minecraft_template.place_overwrite(top, args.region, ~x, ~y, ~z);
+  let tube_height = Minecraft_template.height(tube);
+  let base_height = Minecraft_template.height(base);
   let tube_sections = (y - tube_depth - base_height) / tube_height;
   for (i in 1 to tube_sections) {
     let y = y - i * tube_height;
-    Minecraft.Template.place_overwrite(tube, args.region, ~x, ~y, ~z);
+    Minecraft_template.place_overwrite(tube, args.region, ~x, ~y, ~z);
   };
   let y = y - tube_sections * tube_height - base_height;
-  Minecraft.Template.place_overwrite(base, args.region, ~x, ~y, ~z);
+  Minecraft_template.place_overwrite(base, args.region, ~x, ~y, ~z);
   let (minx, maxx) = base.bounds_x;
   let (minz, maxz) = base.bounds_z;
   Building.stair_foundation(

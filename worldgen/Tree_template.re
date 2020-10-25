@@ -1,9 +1,8 @@
 open Minecraft.Block;
-open Template;
 
 let trunk = height => {
   let blocks = List.init(height, y => (0, y, 0, Oak_log(Y)));
-  Template.of_blocks(blocks);
+  Minecraft_template.of_blocks(blocks);
 };
 
 let leaves = {
@@ -46,10 +45,10 @@ let leaves = {
     ((-1), 3, (-1), Oak_leaves),
     (0, 3, 0, Oak_leaves),
   ];
-  Template.of_blocks(blocks);
+  Minecraft_template.of_blocks(blocks);
 };
 
 let tree = () => {
   let height = Random.int(5) + 3;
-  stack(trunk(height), leaves);
+  Minecraft_template.stack(trunk(height), leaves);
 };

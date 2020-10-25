@@ -1,6 +1,15 @@
 (library
     (name Worldgen)
     (inline_tests)
-    (libraries Mg_util Progress_view ANSITerminal Minecraft camlimages.core camlimages.png)
-    (preprocess (pps ppx_inline_test ppx_expect))
+    (libraries
+        Mg_util
+        Progress_view
+        ANSITerminal
+        Minecraft
+        Minecraft_template
+        camlimages.core
+        camlimages.png
+        bin_prot
+    )
+    (preprocess (pps ppx_inline_test ppx_expect ppx_bin_prot))
 )

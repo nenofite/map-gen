@@ -18,7 +18,7 @@ let xz_of_direction = direction =>
   };
 
 type piece = {
-  template: Minecraft.Template.t,
+  template: Minecraft_template.t,
   open_sides: list(direction),
   usage,
 };
@@ -170,7 +170,7 @@ let apply_piece =
   let x = x + dx * piece_side;
   let z = z + dz * piece_side;
   let success =
-    Minecraft.Template.place(piece.template, args.region, ~x, ~y, ~z);
+    Minecraft_template.place(piece.template, args.region, ~x, ~y, ~z);
   if (!success) {
     raise(Building_failure("collision while placing piece"));
   };
@@ -191,13 +191,13 @@ let apply_template_y =
       args: Minecraft_converter.region_args,
       ~x,
       ~z,
-      template: Minecraft.Template.t,
+      template: Minecraft_template.t,
     )
     : int => {
   /* Flatten the footprint and get an elevation */
   let y = flatten_footprint(args, ~x, ~z, template.footprint);
   /* Apply at the given elevation */
-  let success = Minecraft.Template.place(template, args.region, ~x, ~y, ~z);
+  let success = Minecraft_template.place(template, args.region, ~x, ~y, ~z);
   if (!success) {
     raise(Building_failure("collision while applying template"));
   };

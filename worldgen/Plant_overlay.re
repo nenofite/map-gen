@@ -21,8 +21,8 @@ let apply_trees =
           let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
           switch (block) {
           | Grass_block =>
-            Minecraft.Template.place(
-              Minecraft.Template_data.tree(),
+            Minecraft_template.place(
+              Tree_template.tree(),
               region,
               ~x,
               ~y=y + 1,
