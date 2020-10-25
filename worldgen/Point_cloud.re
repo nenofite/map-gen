@@ -32,11 +32,11 @@ let init_f = (~width, ~height, ~spacing=1, f) => {
       let y = yi * spacing;
       let xf =
         float_of_int(x)
-        +. (Random.float(1.) -. 0.5)
+        +. (/* TODO */ Caml.Random.float(1.) -. 0.5)
         *. float_of_int(spacing);
       let yf =
         float_of_int(y)
-        +. (Random.float(1.) -. 0.5)
+        +. (/* TODO */ Caml.Random.float(1.) -. 0.5)
         *. float_of_int(spacing);
       /* Discard if the point is outside */
       if (is_within(width, height, xf, yf)) {

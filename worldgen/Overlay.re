@@ -74,13 +74,13 @@ let make =
 
 let bind = (m, ~f) => {
   let prepare = () => {
-    let next_seed = Random.bits();
+    let next_seed = /* TODO */ Caml.Random.bits();
     let (m_state, m_apply_f) = m.prepare();
-    Random.init(next_seed);
+    /* TODO */ Caml.Random.init(next_seed);
     let (o_state, o_apply_f) = f(m_state).prepare();
     let apply_f = args => {
       m_apply_f(args);
-      Random.init(next_seed);
+      /* TODO */ Caml.Random.init(next_seed);
       o_apply_f(args);
     };
     (o_state, apply_f);
@@ -101,7 +101,7 @@ module Let_syntax = {
 };
 
 let prepare = (seed, monad) => {
-  Random.init(seed);
+  /* TODO */ Caml.Random.init(seed);
   let (_state, apply_region) = monad.prepare();
   apply_region;
 };
@@ -110,21 +110,21 @@ let%expect_test "consistent random state" = {
   let overlay_a: monad(unit) = {
     prepare: () => {
       /* Calls twice */
-      Random.bits() |> ignore;
-      Random.bits() |> ignore;
+      /* TODO */ Caml.Random.bits() |> ignore;
+      /* TODO */ Caml.Random.bits() |> ignore;
       ((), _ => ());
     },
   };
   let overlay_b: monad(unit) = {
     prepare: () => {
       /* Calls once */
-      Random.bits() |> ignore;
+      /* TODO */ Caml.Random.bits() |> ignore;
       ((), _ => ());
     },
   };
   let spy: monad(unit) = {
     prepare: () => {
-      let test = Random.int(100);
+      let test = /* TODO */ Caml.Random.int(100);
       Printf.printf("%d\n", test);
       ((), _ => ());
     },

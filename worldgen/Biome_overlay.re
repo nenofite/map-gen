@@ -44,7 +44,7 @@ let prepare_mid = side => {
   let r = 16;
   let cloud =
     Point_cloud.init(~width=side / r, ~height=side / r, ~spacing=32, (_x, _y) =>
-      switch (Random.int(10)) {
+      switch (/* TODO */ Caml.Random.int(10)) {
       | 0
       | 1
       | 2
@@ -79,7 +79,7 @@ let prepare_shore = side => {
   let r = 16;
   let cloud =
     Point_cloud.init(~width=side / r, ~height=side / r, ~spacing=32, (_x, _y) =>
-      switch (Random.int(3)) {
+      switch (/* TODO */ Caml.Random.int(3)) {
       | 0 => Sand
       | 1 => Gravel
       | _ => Clay
@@ -107,7 +107,7 @@ let prepare_high = side => {
   let r = 16;
   let cloud =
     Point_cloud.init(~width=side / r, ~height=side / r, ~spacing=32, (_x, _y) =>
-      switch (Random.int(3)) {
+      switch (/* TODO */ Caml.Random.int(3)) {
       | 0 => Pine_forest
       | 1 => Barren
       | _ => Snow
