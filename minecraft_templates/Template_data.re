@@ -1,4 +1,4 @@
-open Block;
+open Minecraft.Block;
 open Template;
 
 let trunk = height => {

@@ -141,7 +141,7 @@ let get_block_opt = (~x, ~y, ~z, r) =>
 
 /** adds the entity to the region in-place */
 let add_entity = (entity: Entity.t, r) => {
-  open Floats;
+  open Mg_util.Floats;
   let Entity.{x, y, z, _} = entity;
   let x = ~~x;
   let y = ~~y;
