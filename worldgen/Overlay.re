@@ -27,7 +27,7 @@ let save_cache = (name, writer, state) => {
   with_file(
     cache_path(name),
     ~f=f => {
-      let buf = Bin_prot.Utils.bin_dump(writer, state);
+      let buf = Bin_prot.Utils.bin_dump(~header=true, writer, state);
       /* TODO this is probably not efficient */
       output_bytes(f, Bigstring.to_bytes(buf));
     },
