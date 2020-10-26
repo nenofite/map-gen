@@ -97,7 +97,7 @@ let section_i_block_i = (~lx, ~ly, ~lz) => {
     * section_per_chunk_vertical
     + sy;
   if (!(0 <= si && si < section_per_region_volume)) {
-    Printf.printf("%d %d %d\n", lx, ly, lz);
+    Tale.logf("%d %d %d", lx, ly, lz);
   };
   let bx = lx - cx * block_per_chunk_side;
   let by = ly - sy * block_per_section_vertical;

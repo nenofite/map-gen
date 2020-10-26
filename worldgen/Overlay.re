@@ -21,7 +21,7 @@ let read_cache = (reader, path) => {
 
 let save_cache = (name, writer, state) => {
   open Out_channel;
-  Printf.printf("Saving to cache...");
+  Tale.logf("Saving to cache...");
   flush(stdout);
   Mg_util.mkdir("overlays");
   with_file(
@@ -32,7 +32,7 @@ let save_cache = (name, writer, state) => {
       output_bytes(f, Bigstring.to_bytes(buf));
     },
   );
-  Printf.printf(" done\n");
+  Tale.logf("Done");
 };
 
 let make =
@@ -50,7 +50,7 @@ let make =
     let state =
       switch (read_cache(reader, cache_path(name))) {
       | Some(state) =>
-        Printf.printf("Read %s overlay from cache\n", name);
+        Tale.logf("Read %s overlay from cache", name);
         state;
       | None =>
         Mg_util.print_progress(

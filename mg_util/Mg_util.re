@@ -44,12 +44,7 @@ let rec drop = (amount, list) =>
   };
 
 let print_progress = (title: string, f: unit => 'a): 'a => {
-  ANSITerminal.printf([ANSITerminal.blue], "⌜ %s ⌝\n", title);
-  flush(stdout);
-  let result = f();
-  ANSITerminal.printf([ANSITerminal.green], "⌞ %s ⌟\n", title);
-  flush(stdout);
-  result;
+  Tale.block(title, ~f);
 };
 
 /** mkdir creates all directories in path, using the shell command [mkdir -p <path>] */
@@ -96,12 +91,15 @@ let output_int64_be = (f: out_channel, i: int64): unit => {
 };
 
 let write_file = (path, f) => {
-  print_string("Writing file " ++ path ++ "...");
-  flush(stdout);
-  let file = open_out_bin(path);
-  f(file);
-  close_out(file);
-  print_endline(" done.");
+  Tale.blockf(
+    "Writing file %s",
+    path,
+    ~f=() => {
+      let file = open_out_bin(path);
+      f(file);
+      close_out(file);
+    },
+  );
 };
 
 module Range = {

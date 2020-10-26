@@ -366,7 +366,7 @@ let run = (input: input): output => {
   let town_center = (town_side / 2, town_side / 2);
   let target_population =
     min_population + Random.int(max_population - min_population);
-  Printf.printf("Target population = %d\n", target_population);
+  Tale.logf("Target population = %d", target_population);
   let num_farms = target_population / pop_per_farm;
   let num_houses = target_population;
 

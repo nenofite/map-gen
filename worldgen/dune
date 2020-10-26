@@ -4,6 +4,7 @@
     (libraries
         core_kernel
         Mg_util
+        Tale
         Progress_view
         ANSITerminal
         Minecraft

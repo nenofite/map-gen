@@ -76,13 +76,13 @@ let acceptable_elevations = (base: Base_overlay.t, x, z) => {
 
 let town_area_clear = (base: Base_overlay.t, obstacles: obstacles, x, z) =>
   if (!within_region_boundaries(x, z)) {
-    print_endline("region boundaries");
+    Tale.log("region boundaries");
     false;
   } else if (has_obstacle(obstacles, x, z)) {
-    print_endline("has obstacle");
+    Tale.log("has obstacle");
     false;
   } else if (!acceptable_elevations(base, x, z)) {
-    print_endline("elevation");
+    Tale.log("elevation");
     false;
   } else {
     true;
@@ -129,7 +129,7 @@ let rec first_suitable_towns =
     if (!too_close) {
       switch (tweak_town_area(base, obstacles, x, z)) {
       | Some(coord) =>
-        print_endline("Selected town");
+        Tale.log("Selected town");
         let selected = [coord, ...selected];
         first_suitable_towns(
           base,
@@ -139,12 +139,12 @@ let rec first_suitable_towns =
           selected,
         );
       | None =>
-        print_endline("Failed to tweak town");
+        Tale.log("Failed to tweak town");
         first_suitable_towns(base, obstacles, remaining, coords, selected);
       };
     } else {
       /* Too close to another town */
-      print_endline("Town too close");
+      Tale.log("Town too close");
       first_suitable_towns(base, obstacles, remaining, coords, selected);
     };
   };
@@ -192,7 +192,7 @@ let prepare_town = (base: Base_overlay.t, x, z) => {
 
 let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
   /* Shuffle a list of all river tiles */
-  print_endline("Finding river coords");
+  Tale.log("Finding river coords");
   let river_coords =
     Grid.filter_map(base, (x, z, base) => {
       switch (base) {
@@ -201,16 +201,16 @@ let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
       | {river: false, _} => None
       }
     });
-  print_endline("Shuffling river coords");
+  Tale.log("Shuffling river coords");
   let river_coords =
     Mg_util.shuffle(river_coords) |> Mg_util.take(potential_sites_limit);
   /* Pick and tweak town sites from this list */
-  print_endline("Calculating obstacles");
+  Tale.log("Calculating obstacles");
   let obstacles = calc_obstacles(base, roads);
-  print_endline("Finding suitable towns");
+  Tale.log("Finding suitable towns");
   let towns =
     first_suitable_towns(base, obstacles, num_towns, river_coords, []);
-  List.iter(((x, z)) => Printf.printf("town at %d, %d\n", x, z), towns);
+  List.iter(((x, z)) => Tale.logf("town at %d, %d", x, z), towns);
   List.map(((x, z)) => prepare_town(base, x, z), towns);
 };
 

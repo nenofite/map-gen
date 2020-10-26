@@ -6,7 +6,7 @@ let max_depth = 9;
 type t = Grid.t(int);
 
 let prepare = (side, ()) => {
-  Printf.printf("Making dirt heights\n");
+  Tale.logf("Making dirt heights");
   Phase_chain.(
     run_all(
       phase("Init", () =>

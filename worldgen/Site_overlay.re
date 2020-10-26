@@ -23,7 +23,7 @@ let prepare = (base: Base_overlay.t, cavern: Cavern_overlay.t, ()) => {
               ceiling_elev > floor_elev
               && floor_elev > Cavern_overlay.magma_sea_elev =>
           /* TODO remove */
-          Printf.printf("cavern entrance at %d, %d\n", x, y);
+          Tale.logf("cavern entrance at %d, %d", x, y);
           Some(Cavern_entrance(floor_elev));
         | _ => None
         }

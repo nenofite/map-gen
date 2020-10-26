@@ -41,13 +41,11 @@ let rec run_all':
     | Phase(name, f, rest) =>
       let completed = completed + 1;
       let grid =
-        Mg_util.print_progress(
-          Printf.sprintf("[%d of %d] %s", completed, total, name), () =>
+        Tale.blockf("[%d of %d] %s", completed, total, name, ~f=() =>
           f(grid)
         );
-      ANSITerminal.printf(
-        [],
-        "[%d of %d] [%d x %d] %s\n",
+      Tale.logf(
+        "[%d of %d] [%d x %d] %s",
         completed,
         total,
         grid.side,

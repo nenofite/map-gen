@@ -158,7 +158,7 @@ let place_road =
 
 let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
   /* Use a point cloud to get points of interest */
-  print_endline("Making points of interest");
+  Tale.log("Making points of interest");
   let pois =
     Point_cloud.init(
       ~width=base.side, ~height=base.side, ~spacing=256, (_, _) =>
@@ -176,7 +176,7 @@ let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
   /* Run A* to go from each point to each other point */
   let roads = Sparse_grid.make(base.side);
   let poi_pairs = all_pairs(pois, []) |> Mg_util.take(10, _);
-  print_endline("Pathfinding roads");
+  Tale.log("Pathfinding roads");
   let roads =
     List.fold_left(poi_pairs, ~init=roads, ~f=(roads, (start, goal)) => {
       switch (
@@ -189,17 +189,17 @@ let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
         )
       ) {
       | Some(path) =>
-        print_endline("found a road");
+        Tale.log("found a road");
         place_road(base, roads, path); /* Add the path to the grid */
       | None =>
-        print_endline("couldn't find road");
+        Tale.log("couldn't find road");
         roads;
       }
     });
-  print_endline("Widening roads and adding steps");
+  Tale.log("Widening roads and adding steps");
   let roads = widen_road(roads);
   let roads = add_steps(roads);
-  print_endline("Drawing");
+  Tale.log("Drawing");
   Draw.draw_sparse_grid(colorizer, "roads.png", roads);
   /* TODO: add "stairs" to large increases in elev */
   {pois, roads};

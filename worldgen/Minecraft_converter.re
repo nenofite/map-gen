@@ -36,11 +36,7 @@ let segment_grid_by_region = (~side: int, ~sub=?, f): unit => {
   };
   /* Calculate how many tiles form the side of a region */
   let regions_side = side / block_per_region;
-  Printf.printf(
-    "Grid divided into %dx%d regions\n",
-    regions_side,
-    regions_side,
-  );
+  Tale.logf("Grid divided into %dx%d regions", regions_side, regions_side);
   let ((min_rx, min_rz), (len_rx, len_rz)) =
     Option.value(sub, ~default=((0, 0), (regions_side, regions_side)));
   /* Iterate over the grid */
@@ -73,7 +69,7 @@ let convert_region =
   let args = {region, rx, rz, gx_offset, gy_offset, gsize};
   apply_overlays(args);
 
-  Printf.printf("Flowing water\n");
+  Tale.logf("Flowing water");
   flush(stdout);
   Minecraft.Water.flow_water(region);
 };

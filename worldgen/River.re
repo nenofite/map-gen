@@ -220,7 +220,7 @@ let add_rivers = (grid, amount): Grid.t(tile) => {
          (grid, 0),
          _,
        );
-  Printf.printf("Successfully placed %d of %d rivers\n", succeeded, amount);
+  Tale.logf("Successfully placed %d of %d rivers", succeeded, amount);
   grid;
 };
 
