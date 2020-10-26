@@ -7,16 +7,15 @@ type site =
 [@deriving bin_io]
 type t = Point_cloud.t(option(site));
 
-let prepare = (base: Base_overlay.t, cavern: Cavern_overlay.t, ()) => {
+let prepare = (canon: Canonical_overlay.t, cavern: Cavern_overlay.t, ()) => {
   Point_cloud.init_f(
-    ~width=base.side,
-    ~height=base.side,
+    ~width=canon.side,
+    ~height=canon.side,
     ~spacing=128,
     (~xf, ~yf, ~xi as _, ~yi as _) => {
       let x = int_of_float(xf);
       let y = int_of_float(yf);
-      switch (Grid.at(base, x, y)) {
-      | {ocean: false, river: false, _} =>
+      if (!Sparse_grid.has(canon.obstacles, x, y)) {
         switch (Grid.at(cavern, x, y)) {
         | {floor_elev, ceiling_elev}
             when
@@ -26,8 +25,9 @@ let prepare = (base: Base_overlay.t, cavern: Cavern_overlay.t, ()) => {
           Tale.logf("cavern entrance at %d, %d", x, y);
           Some(Cavern_entrance(floor_elev));
         | _ => None
-        }
-      | _ => None
+        };
+      } else {
+        None;
       };
     },
   );

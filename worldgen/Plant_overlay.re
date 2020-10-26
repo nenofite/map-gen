@@ -6,7 +6,10 @@ type t = unit;
 let prepare = () => ();
 
 let apply_trees =
-    (biomes: Biome_overlay.t, args: Minecraft_converter.region_args) => {
+    (
+      biomes: Grid.t(Biome_overlay.biome),
+      args: Minecraft_converter.region_args,
+    ) => {
   let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
   let trees =
     Point_cloud.init(~width=gsize, ~height=gsize, ~spacing=8, (_, _) =>
@@ -42,7 +45,10 @@ let apply_trees =
 };
 
 let apply_ground_cover =
-    (biomes: Biome_overlay.t, args: Minecraft_converter.region_args) => {
+    (
+      biomes: Grid.t(Biome_overlay.biome),
+      args: Minecraft_converter.region_args,
+    ) => {
   let region = args.region;
   /* Change dirt => grass and add snow */
   Minecraft_converter.iter_blocks(
@@ -63,7 +69,10 @@ let apply_ground_cover =
 };
 
 let apply_tallgrass =
-    (biomes: Biome_overlay.t, args: Minecraft_converter.region_args) => {
+    (
+      biomes: Grid.t(Biome_overlay.biome),
+      args: Minecraft_converter.region_args,
+    ) => {
   let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
   let tallgrass =
     Point_cloud.init(~width=gsize, ~height=gsize, ~spacing=2, (_, _) =>
@@ -103,7 +112,7 @@ let apply_region = (biomes, (), args: Minecraft_converter.region_args) => {
   apply_tallgrass(biomes, args);
 };
 
-let overlay = (biomes: Biome_overlay.t) =>
+let overlay = (biomes: Grid.t(Biome_overlay.biome)): Overlay.monad(t) =>
   Overlay.make(
     "plant",
     prepare,

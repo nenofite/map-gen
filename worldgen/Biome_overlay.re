@@ -25,7 +25,7 @@ type biome =
   | High(high_biome);
 
 [@deriving bin_io]
-type t = Grid.t(biome);
+type t = (Grid.t(biome), Canonical_overlay.t);
 
 let colorize =
   fun
@@ -151,16 +151,37 @@ let zip_biomes = (base: Grid.t(Base_overlay.tile), ~mid, ~shore, ~high) => {
   );
 };
 
-let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
+let has_obstacle = (_base, dirt, biomes, x, y) => {
+  switch (Grid.at(biomes, x, y)) {
+  | Mid(Desert) => Grid.at(dirt, x, y) == 0
+  | _ => false
+  };
+};
+
+let prepare =
+    (canon: Canonical_overlay.t, base: Grid.t(Base_overlay.tile), dirt, ()) => {
   let mid = prepare_mid(base.side);
   let shore = prepare_shore(base.side);
   let high = prepare_high(base.side);
-  Phase_chain.(
-    run_all(
-      phase("Zip biomes", () => zip_biomes(base, ~mid, ~shore, ~high))
-      @> Draw.phase("biome.png", colorize),
-    )
-  );
+  let biomes =
+    Phase_chain.(
+      run_all(
+        phase("Zip biomes", () => zip_biomes(base, ~mid, ~shore, ~high))
+        @> Draw.phase("biome.png", colorize),
+      )
+    );
+  let canon = {
+    ...canon,
+    obstacles:
+      Grid.fold(biomes, canon.obstacles, (obstacles, x, y, _biome) =>
+        if (has_obstacle(base, dirt, biomes, x, y)) {
+          Sparse_grid.put(obstacles, x, y, ());
+        } else {
+          obstacles;
+        }
+      ),
+  };
+  (biomes, canon);
 };
 
 /** overwrite_stone_air only sets the block if it is Stone or Air, to avoid overwriting rivers etc. */
@@ -173,7 +194,11 @@ let overwrite_stone_air = (region, x, y, z, block) =>
   };
 
 let apply_dirt =
-    (dirt: Grid.t(int), state, args: Minecraft_converter.region_args) => {
+    (
+      dirt: Grid.t(int),
+      (state, _canon),
+      args: Minecraft_converter.region_args,
+    ) => {
   let region = args.region;
   Minecraft_converter.iter_blocks(
     region,
@@ -236,10 +261,16 @@ let apply_region =
   apply_dirt(dirt, state, args);
 };
 
-let overlay = (base: Grid.t(River.tile), dirt: Grid.t(int)) =>
+let overlay =
+    (
+      canon: Canonical_overlay.t,
+      base: Grid.t(River.tile),
+      dirt: Grid.t(int),
+    )
+    : Overlay.monad(t) =>
   Overlay.make(
     "biome",
-    prepare(base),
+    prepare(canon, base, dirt),
     apply_region(base, dirt),
     bin_reader_t,
     bin_writer_t,

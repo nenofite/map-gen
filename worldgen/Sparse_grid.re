@@ -61,6 +61,9 @@ let at = (grid, x, y) => {
   Coord.Map.find(grid.map, (x, y));
 };
 
+let has = (grid, x, y) =>
+  is_within(grid.side, x, y) && at(grid, x, y) |> Option.is_some;
+
 let put = (grid, x, y, n) => {
   assert_within(grid.side, x, y);
   let map = Coord.Map.set(grid.map, ~key=(x, y), ~data=n);
@@ -86,6 +89,12 @@ let map = (grid, f) => {
 let fold = (grid, f, acc) => {
   let f = (~key, ~data, acc) => f(key, data, acc);
   Coord.Map.fold(grid.map, ~init=acc, ~f);
+};
+
+let filter_map = (grid, f) => {
+  let f = (~key, ~data) => f(key, data);
+  let map = Coord.Map.filter_mapi(grid.map, ~f);
+  {...grid, map};
 };
 
 let iter = (grid, f) => {

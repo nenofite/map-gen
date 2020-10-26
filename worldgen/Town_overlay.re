@@ -8,9 +8,7 @@ type town = {
 };
 
 [@deriving bin_io]
-type t = list(town);
-
-type obstacles = Grid.t(bool);
+type t = (list(town), Canonical_overlay.t);
 
 let tweak_dist = 150;
 let tweak_tries = 100;
@@ -18,17 +16,6 @@ let num_towns = 8;
 let min_dist_between_towns = 500;
 let potential_sites_limit = 100;
 let wall_height = 4;
-
-let calc_obstacles = (base: Base_overlay.t, road: Road_overlay.t): obstacles => {
-  Grid.map(base, (x, z, base) => {
-    switch (base) {
-    | {river: true, _}
-    | {ocean: true, _} => true
-    | _ when Sparse_grid.at(road.roads, x, z) |> Option.is_some => true
-    | {river: false, ocean: false, _} => false
-    }
-  });
-};
 
 let within_region_boundaries = (x, z) =>
   Minecraft.Region.(
@@ -40,19 +27,15 @@ let within_region_boundaries = (x, z) =>
     - Town_prototype.side
   );
 
-let has_obstacle = (obstacles: obstacles, x, z) =>
-  try(
-    Range.exists(z, z + Town_prototype.side - 1, z =>
-      Range.exists(x, x + Town_prototype.side - 1, x =>
-        Grid.at(obstacles, x, z)
-      )
+let has_obstacle = (obstacles, x, z) =>
+  Range.exists(z, z + Town_prototype.side - 1, z =>
+    Range.exists(x, x + Town_prototype.side - 1, x =>
+      Sparse_grid.has(obstacles, x, z)
     )
-  ) {
-  | Invalid_argument(_) => true
-  };
+  );
 
-let acceptable_elevations = (base: Base_overlay.t, x, z) => {
-  let start_elev = Grid.at(base, x, z).elevation;
+let acceptable_elevations = (elevations, x, z) => {
+  let start_elev = Grid.at(elevations, x, z);
   let (emin, emax) =
     Range.fold(
       z,
@@ -64,7 +47,7 @@ let acceptable_elevations = (base: Base_overlay.t, x, z) => {
         x + Town_prototype.side - 1,
         (emin, emax),
         ((emin, emax), x) => {
-          let here_elev = Grid.at(base, x, z).elevation;
+          let here_elev = Grid.at(elevations, x, z);
           let emin = min(emin, here_elev);
           let emax = max(emax, here_elev);
           (emin, emax);
@@ -74,47 +57,40 @@ let acceptable_elevations = (base: Base_overlay.t, x, z) => {
   emax - emin <= Town_prototype.elevation_range;
 };
 
-let town_area_clear = (base: Base_overlay.t, obstacles: obstacles, x, z) =>
+let town_area_clear = (canon: Canonical_overlay.t, x, z) =>
   if (!within_region_boundaries(x, z)) {
     Tale.log("region boundaries");
     false;
-  } else if (has_obstacle(obstacles, x, z)) {
+  } else if (has_obstacle(canon.obstacles, x, z)) {
     Tale.log("has obstacle");
     false;
-  } else if (!acceptable_elevations(base, x, z)) {
+  } else if (!acceptable_elevations(canon.elevation, x, z)) {
     Tale.log("elevation");
     false;
   } else {
     true;
   };
 
-let rec tweak_town_area = (base, obstacles, x, z, tries) =>
+let rec tweak_town_area = (canon, x, z, tries) =>
   if (tries > 0) {
     let try_x = x + Random.int(tweak_dist * 2) - tweak_dist;
     let try_z = z + Random.int(tweak_dist * 2) - tweak_dist;
-    if (town_area_clear(base, obstacles, try_x, try_z)) {
+    if (town_area_clear(canon, try_x, try_z)) {
       Some((try_x, try_z));
     } else {
-      tweak_town_area(base, obstacles, x, z, tries - 1);
+      tweak_town_area(canon, x, z, tries - 1);
     };
   } else {
     None;
   };
-let tweak_town_area = (base, obstacles, x, z) =>
-  if (town_area_clear(base, obstacles, x, z)) {
+let tweak_town_area = (canon, x, z) =>
+  if (town_area_clear(canon, x, z)) {
     Some((x, z));
   } else {
-    tweak_town_area(base, obstacles, x, z, tweak_tries);
+    tweak_town_area(canon, x, z, tweak_tries);
   };
 
-let rec first_suitable_towns =
-        (
-          base: Base_overlay.t,
-          obstacles: obstacles,
-          remaining,
-          coords,
-          selected,
-        ) => {
+let rec first_suitable_towns = (canon, remaining, coords, selected) => {
   switch (coords) {
   | _ when remaining <= 0 => selected
   | [] => selected
@@ -127,38 +103,57 @@ let rec first_suitable_towns =
         selected,
       );
     if (!too_close) {
-      switch (tweak_town_area(base, obstacles, x, z)) {
+      switch (tweak_town_area(canon, x, z)) {
       | Some(coord) =>
         Tale.log("Selected town");
         let selected = [coord, ...selected];
-        first_suitable_towns(
-          base,
-          obstacles,
-          remaining - 1,
-          coords,
-          selected,
-        );
+        first_suitable_towns(canon, remaining - 1, coords, selected);
       | None =>
         Tale.log("Failed to tweak town");
-        first_suitable_towns(base, obstacles, remaining, coords, selected);
+        first_suitable_towns(canon, remaining, coords, selected);
       };
     } else {
       /* Too close to another town */
       Tale.log("Town too close");
-      first_suitable_towns(base, obstacles, remaining, coords, selected);
+      first_suitable_towns(canon, remaining, coords, selected);
     };
   };
 };
 
-let prepare_town = (base: Base_overlay.t, x, z) => {
+let add_block_to_obstacles = (block, obstacles) => {
+  let Town_prototype.{min_x, max_x, min_z, max_z, elevation: _} = block;
+  Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
+    Range.fold(min_x, max_x, obstacles, (obstacles, x) =>
+      Sparse_grid.put(obstacles, x, z, ())
+    )
+  );
+};
+
+let prepare_town = (canon: Canonical_overlay.t, town_min_x, town_min_z) => {
+  let town_max_x = town_min_x + Town_prototype.side - 1;
+  let town_max_z = town_min_z + Town_prototype.side - 1;
+
   /* Slice elevations from base overlay */
   let elevation =
     Grid.init(Town_prototype.side, (town_x, town_z) => {
-      Grid.at(base, town_x + x, town_z + z).elevation
+      Grid.at(canon.elevation, town_x + town_min_x, town_z + town_min_z)
     });
 
-  /* TODO do we actually need obstacles? */
-  let roads = Sparse_grid.make(Town_prototype.side);
+  /* TODO misnomer */
+  let roads =
+    Sparse_grid.fold(
+      canon.obstacles,
+      ((x, z), (), town_obstacles) =>
+        if (town_min_x <= x
+            && x <= town_max_x
+            && town_min_z <= z
+            && z <= town_max_z) {
+          Sparse_grid.put(town_obstacles, x - town_min_x, z - town_min_z, ());
+        } else {
+          town_obstacles;
+        },
+      Sparse_grid.make(Town_prototype.side),
+    );
 
   let Town_prototype.{bell, houses, farms} =
     Town_prototype.run({elevation, roads});
@@ -166,10 +161,10 @@ let prepare_town = (base: Base_overlay.t, x, z) => {
   /* Translate blocks into global coords */
   let translate_block = (b: Town_prototype.block) => {
     ...b,
-    min_x: b.min_x + x,
-    max_x: b.max_x + x,
-    min_z: b.min_z + z,
-    max_z: b.max_z + z,
+    min_x: b.min_x + town_min_x,
+    max_x: b.max_x + town_min_x,
+    min_z: b.min_z + town_min_z,
+    max_z: b.max_z + town_min_z,
   };
   let bell = translate_block(bell);
   let houses =
@@ -179,18 +174,30 @@ let prepare_town = (base: Base_overlay.t, x, z) => {
     );
   let farms = List.map(translate_block, farms);
 
-  {
-    x,
-    z,
+  let obstacles =
+    canon.obstacles
+    |> add_block_to_obstacles(bell)
+    |> List.fold_left(
+         (o, b: Town_prototype.house) => add_block_to_obstacles(b.block, o),
+         _,
+         houses,
+       )
+    |> List.fold_left((o, b) => add_block_to_obstacles(b, o), _, farms);
+
+  let town = {
+    x: town_min_x,
+    z: town_min_z,
     town: {
       bell,
       houses,
       farms,
     },
   };
+
+  (town, {...canon, obstacles});
 };
 
-let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
+let prepare = (canon: Canonical_overlay.t, base: Base_overlay.x, ()): t => {
   /* Shuffle a list of all river tiles */
   Tale.log("Finding river coords");
   let river_coords =
@@ -205,13 +212,17 @@ let prepare = (base: Base_overlay.t, roads: Road_overlay.t, ()): t => {
   let river_coords =
     Mg_util.shuffle(river_coords) |> Mg_util.take(potential_sites_limit);
   /* Pick and tweak town sites from this list */
-  Tale.log("Calculating obstacles");
-  let obstacles = calc_obstacles(base, roads);
   Tale.log("Finding suitable towns");
-  let towns =
-    first_suitable_towns(base, obstacles, num_towns, river_coords, []);
+  let towns = first_suitable_towns(canon, num_towns, river_coords, []);
   List.iter(((x, z)) => Tale.logf("town at %d, %d", x, z), towns);
-  List.map(((x, z)) => prepare_town(base, x, z), towns);
+  List.fold_left(
+    ((towns, canon), (x, z)) => {
+      let (town, canon) = prepare_town(canon, x, z);
+      ([town, ...towns], canon);
+    },
+    ([], canon),
+    towns,
+  );
 };
 
 let create_bell =
@@ -508,7 +519,8 @@ let create_farm =
   };
 };
 
-let apply_region = (towns: t, args: Minecraft_converter.region_args) => {
+let apply_region =
+    ((towns, _canon): t, args: Minecraft_converter.region_args) => {
   List.iter(
     ({x, z, town: {bell, farms, houses}}) =>
       if (Minecraft.Region.is_within(~x, ~y=0, ~z, args.region)) {
@@ -520,10 +532,11 @@ let apply_region = (towns: t, args: Minecraft_converter.region_args) => {
   );
 };
 
-let overlay = (base, roads) =>
+let overlay =
+    (canon: Canonical_overlay.t, base: Base_overlay.x): Overlay.monad(t) =>
   Overlay.make(
     "towns",
-    prepare(base, roads),
+    prepare(canon, base),
     apply_region,
     bin_reader_t,
     bin_writer_t,

@@ -4,8 +4,6 @@ type monad('state) = {
   prepare: unit => ('state, Minecraft_converter.region_args => unit),
 };
 
-exception Overlay_cache_error(string);
-
 let cache_path = name => Filename.concat("overlays", name ++ ".overlay");
 
 let read_cache = (reader, path) => {
