@@ -97,7 +97,7 @@ let section_i_block_i = (~lx, ~ly, ~lz) => {
     * section_per_chunk_vertical
     + sy;
   if (!(0 <= si && si < section_per_region_volume)) {
-    Printf.printf("%d %d %d\n", lx, ly, lz);
+    Tale.logf("%d %d %d", lx, ly, lz);
   };
   let bx = lx - cx * block_per_chunk_side;
   let by = ly - sy * block_per_section_vertical;
@@ -141,7 +141,7 @@ let get_block_opt = (~x, ~y, ~z, r) =>
 
 /** adds the entity to the region in-place */
 let add_entity = (entity: Entity.t, r) => {
-  open Floats;
+  open Mg_util.Floats;
   let Entity.{x, y, z, _} = entity;
   let x = ~~x;
   let y = ~~y;

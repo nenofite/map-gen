@@ -60,7 +60,7 @@ let parse_template = (~palette=[], s) => {
   let lines =
     s |> String.trim |> String.split_on_char('\n') |> List.map(String.trim);
   let blocks = parse_template(~palette, ~y=0, ~z=0, [], lines);
-  Minecraft.Template.of_blocks(blocks) |> Minecraft.Template.flip_y;
+  Minecraft_template.of_blocks(blocks) |> Minecraft_template.flip_y;
 };
 
 let rec read_slice = (fin, palette, blocks, ~y, ~z) => {
@@ -98,5 +98,5 @@ let rec read_template = (fin, palette, blocks, ~y) => {
 };
 let read_template = (~palette=default_palette, fin) => {
   let blocks = read_template(fin, palette, [], ~y=0);
-  Minecraft.Template.of_blocks(blocks);
+  Minecraft_template.of_blocks(blocks);
 };

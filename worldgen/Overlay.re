@@ -1,43 +1,36 @@
+open Core_kernel;
+
 type monad('state) = {
   prepare: unit => ('state, Minecraft_converter.region_args => unit),
 };
 
-exception Overlay_cache_error(string);
-
-let magic = 89809344;
 let cache_path = name => Filename.concat("overlays", name ++ ".overlay");
 
-let assert_magic = f => {
-  let matched =
-    switch (input_binary_int(f)) {
-    | num => num == magic
-    | exception End_of_file => false
-    };
-  if (!matched) {
-    raise(Overlay_cache_error("cached overlay does not have magic value"));
+let read_cache = (reader, path) => {
+  switch (In_channel.read_all(path)) {
+  | str =>
+    switch (Bigstring.(of_string(str) |> read_bin_prot(_, reader))) {
+    | Ok((state, _)) => Some(state)
+    | Error(_) => None
+    }
+  | exception (Sys_error(_)) => None
   };
 };
 
-let read_cache = f => {
-  assert_magic(f);
-  let state: 'a =
-    try(Marshal.from_channel(f)) {
-    | End_of_file
-    | Failure(_) => raise(Overlay_cache_error("could not read cache file"))
-    };
-  close_in(f);
-  state;
-};
-
-let save_cache = (name, state) => {
-  Printf.printf("Saving to cache...");
+let save_cache = (name, writer, state) => {
+  open Out_channel;
+  Tale.logf("Saving to cache...");
   flush(stdout);
   Mg_util.mkdir("overlays");
-  let f = open_out_bin(cache_path(name));
-  output_binary_int(f, magic);
-  Marshal.to_channel(f, state, []);
-  close_out(f);
-  Printf.printf(" done\n");
+  with_file(
+    cache_path(name),
+    ~f=f => {
+      let buf = Bin_prot.Utils.bin_dump(~header=true, writer, state);
+      /* TODO this is probably not efficient */
+      output_bytes(f, Bigstring.to_bytes(buf));
+    },
+  );
+  Tale.logf("Done");
 };
 
 let make =
@@ -46,23 +39,23 @@ let make =
       ~apply_progress_view: 'a => unit=_ => (),
       prepare: unit => 'a,
       apply_region: ('a, Minecraft_converter.region_args) => unit,
+      reader: Bin_prot.Type_class.reader('a),
+      writer: Bin_prot.Type_class.writer('a),
     )
     : monad('a) => {
   let prepare = () => {
     /* Try to read a cached version first */
     let state =
-      switch (open_in_bin(cache_path(name))) {
-      | f =>
-        Mg_util.print_progress("Reading " ++ name ++ " overlay from cache", () =>
-          read_cache(f)
-        )
-      | exception (Sys_error(_)) =>
-        /* If cache doesn't exist, generate */
+      switch (read_cache(reader, cache_path(name))) {
+      | Some(state) =>
+        Tale.logf("Read %s overlay from cache", name);
+        state;
+      | None =>
         Mg_util.print_progress(
           "Preparing " ++ name ++ " overlay",
           () => {
             let state = prepare();
-            save_cache(name, state);
+            save_cache(name, writer, state);
             state;
           },
         )
@@ -79,13 +72,13 @@ let make =
 
 let bind = (m, ~f) => {
   let prepare = () => {
-    let next_seed = Random.bits();
+    let next_seed = /* TODO */ Caml.Random.bits();
     let (m_state, m_apply_f) = m.prepare();
-    Random.init(next_seed);
+    /* TODO */ Caml.Random.init(next_seed);
     let (o_state, o_apply_f) = f(m_state).prepare();
     let apply_f = args => {
       m_apply_f(args);
-      Random.init(next_seed);
+      /* TODO */ Caml.Random.init(next_seed);
       o_apply_f(args);
     };
     (o_state, apply_f);
@@ -106,7 +99,7 @@ module Let_syntax = {
 };
 
 let prepare = (seed, monad) => {
-  Random.init(seed);
+  /* TODO */ Caml.Random.init(seed);
   let (_state, apply_region) = monad.prepare();
   apply_region;
 };
@@ -115,21 +108,21 @@ let%expect_test "consistent random state" = {
   let overlay_a: monad(unit) = {
     prepare: () => {
       /* Calls twice */
-      Random.bits() |> ignore;
-      Random.bits() |> ignore;
+      /* TODO */ Caml.Random.bits() |> ignore;
+      /* TODO */ Caml.Random.bits() |> ignore;
       ((), _ => ());
     },
   };
   let overlay_b: monad(unit) = {
     prepare: () => {
       /* Calls once */
-      Random.bits() |> ignore;
+      /* TODO */ Caml.Random.bits() |> ignore;
       ((), _ => ());
     },
   };
   let spy: monad(unit) = {
     prepare: () => {
-      let test = Random.int(100);
+      let test = /* TODO */ Caml.Random.int(100);
       Printf.printf("%d\n", test);
       ((), _ => ());
     },

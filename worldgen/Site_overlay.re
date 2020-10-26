@@ -1,29 +1,33 @@
+open Core_kernel;
+
+[@deriving bin_io]
 type site =
   | Cavern_entrance(int);
 
-type t = Point_cloud.t(site);
+[@deriving bin_io]
+type t = Point_cloud.t(option(site));
 
-let prepare = (base: Base_overlay.t, cavern: Cavern_overlay.t, ()) => {
+let prepare = (canon: Canonical_overlay.t, cavern: Cavern_overlay.t, ()) => {
   Point_cloud.init_f(
-    ~width=base.side,
-    ~height=base.side,
+    ~width=canon.side,
+    ~height=canon.side,
     ~spacing=128,
     (~xf, ~yf, ~xi as _, ~yi as _) => {
       let x = int_of_float(xf);
       let y = int_of_float(yf);
-      switch (Grid.at(base, x, y)) {
-      | {ocean: false, river: false, _} =>
+      if (!Sparse_grid.has(canon.obstacles, x, y)) {
         switch (Grid.at(cavern, x, y)) {
         | {floor_elev, ceiling_elev}
             when
               ceiling_elev > floor_elev
               && floor_elev > Cavern_overlay.magma_sea_elev =>
           /* TODO remove */
-          Printf.printf("cavern entrance at %d, %d\n", x, y);
+          Tale.logf("cavern entrance at %d, %d", x, y);
           Some(Cavern_entrance(floor_elev));
         | _ => None
-        }
-      | _ => None
+        };
+      } else {
+        None;
       };
     },
   );
@@ -78,16 +82,16 @@ let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z): unit => {
     ~minz=minz + z,
     ~maxz=maxz + z,
   );
-  Minecraft.Template.place_overwrite(top, args.region, ~x, ~y, ~z);
-  let tube_height = Minecraft.Template.height(tube);
-  let base_height = Minecraft.Template.height(base);
+  Minecraft_template.place_overwrite(top, args.region, ~x, ~y, ~z);
+  let tube_height = Minecraft_template.height(tube);
+  let base_height = Minecraft_template.height(base);
   let tube_sections = (y - tube_depth - base_height) / tube_height;
   for (i in 1 to tube_sections) {
     let y = y - i * tube_height;
-    Minecraft.Template.place_overwrite(tube, args.region, ~x, ~y, ~z);
+    Minecraft_template.place_overwrite(tube, args.region, ~x, ~y, ~z);
   };
   let y = y - tube_sections * tube_height - base_height;
-  Minecraft.Template.place_overwrite(base, args.region, ~x, ~y, ~z);
+  Minecraft_template.place_overwrite(base, args.region, ~x, ~y, ~z);
   let (minx, maxx) = base.bounds_x;
   let (minz, maxz) = base.bounds_z;
   Building.stair_foundation(
@@ -102,7 +106,8 @@ let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z): unit => {
 
 let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit => {
   List.iter(
-    (Point_cloud.{x, y: z, value: site}) => {
+    Point_cloud.(sites.points),
+    ~f=(Point_cloud.{x, y: z, value: site}) => {
       let x = int_of_float(x);
       let z = int_of_float(z);
       if (Minecraft.Region.is_within(~x, ~y=0, ~z, args.region)) {
@@ -113,9 +118,14 @@ let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit =
         };
       };
     },
-    Point_cloud.(sites.points),
   );
 };
 
 let overlay = (base, cavern) =>
-  Overlay.make("site", prepare(base, cavern), apply_region(base));
+  Overlay.make(
+    "site",
+    prepare(base, cavern),
+    apply_region(base),
+    bin_reader_t,
+    bin_writer_t,
+  );

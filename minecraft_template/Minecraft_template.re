@@ -3,7 +3,7 @@
   tree
  */
 type t = {
-  blocks: list((int, int, int, Block.material)),
+  blocks: list((int, int, int, Minecraft.Block.material)),
   bounds_x: (int, int),
   bounds_y: (int, int),
   bounds_z: (int, int),
@@ -75,8 +75,10 @@ let stack = (base, addition) => {
 let check_collision = (template, ~x, ~y, ~z, r) => {
   List.exists(
     ((dx, dy, dz, block)) =>
-      if (block != Block.Air) {
-        switch (Region.get_block_opt(~x=x + dx, ~y=y + dy, ~z=z + dz, r)) {
+      if (block != Minecraft.Block.Air) {
+        switch (
+          Minecraft.Region.get_block_opt(~x=x + dx, ~y=y + dy, ~z=z + dz, r)
+        ) {
         | Some(Air) => false
         | None => true
         | Some(_not_air) => true
@@ -95,7 +97,7 @@ let check_collision = (template, ~x, ~y, ~z, r) => {
 let place_overwrite = (template, ~x, ~y, ~z, r) => {
   List.iter(
     ((dx, dy, dz, material)) => {
-      Region.set_block(~x=dx + x, ~y=dy + y, ~z=dz + z, material, r)
+      Minecraft.Region.set_block(~x=dx + x, ~y=dy + y, ~z=dz + z, material, r)
     },
     template.blocks,
   );
@@ -119,9 +121,9 @@ let place = (template, ~x, ~y, ~z, r) =>
   */
 let calc_footprint = blocks => {
   List.fold_left(
-    (footprint, (x, _y, z, block)) => {
+    (footprint, (x, _y, z, block: Minecraft.Block.material)) => {
       switch (block) {
-      | Block.Air => footprint
+      | Air => footprint
       | _ =>
         let coord = (x, z);
         if (!List.mem(coord, footprint)) {
@@ -138,7 +140,7 @@ let calc_footprint = blocks => {
 
 let%expect_test "calc_footprint" = {
   let blocks =
-    Block.[
+    Minecraft.Block.[
       (0, 0, 0, Cobblestone),
       (0, 1, 0, Cobblestone),
       (1, 1, 0, Air),

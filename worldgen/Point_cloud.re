@@ -1,9 +1,13 @@
+open Core_kernel;
+
+[@deriving bin_io]
 type point('v) = {
   x: float,
   y: float,
   value: 'v,
 };
 
+[@deriving bin_io]
 type t('v) = {
   points: list(point('v)),
   width: int,
@@ -11,7 +15,7 @@ type t('v) = {
 };
 
 let is_within = (width, height, x, y) =>
-  0. <= x && x < float_of_int(width) && 0. <= y && y < float_of_int(height);
+  Float.(0. <= x && x < of_int(width) && 0. <= y && y < of_int(height));
 
 let assert_within = (width, height, x, y) =>
   if (!is_within(width, height, x, y)) {
@@ -28,11 +32,11 @@ let init_f = (~width, ~height, ~spacing=1, f) => {
       let y = yi * spacing;
       let xf =
         float_of_int(x)
-        +. (Random.float(1.) -. 0.5)
+        +. (/* TODO */ Caml.Random.float(1.) -. 0.5)
         *. float_of_int(spacing);
       let yf =
         float_of_int(y)
-        +. (Random.float(1.) -. 0.5)
+        +. (/* TODO */ Caml.Random.float(1.) -. 0.5)
         *. float_of_int(spacing);
       /* Discard if the point is outside */
       if (is_within(width, height, xf, yf)) {
@@ -57,43 +61,46 @@ let init = (~width, ~height, ~spacing=?, f) =>
 
 let make_list = (~width, ~height, ~spacing=?, ()) => {
   let cloud = init(~width, ~height, ~spacing?, (_, _) => ());
-  List.map(({x, y, value: _}) => (x, y), cloud.points);
+  List.map(~f=({x, y, value: _}) => (x, y), cloud.points);
 };
 
 let distance = (ax, ay, bx, by) =>
   sqrt((ax -. bx) ** 2. +. (ay -. by) ** 2.);
 
 let closest_point = (cloud, x, y) => {
-  let first = List.hd(cloud.points);
+  let first = List.hd_exn(cloud.points);
   let first_distance = distance(first.x, first.y, x, y);
   List.fold_left(
-    ((_a, a_distance) as acc, point) => {
-      let point_distance = distance(point.x, point.y, x, y);
-      if (point_distance < a_distance) {
-        (point, point_distance);
-      } else {
-        acc;
-      };
-    },
-    (first, first_distance),
+    ~f=
+      ((_a, a_distance) as acc, point) => {
+        let point_distance = distance(point.x, point.y, x, y);
+        if (Float.(point_distance < a_distance)) {
+          (point, point_distance);
+        } else {
+          acc;
+        };
+      },
+    ~init=(first, first_distance),
     cloud.points,
   );
 };
 
 let two_closest_points = (cloud, x, y) => {
-  let first = List.hd(cloud.points);
+  let first = List.hd_exn(cloud.points);
   let first_distance = distance(first.x, first.y, x, y);
   List.fold_left(
-    ((a, a_distance, _b, b_distance) as acc, point) => {
+    cloud.points,
+    ~init=(first, first_distance, first, first_distance),
+    ~f=((a, a_distance, _b, b_distance) as acc, point) => {
       let point_distance = distance(point.x, point.y, x, y);
-      switch (point_distance < a_distance, point_distance < b_distance) {
+      switch (
+        Float.(point_distance < a_distance, point_distance < b_distance)
+      ) {
       | (true, _) => (point, point_distance, a, a_distance)
       | (false, true) => (a, a_distance, point, point_distance)
       | (false, false) => acc
       };
     },
-    (first, first_distance, first, first_distance),
-    cloud.points,
   );
 };
 
@@ -102,6 +109,7 @@ let two_closest_points = (cloud, x, y) => {
   the edge is closer than any point.
  */
 let nearest_with_edge = (cloud, edge_value, x, y) => {
+  open Float;
   let width_f = float_of_int(cloud.width);
   let height_f = float_of_int(cloud.height);
   let edge_distance = min(min(x, width_f -. x), min(y, height_f -. y));

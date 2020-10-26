@@ -1,8 +1,15 @@
+open Core_kernel;
+
+[@deriving bin_io]
 type tile = River.tile;
 
-type t = Grid.t(tile);
+[@deriving bin_io]
+type t = (Grid.t(tile), Canonical_overlay.t);
 
-let apply_progress_view = world => {
+type x = Grid.t(tile);
+
+let apply_progress_view = (state: t) => {
+  let (world, _canon) = state;
   let layer = Progress_view.push_layer();
   Progress_view.update(
     ~draw_dense=Progress_view_helper.dense(River.colorize),
@@ -11,6 +18,20 @@ let apply_progress_view = world => {
   );
   ();
 };
+
+let extract_canonical = (grid: Grid.t(tile)) =>
+  Canonical_overlay.{
+    side: grid.side,
+    elevation: Grid.map(grid, (_x, _y, tile) => tile.elevation),
+    obstacles:
+      Grid.fold(grid, Sparse_grid.make(grid.side), (obstacles, x, y, tile) =>
+        if (tile.river || tile.ocean) {
+          Sparse_grid.put(obstacles, x, y, ());
+        } else {
+          obstacles;
+        }
+      ),
+  };
 
 let prepare = () => {
   module Pvh = Progress_view_helper;
@@ -31,11 +52,11 @@ let prepare = () => {
       )
     );
   Progress_view.remove_layer(layer);
-  s;
+  (s, extract_canonical(s));
 };
 
-let apply_region =
-    (world: Grid.t(tile), args: Minecraft_converter.region_args) => {
+let apply_region = (state: t, args: Minecraft_converter.region_args) => {
+  let (world, _canon) = state;
   let region = args.region;
   Minecraft_converter.iter_blocks(
     region,
@@ -67,5 +88,12 @@ let apply_region =
   );
 };
 
-let overlay =
-  Overlay.make("base", ~apply_progress_view, prepare, apply_region);
+let overlay: Overlay.monad(t) =
+  Overlay.make(
+    "base",
+    ~apply_progress_view,
+    prepare,
+    apply_region,
+    bin_reader_t,
+    bin_writer_t,
+  );

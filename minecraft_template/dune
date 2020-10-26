@@ -1,0 +1,6 @@
+(library
+    (name Minecraft_template)
+    (inline_tests)
+    (libraries base Mg_util Minecraft)
+    (preprocess (pps ppx_inline_test ppx_expect))
+)

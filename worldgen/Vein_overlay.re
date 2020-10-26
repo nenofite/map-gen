@@ -27,7 +27,7 @@ let make_layer =
       ~max_thickness,
       ~ore_cloud,
     ) => {
-  Printf.printf("Creating %s ore layer\n", name);
+  Tale.logf("Creating %s ore layer", name);
   /*
     Create random ore layers, with avg height of 2 blocks and avg depth of 10
     relative to surface

@@ -1,0 +1,4 @@
+(library
+    (name Tale)
+    (libraries core_kernel)
+)
