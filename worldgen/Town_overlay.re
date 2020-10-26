@@ -10,6 +10,8 @@ type town = {
 [@deriving bin_io]
 type t = (list(town), Canonical_overlay.t);
 
+type x = list(town);
+
 let tweak_dist = 150;
 let tweak_tries = 100;
 let num_towns = 8;

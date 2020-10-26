@@ -24,10 +24,13 @@ type stepped_road = {
 };
 
 [@deriving bin_io]
-type t = {
+type x = {
   pois: list((int, int)),
   roads: Sparse_grid.t(stepped_road),
 };
+
+[@deriving bin_io]
+type t = (x, Canonical_overlay.t);
 
 let colorizer =
   fun
@@ -42,24 +45,21 @@ let rec all_pairs = (list, result) =>
     all_pairs(list, result);
   };
 
-let heuristic = (base: Grid.t(Base_overlay.tile), (ax, ay), (bx, by)) => {
-  let a_elev = Grid.at(base, ax, ay).elevation;
-  let b_elev = Grid.at(base, bx, by).elevation;
+let heuristic = (canon: Canonical_overlay.t, (ax, ay), (bx, by)) => {
+  let a_elev = Grid.at(canon.elevation, ax, ay);
+  let b_elev = Grid.at(canon.elevation, bx, by);
   A_star.distance_3d((ax, ay, a_elev), (bx, by, b_elev));
 };
 
-let edge_cost = (base: Grid.t(Base_overlay.tile), (ax, ay), (bx, by)) => {
-  let a_elev = Grid.at(base, ax, ay).elevation;
-  switch (Grid.at(base, bx, by)) {
-  | {river: false, ocean: false, elevation: b_elev} =>
-    let elev_diff = abs(a_elev - b_elev);
-    switch (elev_diff) {
-    | 0 => Some(1.)
-    | 1 => Some(2.)
-    | _ => None
-    };
-  | {river: true, _}
-  | {ocean: true, _} => None
+let edge_cost = (canon: Canonical_overlay.t, (ax, ay), (bx, by)) => {
+  let a_elev = Grid.at(canon.elevation, ax, ay);
+  let b_elev = Grid.at(canon.elevation, bx, by);
+  let elev_diff = abs(a_elev - b_elev);
+  let b_obs = Sparse_grid.has(canon.obstacles, bx, by);
+  if (!b_obs && elev_diff <= 1) {
+    Some(Mg_util.Floats.(~.elev_diff +. 1.));
+  } else {
+    None;
   };
 };
 
@@ -142,13 +142,13 @@ let rec add_road_to_grid = (roads: Sparse_grid.t(road), path) =>
   };
 
 let place_road =
-    (base: Grid.t(Base_overlay.tile), roads: Sparse_grid.t(road), path) => {
+    (canon: Canonical_overlay.t, roads: Sparse_grid.t(road), path) => {
   /* Add elevations */
   let path =
     List.map(
       path,
       ~f=((x, y)) => {
-        let elevation = Grid.at(base, x, y).elevation;
+        let elevation = Grid.at(canon.elevation, x, y);
         (x, y, {elevation, niceness: Paved /* TODO */});
       },
     );
@@ -156,41 +156,51 @@ let place_road =
   add_road_to_grid(roads, path);
 };
 
-let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
+let poi_of_town = (town: Town_overlay.town) => {
+  Town_prototype.(town.x + side / 2, town.z + side / 2);
+};
+
+let starts_of_poi = ((x, z)) => {
+  open Town_prototype;
+  let min_x = x - side / 2;
+  let min_z = z - side / 2;
+  let max_x = min_x + side - 1;
+  let max_z = min_z + side - 1;
+  Range.map(min_z, max_z, z => Range.map(min_x, max_x, x => (x, z)))
+  |> List.concat;
+};
+
+let goalf_of_poi = ((poi_x, poi_z)) => {
+  open Town_prototype;
+  let min_x = poi_x - side / 2;
+  let min_z = poi_z - side / 2;
+  let max_x = min_x + side - 1;
+  let max_z = min_z + side - 1;
+  ((x, z)) => min_x <= x && x <= max_x && min_z <= z && z <= max_z;
+};
+
+let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
   /* Use a point cloud to get points of interest */
   Tale.log("Making points of interest");
-  let pois =
-    Point_cloud.init(
-      ~width=base.side, ~height=base.side, ~spacing=256, (_, _) =>
-      ()
-    ).
-      points
-    |> List.filter_map(~f=(Point_cloud.{x, y, _}) => {
-         let x = int_of_float(x);
-         let y = int_of_float(y);
-         switch (Grid.at(base, x, y)) {
-         | {ocean: false, river: false, _} => Some((x, y))
-         | _ => None
-         };
-       });
+  let pois = List.map(~f=poi_of_town, towns);
   /* Run A* to go from each point to each other point */
-  let roads = Sparse_grid.make(base.side);
-  let poi_pairs = all_pairs(pois, []) |> Mg_util.take(10, _);
+  let roads = Sparse_grid.make(canon.side);
+  let poi_pairs = all_pairs(pois, []) |> Mg_util.take(100, _);
   Tale.log("Pathfinding roads");
   let roads =
     List.fold_left(poi_pairs, ~init=roads, ~f=(roads, (start, goal)) => {
       switch (
-        A_star.run(
-          ~grid_side=base.side,
-          ~start,
-          ~goal,
-          ~edge_cost=edge_cost(base),
-          ~heuristic=heuristic(base),
+        A_star.run_multi(
+          ~grid_side=canon.side,
+          ~starts=starts_of_poi(start),
+          ~goalf=goalf_of_poi(goal),
+          ~edge_cost=edge_cost(canon),
+          ~heuristic=heuristic(canon, goal),
         )
       ) {
       | Some(path) =>
         Tale.log("found a road");
-        place_road(base, roads, path); /* Add the path to the grid */
+        place_road(canon, roads, path); /* Add the path to the grid */
       | None =>
         Tale.log("couldn't find road");
         roads;
@@ -201,8 +211,10 @@ let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
   let roads = add_steps(roads);
   Tale.log("Drawing");
   Draw.draw_sparse_grid(colorizer, "roads.png", roads);
+  let obstacles =
+    Sparse_grid.(map(roads, (_, _) => ()) |> add_all(~onto=canon.obstacles));
   /* TODO: add "stairs" to large increases in elev */
-  {pois, roads};
+  ({pois, roads}, {...canon, obstacles});
 };
 
 /** fill_beneath_road places a column of cobblestone until it reaches solid ground */
@@ -245,12 +257,7 @@ let place_step_block = (region, x, y, z) => {
   fill_beneath_road(region, x, y - 1, z);
 };
 
-let apply_region =
-    (
-      _base: Grid.t(Base_overlay.tile),
-      state,
-      args: Minecraft_converter.region_args,
-    ) => {
+let apply_region = ((state, _canon), args: Minecraft_converter.region_args) => {
   let region = args.region;
   Sparse_grid.iter(state.roads, ((x, z), road) =>
     if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
@@ -265,11 +272,11 @@ let apply_region =
   );
 };
 
-let overlay = base =>
+let overlay = (canon, towns): Overlay.monad(t) =>
   Overlay.make(
     "roads",
-    prepare(base),
-    apply_region(base),
+    prepare(canon, towns),
+    apply_region,
     bin_reader_t,
     bin_writer_t,
   );

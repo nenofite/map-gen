@@ -97,6 +97,10 @@ let filter_map = (grid, f) => {
   {...grid, map};
 };
 
+let add_all = (~onto, overgrid) => {
+  fold(overgrid, ((x, z), d, grid) => put(grid, x, z, d), onto);
+};
+
 let iter = (grid, f) => {
   let f = (~key, ~data) => f(key, data);
   Coord.Map.iteri(grid.map, ~f);
