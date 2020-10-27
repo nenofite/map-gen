@@ -19,6 +19,24 @@ let min_dist_between_towns = 500;
 let potential_sites_limit = 100;
 let wall_height = 4;
 
+let draw_towns = (canon: Canonical_overlay.t, towns) => {
+  let sg =
+    Sparse_grid.(
+      List.fold_left(
+        (sg, (x, z)) => put(sg, x, z, ()),
+        make(canon.side),
+        towns,
+      )
+    );
+  Draw.draw_sparse_grid(
+    fun
+    | None => 0
+    | Some () => 0xFFFFFF,
+    "towns.bmp",
+    sg,
+  );
+};
+
 let within_region_boundaries = (x, z) =>
   Minecraft.Region.(
     x
@@ -217,6 +235,7 @@ let prepare = (canon: Canonical_overlay.t, base: Base_overlay.x, ()): t => {
   Tale.log("Finding suitable towns");
   let towns = first_suitable_towns(canon, num_towns, river_coords, []);
   List.iter(((x, z)) => Tale.logf("town at %d, %d", x, z), towns);
+  draw_towns(canon, towns);
   List.fold_left(
     ((towns, canon), (x, z)) => {
       let (town, canon) = prepare_town(canon, x, z);

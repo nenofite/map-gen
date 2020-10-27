@@ -25,9 +25,7 @@ let show = tile =>
 
 let draw_intermediate = tile => {
   let frac = float_of_int(tile.id) /. 40.;
-  Color.(
-    blend(color_of_int(0), color_of_int(0xFFFFFF), frac) |> int_of_color(_)
-  );
+  Color.blend(0, 0xFFFFFF, frac);
 };
 
 let xy_of_direction = direction =>

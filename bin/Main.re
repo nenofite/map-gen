@@ -16,16 +16,19 @@ let overlays = {
   let%bind (_roads, canon) = Road_overlay.overlay(canon, towns);
   let%bind _sites = Site_overlay.overlay(canon, cavern);
   let%bind _plants = Plant_overlay.overlay(biomes);
-  /* let%bind debug =
-     Debug_overlay.overlay({
-       glassify:
-         fun
-         | Air => false
-         | Stone
-         | Dirt
-         | Grass => true
-         | _ => false,
-     }); */
+  let%bind _debug =
+    Debug_overlay.overlay(
+      canon,
+      {
+        glassify:
+          fun
+          | Air => false
+          | Stone
+          | Dirt
+          | Grass => true
+          | _ => false,
+      },
+    );
   Overlay.return();
 };
 
