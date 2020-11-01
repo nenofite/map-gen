@@ -1,6 +1,12 @@
 open Core_kernel
 
-type t = Geometry.Vec3i.t list (* TODO *)
+type metaball = {
+  center: Geometry.Vec3i.t;
+  radius: int;
+}
+[@@deriving bin_io]
+
+type t = metaball list (* TODO *)
 [@@deriving bin_io]
 
 (** Average blocks between cave entrances, before probability is applied *)
@@ -62,6 +68,45 @@ let random_wiggle () =
    Random.float_range (-0.5) 0.5)
 ;;
 
+let within_ball balls x y z =
+  let rec go balls x y z sum =
+    match balls with
+    | [] -> sum
+    | {center; radius} :: rest -> 
+      let open Int in
+      let (cx, cy, cz) = center in
+      let r4 = radius ** 4 in
+      let dist4 = ((x - cx) ** 2 + (y - cy) ** 2 + (z - cz) ** 2) ** 2 in
+      let next_sum = Float.(sum + of_int r4 / of_int dist4) in
+      go rest x y z next_sum
+  in
+  let value_here = go balls x y z 0. in
+  Float.(value_here >= 1.)
+
+let ball_bounds ball =
+  let {center = (cx, cy, cz); radius} = ball in
+  let radius = radius + 2 in
+  let open Mg_util.Range in
+  fold (cz - radius) (cz + radius) [] @@ fun acc z ->
+  fold (cx - radius) (cx + radius) acc @@ fun acc x ->
+  fold (cy - radius) (cy + radius) acc @@ fun acc y ->
+  (x, y, z) :: acc
+;;
+
+let before_after balls =
+  let rec go balls result =
+    match balls with
+    | [] | [_] -> result
+    | [a; b] -> (b, [a; b]) :: result
+    | a :: ((b :: c :: _) as rest) ->
+      go rest ((b, [a; b; c]) :: result)
+  in
+  match balls with
+  | [] -> []
+  | [a] -> [(a, [a])]
+  | (a :: b :: _) as balls -> go balls [(a, [a; b])]
+;;
+
 let prepare (canon : Canonical_overlay.t) () =
   let module Vi = Geometry.Vec3i in
   let module Vf = Geometry.Vec3f in
@@ -84,7 +129,8 @@ let prepare (canon : Canonical_overlay.t) () =
       let points =
         random_joints () |>
         transform_and_wiggle start |>
-        points_of_joints
+        points_of_joints |>
+        List.map ~f: (fun point -> { center = point; radius = 2 }) (* TODO *)
       in
       Some points
   in
@@ -98,9 +144,12 @@ let prepare (canon : Canonical_overlay.t) () =
 
 let apply_region t (args : Minecraft_converter.region_args) =
   (* TODO *)
-  List.iter t ~f: (fun (x, y, z) ->
-      (* if is_within ~x ~y ~z args.region then *)
-      Minecraft.Region.set_block_opt Minecraft.Block.Redstone_block ~x ~y ~z args.region
+  let with_ba = before_after t in
+  List.iter with_ba ~f: (fun (ball, ba) ->
+      List.iter (ball_bounds ball) ~f: (fun (x, y, z) ->
+          if Minecraft.Region.is_within ~x ~y ~z args.region && within_ball ba x y z then
+            Minecraft.Region.set_block_opt Minecraft.Block.Air ~x ~y ~z args.region
+        )
     )
 ;;
 
