@@ -64,6 +64,14 @@ let make_list = (~width, ~height, ~spacing=?, ()) => {
   List.map(~f=({x, y, value: _}) => (x, y), cloud.points);
 };
 
+let make_int_list = (~width, ~height, ~spacing=?, ()) => {
+  let cloud = init(~width, ~height, ~spacing?, (_, _) => ());
+  List.map(
+    ~f=({x, y, value: _}) => Mg_util.Floats.(~~x, ~~y),
+    cloud.points,
+  );
+};
+
 let distance = (ax, ay, bx, by) =>
   sqrt((ax -. bx) ** 2. +. (ay -. by) ** 2.);
 
