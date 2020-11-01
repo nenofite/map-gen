@@ -36,6 +36,8 @@ module Vec3f = struct
   let (-.) (x, y, z) s = Float.(x - s, y - s, z - s)
   let ( *. ) (x, y, z) s = Float.(x * s, y * s, z * s)
   let (/.) (x, y, z) s = Float.(x / s, y / s, z / s)
+
+  let of_int = Tuple3.map ~f: Float.of_int
 end
 
 module Vec3i = struct
@@ -55,6 +57,8 @@ module Vec3i = struct
   let (-.) (x, y, z) s = Int.(x - s, y - s, z - s)
   let ( *. ) (x, y, z) s = Int.(x * s, y * s, z * s)
   let (/.) (x, y, z) s = Int.(x / s, y / s, z / s)
+
+  let of_float = Tuple3.map ~f: Int.of_float
 end
 
 type vec3f = Vec3f.t

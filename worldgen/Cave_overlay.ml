@@ -56,8 +56,25 @@ let points_of_joints joints =
   go joints []
 ;;
 
+let random_wiggle () =
+  (Random.float_range (-0.5) 0.5,
+   Random.float_range (-0.5) 0.5,
+   Random.float_range (-0.5) 0.5)
+;;
+
 let prepare (canon : Canonical_overlay.t) () =
-  let module V = Geometry.Vec3i in
+  let module Vi = Geometry.Vec3i in
+  let module Vf = Geometry.Vec3f in
+  let transform_and_wiggle start joints =
+    match joints with
+    | [] -> []
+    | _fst :: rest ->
+      start :: (List.map rest ~f: (fun point ->
+          let wiggled = Vf.(of_int point + random_wiggle ()) in
+          let spaced = Vf.(wiggled *. Float.of_int joint_spacing) |> Vi.of_float in
+          Vi.(spaced + start)
+        ))
+  in
   let prepare_cave (start_x, start_z) =
     if Random.int 100 >= cave_prob then
       None
@@ -66,7 +83,7 @@ let prepare (canon : Canonical_overlay.t) () =
       let start = (start_x, start_y, start_z) in
       let points =
         random_joints () |>
-        List.map ~f: (fun joint -> V.(joint *. joint_spacing + start)) |>
+        transform_and_wiggle start |>
         points_of_joints
       in
       Some points
