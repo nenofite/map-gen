@@ -2,21 +2,24 @@ open Core_kernel
 
 type metaball = {
   center: Geometry.Vec3i.t;
-  radius: int;
+  radii: Geometry.Vec3i.t;
 }
 [@@deriving bin_io]
 
-type t = metaball list (* TODO *)
+type t = metaball list list (* TODO *)
 [@@deriving bin_io]
 
 (** Average blocks between cave entrances, before probability is applied *)
 let cave_spacing = 100
 
 (** Percent chance that a cave entrance has a cave *)
-let cave_prob = 10
+let cave_prob = 20
 
 (** Average block length of a cave segment *)
 let joint_spacing = 10
+
+let min_radius, max_radius = 1, 4
+let min_joints, max_joints = 5, 40
 
 let down_moves = [ 0, -1, -1;
                    1, -1, 0;
@@ -44,7 +47,7 @@ let random_joints () =
   in
   let first_move = List.random_element_exn down_moves in
   let start = (0, 0, 0) in 
-  let max_moves = Random.int_incl 10 20 in
+  let max_moves = Random.int_incl min_joints max_joints in
   let snd_joint = V.(start + first_move) in
   go snd_joint first_move [snd_joint; start] max_moves |>
   List.rev
@@ -62,6 +65,15 @@ let points_of_joints joints =
   go joints []
 ;;
 
+let add_radii points =
+  let random_radii () =
+    (Random.int_incl min_radius max_radius,
+     Random.int_incl min_radius max_radius,
+     Random.int_incl min_radius max_radius)
+  in
+  List.map points ~f: (fun point -> { center = point; radii = random_radii () })
+;;
+
 let random_wiggle () =
   (Random.float_range (-0.5) 0.5,
    Random.float_range (-0.5) 0.5,
@@ -72,24 +84,24 @@ let within_ball balls x y z =
   let rec go balls x y z sum =
     match balls with
     | [] -> sum
-    | {center; radius} :: rest -> 
-      let open Int in
-      let (cx, cy, cz) = center in
-      let r4 = radius ** 4 in
-      let dist4 = ((x - cx) ** 2 + (y - cy) ** 2 + (z - cz) ** 2) ** 2 in
-      let next_sum = Float.(sum + of_int r4 / of_int dist4) in
+    | {center; radii} :: rest -> 
+      let (dx, dy, dz) = Geometry.Vec3i.((x, y, z) - center) |> Geometry.Vec3f.of_int in
+      let (rx, ry, rz) = Geometry.Vec3f.of_int radii in
+      let dist4 = Float.(((dx / rx) ** 2. + (dy / ry) ** 2. + (dz / rz) ** 2.) ** 2.) in
+      let next_sum = Float.(sum + 1. / dist4) in
       go rest x y z next_sum
   in
   let value_here = go balls x y z 0. in
   Float.(value_here >= 1.)
 
 let ball_bounds ball =
-  let {center = (cx, cy, cz); radius} = ball in
-  let radius = radius + 2 in
+  let {center = (cx, cy, cz); radii} = ball in
+  let (rx, ry, rz) = radii in
+  let extra = 2 in
   let open Mg_util.Range in
-  fold (cz - radius) (cz + radius) [] @@ fun acc z ->
-  fold (cx - radius) (cx + radius) acc @@ fun acc x ->
-  fold (cy - radius) (cy + radius) acc @@ fun acc y ->
+  fold (cz - rz - extra) (cz + rz + extra) [] @@ fun acc z ->
+  fold (cx - rx - extra) (cx + rx + extra) acc @@ fun acc x ->
+  fold (cy - ry - extra) (cy + ry + extra) acc @@ fun acc y ->
   (x, y, z) :: acc
 ;;
 
@@ -130,25 +142,22 @@ let prepare (canon : Canonical_overlay.t) () =
         random_joints () |>
         transform_and_wiggle start |>
         points_of_joints |>
-        List.map ~f: (fun point -> { center = point; radius = 2 }) (* TODO *)
+        add_radii
       in
       Some points
   in
-
-  let cave_starts =
-    Point_cloud.make_int_list ~spacing: cave_spacing ~width: canon.side ~height: canon.side () |>
-    List.filter_map ~f: prepare_cave
-  in
-  List.concat cave_starts
+  Point_cloud.make_int_list ~spacing: cave_spacing ~width: canon.side ~height: canon.side () |>
+  List.filter_map ~f: prepare_cave
 ;;
 
 let apply_region t (args : Minecraft_converter.region_args) =
   (* TODO *)
-  let with_ba = before_after t in
-  List.iter with_ba ~f: (fun (ball, ba) ->
-      List.iter (ball_bounds ball) ~f: (fun (x, y, z) ->
-          if Minecraft.Region.is_within ~x ~y ~z args.region && within_ball ba x y z then
-            Minecraft.Region.set_block_opt Minecraft.Block.Air ~x ~y ~z args.region
+  List.iter t ~f: (fun balls ->
+      List.iter balls ~f: (fun ball ->
+          List.iter (ball_bounds ball) ~f: (fun (x, y, z) ->
+              if Minecraft.Region.is_within ~x ~y ~z args.region && within_ball balls x y z then
+                Minecraft.Region.set_block_opt Minecraft.Block.Air ~x ~y ~z args.region
+            )
         )
     )
 ;;
