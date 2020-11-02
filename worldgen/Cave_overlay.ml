@@ -6,7 +6,10 @@ type metaball = {
 }
 [@@deriving bin_io]
 
-type t = metaball list list (* TODO *)
+type x = metaball list list
+[@@deriving bin_io]
+
+type t = x * Canonical_overlay.t
 [@@deriving bin_io]
 
 (** Average blocks between cave entrances, before probability is applied *)
@@ -105,18 +108,21 @@ let ball_bounds ball =
   (x, y, z) :: acc
 ;;
 
-let before_after balls =
-  let rec go balls result =
-    match balls with
-    | [] | [_] -> result
-    | [a; b] -> (b, [a; b]) :: result
-    | a :: ((b :: c :: _) as rest) ->
-      go rest ((b, [a; b; c]) :: result)
+let update_canon caves (canon : Canonical_overlay.t) =
+  let obstacles =
+    List.fold caves ~init: canon.obstacles ~f: (fun obs cave ->
+        List.fold cave ~init: obs ~f: (fun obs ball ->
+            ball_bounds ball |>
+            List.filter ~f: (fun (x, y, z) ->
+                Grid.is_within canon.elevation x z && y = Grid.at canon.elevation x z
+              ) |>
+            List.fold ~init: obs ~f: (fun obs (x, _y, z) ->
+                Sparse_grid.put_opt obs x z ()
+              )
+          )
+      )
   in
-  match balls with
-  | [] -> []
-  | [a] -> [(a, [a])]
-  | (a :: b :: _) as balls -> go balls [(a, [a; b])]
+  { canon with obstacles }
 ;;
 
 let prepare (canon : Canonical_overlay.t) () =
@@ -146,13 +152,15 @@ let prepare (canon : Canonical_overlay.t) () =
       in
       Some points
   in
-  Point_cloud.make_int_list ~spacing: cave_spacing ~width: canon.side ~height: canon.side () |>
-  List.filter_map ~f: prepare_cave
+  let caves =
+    Point_cloud.make_int_list ~spacing: cave_spacing ~width: canon.side ~height: canon.side () |>
+    List.filter_map ~f: prepare_cave
+  in
+  (caves, update_canon caves canon)
 ;;
 
-let apply_region t (args : Minecraft_converter.region_args) =
-  (* TODO *)
-  List.iter t ~f: (fun balls ->
+let apply_region (caves, _) (args : Minecraft_converter.region_args) =
+  List.iter caves ~f: (fun balls ->
       List.iter balls ~f: (fun ball ->
           List.iter (ball_bounds ball) ~f: (fun (x, y, z) ->
               if Minecraft.Region.is_within ~x ~y ~z args.region && within_ball balls x y z then

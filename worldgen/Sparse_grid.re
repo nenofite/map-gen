@@ -70,6 +70,13 @@ let put = (grid, x, y, n) => {
   {...grid, map};
 };
 
+let put_opt = (grid, x, y, n) =>
+  if (is_within(grid.side, x, y)) {
+    put(grid, x, y, n);
+  } else {
+    grid;
+  };
+
 let at_w = (grid, x, y) => {
   let (x, y) = wrap_coord(grid, x, y);
   at(grid, x, y);

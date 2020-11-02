@@ -72,13 +72,15 @@ let make =
 
 let bind = (m, ~f) => {
   let prepare = () => {
-    let next_seed = /* TODO */ Caml.Random.bits();
+    let next_seed = Random.bits();
     let (m_state, m_apply_f) = m.prepare();
-    /* TODO */ Caml.Random.init(next_seed);
+    Caml.Random.init(next_seed);
+    Random.init(next_seed);
     let (o_state, o_apply_f) = f(m_state).prepare();
     let apply_f = args => {
       m_apply_f(args);
-      /* TODO */ Caml.Random.init(next_seed);
+      Caml.Random.init(next_seed);
+      Random.init(next_seed);
       o_apply_f(args);
     };
     (o_state, apply_f);
