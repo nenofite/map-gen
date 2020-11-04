@@ -122,18 +122,22 @@ let ball_bounds ball =
   (x, y, z) :: acc
 ;;
 
+let obstacles_of_balls balls (canon : Canonical_overlay.t) =
+  List.fold balls ~init: (Sparse_grid.make canon.side) ~f: (fun obs ball ->
+      ball_bounds ball |>
+      List.filter ~f: (fun (x, y, z) ->
+          Grid.is_within canon.elevation x z && y = Grid.at canon.elevation x z
+        ) |>
+      List.fold ~init: obs ~f: (fun obs (x, _y, z) ->
+          Sparse_grid.put_opt obs x z ()
+        )
+    )
+;;
+
 let update_canon caves (canon : Canonical_overlay.t) =
   let obstacles =
     List.fold caves ~init: canon.obstacles ~f: (fun obs cave ->
-        List.fold cave ~init: obs ~f: (fun obs ball ->
-            ball_bounds ball |>
-            List.filter ~f: (fun (x, y, z) ->
-                Grid.is_within canon.elevation x z && y = Grid.at canon.elevation x z
-              ) |>
-            List.fold ~init: obs ~f: (fun obs (x, _y, z) ->
-                Sparse_grid.put_opt obs x z ()
-              )
-          )
+        Sparse_grid.add_all (obstacles_of_balls cave canon) ~onto: obs
       )
   in
   { canon with obstacles }
@@ -152,6 +156,28 @@ let transform_and_wiggle start joints =
       ))
 ;;
 
+let has_no_collisions cave canon =
+  Sparse_grid.for_all (obstacles_of_balls cave canon) (fun (x, z) () ->
+      not (Sparse_grid.has canon.obstacles x z)
+    )
+
+let rec try_make_points ~tries canon start =
+  if tries <= 0 then
+    None
+  else
+    let points =
+      random_joints () |>
+      transform_and_wiggle start |>
+      points_of_joints |>
+      add_radii |>
+      remove_overlaps
+    in
+    if has_no_collisions points canon then
+      Some points
+    else
+      try_make_points ~tries: (tries - 1) canon start
+;;
+
 let prepare (canon : Canonical_overlay.t) () =
   let prepare_cave (start_x, start_z) =
     if Random.int 100 >= cave_prob then
@@ -159,14 +185,7 @@ let prepare (canon : Canonical_overlay.t) () =
     else
       let start_y = Grid.at canon.elevation start_x start_z in
       let start = (start_x, start_y, start_z) in
-      let points =
-        random_joints () |>
-        transform_and_wiggle start |>
-        points_of_joints |>
-        add_radii |>
-        remove_overlaps
-      in
-      Some points
+      try_make_points ~tries: 10 canon start
   in
   let caves =
     Point_cloud.make_int_list ~spacing: cave_spacing ~width: canon.side ~height: canon.side () |>
