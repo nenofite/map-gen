@@ -65,7 +65,7 @@ let points_of_joints joints =
       let segment = List.tl_exn (Geometry.points_on_line snd_point fst_point) in
       go rest_points (segment @ points)
   in 
-  go joints []
+  go joints [] |> List.rev
 ;;
 
 let add_radii points =
@@ -96,6 +96,20 @@ let within_ball balls x y z =
   in
   let value_here = go balls x y z 0. in
   Float.(value_here >= 1.)
+;;
+
+let remove_overlaps balls =
+  let rec go prev_ball balls result =
+    match balls with
+    | [] -> result (* Shouldn't happen *)
+    | [last] -> last :: result
+    | {center = (x,y,z); _} :: rest when within_ball [prev_ball] x y z -> go prev_ball rest result
+    | ball :: rest -> go ball rest (ball :: result)
+  in
+  match balls with
+  | [] -> []
+  | fst :: rest -> go fst rest [fst] |> List.rev
+;;
 
 let ball_bounds ball =
   let {center = (cx, cy, cz); radii} = ball in
@@ -125,19 +139,20 @@ let update_canon caves (canon : Canonical_overlay.t) =
   { canon with obstacles }
 ;;
 
-let prepare (canon : Canonical_overlay.t) () =
+let transform_and_wiggle start joints =
   let module Vi = Geometry.Vec3i in
   let module Vf = Geometry.Vec3f in
-  let transform_and_wiggle start joints =
-    match joints with
-    | [] -> []
-    | _fst :: rest ->
-      start :: (List.map rest ~f: (fun point ->
-          let wiggled = Vf.(of_int point + random_wiggle ()) in
-          let spaced = Vf.(wiggled *. Float.of_int joint_spacing) |> Vi.of_float in
-          Vi.(spaced + start)
-        ))
-  in
+  match joints with
+  | [] -> []
+  | _fst :: rest ->
+    start :: (List.map rest ~f: (fun point ->
+        let wiggled = Vf.(of_int point + random_wiggle ()) in
+        let spaced = Vf.(wiggled *. Float.of_int joint_spacing) |> Vi.of_float in
+        Vi.(spaced + start)
+      ))
+;;
+
+let prepare (canon : Canonical_overlay.t) () =
   let prepare_cave (start_x, start_z) =
     if Random.int 100 >= cave_prob then
       None
@@ -148,7 +163,8 @@ let prepare (canon : Canonical_overlay.t) () =
         random_joints () |>
         transform_and_wiggle start |>
         points_of_joints |>
-        add_radii
+        add_radii |>
+        remove_overlaps
       in
       Some points
   in
