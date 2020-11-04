@@ -159,11 +159,23 @@ let prepare (canon : Canonical_overlay.t) () =
   (caves, update_canon caves canon)
 ;;
 
+let before_and_after ~half ls =
+  let rec go behind remaining result =
+    match remaining with
+    | [] -> result
+    | here :: ahead ->
+      let ba = List.rev_append (here :: Mg_util.take half behind) (Mg_util.take half ahead) in
+      go (here :: behind) ahead ((here, ba) :: result)
+  in
+  go [] ls [] |> List.rev
+;;
+
 let apply_region (caves, _) (args : Minecraft_converter.region_args) =
-  List.iter caves ~f: (fun balls ->
-      List.iter balls ~f: (fun ball ->
+  List.iter caves ~f: (fun all_balls ->
+      before_and_after ~half: 5 all_balls |>
+      List.iter ~f: (fun (ball, nearby_balls) ->
           List.iter (ball_bounds ball) ~f: (fun (x, y, z) ->
-              if Minecraft.Region.is_within ~x ~y ~z args.region && within_ball balls x y z then
+              if Minecraft.Region.is_within ~x ~y ~z args.region && within_ball nearby_balls x y z then
                 Minecraft.Region.set_block_opt Minecraft.Block.Air ~x ~y ~z args.region
             )
         )
