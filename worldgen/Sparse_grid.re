@@ -98,6 +98,11 @@ let fold = (grid, f, acc) => {
   Coord.Map.fold(grid.map, ~init=acc, ~f);
 };
 
+let for_all = (grid, f) => {
+  let f = (~key, ~data) => f(key, data);
+  Coord.Map.for_alli(grid.map, ~f);
+};
+
 let filter_map = (grid, f) => {
   let f = (~key, ~data) => f(key, data);
   let map = Coord.Map.filter_mapi(grid.map, ~f);
