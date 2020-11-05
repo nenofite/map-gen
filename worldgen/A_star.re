@@ -25,7 +25,7 @@ let rec reconstruct_path = (current, nodes, path) => {
 let rec run' =
         (
           ~grid_side,
-          ~goal,
+          ~goalf,
           ~edge_cost,
           ~heuristic,
           ~nodes,
@@ -37,7 +37,7 @@ let rec run' =
     : (
       switch (Priority_queue.extract(open_set)) {
       | (None, _open_set) => None /* no path */
-      | (Some(current), _open_set) when current.coord == goal =>
+      | (Some(current), _open_set) when goalf(current.coord) =>
         Some(reconstruct_path(current, nodes, [])) /* found a path! */
       | (Some(current), open_set) =>
         let (current_x, current_y) = current.coord;
@@ -62,7 +62,7 @@ let rec run' =
                       coord: neigh_coord,
                       came_from: current.coord,
                       g_score: new_g_score,
-                      f_score: new_g_score +. heuristic(neigh_coord, goal),
+                      f_score: new_g_score +. heuristic(neigh_coord),
                     };
                     let nodes =
                       Sparse_grid.put(nodes, neigh_x, neigh_y, new_node);
@@ -85,7 +85,7 @@ let rec run' =
           );
         run'(
           ~grid_side,
-          ~goal,
+          ~goalf,
           ~edge_cost,
           ~heuristic,
           ~nodes,
@@ -94,6 +94,51 @@ let rec run' =
         );
       }
     );
+
+/**
+  uses the A* algorithm to find a path between any point in starts and any
+  point in goal. See run for more details
+*/
+let run_multi =
+    (~grid_side, ~starts, ~goalf, ~edge_cost, ~heuristic)
+    : option(list((int, int))) => {
+  let start_nodes =
+    List.map(
+      coord =>
+        {coord, came_from: coord, g_score: 0., f_score: heuristic(coord)},
+      starts,
+    );
+  let open_set =
+    Priority_queue.(
+      List.fold_left(
+        (open_set, start_node) =>
+          insert(open_set, start_node.f_score, start_node),
+        empty,
+        start_nodes,
+      )
+    );
+  let nodes =
+    Sparse_grid.(
+      List.fold_left(
+        (nodes, start_node) => {
+          let (x, y) = start_node.coord;
+          put(nodes, x, y, start_node);
+        },
+        make(grid_side),
+        start_nodes,
+      )
+    );
+  run'(
+    ~grid_side,
+    ~goalf,
+    ~edge_cost,
+    ~heuristic,
+    ~nodes,
+    ~open_set,
+    ~max_iters=100000,
+  );
+};
+
 /**
   run uses the A* algorithm to find a path from start to goal. It operates on
   a grid moving in cardinal directions.
@@ -109,28 +154,14 @@ let rec run' =
  */
 let run =
     (~grid_side, ~start, ~goal, ~edge_cost, ~heuristic)
-    : option(list((int, int))) => {
-  let start_node = {
-    coord: start,
-    came_from: start,
-    g_score: 0.,
-    f_score: heuristic(start, goal),
-  };
-  let open_set =
-    Priority_queue.(insert(empty, start_node.f_score, start_node));
-  let (start_x, start_y) = start;
-  let nodes =
-    Sparse_grid.(make(grid_side) |> put(_, start_x, start_y, start_node));
-  run'(
+    : option(list((int, int))) =>
+  run_multi(
     ~grid_side,
-    ~goal,
+    ~starts=[start],
+    ~goalf=coord => coord == goal,
     ~edge_cost,
     ~heuristic,
-    ~nodes,
-    ~open_set,
-    ~max_iters=100000,
   );
-};
 
 let distance_2d = ((ax, ay), (bx, by)) => {
   let f = float_of_int;
@@ -161,7 +192,7 @@ let%expect_test "simple path" = {
     ~start=(0, 0),
     ~goal=(3, 0),
     ~edge_cost=(a, b) => Some(distance_2d(a, b)),
-    ~heuristic=distance_2d,
+    ~heuristic=distance_2d((3, 0)),
   )
   |> test_print_path;
   %expect
@@ -179,7 +210,7 @@ let%expect_test "no path" = {
     ~start=(0, 0),
     ~goal=(3, 0),
     ~edge_cost=(_, _) => None,
-    ~heuristic=distance_2d,
+    ~heuristic=distance_2d((3, 0)),
   )
   |> test_print_path;
   %expect

@@ -70,6 +70,13 @@ let put = (grid, x, y, n) => {
   {...grid, map};
 };
 
+let put_opt = (grid, x, y, n) =>
+  if (is_within(grid.side, x, y)) {
+    put(grid, x, y, n);
+  } else {
+    grid;
+  };
+
 let at_w = (grid, x, y) => {
   let (x, y) = wrap_coord(grid, x, y);
   at(grid, x, y);
@@ -91,10 +98,19 @@ let fold = (grid, f, acc) => {
   Coord.Map.fold(grid.map, ~init=acc, ~f);
 };
 
+let for_all = (grid, f) => {
+  let f = (~key, ~data) => f(key, data);
+  Coord.Map.for_alli(grid.map, ~f);
+};
+
 let filter_map = (grid, f) => {
   let f = (~key, ~data) => f(key, data);
   let map = Coord.Map.filter_mapi(grid.map, ~f);
   {...grid, map};
+};
+
+let add_all = (~onto, overgrid) => {
+  fold(overgrid, ((x, z), d, grid) => put(grid, x, z, d), onto);
 };
 
 let iter = (grid, f) => {

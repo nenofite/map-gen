@@ -14,3 +14,5 @@ let rec fold = (min, max, acc, f) =>
   } else {
     acc;
   };
+
+let map = (min, max, f) => fold(min, max, [], (ls, n) => [f(n), ...ls]);

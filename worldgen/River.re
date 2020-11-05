@@ -12,12 +12,12 @@ let min_source_elevation = 70;
 let max_source_elevation = 100;
 
 let colorize = (tile: tile): int => {
-  let base = Heightmap.colorize(tile.elevation) |> Color.color_of_int(_);
-  let blue = Color.color_of_int(0x0000FF);
+  let base = Heightmap.colorize(tile.elevation);
+  let blue = 0x0000FF;
   if (tile.ocean || tile.river) {
-    Color.blend(base, blue, 0.5) |> Color.int_of_color(_);
+    Color.blend(base, blue, 0.5);
   } else {
-    base |> Color.int_of_color(_);
+    base;
   };
 };
 

@@ -11,21 +11,25 @@ let overlays = {
   let%bind (base, canon) = Base_overlay.overlay;
   let%bind (biomes, canon) = Biome_overlay.overlay(canon, base, dirt);
   let%bind _ores = Ore_overlay.overlay(base);
-  let%bind cavern = Cavern_overlay.overlay(base);
-  /* let%bind roads = Road_overlay.overlay(base); */
-  let%bind (_towns, canon) = Town_overlay.overlay(canon, base);
-  let%bind _sites = Site_overlay.overlay(canon, cavern);
+  let%bind _cavern = Cavern_overlay.overlay(base);
+  let%bind (_caves, canon) = Cave_overlay.overlay(canon);
+  let%bind (towns, canon) = Town_overlay.overlay(canon, base);
+  let%bind (_roads, _canon) = Road_overlay.overlay(canon, towns);
+  /* let%bind _sites = Site_overlay.overlay(canon, cavern); */
   let%bind _plants = Plant_overlay.overlay(biomes);
-  /* let%bind debug =
-     Debug_overlay.overlay({
-       glassify:
-         fun
-         | Air => false
-         | Stone
-         | Dirt
-         | Grass => true
-         | _ => false,
-     }); */
+  /* let%bind _debug =
+     Debug_overlay.overlay(
+       canon,
+       {
+         glassify:
+           fun
+           | Air => false
+           | Stone
+           | Dirt
+           | Grass => true
+           | _ => false,
+       },
+     ); */
   Overlay.return();
 };
 

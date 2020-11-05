@@ -12,9 +12,9 @@ let mountain_level = 150;
 let colorize = (tile: tile): int => {
   let frac = float_of_int(tile) /. 200.;
   let frac = max(min(frac, 1.), 0.);
-  let black = Color.color_of_int(0);
-  let white = Color.color_of_int(0xFFFFFF);
-  Color.blend(black, white, frac) |> Color.int_of_color;
+  let black = 0;
+  let white = 0xFFFFFF;
+  Color.blend(black, white, frac);
 };
 
 let empty_distance = Int.max_int - 10;

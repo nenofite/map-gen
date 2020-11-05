@@ -8,6 +8,8 @@ _release
 *.install
 *.ppm
 *.png
+*.bmp
+*.csv
 .DS_Store
 /worlds/
 /overlays/

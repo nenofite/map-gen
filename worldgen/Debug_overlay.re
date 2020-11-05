@@ -2,7 +2,16 @@ open Core_kernel;
 
 type options = {glassify: Minecraft.Block.material => bool};
 
-let prepare = () => ();
+let prepare = (canon: Canonical_overlay.t, ()) => {
+  Draw.draw_sparse_grid(
+    ~point_size=1,
+    fun
+    | None => 0
+    | Some () => 0xFFFFFF,
+    "obstacles.bmp",
+    canon.obstacles,
+  );
+};
 
 let apply_region = (options, (), args: Minecraft_converter.region_args) => {
   let {glassify} = options;
@@ -18,10 +27,10 @@ let apply_region = (options, (), args: Minecraft_converter.region_args) => {
   });
 };
 
-let overlay = options =>
+let overlay = (canon, options): Overlay.monad(unit) =>
   Overlay.make(
     "debug",
-    prepare,
+    prepare(canon),
     apply_region(options),
     bin_reader_unit,
     bin_writer_unit,
