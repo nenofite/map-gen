@@ -1,9 +1,15 @@
 open Core_kernel;
 
 [@deriving bin_io]
+type flower = {
+  block: Minecraft.Block.material,
+  percentage: int,
+};
+
+[@deriving bin_io]
 type mid_biome =
-  | Plain
-  | Forest
+  | Plain(flower)
+  | Forest(flower)
   | Desert;
 
 [@deriving bin_io]
@@ -29,8 +35,8 @@ type t = (Grid.t(biome), Canonical_overlay.t);
 
 let colorize =
   fun
-  | Mid(Plain) => 0x86A34D
-  | Mid(Forest) => 0x388824
+  | Mid(Plain(_)) => 0x86A34D
+  | Mid(Forest(_)) => 0x388824
   | Mid(Desert) => 0xD9D0A1
   | High(Pine_forest) => 0x286519
   | High(Barren) => 0x727272
@@ -38,6 +44,28 @@ let colorize =
   | Shore(Sand) => 0xF5EAB7
   | Shore(Gravel) => 0x828282
   | Shore(Clay) => 0x8E7256;
+
+let random_flower = () => {
+  open Minecraft.Block;
+  let block =
+    switch (Random.int(12)) {
+    | 0 => Dandelion
+    | 1 => Poppy
+    | 2 => Blue_orchid
+    | 3 => Allium
+    | 4 => Azure_bluet
+    | 5 => Red_tulip
+    | 6 => Orange_tulip
+    | 7 => White_tulip
+    | 8 => Pink_tulip
+    | 9 => Oxeye_daisy
+    | 10 => Cornflower
+    | 11
+    | _ => Lily_of_the_valley
+    /* TODO tall flowers */
+    };
+  {block, percentage: Random.int_incl(10, 100)};
+};
 
 let prepare_mid = side => {
   /* Start with a point cloud then subdivide a couple times */
@@ -49,10 +77,10 @@ let prepare_mid = side => {
       | 1
       | 2
       | 3
-      | 4 => Plain
+      | 4 => Plain(random_flower())
       | 5
       | 6
-      | 7 => Forest
+      | 7 => Forest(random_flower())
       | 8
       | _ => Desert
       }
@@ -207,8 +235,7 @@ let apply_dirt =
       let elev = height_at(~x, ~z, region);
       let dirt_depth = Grid.at(dirt, x, z);
       switch (Grid.at(state, x, z)) {
-      | Mid(Plain)
-      | Mid(Forest)
+      | Mid(Plain(_) | Forest(_))
       | High(Pine_forest) =>
         /* Dirt (will become grass in Plant_overlay) */
         for (y in elev - dirt_depth + 1 to elev) {
