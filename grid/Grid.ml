@@ -19,14 +19,20 @@ type 'a grid = 'a t
 let assert_side_invariant side =
   if side <= 1 then failwith (Printf.sprintf "cannot have grid side: %d" side)
 
+let assert_within ~x ~y side =
+  if not (0 <= x && x < side && 0 <= y && y < side) then
+    invalid_argf "outside grid bounds: (%d, %d) but side=%d" x y side ()
+;;
+
 let get x y t =
+  assert_within ~x ~y t.side;
   let rec get_from_node x y side node =
     match node with
     | Leaf v -> v
     | Quad (nw, ne, sw, se) ->
       assert_side_invariant side;
       let half = side / 2 in
-      match x < half, y < half with
+      match x >= half, y >= half with
       | false, false -> get_from_node x y half nw
       | true, false -> get_from_node (x - half) y half ne
       | false, true -> get_from_node x (y - half) half sw
@@ -50,20 +56,22 @@ let rec force_set_node x y new_v side node =
   match node with
   | _ when side = 1 -> Leaf new_v
   | Leaf _ as l -> 
-    (match x < half, y < half with
+    (match x >= half, y >= half with
      | false, false -> let new_nw = force_set_node x y new_v half l in Quad (new_nw, l, l, l)
      | true, false -> let new_ne = force_set_node (x - half) y new_v half l in Quad (l, new_ne, l, l)
      | false, true -> let new_sw = force_set_node x (y - half) new_v half l in Quad (l, l, new_sw, l)
      | true, true -> let new_se = force_set_node (x - half) (y - half) new_v half l in Quad (l, l, l, new_se))
   | Quad (nw, ne, sw, se) ->
-    (match x < half, y < half with
+    (match x >= half, y >= half with
      | false, false -> let new_nw = force_set_node x y new_v half nw in Quad (new_nw, ne, sw, se)
      | true, false -> let new_ne = force_set_node (x - half) y new_v half ne in Quad (nw, new_ne, sw, se)
      | false, true -> let new_sw = force_set_node x (y - half) new_v half sw in Quad (nw, ne, new_sw, se)
      | true, true -> let new_se = force_set_node (x - half) (y - half) new_v half se in Quad (nw, ne, sw, new_se))
 ;;
 
-let force_set x y new_v t = { t with root = force_set_node x y new_v t.side t.root }
+let force_set x y new_v t =
+  assert_within ~x ~y t.side;
+  { t with root = force_set_node x y new_v t.side t.root }
 
 let rec force_set_path path new_v node =
   match path, node with
@@ -112,24 +120,34 @@ include Container.Make(struct
     let length = `Custom length_impl
   end)
 
-module Scan = Container.Make(struct
-    type 'a t = 'a grid
+module Scan_impl = struct
+  module T = struct
+    type 'a t =
+      | T: 'a grid -> ('a * bool) t
+  end
+  include T
 
-    let fold t ~init ~f =
-      let open Mg_util.Range in
-      fold 1 t.side init (fun accum z ->
-          fold 1 t.side accum (fun accum x ->
-              let here = get x z t in
-              f accum here
-            )
-        )
-    ;;
+  let fold (type a) ((T t): a t) ~init ~(f: _ -> a -> _) = (
+    let open Mg_util.Range in
+    fold 0 (t.side - 1) init (fun accum z ->
+        let accum = fold 0 (t.side - 2) accum (fun accum x ->
+            let here = get x z t in
+            f accum (here, false)
+          ) in
+        let last = get (t.side - 1) z t in
+        f accum (last, true)
+      )
+  )
 
-    let iter = `Define_using_fold
+  let iter = `Define_using_fold
 
-    let length_impl t = t.side * t.side
-    let length = `Custom length_impl
-  end)
+  let length_impl (type a) ((T t): a t) = t.side * t.side
+  let length = `Custom length_impl
+end
+module Scan = struct
+  include Scan_impl.T
+  include Container.Make(Scan_impl)
+end
 
 module Leafwise_impl = struct
   module T = struct
@@ -163,36 +181,40 @@ module Leafwise = struct
 end
 
 module Make_setters(Args: sig
-    type data
-    val (=) : data -> data -> bool
+    type t
+    val (=) : t -> t -> bool
   end) = struct
-  type data = Args.data
+  type data = Args.t
 
-  let set x y new_v t =
-    let rec set_if_different x y new_v side node =
-      let half = side / 2 in
+  let compact_quad = function
+    | Leaf nw as l, Leaf ne, Leaf sw, Leaf se when Args.(nw = ne && ne = sw && sw = se) -> l
+    | (nw, ne, sw, se) -> Quad (nw, ne, sw, se)
+
+  let set x y new_v t = (
+    let rec set_if_different x y new_v side node = (
       match node with
       | Leaf current_v as l ->
         if Args.(current_v = new_v) then
           None
         else
-          Some (force_set_node x y new_v half l)
+          Some (force_set_node x y new_v side l)
       | Quad (nw, ne, sw, se) ->
         let open Option.Monad_infix in
-        (match x < half, y < half with
+        let half = side / 2 in
+        (match x >= half, y >= half with
          | false, false -> set_if_different x y new_v half nw
-           >>| fun new_nw -> Quad (new_nw, ne, sw, se)
+           >>| fun new_nw -> compact_quad (new_nw, ne, sw, se)
          | true, false -> set_if_different (x - half) y new_v half ne
-           >>| fun new_ne -> Quad (nw, new_ne, sw, se)
+           >>| fun new_ne -> compact_quad (nw, new_ne, sw, se)
          | false, true -> set_if_different x (y - half) new_v half sw
-           >>| fun new_sw -> Quad (nw, ne, new_sw, se)
+           >>| fun new_sw -> compact_quad (nw, ne, new_sw, se)
          | true, true -> set_if_different (x - half) (y - half) new_v half se
-           >>| fun new_se -> Quad (nw, ne, sw, new_se))
-    in
+           >>| fun new_se -> compact_quad (nw, ne, sw, new_se))
+    ) in
     match set_if_different x y new_v t.side t.root with
     | Some new_root -> { t with root = new_root }
     | None -> t
-  ;;
+  )
 
   let set_path path new_v t =
     let rec set_path_node path new_v node =
@@ -219,6 +241,23 @@ module Make_setters(Args: sig
     | None -> t
   ;;
 
+  let init ~side f = (
+    let f x y = f (x, y) in
+    let rec go side min_x min_y =
+      if side > 1 then
+        let half = side / 2 in
+        compact_quad (
+          go half min_x min_y,
+          go half (min_x + half) min_y,
+          go half min_x (min_y + half),
+          go half (min_x + half) (min_y + half)
+        )
+      else
+        Leaf (f min_x min_y)
+    in
+    { side; root = go side 0 0 }
+  )
+
   let compact t =
     let rec compact_node node =
       match node with
@@ -243,3 +282,158 @@ module Make_setters(Args: sig
     | None -> t
   ;;
 end
+
+let is_within t x y = 0 <= x && x < t.side && 0 <= y && y < t.side
+
+let assert_within side x y =
+  if not (0 <= x && x < side && 0 <= y && y < side) then
+    invalid_argf "Coordinate out of bounds: (%d, %d)" x y ()
+;;
+
+let wrap_coord t x y = x % t.side, y % t.side
+
+(** creates a non-compact tree. It's more space-efficient to use
+    Make_setters(...).init when possible *)
+let init ~side f =
+  let f x y = f (x, y) in
+  let rec go side min_x min_y =
+    if side > 1 then
+      let half = side / 2 in
+      Quad (
+        go half min_x min_y,
+        go half (min_x + half) min_y,
+        go half min_x (min_y + half),
+        go half (min_x + half) (min_y + half)
+      )
+    else
+      Leaf (f min_x min_y)
+  in
+  { side; root = go side 0 0 }
+;;
+
+let print ?(sep = " ") ?(row_sep = "\n") ~f t = (
+  Scan.iter (Scan.T t) ~f: (fun (n, row_end) ->
+      print_string (f n);
+      print_string sep;
+      if row_end then print_string row_sep
+    )
+)
+
+let%expect_test "inits and gets correct elements" = (
+  let print (x, y) = Printf.printf "%d, %d\n" x y in
+  let g = init ~side: 8 ident in
+  print @@ get 0 0 g;
+  print @@ get 1 0 g;
+  print @@ get 0 1 g;
+  print @@ get 3 4 g;
+  print @@ get 7 7 g;
+  print @@ get 6 7 g;
+  [%expect "
+    0, 0
+    1, 0
+    0, 1
+    3, 4
+    7, 7
+    6, 7
+  "]
+)
+
+let%expect_test "force_sets, scans, and counts leaves" = (
+  let g = make 0 ~side: 8 in
+  print g ~f: string_of_int;
+  Printf.printf "leaves: %d\n\n" (Leafwise.length (Leafwise.T g));
+
+  let g = g |> force_set 1 2 10 |>
+          force_set 6 7 20 |>
+          force_set 6 7 21 in
+  print g ~f: string_of_int;
+  Printf.printf "leaves: %d\n\n" (Leafwise.length (Leafwise.T g));
+
+  [%expect "
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    leaves: 1
+
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 10 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 21 0 
+    leaves: 16
+  "]
+)
+
+let%expect_test "set and compact" = (
+  let module Int_grid = Make_setters(Int) in
+  let open Int_grid in
+  (* Ensure init compacts into a single leaf *)
+  let g = Int_grid.init ~side: 8 (fun _ -> 0) in
+  print g ~f: string_of_int;
+  Printf.printf "leaves: %d\n\n" (Leafwise.length (Leafwise.T g));
+
+  let g = g |> set 1 2 10 |>
+          set 6 7 20 |>
+          set 6 7 21 in
+  print g ~f: string_of_int;
+  Printf.printf "leaves: %d\n\n" (Leafwise.length (Leafwise.T g));
+
+  let g = g |> set 1 2 0 |>
+          set 6 7 0 in
+  print g ~f: string_of_int;
+  Printf.printf "leaves: %d\n\n" (Leafwise.length (Leafwise.T g));
+
+  let g = g |> force_set 1 2 0 |> compact in
+  print g ~f: string_of_int;
+  Printf.printf "leaves: %d\n\n" (Leafwise.length (Leafwise.T g));
+
+  [%expect "
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    leaves: 1
+
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 10 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 21 0 
+    leaves: 16
+
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    leaves: 1
+
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    0 0 0 0 0 0 0 0 
+    leaves: 1
+  "]
+)
