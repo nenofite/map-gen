@@ -30,8 +30,9 @@ let colorize = tile =>
   };
 
 let add_floor_pillars = (pillar_cloud: Point_cloud.t(bool), floor) => {
-  List.fold_left(
-    (floor, Point_cloud.{x, y, value}) =>
+  Sparse_grid.fold(
+    pillar_cloud.points,
+    (_, Point_cloud.{px: x, py: y, value}, floor) =>
       if (value) {
         Grid_compat.update(floor, int_of_float(x), int_of_float(y), old_elev =>
           if (old_elev < pillar_meet_elev) {
@@ -44,13 +45,13 @@ let add_floor_pillars = (pillar_cloud: Point_cloud.t(bool), floor) => {
         floor;
       },
     floor,
-    pillar_cloud.points,
   );
 };
 
 let add_ceiling_pillars = (pillar_cloud: Point_cloud.t(bool), ceiling) => {
-  List.fold_left(
-    (ceiling, Point_cloud.{x, y, value}) =>
+  Sparse_grid.fold(
+    pillar_cloud.points,
+    (_, Point_cloud.{px: x, py: y, value}, ceiling) =>
       if (value) {
         Grid_compat.update(
           ceiling, int_of_float(x), int_of_float(y), old_elev =>
@@ -64,7 +65,6 @@ let add_ceiling_pillars = (pillar_cloud: Point_cloud.t(bool), ceiling) => {
         ceiling;
       },
     ceiling,
-    pillar_cloud.points,
   );
 };
 

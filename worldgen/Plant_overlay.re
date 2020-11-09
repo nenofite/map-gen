@@ -16,31 +16,29 @@ let apply_trees =
       Random.int(100) < 67
     );
   /* Try placing them where it's forest && solid ground */
-  List.iter(
-    (Point_cloud.{x, y: z, value}) =>
-      if (value) {
-        let x = int_of_float(x) + gx_offset;
-        let z = int_of_float(z) + gy_offset;
-        switch (Grid_compat.at(biomes, x, z)) {
-        | Mid(Forest(_)) =>
-          let y = Minecraft.Region.height_at(region, ~x, ~z);
-          let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
-          switch (block) {
-          | Grass_block =>
-            Minecraft_template.place(
-              Tree_template.tree(),
-              region,
-              ~x,
-              ~y=y + 1,
-              ~z,
-            )
-            |> ignore
-          | _ => ()
-          };
+  Sparse_grid.iter(trees.points, (_, Point_cloud.{px: x, py: z, value}) =>
+    if (value) {
+      let x = int_of_float(x) + gx_offset;
+      let z = int_of_float(z) + gy_offset;
+      switch (Grid_compat.at(biomes, x, z)) {
+      | Mid(Forest(_)) =>
+        let y = Minecraft.Region.height_at(region, ~x, ~z);
+        let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
+        switch (block) {
+        | Grass_block =>
+          Minecraft_template.place(
+            Tree_template.tree(),
+            region,
+            ~x,
+            ~y=y + 1,
+            ~z,
+          )
+          |> ignore
         | _ => ()
         };
-      },
-    trees.points,
+      | _ => ()
+      };
+    }
   );
 };
 
@@ -112,33 +110,31 @@ let apply_tallgrass =
     Point_cloud.init(~width=gsize, ~height=gsize, ~spacing=2, (_, _) =>
       Random.int(100) < 67
     );
-  List.iter(
-    (Point_cloud.{x, y: z, value}) =>
-      if (value) {
-        let x = int_of_float(x) + gx_offset;
-        let z = int_of_float(z) + gy_offset;
-        switch (Grid_compat.at(biomes, x, z)) {
-        | Mid(Forest(_) | Plain(_)) =>
-          /* TODO should pine forests have tallgrass? */
-          let y = Minecraft.Region.height_at(region, ~x, ~z);
-          let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
-          let block_above =
-            Minecraft.Region.get_block(region, ~x, ~y=y + 1, ~z);
-          switch (block, block_above) {
-          | (Grass_block, Air) =>
-            Minecraft.Region.set_block(
-              ~x,
-              ~y=y + 1,
-              ~z,
-              Minecraft.Block.Grass,
-              region,
-            )
-          | _ => ()
-          };
+  Sparse_grid.iter(tallgrass.points, (_, Point_cloud.{px: x, py: z, value}) =>
+    if (value) {
+      let x = int_of_float(x) + gx_offset;
+      let z = int_of_float(z) + gy_offset;
+      switch (Grid_compat.at(biomes, x, z)) {
+      | Mid(Forest(_) | Plain(_)) =>
+        /* TODO should pine forests have tallgrass? */
+        let y = Minecraft.Region.height_at(region, ~x, ~z);
+        let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
+        let block_above =
+          Minecraft.Region.get_block(region, ~x, ~y=y + 1, ~z);
+        switch (block, block_above) {
+        | (Grass_block, Air) =>
+          Minecraft.Region.set_block(
+            ~x,
+            ~y=y + 1,
+            ~z,
+            Minecraft.Block.Grass,
+            region,
+          )
         | _ => ()
         };
-      },
-    tallgrass.points,
+      | _ => ()
+      };
+    }
   );
 };
 
