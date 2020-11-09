@@ -19,6 +19,7 @@ depends: [
     "core_kernel"
     "ppx_sexp_conv"
     "ppx_deriving"
+    "ppx_hash"
     "ppx_bin_prot"
     "ppx_expect"
     "ppx_inline_test"
