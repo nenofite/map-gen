@@ -7,10 +7,13 @@ type flower = {
 };
 
 [@deriving (eq, bin_io)]
+type cactus = {percentage: int};
+
+[@deriving (eq, bin_io)]
 type mid_biome =
   | Plain(flower)
   | Forest(flower)
-  | Desert;
+  | Desert(cactus);
 
 [@deriving (eq, bin_io)]
 type shore_biome =
@@ -37,7 +40,7 @@ let colorize =
   fun
   | Mid(Plain(_)) => 0x86A34D
   | Mid(Forest(_)) => 0x388824
-  | Mid(Desert) => 0xD9D0A1
+  | Mid(Desert(_)) => 0xD9D0A1
   | High(Pine_forest) => 0x286519
   | High(Barren) => 0x727272
   | High(Snow) => 0xFDFDFD
@@ -67,6 +70,8 @@ let random_flower = () => {
   {block, percentage: Random.int_incl(10, 100)};
 };
 
+let random_cactus = () => {percentage: Random.int_incl(10, 100)};
+
 let prepare_mid = side => {
   /* Start with a point cloud then subdivide a couple times */
   let r = 16;
@@ -82,7 +87,7 @@ let prepare_mid = side => {
       | 6
       | 7 => Forest(random_flower())
       | 8
-      | _ => Desert
+      | _ => Desert(random_cactus())
       }
     );
 
@@ -182,7 +187,7 @@ let zip_biomes =
 
 let has_obstacle = (_base, dirt, biomes, x, y) => {
   switch (Grid_compat.at(biomes, x, y)) {
-  | Mid(Desert) => Grid_compat.at(dirt, x, y) == 0
+  | Mid(Desert(_)) => Grid_compat.at(dirt, x, y) == 0
   | _ => false
   };
 };
@@ -247,7 +252,7 @@ let apply_dirt =
         for (y in elev - dirt_depth + 1 to elev) {
           overwrite_stone_air(region, x, y, z, Dirt);
         }
-      | Mid(Desert) =>
+      | Mid(Desert(_)) =>
         /* Sand with rocks sticking out */
         for (y in elev - dirt_depth + 1 to elev) {
           overwrite_stone_air(region, x, y, z, Sand);

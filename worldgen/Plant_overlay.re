@@ -66,6 +66,66 @@ let apply_ground_cover =
   );
 };
 
+let make_clusters =
+    (~spacing, ~f, ~biomes: Grid.t(Biome_overlay.biome), region) => {
+  open Core_kernel;
+  let (x_off, z_off) = Minecraft.Region.region_offset(region);
+  Point_cloud.init(
+    ~width=Minecraft.Region.block_per_region_side,
+    ~height=Minecraft.Region.block_per_region_side,
+    ~spacing,
+    (lx, lz) => {
+      let (x, z) = (lx + x_off, lz + z_off);
+      f(Grid_compat.at(biomes, x, z));
+    },
+  );
+};
+
+let fill_clusters =
+    (
+      ~spacing,
+      ~biomes: Grid.t(Biome_overlay.biome),
+      ~can_place,
+      ~place,
+      cluster_centers,
+      region,
+    ) => {
+  open Core_kernel;
+  let (x_off, z_off) = Minecraft.Region.region_offset(region);
+  let coords =
+    Point_cloud.make_int_list(
+      ~width=Minecraft.Region.block_per_region_side,
+      ~height=Minecraft.Region.block_per_region_side,
+      ~spacing,
+      (),
+    );
+  List.iter(
+    coords,
+    ~f=((lx, lz)) => {
+      let (x, z) = (lx + x_off, lz + z_off);
+      switch (
+        Point_cloud.closest_point(
+          cluster_centers,
+          Float.of_int(lx),
+          Float.of_int(lz),
+        )
+      ) {
+      | (Point_cloud.{value: Some(cluster), _}, cluster_dist2) =>
+        if (can_place(Grid_compat.at(biomes, x, z), cluster)) {
+          /* TODO vary cluster size */
+          let cluster_size = 5;
+          let perc =
+            Float.(100. * cluster_dist2 |> to_int) / Int.(cluster_size ** 2);
+          if (Random.int(100) < perc) {
+            place(~x, ~z, cluster, region);
+          };
+        }
+      | _ => ()
+      };
+    },
+  );
+};
+
 let place_flower = (~x, ~z, flower_block, region) => {
   let y = Minecraft.Region.height_at(region, ~x, ~z);
   let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
@@ -83,59 +143,83 @@ let apply_flowers =
     ) => {
   open Core_kernel;
   let region = args.region;
-  let (x_off, z_off) = Minecraft.Region.region_offset(region);
   let cluster_centers =
-    Point_cloud.init(
-      ~width=Minecraft.Region.block_per_region_side,
-      ~height=Minecraft.Region.block_per_region_side,
+    make_clusters(
       ~spacing=15,
-      (lx, lz) => {
-        let (x, z) = (lx + x_off, lz + z_off);
-        switch (Grid_compat.at(biomes, x, z)) {
+      ~biomes,
+      region,
+      ~f=
+        fun
         | Mid(Plain(flower) | Forest(flower))
             when Random.int(100) < flower.percentage =>
           Some(flower)
-        | _ => None
-        };
-      },
+        | _ => None,
     );
-  let flower_coords =
-    Point_cloud.make_int_list(
-      ~width=Minecraft.Region.block_per_region_side,
-      ~height=Minecraft.Region.block_per_region_side,
-      ~spacing=3,
-      (),
-    );
-  List.iter(
-    flower_coords,
-    ~f=((lx, lz)) => {
-      let (x, z) = (lx + x_off, lz + z_off);
-      switch (Grid_compat.at(biomes, x, z)) {
-      | Mid(Plain(biome_flower) | Forest(biome_flower)) =>
-        switch (
-          Point_cloud.closest_point(
-            cluster_centers,
-            Float.of_int(lx),
-            Float.of_int(lz),
+  fill_clusters(
+    ~spacing=3,
+    ~biomes,
+    ~can_place=
+      (biome, cluster) =>
+        switch (biome) {
+        | Mid(Plain(biome_flower) | Forest(biome_flower)) =>
+          Minecraft.Block.equal_material(
+            biome_flower.block,
+            cluster.Biome_overlay.block,
           )
-        ) {
-        | (Point_cloud.{value: Some(cluster), _}, cluster_dist2) =>
-          /* TODO vary cluster size */
-          let cluster_size = 5;
-          let perc =
-            Float.(100. * cluster_dist2 |> to_int) / Int.(cluster_size ** 2);
-          if (Minecraft.Block.equal_material(
-                biome_flower.block,
-                cluster.block,
-              )
-              && Random.int(100) < perc) {
-            place_flower(~x, ~z, cluster.block, region);
-          };
-        | _ => ()
-        }
-      | _ => ()
-      };
-    },
+        | _ => false
+        },
+    ~place=
+      (~x, ~z, cluster, region) =>
+        place_flower(~x, ~z, cluster.Biome_overlay.block, region),
+    cluster_centers,
+    region,
+  );
+};
+
+let place_cactus = (~x, ~z, region) => {
+  open Core_kernel;
+  let y = Minecraft.Region.height_at(region, ~x, ~z);
+  let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
+  switch (block) {
+  | Sand =>
+    let height = Random.int_incl(1, 3);
+    for (y in y + 1 to y + height) {
+      Minecraft.Region.set_block(~x, ~y, ~z, Cactus, region);
+    };
+  | _ => ()
+  };
+};
+
+let apply_cactus =
+    (
+      biomes: Grid.t(Biome_overlay.biome),
+      args: Minecraft_converter.region_args,
+    ) => {
+  open Core_kernel;
+  let region = args.region;
+  let cluster_centers =
+    make_clusters(
+      ~spacing=25,
+      ~biomes,
+      region,
+      ~f=
+        fun
+        | Mid(Desert(cactus)) when Random.int(100) < cactus.percentage =>
+          Some(cactus)
+        | _ => None,
+    );
+  fill_clusters(
+    ~spacing=5,
+    ~biomes,
+    ~can_place=
+      (biome, _cluster) =>
+        switch (biome) {
+        | Mid(Desert(_)) => true
+        | _ => false
+        },
+    ~place=(~x, ~z, _cluster, region) => place_cactus(~x, ~z, region),
+    cluster_centers,
+    region,
   );
 };
 
@@ -181,6 +265,7 @@ let apply_region = (biomes, (), args: Minecraft_converter.region_args) => {
   apply_ground_cover(biomes, args);
   apply_trees(biomes, args);
   apply_flowers(biomes, args);
+  apply_cactus(biomes, args);
   apply_tallgrass(biomes, args);
 };
 
