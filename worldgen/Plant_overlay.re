@@ -21,7 +21,7 @@ let apply_trees =
       if (value) {
         let x = int_of_float(x) + gx_offset;
         let z = int_of_float(z) + gy_offset;
-        switch (Grid.at(biomes, x, z)) {
+        switch (Grid_compat.at(biomes, x, z)) {
         | Mid(Forest(_)) =>
           let y = Minecraft.Region.height_at(region, ~x, ~z);
           let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
@@ -57,7 +57,7 @@ let apply_ground_cover =
       open Minecraft.Region;
       let y = height_at(region, ~x, ~z);
       let top = get_block(region, ~x, ~y, ~z);
-      let biome = Grid.at(biomes, x, z);
+      let biome = Grid_compat.at(biomes, x, z);
       switch (biome, top) {
       | (Mid(Plain(_) | Forest(_)) | High(Pine_forest), Dirt) =>
         set_block(~x, ~y, ~z, Grass_block, region)
@@ -85,7 +85,7 @@ let apply_flowers =
   List.iter(
     ((lx, lz)) => {
       let (x, z) = (lx + x_off, lz + z_off);
-      switch (Grid.at(biomes, x, z)) {
+      switch (Grid_compat.at(biomes, x, z)) {
       | Mid(Plain(flower) | Forest(flower))
           when Random.int(100) < flower.percentage =>
         let y = Minecraft.Region.height_at(region, ~x, ~z);
@@ -117,7 +117,7 @@ let apply_tallgrass =
       if (value) {
         let x = int_of_float(x) + gx_offset;
         let z = int_of_float(z) + gy_offset;
-        switch (Grid.at(biomes, x, z)) {
+        switch (Grid_compat.at(biomes, x, z)) {
         | Mid(Forest(_) | Plain(_)) =>
           /* TODO should pine forests have tallgrass? */
           let y = Minecraft.Region.height_at(region, ~x, ~z);
@@ -149,7 +149,7 @@ let apply_region = (biomes, (), args: Minecraft_converter.region_args) => {
   apply_tallgrass(biomes, args);
 };
 
-let overlay = (biomes: Grid.t(Biome_overlay.biome)): Overlay.monad(t) =>
+let overlay = (biomes: Grid_compat.t(Biome_overlay.biome)): Overlay.monad(t) =>
   Overlay.make(
     "plant",
     prepare,

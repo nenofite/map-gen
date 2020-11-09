@@ -20,7 +20,7 @@ let colorize = (tile: tile): int => {
 let empty_distance = Int.max_int - 10;
 
 let convert = (tectonic: Grid.t(Tectonic.tile)) => {
-  Grid.map(tectonic, (_x, _y, here) => {
+  Grid_compat.map(tectonic, (_x, _y, here) => {
     {
       tectonic: here,
       distance_to_ocean:
@@ -37,8 +37,8 @@ let convert = (tectonic: Grid.t(Tectonic.tile)) => {
   });
 };
 
-let convert_intermediate = (grid: Grid.t(intermediate)) => {
-  Grid.map(
+let convert_intermediate = (grid: Grid_compat.t(intermediate)) => {
+  Grid_compat.map(
     grid,
     (_x, _y, here) => {
       let {tectonic, distance_to_ocean, distance_to_mountain} = here;
@@ -67,8 +67,8 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
 };
 
 let spread_mountain_into = (grid, updated_coords, x, y, new_distance) => {
-  let (x, y) = Grid.wrap_coord(grid, x, y);
-  switch (Grid.at(grid, x, y)) {
+  let (x, y) = Grid_compat.wrap_coord(grid, x, y);
+  switch (Grid_compat.at(grid, x, y)) {
   | {distance_to_ocean: 0, _} =>
     /* Mountain distances don't spread across ocean */
     (grid, updated_coords)
@@ -76,7 +76,7 @@ let spread_mountain_into = (grid, updated_coords, x, y, new_distance) => {
     if (distance_to_mountain > new_distance) {
       /* This distance is shorter, so update */
       let here = {...here, distance_to_mountain: new_distance};
-      let grid = Grid.put(grid, x, y, here);
+      let grid = Grid_compat.put(grid, x, y, here);
       let updated_coords = [
         Grid_flood.{level: new_distance, x, y},
         ...updated_coords,
@@ -93,10 +93,10 @@ let spread_mountain_into = (grid, updated_coords, x, y, new_distance) => {
 };
 
 let spread_mountain = (grid, x, y) => {
-  let here = Grid.at(grid, x, y);
+  let here = Grid_compat.at(grid, x, y);
   let next_distance = here.distance_to_mountain + 1;
   /* Spread in all 8 directions */
-  Grid.eight_directions
+  Grid_compat.eight_directions
   |> List.fold_left(
        ((grid, updated_coords), (dx, dy)) =>
          spread_mountain_into(
@@ -112,8 +112,8 @@ let spread_mountain = (grid, x, y) => {
 };
 
 let spread_ocean_into = (grid, updated_coords, x, y, new_distance) => {
-  let (x, y) = Grid.wrap_coord(grid, x, y);
-  switch (Grid.at(grid, x, y)) {
+  let (x, y) = Grid_compat.wrap_coord(grid, x, y);
+  switch (Grid_compat.at(grid, x, y)) {
   | {distance_to_mountain: 0, _} =>
     /* Ocean distances don't spread across mountains */
     (grid, updated_coords)
@@ -121,7 +121,7 @@ let spread_ocean_into = (grid, updated_coords, x, y, new_distance) => {
     if (distance_to_ocean > new_distance) {
       /* This distance is shorter, so update */
       let here = {...here, distance_to_ocean: new_distance};
-      let grid = Grid.put(grid, x, y, here);
+      let grid = Grid_compat.put(grid, x, y, here);
       let updated_coords = [
         Grid_flood.{level: new_distance, x, y},
         ...updated_coords,
@@ -138,10 +138,10 @@ let spread_ocean_into = (grid, updated_coords, x, y, new_distance) => {
 };
 
 let spread_ocean = (grid, x, y) => {
-  let here = Grid.at(grid, x, y);
+  let here = Grid_compat.at(grid, x, y);
   let next_distance = here.distance_to_ocean + 1;
   /* Spread in all 8 directions */
-  Grid.eight_directions
+  Grid_compat.eight_directions
   |> List.fold_left(
        ((grid, updated_coords), (dx, dy)) =>
          spread_ocean_into(
@@ -160,7 +160,7 @@ let spread_distances = grid => {
   /* First spread mountain distances */
   /* Start the queue with all mountains (sources) */
   let mountains =
-    Grid.filter_map(grid, (x, y, here) =>
+    Grid_compat.filter_map(grid, (x, y, here) =>
       switch (here) {
       | {distance_to_mountain: 0, _} => Some((x, y))
       | _ => None
@@ -172,7 +172,7 @@ let spread_distances = grid => {
   /* Then spread ocean distances */
   /* Start the queue with all oceans (sources) */
   let oceans =
-    Grid.filter_map(grid, (x, y, here) =>
+    Grid_compat.filter_map(grid, (x, y, here) =>
       switch (here) {
       | {distance_to_ocean: 0, _} => Some((x, y))
       | _ => None

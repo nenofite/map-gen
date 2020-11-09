@@ -26,7 +26,7 @@ let draw =
 /** draw_grid creates a .PPM bitmap file with each pixel representing a tile on the grid */
 let draw_grid = (colorizer: 'a => int, file: string, grid: Grid.t('a)): unit => {
   draw(
-    (x, y) => colorizer(Grid.at(grid, x, y)),
+    (x, y) => colorizer(Grid_compat.at(grid, x, y)),
     grid.side,
     grid.side,
     file,

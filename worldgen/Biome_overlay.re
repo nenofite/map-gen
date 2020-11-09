@@ -1,30 +1,30 @@
 open Core_kernel;
 
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
 type flower = {
   block: Minecraft.Block.material,
   percentage: int,
 };
 
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
 type mid_biome =
   | Plain(flower)
   | Forest(flower)
   | Desert;
 
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
 type shore_biome =
   | Sand
   | Gravel
   | Clay;
 
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
 type high_biome =
   | Pine_forest
   | Barren
   | Snow;
 
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
 type biome =
   | Mid(mid_biome)
   | Shore(shore_biome)
@@ -89,7 +89,7 @@ let prepare_mid = side => {
   Phase_chain.(
     run_all(
       phase("Init mid biomes", () =>
-        Grid.init(side / r, (x, y) =>
+        Grid_compat.init(side / r, (x, y) =>
           Point_cloud.nearest(cloud, float_of_int(x), float_of_int(y))
         )
       )
@@ -117,7 +117,7 @@ let prepare_shore = side => {
   Phase_chain.(
     run_all(
       phase("Init shore biomes", () =>
-        Grid.init(side / r, (x, y) =>
+        Grid_compat.init(side / r, (x, y) =>
           Point_cloud.nearest(cloud, float_of_int(x), float_of_int(y))
         )
       )
@@ -145,7 +145,7 @@ let prepare_high = side => {
   Phase_chain.(
     run_all(
       phase("Init high biomes", () =>
-        Grid.init(side / r, (x, y) =>
+        Grid_compat.init(side / r, (x, y) =>
           Point_cloud.nearest(cloud, float_of_int(x), float_of_int(y))
         )
       )
@@ -158,12 +158,13 @@ let prepare_high = side => {
   );
 };
 
-let zip_biomes = (base: Grid.t(Base_overlay.tile), ~mid, ~shore, ~high) => {
-  let all_biomes = Grid.zip(mid, Grid.zip(shore, high));
-  Grid.zip_map(
+let zip_biomes =
+    (base: Grid_compat.t(Base_overlay.tile), ~mid, ~shore, ~high) => {
+  let all_biomes = Grid_compat.zip(mid, Grid_compat.zip(shore, high));
+  Grid_compat.zip_map(
     base,
     all_biomes,
-    (_x, _y, base, (mid, (shore, high))) => {
+    (base, (mid, (shore, high))) => {
       let elevation = base.elevation;
       if (base.river || base.ocean || elevation <= Heightmap.sea_level + 2) {
         Shore(shore);
@@ -180,14 +181,19 @@ let zip_biomes = (base: Grid.t(Base_overlay.tile), ~mid, ~shore, ~high) => {
 };
 
 let has_obstacle = (_base, dirt, biomes, x, y) => {
-  switch (Grid.at(biomes, x, y)) {
-  | Mid(Desert) => Grid.at(dirt, x, y) == 0
+  switch (Grid_compat.at(biomes, x, y)) {
+  | Mid(Desert) => Grid_compat.at(dirt, x, y) == 0
   | _ => false
   };
 };
 
 let prepare =
-    (canon: Canonical_overlay.t, base: Grid.t(Base_overlay.tile), dirt, ()) => {
+    (
+      canon: Canonical_overlay.t,
+      base: Grid_compat.t(Base_overlay.tile),
+      dirt,
+      (),
+    ) => {
   let mid = prepare_mid(base.side);
   let shore = prepare_shore(base.side);
   let high = prepare_high(base.side);
@@ -201,7 +207,7 @@ let prepare =
   let canon = {
     ...canon,
     obstacles:
-      Grid.fold(biomes, canon.obstacles, (obstacles, x, y, _biome) =>
+      Grid_compat.fold(biomes, canon.obstacles, (obstacles, x, y, _biome) =>
         if (has_obstacle(base, dirt, biomes, x, y)) {
           Sparse_grid.put(obstacles, x, y, ());
         } else {
@@ -223,7 +229,7 @@ let overwrite_stone_air = (region, x, y, z, block) =>
 
 let apply_dirt =
     (
-      dirt: Grid.t(int),
+      dirt: Grid_compat.t(int),
       (state, _canon),
       args: Minecraft_converter.region_args,
     ) => {
@@ -233,8 +239,8 @@ let apply_dirt =
     (~x, ~z) => {
       open Minecraft.Region;
       let elev = height_at(~x, ~z, region);
-      let dirt_depth = Grid.at(dirt, x, z);
-      switch (Grid.at(state, x, z)) {
+      let dirt_depth = Grid_compat.at(dirt, x, z);
+      switch (Grid_compat.at(state, x, z)) {
       | Mid(Plain(_) | Forest(_))
       | High(Pine_forest) =>
         /* Dirt (will become grass in Plant_overlay) */
@@ -280,7 +286,7 @@ let apply_dirt =
 
 let apply_region =
     (
-      _base: Grid.t(River.tile),
+      _base: Grid_compat.t(River.tile),
       dirt,
       state,
       args: Minecraft_converter.region_args,
@@ -291,8 +297,8 @@ let apply_region =
 let overlay =
     (
       canon: Canonical_overlay.t,
-      base: Grid.t(River.tile),
-      dirt: Grid.t(int),
+      base: Grid_compat.t(River.tile),
+      dirt: Grid_compat.t(int),
     )
     : Overlay.monad(t) =>
   Overlay.make(

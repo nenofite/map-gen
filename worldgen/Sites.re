@@ -1,7 +1,7 @@
 type tile = River.tile;
 
 let touchup = (grid: Grid.t(tile)) => {
-  Grid.map(
+  Grid_compat.map(
     grid,
     (_x, _y, here) => {
       /* let here =

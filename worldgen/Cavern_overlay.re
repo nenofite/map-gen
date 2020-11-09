@@ -33,7 +33,7 @@ let add_floor_pillars = (pillar_cloud: Point_cloud.t(bool), floor) => {
   List.fold_left(
     (floor, Point_cloud.{x, y, value}) =>
       if (value) {
-        Grid.update(floor, int_of_float(x), int_of_float(y), old_elev =>
+        Grid_compat.update(floor, int_of_float(x), int_of_float(y), old_elev =>
           if (old_elev < pillar_meet_elev) {
             pillar_meet_elev + 5;
           } else {
@@ -52,7 +52,8 @@ let add_ceiling_pillars = (pillar_cloud: Point_cloud.t(bool), ceiling) => {
   List.fold_left(
     (ceiling, Point_cloud.{x, y, value}) =>
       if (value) {
-        Grid.update(ceiling, int_of_float(x), int_of_float(y), old_elev =>
+        Grid_compat.update(
+          ceiling, int_of_float(x), int_of_float(y), old_elev =>
           if (old_elev > pillar_meet_elev) {
             pillar_meet_elev - 5;
           } else {
@@ -67,7 +68,7 @@ let add_ceiling_pillars = (pillar_cloud: Point_cloud.t(bool), ceiling) => {
   );
 };
 
-let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
+let prepare = (world: Grid_compat.t(Base_overlay.tile), ()) => {
   let r = 32;
   let start_side = world.side / r;
   let floor_cloud =
@@ -93,8 +94,8 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
     Phase_chain.(
       run_all(
         phase("Init floor", () =>
-          Grid.init(start_side, (x, y) => {
-            switch (Grid.at(world, x * r, y * r)) {
+          Grid_compat.init(start_side, (x, y) => {
+            switch (Grid_compat.at(world, x * r, y * r)) {
             | {ocean: true, _} => pillar_meet_elev + 5
             | {ocean: false, _} =>
               (
@@ -131,8 +132,8 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
     Phase_chain.(
       run_all(
         phase("Init ceiling", () =>
-          Grid.init(start_side, (x, y) => {
-            switch (Grid.at(world, x * r, y * r)) {
+          Grid_compat.init(start_side, (x, y) => {
+            switch (Grid_compat.at(world, x * r, y * r)) {
             | {ocean: true, _} => pillar_meet_elev - 5
             | {ocean: false, _} =>
               (
@@ -169,7 +170,7 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
   Phase_chain.(
     run_all(
       phase("Combine", () =>
-        Grid.zip_map(floor, ceiling, (_x, _y, floor_elev, ceiling_elev) =>
+        Grid_compat.zip_map(floor, ceiling, (floor_elev, ceiling_elev) =>
           {floor_elev, ceiling_elev}
         )
       )
@@ -180,7 +181,7 @@ let prepare = (world: Grid.t(Base_overlay.tile), ()) => {
 
 let apply_region =
     (
-      world: Grid.t(Base_overlay.tile),
+      world: Grid_compat.t(Base_overlay.tile),
       cavern,
       args: Minecraft_converter.region_args,
     ) => {
@@ -190,8 +191,8 @@ let apply_region =
     (~x, ~z) => {
       open Minecraft.Region;
 
-      let surface_elev = Grid.at(world, x, z).elevation;
-      let {floor_elev, ceiling_elev} = Grid.at(cavern, x, z);
+      let surface_elev = Grid_compat.at(world, x, z).elevation;
+      let {floor_elev, ceiling_elev} = Grid_compat.at(cavern, x, z);
 
       /* Don't go above the maximum */
       let ceiling_elev =

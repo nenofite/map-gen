@@ -80,7 +80,7 @@ let generate = () => {
         float_of_int(y),
       )
     });
-  Grid.init(size, (x, y) =>
+  Grid_compat.init(size, (x, y) =>
     Point_cloud.nearest_with_edge(
       plates,
       edge,
@@ -91,12 +91,12 @@ let generate = () => {
 };
 
 let convert_intermediate = (grid: Grid.t(intermediate)) => {
-  Grid.map(
+  Grid_compat.map(
     grid,
     (x, y, here) => {
       let {direction, is_ocean, _} = here;
       let (px, py) = xy_of_direction(direction);
-      let toward = Grid.at_w(grid, x + px, y + py);
+      let toward = Grid_compat.at_w(grid, x + px, y + py);
       if (!is_ocean && are_opposed(direction, toward.direction)) {
         Mountain;
       } else if (is_ocean) {

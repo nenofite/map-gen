@@ -63,7 +63,7 @@ let make_input = () => {
     Phase_chain.(
       run_all(
         phase("init", () =>
-          Grid.init(4, (_x, _y) =>
+          Grid_compat.init(4, (_x, _y) =>
             Random.int(elevation_range) + base_elevation
           )
         )
@@ -130,7 +130,7 @@ let draw = (input: input, output: output, file) => {
     );
   };
 
-  Grid.iter(input.elevation, (x, y, c) => {
+  Grid_compat.iter(input.elevation, (x, y, c) => {
     img#set(x, y, colorize_elevation(c))
   });
   let road_color = {r: 0, g: 0, b: 0};
@@ -207,7 +207,7 @@ let calc_average_elevation = (input: input, min_x, max_x, min_z, max_z) => {
         max_x,
         cur,
         (cur, x) => {
-          let here = Grid.at(input.elevation, x, z);
+          let here = Grid_compat.at(input.elevation, x, z);
           cur + here;
         },
       )

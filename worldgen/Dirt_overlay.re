@@ -10,7 +10,7 @@ let prepare = (side, ()) => {
   Phase_chain.(
     run_all(
       phase("Init", () =>
-        Grid.init(side / 32, (_x, _y) =>
+        Grid_compat.init(side / 32, (_x, _y) =>
           /* TODO */ Caml.Random.int(max_depth + 1)
         )
       )

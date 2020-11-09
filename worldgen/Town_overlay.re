@@ -55,7 +55,7 @@ let has_obstacle = (obstacles, x, z) =>
   );
 
 let acceptable_elevations = (elevations, x, z) => {
-  let start_elev = Grid.at(elevations, x, z);
+  let start_elev = Grid_compat.at(elevations, x, z);
   let (emin, emax) =
     Range.fold(
       z,
@@ -67,7 +67,7 @@ let acceptable_elevations = (elevations, x, z) => {
         x + Town_prototype.side - 1,
         (emin, emax),
         ((emin, emax), x) => {
-          let here_elev = Grid.at(elevations, x, z);
+          let here_elev = Grid_compat.at(elevations, x, z);
           let emin = min(emin, here_elev);
           let emax = max(emax, here_elev);
           (emin, emax);
@@ -155,8 +155,12 @@ let prepare_town = (canon: Canonical_overlay.t, town_min_x, town_min_z) => {
 
   /* Slice elevations from base overlay */
   let elevation =
-    Grid.init(Town_prototype.side, (town_x, town_z) => {
-      Grid.at(canon.elevation, town_x + town_min_x, town_z + town_min_z)
+    Grid_compat.init(Town_prototype.side, (town_x, town_z) => {
+      Grid_compat.at(
+        canon.elevation,
+        town_x + town_min_x,
+        town_z + town_min_z,
+      )
     });
 
   /* TODO misnomer */
@@ -221,7 +225,7 @@ let prepare = (canon: Canonical_overlay.t, base: Base_overlay.x, ()): t => {
   /* Shuffle a list of all river tiles */
   Tale.log("Finding river coords");
   let river_coords =
-    Grid.filter_map(base, (x, z, base) => {
+    Grid_compat.filter_map(base, (x, z, base) => {
       switch (base) {
       | {river: true, _} =>
         Some((x - Town_prototype.side / 2, z - Town_prototype.side / 2))

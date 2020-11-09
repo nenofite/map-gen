@@ -17,7 +17,8 @@ type 'a t = {
 type 'a grid = 'a t
 
 let assert_side_invariant side =
-  if side <= 1 then failwith (Printf.sprintf "cannot have grid side: %d" side)
+  if side <= 1 then failwith (Printf.sprintf "cannot have grid side: %d" side);
+  if Int.(2 ** floor_log2 side <> side) then failwith (Printf.sprintf "side must be power of 2: %d" side)
 
 let assert_within ~x ~y side =
   if not (0 <= x && x < side && 0 <= y && y < side) then
@@ -94,7 +95,9 @@ let rec force_set_path path new_v node =
     let new_se = force_set_path path_rest new_v se in Quad (nw, ne, sw, new_se)
 ;;
 
-let make ~side init = { side; root = Leaf init }
+let make ~side init =
+  assert_side_invariant side;
+  { side; root = Leaf init }
 
 include Container.Make(struct
     type 'a t = 'a grid
@@ -119,6 +122,42 @@ include Container.Make(struct
     let length_impl t = t.side * t.side
     let length = `Custom length_impl
   end)
+
+module With_coords_impl = struct
+  module T = struct
+    type 'a t =
+      | T: 'a grid -> (int * int * 'a) t
+  end
+  include T
+
+  let fold (type a) ((T t): a t) ~init ~(f: _ -> a -> _) = (
+    let rec go node accum ~x ~y ~side ~f =
+      match node with
+      | Leaf n ->
+        let open Mg_util.Range in
+        fold y (y + side - 1) accum (fun accum yi ->
+            fold x (x + side - 1) accum (fun accum xi ->
+                f accum (xi, yi, n)
+              )
+          )
+      | Quad (nw, ne, sw, se) ->
+        let half = side / 2 in
+        go nw accum ~x ~y ~side: half ~f |>
+        go ne ~x:(x + half) ~y ~side: half ~f |>
+        go sw ~x ~y:(y + half) ~side: half ~f |>
+        go se ~x:(x + half) ~y:(y + half) ~side: half ~f
+    in
+    go t.root init ~x: 0 ~y: 0 ~side: t.side ~f
+  )
+
+  let iter = `Define_using_fold
+
+  let length = `Custom (fun (type a) ((T t): a t) -> length t)
+end
+module With_coords = struct
+  include With_coords_impl.T
+  include Container.Make(With_coords_impl)
+end
 
 module Scan_impl = struct
   module T = struct
@@ -180,20 +219,21 @@ module Leafwise = struct
   include Container.Make(Leafwise_impl)
 end
 
-module Make_setters(Args: sig
-    type t
-    val (=) : t -> t -> bool
+module Make(Args: sig
+    type 'a t
+    val (=) : 'a t -> 'a t -> bool
   end) = struct
-  type data = Args.t
+  type 'a data = 'a Args.t
 
   let compact_quad = function
     | Leaf nw as l, Leaf ne, Leaf sw, Leaf se when Args.(nw = ne && ne = sw && sw = se) -> l
     | (nw, ne, sw, se) -> Quad (nw, ne, sw, se)
 
-  let set x y new_v t = (
-    let rec set_if_different x y new_v side node = (
+  let update x y ~f t = (
+    let rec upd_if_different x y ~f side node = (
       match node with
       | Leaf current_v as l ->
+        let new_v = f current_v in
         if Args.(current_v = new_v) then
           None
         else
@@ -202,19 +242,21 @@ module Make_setters(Args: sig
         let open Option.Monad_infix in
         let half = side / 2 in
         (match x >= half, y >= half with
-         | false, false -> set_if_different x y new_v half nw
+         | false, false -> upd_if_different x y ~f half nw
            >>| fun new_nw -> compact_quad (new_nw, ne, sw, se)
-         | true, false -> set_if_different (x - half) y new_v half ne
+         | true, false -> upd_if_different (x - half) y ~f half ne
            >>| fun new_ne -> compact_quad (nw, new_ne, sw, se)
-         | false, true -> set_if_different x (y - half) new_v half sw
+         | false, true -> upd_if_different x (y - half) ~f half sw
            >>| fun new_sw -> compact_quad (nw, ne, new_sw, se)
-         | true, true -> set_if_different (x - half) (y - half) new_v half se
+         | true, true -> upd_if_different (x - half) (y - half) ~f half se
            >>| fun new_se -> compact_quad (nw, ne, sw, new_se))
     ) in
-    match set_if_different x y new_v t.side t.root with
+    match upd_if_different x y ~f t.side t.root with
     | Some new_root -> { t with root = new_root }
     | None -> t
   )
+
+  let set x y new_v t = update x y ~f: (fun _ -> new_v) t
 
   let set_path path new_v t =
     let rec set_path_node path new_v node =
@@ -242,6 +284,7 @@ module Make_setters(Args: sig
   ;;
 
   let init ~side f = (
+    assert_side_invariant side;
     let f x y = f (x, y) in
     let rec go side min_x min_y =
       if side > 1 then
@@ -256,6 +299,26 @@ module Make_setters(Args: sig
         Leaf (f min_x min_y)
     in
     { side; root = go side 0 0 }
+  )
+
+  let map ~f t = (
+    let rec go old_node =
+      match old_node with
+      | Leaf old_v -> Leaf (f old_v)
+      | Quad (nw, ne, sw, se) -> compact_quad (go nw, go ne, go sw, go se)
+    in
+    { t with root = go t.root }
+  )
+
+  let zip_map ~f a b = (
+    if a.side <> b.side then failwithf "grid sides must match to zip: %d vs %d" a.side b.side ();
+    let rec go a b = match a, b with
+      | Leaf la, Leaf lb -> Leaf (f la lb)
+      | Leaf _, Quad (nwb, neb, swb, seb) -> compact_quad (go a nwb, go a neb, go a swb, go a seb)
+      | Quad (nwa, nea, swa, sea), Leaf _ -> compact_quad (go nwa b, go nea b, go swa b, go sea b)
+      | Quad (nwa, nea, swa, sea), Quad (nwb, neb, swb, seb) -> compact_quad (go nwa nwb, go nea neb, go swa swb, go sea seb)
+    in
+    { side = a.side; root = go a.root b.root }
   )
 
   let compact t =
@@ -283,6 +346,19 @@ module Make_setters(Args: sig
   ;;
 end
 
+module Make0(Args: sig
+    type t
+    val (=) : t -> t -> bool
+  end) = Make(struct
+    include Args
+    type _ t = Args.t
+  end)
+
+module Poly = Make(struct
+    type 'a t = 'a
+    let (=) = Poly.(=)
+  end)
+
 let is_within t x y = 0 <= x && x < t.side && 0 <= y && y < t.side
 
 let assert_within side x y =
@@ -295,6 +371,7 @@ let wrap_coord t x y = x % t.side, y % t.side
 (** creates a non-compact tree. It's more space-efficient to use
     Make_setters(...).init when possible *)
 let init ~side f =
+  assert_side_invariant side;
   let f x y = f (x, y) in
   let rec go side min_x min_y =
     if side > 1 then
@@ -373,7 +450,7 @@ let%expect_test "force_sets, scans, and counts leaves" = (
 )
 
 let%expect_test "set and compact" = (
-  let module Int_grid = Make_setters(Int) in
+  let module Int_grid = Make0(Int) in
   let open Int_grid in
   (* Ensure init compacts into a single leaf *)
   let g = Int_grid.init ~side: 8 (fun _ -> 0) in

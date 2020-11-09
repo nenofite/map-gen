@@ -16,7 +16,7 @@ let prepare = (canon: Canonical_overlay.t, cavern: Cavern_overlay.t, ()) => {
       let x = int_of_float(xf);
       let y = int_of_float(yf);
       if (!Sparse_grid.has(canon.obstacles, x, y)) {
-        switch (Grid.at(cavern, x, y)) {
+        switch (Grid_compat.at(cavern, x, y)) {
         | {floor_elev, ceiling_elev}
             when
               ceiling_elev > floor_elev

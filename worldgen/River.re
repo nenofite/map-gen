@@ -22,7 +22,7 @@ let colorize = (tile: tile): int => {
 };
 
 let convert = (old_grid: Grid.t(int)) => {
-  Grid.map(
+  Grid_compat.map(
     old_grid,
     (_x, _y, elevation) => {
       let ocean = elevation <= Heightmap.sea_level;
@@ -88,13 +88,13 @@ let fall_to_with_flat_dir = (here, neighbors, flat_dir) => {
 };
 
 /** river_sources gets all potential river sources on the map, in random order */
-let river_sources = (grid: Grid.t(tile)) => {
+let river_sources = (grid: Grid_compat.t(tile)) => {
   let coords =
-    Grid.fold(grid, [], (acc, x, y, here) =>
+    Grid_compat.fold(grid, [], (acc, x, y, here) =>
       if (!here.ocean
           && min_source_elevation <= here.elevation
           && here.elevation <= max_source_elevation) {
-        let neighbors = Grid.neighbors_xy(grid, x, y);
+        let neighbors = Grid_compat.neighbors_xy(grid, x, y);
         if (Option.is_some(fall_to(here, neighbors))) {
           [(x, y, Random.bits()), ...acc];
         } else {
@@ -113,7 +113,7 @@ let river_sources = (grid: Grid.t(tile)) => {
   already a river there, it raises [Invalid_argument]
  */
 let place_river_tile = (grid, x, y) => {
-  Grid.update(grid, x, y, here =>
+  Grid_compat.update(grid, x, y, here =>
     switch (here) {
     | {river: true, _} => raise(Invalid_argument("Tile already has river"))
     | {river: false, _} as here => {...here, river: true}
@@ -125,7 +125,9 @@ let place_river_tile = (grid, x, y) => {
   deposit_sediment increases the elevation by 1 at the given coordinate.
  */
 let deposit_sediment = (grid, x, y) => {
-  Grid.update(grid, x, y, here => {...here, elevation: here.elevation + 1});
+  Grid_compat.update(grid, x, y, here =>
+    {...here, elevation: here.elevation + 1}
+  );
 };
 
 /**
@@ -147,14 +149,14 @@ let current_flow_direction = (path, x, y) => {
   returns the path it took.
  */
 let rec flow_river = (grid, path, x, y) => {
-  let here = Grid.at(grid, x, y);
+  let here = Grid_compat.at(grid, x, y);
   if (!here.ocean && !here.river) {
     let next_path = [(x, y), ...path];
-    let neighbors = Grid.neighbors_xy(grid, x, y);
+    let neighbors = Grid_compat.neighbors_xy(grid, x, y);
     let flat_dir = current_flow_direction(path, x, y);
     switch (fall_to_with_flat_dir(here, neighbors, flat_dir)) {
     | Some((dx, dy)) =>
-      let (next_x, next_y) = Grid.wrap_coord(grid, x + dx, y + dy);
+      let (next_x, next_y) = Grid_compat.wrap_coord(grid, x + dx, y + dy);
       assert(next_x != x || next_y != y);
       if (!List.exists(((lx, ly)) => lx == next_x && ly == next_y, path)) {
         flow_river(grid, next_path, next_x, next_y);
@@ -190,7 +192,8 @@ let rec flow_river = (grid, path, x, y) => {
   mountains, then creates a river with the given id there. The river is only
   kept if it can reach the ocean.
  */
-let river = (grid: Grid.t(tile), _id: int, source_x: int, source_y: int) => {
+let river =
+    (grid: Grid_compat.t(tile), _id: int, source_x: int, source_y: int) => {
   switch (flow_river(grid, [], source_x, source_y)) {
   | Some(path) =>
     Some(
@@ -204,7 +207,7 @@ let river = (grid: Grid.t(tile), _id: int, source_x: int, source_y: int) => {
   };
 };
 
-let add_rivers = (grid, amount): Grid.t(tile) => {
+let add_rivers = (grid, amount): Grid_compat.t(tile) => {
   let sources = river_sources(grid) |> Mg_util.take(amount, _);
   let amount = min(amount, List.length(sources));
 
