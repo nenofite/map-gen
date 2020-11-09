@@ -57,7 +57,7 @@ let wrap_coord' = (side, x, y) => {
 let wrap_coord = (grid, x, y) => wrap_coord'(grid.side, x, y);
 
 let at = (grid, x, y) => {
-  assert_within(grid.side, x, y);
+  /* assert_within(grid.side, x, y); */
   Coord.Map.find(grid.map, (x, y));
 };
 

@@ -38,18 +38,18 @@ let init_f = (~width, ~height, ~spacing=1, f) => {
     invalid_argf("Point_cloud isn't square: %d %d", width, height, ());
   };
   let side = width;
-  let points = ref(Sparse_grid.make(side));
+  let points = ref(Sparse_grid.make(side / spacing + 1));
   for (yi in 0 to height / spacing) {
     for (xi in 0 to width / spacing) {
       let x = xi * spacing;
       let y = yi * spacing;
       let xf =
         float_of_int(x)
-        +. (/* TODO */ Caml.Random.float(1.) -. 0.5)
+        +. (Random.float(1.) -. 0.5)
         *. float_of_int(spacing);
       let yf =
         float_of_int(y)
-        +. (/* TODO */ Caml.Random.float(1.) -. 0.5)
+        +. (Random.float(1.) -. 0.5)
         *. float_of_int(spacing);
       /* Discard if the point is outside */
       if (is_within(width, height, xf, yf)) {
@@ -95,58 +95,88 @@ let make_int_list = (~width, ~height, ~spacing=?, ()) => {
 let distance2 = (ax, ay, bx, by) => Float.((ax - bx) ** 2. + (ay - by) ** 2.);
 let distance_actual = (ax, ay, bx, by) => sqrt(distance2(ax, ay, bx, by));
 
-let closest_point = (cloud, x, y) => {
+let rec closest_point = (~radius=1, cloud, x, y) => {
+  open Core_kernel;
   /* Convert to cloud x, y */
   let cx = Float.(x / of_int(cloud.spacing) + 0.5 |> to_int);
   let cy = Float.(y / of_int(cloud.spacing) + 0.5 |> to_int);
   /* Compare among the point at cx, cy and its eight neighbors */
-  let first = Sparse_grid.at(cloud.points, cx, cy) |> Option.value_exn(_);
-  let first_distance = distance2(first.px, first.py, x, y);
-  List.fold(
-    Grid_compat.eight_directions,
-    ~init=(first, first_distance),
-    ~f=((_, curr_dist) as curr, (dcx, dcy)) => {
-    switch (Sparse_grid.at(cloud.points, cx + dcx, cy + dcy)) {
-    | Some(here) =>
-      let here_dist = distance2(here.px, here.py, x, y);
-      if (Float.(here_dist < curr_dist)) {
-        (here, here_dist);
-      } else {
-        curr;
-      };
-    | None => curr
-    }
-  });
+  let neighbors =
+    Mg_util.Range.(
+      fold(cy - radius, cy + radius, [], (ls, iter_cy) =>
+        fold(cx - radius, cx + radius, ls, (ls, iter_cx) =>
+          switch (Sparse_grid.at(cloud.points, iter_cx, iter_cy)) {
+          | Some(n) => [n, ...ls]
+          | None => ls
+          }
+        )
+      )
+    );
+  switch (neighbors) {
+  | [] =>
+    let next_radius = radius * 2;
+    if (next_radius <= cloud.points.side * cloud.spacing) {
+      closest_point(~radius=next_radius, cloud, x, y);
+    } else {
+      failwithf("could not find closest point for (%f, %f)", x, y, ());
+    };
+  | [first, ...rest] =>
+    let first_distance = distance2(first.px, first.py, x, y);
+    List.fold(
+      rest,
+      ~init=(first, first_distance),
+      ~f=((_, curr_dist) as curr, here) => {
+        let here_dist = distance2(here.px, here.py, x, y);
+        if (Float.(here_dist < curr_dist)) {
+          (here, here_dist);
+        } else {
+          curr;
+        };
+      },
+    );
+  };
 };
 
-let two_closest_points = (cloud, x, y) => {
+let rec two_closest_points = (~radius=1, cloud, x, y) => {
   /* Convert to cloud x, y */
   let cx = Float.(x / of_int(cloud.spacing) + 0.5 |> to_int);
   let cy = Float.(y / of_int(cloud.spacing) + 0.5 |> to_int);
   /* Compare among the point at cx, cy and its eight neighbors */
-  let first = Sparse_grid.at(cloud.points, cx, cy) |> Option.value_exn(_);
-  let first_distance = distance2(first.px, first.py, x, y);
-  let (_, _, _, snd_dist) as result =
+  let neighbors =
+    Mg_util.Range.(
+      fold(cy - radius, cy + radius, [], (ls, iter_cy) =>
+        fold(cx - radius, cx + radius, ls, (ls, iter_cx) =>
+          switch (Sparse_grid.at(cloud.points, iter_cx, iter_cy)) {
+          | Some(n) => [n, ...ls]
+          | None => ls
+          }
+        )
+      )
+    );
+  switch (neighbors) {
+  | [first, second, ...rest] =>
+    let first_distance = distance2(first.px, first.py, x, y);
+    let second_distance = distance2(second.px, second.py, x, y);
     List.fold(
-      Grid_compat.eight_directions,
-      ~init=(first, first_distance, first, Float.infinity),
-      ~f=((a, a_dist, _b, b_dist) as curr, (dcx, dcy)) => {
-      switch (Sparse_grid.at(cloud.points, cx + dcx, cy + dcy)) {
-      | Some(here) =>
+      rest,
+      ~init=(first, first_distance, second, second_distance),
+      ~f=((a, a_dist, _b, b_dist) as curr, here) => {
         let here_dist = distance2(here.px, here.py, x, y);
         switch (Float.(here_dist < a_dist, here_dist < b_dist)) {
         | (true, _) => (here, here_dist, a, a_dist)
         | (false, true) => (a, a_dist, here, here_dist)
         | (false, false) => curr
         };
-      | None => curr
-      }
-    });
-  if (Float.is_inf(snd_dist)) {
-    /* TODO temporary check */
-    failwith("Second distance was infinite");
+      },
+    );
+  | _ =>
+    let next_radius = radius * 2;
+    if (next_radius <= cloud.points.side * cloud.spacing) {
+      two_closest_points(~radius=next_radius, cloud, x, y);
+    } else {
+      failwithf("could not find closest point for (%f, %f)", x, y, ());
+    };
   };
-  result;
 };
 
 /**
