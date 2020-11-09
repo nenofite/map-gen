@@ -21,7 +21,7 @@ let random_ore = () => Minecraft.Block.Iron_ore; /* TODO other ores */
  */
 let make_layer =
     (
-      base: Grid.t(Base_overlay.tile),
+      base: Grid_compat.t(Base_overlay.tile),
       ~name,
       ~max_depth,
       ~max_thickness,
@@ -37,10 +37,10 @@ let make_layer =
     Phase_chain.(
       run_all(
         phase("init max elevations", () =>
-          Grid.init(
+          Grid_compat.init(
             base.side / r,
             (x, y) => {
-              let surface_elev = Grid.at(base, x * r, y * r).elevation;
+              let surface_elev = Grid_compat.at(base, x * r, y * r).elevation;
               let max_elev = surface_elev - Random.int(max_depth + 1);
               max_elev;
             },
@@ -68,7 +68,7 @@ let make_layer =
     Phase_chain.(
       run_all(
         phase("init min elevations", () =>
-          Grid.map(max_elevs_small, (_, _, max_elev) =>
+          Grid_compat.map(max_elevs_small, (_, _, max_elev) =>
             max_elev - Random.int(max_thickness + 1)
           )
         )
@@ -91,7 +91,7 @@ let make_layer =
     Phase_chain.(
       run_all(
         phase("init ores", () =>
-          Grid.init(base.side / r, (x, y) =>
+          Grid_compat.init(base.side / r, (x, y) =>
             Random.int(100) < 33
               ? Point_cloud.nearest(
                   ore_cloud,
@@ -117,10 +117,10 @@ let make_layer =
   Phase_chain.(
     run_all(
       phase("zipping min and max elevations", () =>
-        Grid.zip_map(
+        Grid_compat.zip_map(
           ores,
-          Grid.zip(max_elevs, min_elevs),
-          (_x, _y, ore, (max_elev, min_elev)) => {
+          Grid_compat.zip(max_elevs, min_elevs),
+          (ore, (max_elev, min_elev)) => {
           {max_elev, min_elev, ore}
         })
       )
@@ -157,7 +157,7 @@ let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
       ~max_thickness=3,
       ~ore_cloud=diamond_cloud,
     );
-  Grid.multizip([iron_layer, diamond_layer]);
+  Grid_compat.multizip([iron_layer, diamond_layer]);
 };
 
 let apply_region = (_base, state, args: Minecraft_converter.region_args) => {
@@ -165,7 +165,7 @@ let apply_region = (_base, state, args: Minecraft_converter.region_args) => {
   Minecraft_converter.iter_blocks(
     region,
     (~x, ~z) => {
-      let layers = Grid.at(state, x, z);
+      let layers = Grid_compat.at(state, x, z);
       List.iter(
         Minecraft.Region.(
           layer =>

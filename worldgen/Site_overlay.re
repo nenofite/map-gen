@@ -16,7 +16,7 @@ let prepare = (canon: Canonical_overlay.t, cavern: Cavern_overlay.t, ()) => {
       let x = int_of_float(xf);
       let y = int_of_float(yf);
       if (!Sparse_grid.has(canon.obstacles, x, y)) {
-        switch (Grid.at(cavern, x, y)) {
+        switch (Grid_compat.at(cavern, x, y)) {
         | {floor_elev, ceiling_elev}
             when
               ceiling_elev > floor_elev
@@ -105,9 +105,9 @@ let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z): unit => {
 };
 
 let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit => {
-  List.iter(
-    Point_cloud.(sites.points),
-    ~f=(Point_cloud.{x, y: z, value: site}) => {
+  Sparse_grid.iter(
+    sites.Point_cloud.points,
+    (_, Point_cloud.{px: x, py: z, value: site}) => {
       let x = int_of_float(x);
       let z = int_of_float(z);
       if (Minecraft.Region.is_within(~x, ~y=0, ~z, args.region)) {

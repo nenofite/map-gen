@@ -126,7 +126,7 @@ let obstacles_of_balls balls (canon : Canonical_overlay.t) =
   List.fold balls ~init: (Sparse_grid.make canon.side) ~f: (fun obs ball ->
       ball_bounds ball |>
       List.filter ~f: (fun (x, y, z) ->
-          Grid.is_within canon.elevation x z && y = Grid.at canon.elevation x z
+          Grid.is_within canon.elevation x z && y = Grid_compat.at canon.elevation x z
         ) |>
       List.fold ~init: obs ~f: (fun obs (x, _y, z) ->
           Sparse_grid.put_opt obs x z ()
@@ -183,7 +183,7 @@ let prepare (canon : Canonical_overlay.t) () =
     if Random.int 100 >= cave_prob then
       None
     else
-      let start_y = Grid.at canon.elevation start_x start_z in
+      let start_y = Grid_compat.at canon.elevation start_x start_z in
       let start = (start_x, start_y, start_z) in
       try_make_points ~tries: 10 canon start
   in

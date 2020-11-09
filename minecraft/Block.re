@@ -2,7 +2,7 @@ open Core_kernel;
 
 exception Invalid_block(string);
 
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
 type stair_dir =
   | E
   | W
@@ -13,37 +13,37 @@ type stair_dir =
   | Sd
   | Nd;
 
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
 type dir =
   | N
   | E
   | S
   | W;
 
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
 type bed_part =
   | Foot
   | Head;
 
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
 type door_part =
   | Lower
   | Upper;
 
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
 type slab_type =
   | Bottom
   | Top
   | Double;
 
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
 type axis =
   | X
   | Y
   | Z;
 
 /* Materials list taken from https://minecraft.gamepedia.com/Java_Edition_data_value */
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
 type material =
   /* Air needs to be 0 */
   | Air

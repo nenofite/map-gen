@@ -119,6 +119,8 @@ module Range = {
     } else {
       acc;
     };
+
+  let map = (min, max, f) => fold(min, max, [], (ls, n) => [f(n), ...ls]);
 };
 
 /** is the same as Random.int, but handles zero nicely */

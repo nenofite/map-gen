@@ -1,24 +1,33 @@
 open Core_kernel;
 
-[@deriving bin_io]
-type mid_biome =
-  | Plain
-  | Forest
-  | Desert;
+[@deriving (eq, bin_io)]
+type flower = {
+  block: Minecraft.Block.material,
+  percentage: int,
+};
 
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
+type cactus = {percentage: int};
+
+[@deriving (eq, bin_io)]
+type mid_biome =
+  | Plain(flower)
+  | Forest(flower)
+  | Desert(cactus);
+
+[@deriving (eq, bin_io)]
 type shore_biome =
   | Sand
   | Gravel
   | Clay;
 
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
 type high_biome =
   | Pine_forest
   | Barren
   | Snow;
 
-[@deriving bin_io]
+[@deriving (eq, bin_io)]
 type biome =
   | Mid(mid_biome)
   | Shore(shore_biome)
@@ -29,15 +38,39 @@ type t = (Grid.t(biome), Canonical_overlay.t);
 
 let colorize =
   fun
-  | Mid(Plain) => 0x86A34D
-  | Mid(Forest) => 0x388824
-  | Mid(Desert) => 0xD9D0A1
+  | Mid(Plain(_)) => 0x86A34D
+  | Mid(Forest(_)) => 0x388824
+  | Mid(Desert(_)) => 0xD9D0A1
   | High(Pine_forest) => 0x286519
   | High(Barren) => 0x727272
   | High(Snow) => 0xFDFDFD
   | Shore(Sand) => 0xF5EAB7
   | Shore(Gravel) => 0x828282
   | Shore(Clay) => 0x8E7256;
+
+let random_flower = () => {
+  open Minecraft.Block;
+  let block =
+    switch (Random.int(12)) {
+    | 0 => Dandelion
+    | 1 => Poppy
+    | 2 => Blue_orchid
+    | 3 => Allium
+    | 4 => Azure_bluet
+    | 5 => Red_tulip
+    | 6 => Orange_tulip
+    | 7 => White_tulip
+    | 8 => Pink_tulip
+    | 9 => Oxeye_daisy
+    | 10 => Cornflower
+    | 11
+    | _ => Lily_of_the_valley
+    /* TODO tall flowers */
+    };
+  {block, percentage: Random.int_incl(10, 100)};
+};
+
+let random_cactus = () => {percentage: Random.int_incl(10, 100)};
 
 let prepare_mid = side => {
   /* Start with a point cloud then subdivide a couple times */
@@ -49,19 +82,19 @@ let prepare_mid = side => {
       | 1
       | 2
       | 3
-      | 4 => Plain
+      | 4 => Plain(random_flower())
       | 5
       | 6
-      | 7 => Forest
+      | 7 => Forest(random_flower())
       | 8
-      | _ => Desert
+      | _ => Desert(random_cactus())
       }
     );
 
   Phase_chain.(
     run_all(
       phase("Init mid biomes", () =>
-        Grid.init(side / r, (x, y) =>
+        Grid_compat.init(side / r, (x, y) =>
           Point_cloud.nearest(cloud, float_of_int(x), float_of_int(y))
         )
       )
@@ -89,7 +122,7 @@ let prepare_shore = side => {
   Phase_chain.(
     run_all(
       phase("Init shore biomes", () =>
-        Grid.init(side / r, (x, y) =>
+        Grid_compat.init(side / r, (x, y) =>
           Point_cloud.nearest(cloud, float_of_int(x), float_of_int(y))
         )
       )
@@ -117,7 +150,7 @@ let prepare_high = side => {
   Phase_chain.(
     run_all(
       phase("Init high biomes", () =>
-        Grid.init(side / r, (x, y) =>
+        Grid_compat.init(side / r, (x, y) =>
           Point_cloud.nearest(cloud, float_of_int(x), float_of_int(y))
         )
       )
@@ -130,12 +163,13 @@ let prepare_high = side => {
   );
 };
 
-let zip_biomes = (base: Grid.t(Base_overlay.tile), ~mid, ~shore, ~high) => {
-  let all_biomes = Grid.zip(mid, Grid.zip(shore, high));
-  Grid.zip_map(
+let zip_biomes =
+    (base: Grid_compat.t(Base_overlay.tile), ~mid, ~shore, ~high) => {
+  let all_biomes = Grid_compat.zip(mid, Grid_compat.zip(shore, high));
+  Grid_compat.zip_map(
     base,
     all_biomes,
-    (_x, _y, base, (mid, (shore, high))) => {
+    (base, (mid, (shore, high))) => {
       let elevation = base.elevation;
       if (base.river || base.ocean || elevation <= Heightmap.sea_level + 2) {
         Shore(shore);
@@ -152,14 +186,19 @@ let zip_biomes = (base: Grid.t(Base_overlay.tile), ~mid, ~shore, ~high) => {
 };
 
 let has_obstacle = (_base, dirt, biomes, x, y) => {
-  switch (Grid.at(biomes, x, y)) {
-  | Mid(Desert) => Grid.at(dirt, x, y) == 0
+  switch (Grid_compat.at(biomes, x, y)) {
+  | Mid(Desert(_)) => Grid_compat.at(dirt, x, y) == 0
   | _ => false
   };
 };
 
 let prepare =
-    (canon: Canonical_overlay.t, base: Grid.t(Base_overlay.tile), dirt, ()) => {
+    (
+      canon: Canonical_overlay.t,
+      base: Grid_compat.t(Base_overlay.tile),
+      dirt,
+      (),
+    ) => {
   let mid = prepare_mid(base.side);
   let shore = prepare_shore(base.side);
   let high = prepare_high(base.side);
@@ -173,7 +212,7 @@ let prepare =
   let canon = {
     ...canon,
     obstacles:
-      Grid.fold(biomes, canon.obstacles, (obstacles, x, y, _biome) =>
+      Grid_compat.fold(biomes, canon.obstacles, (obstacles, x, y, _biome) =>
         if (has_obstacle(base, dirt, biomes, x, y)) {
           Sparse_grid.put(obstacles, x, y, ());
         } else {
@@ -195,7 +234,7 @@ let overwrite_stone_air = (region, x, y, z, block) =>
 
 let apply_dirt =
     (
-      dirt: Grid.t(int),
+      dirt: Grid_compat.t(int),
       (state, _canon),
       args: Minecraft_converter.region_args,
     ) => {
@@ -205,16 +244,15 @@ let apply_dirt =
     (~x, ~z) => {
       open Minecraft.Region;
       let elev = height_at(~x, ~z, region);
-      let dirt_depth = Grid.at(dirt, x, z);
-      switch (Grid.at(state, x, z)) {
-      | Mid(Plain)
-      | Mid(Forest)
+      let dirt_depth = Grid_compat.at(dirt, x, z);
+      switch (Grid_compat.at(state, x, z)) {
+      | Mid(Plain(_) | Forest(_))
       | High(Pine_forest) =>
         /* Dirt (will become grass in Plant_overlay) */
         for (y in elev - dirt_depth + 1 to elev) {
           overwrite_stone_air(region, x, y, z, Dirt);
         }
-      | Mid(Desert) =>
+      | Mid(Desert(_)) =>
         /* Sand with rocks sticking out */
         for (y in elev - dirt_depth + 1 to elev) {
           overwrite_stone_air(region, x, y, z, Sand);
@@ -253,7 +291,7 @@ let apply_dirt =
 
 let apply_region =
     (
-      _base: Grid.t(River.tile),
+      _base: Grid_compat.t(River.tile),
       dirt,
       state,
       args: Minecraft_converter.region_args,
@@ -264,8 +302,8 @@ let apply_region =
 let overlay =
     (
       canon: Canonical_overlay.t,
-      base: Grid.t(River.tile),
-      dirt: Grid.t(int),
+      base: Grid_compat.t(River.tile),
+      dirt: Grid_compat.t(int),
     )
     : Overlay.monad(t) =>
   Overlay.make(

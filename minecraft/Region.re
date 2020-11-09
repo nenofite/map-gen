@@ -180,6 +180,11 @@ let height_at = (~x, ~y=?, ~z, r) => {
 
 /* Chunks and sections */
 
+/** calculates the global offset in number of blocks of the region's min corner */
+let region_offset = r => {
+  (r.rx * block_per_region_side, r.rz * block_per_region_side);
+};
+
 /** calculates the global offset in number of blocks of the given chunk's min corner */
 let chunk_offset = (~cx, ~cz, r) => {
   let z_off = cz * block_per_chunk_side + r.rz * block_per_region_side;

@@ -5,6 +5,7 @@
         core_kernel
         Mg_util
         Tale
+        Grid
         Progress_view
         ANSITerminal
         Minecraft

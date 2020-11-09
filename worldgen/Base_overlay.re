@@ -22,9 +22,10 @@ let apply_progress_view = (state: t) => {
 let extract_canonical = (grid: Grid.t(tile)) =>
   Canonical_overlay.{
     side: grid.side,
-    elevation: Grid.map(grid, (_x, _y, tile) => tile.elevation),
+    elevation: Grid_compat.map(grid, (_x, _y, tile) => tile.elevation),
     obstacles:
-      Grid.fold(grid, Sparse_grid.make(grid.side), (obstacles, x, y, tile) =>
+      Grid_compat.fold(
+        grid, Sparse_grid.make(grid.side), (obstacles, x, y, tile) =>
         if (tile.river || tile.ocean) {
           Sparse_grid.put(obstacles, x, y, ());
         } else {
@@ -63,7 +64,7 @@ let apply_region = (state: t, args: Minecraft_converter.region_args) => {
     (~x, ~z) => {
       open Minecraft.Region;
 
-      let here = Grid.at(world, x, z);
+      let here = Grid_compat.at(world, x, z);
       let elevation = here.elevation;
 
       set_block(~x, ~y=0, ~z, Minecraft.Block.Bedrock, region);

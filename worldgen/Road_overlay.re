@@ -46,14 +46,14 @@ let rec all_pairs = (list, result) =>
   };
 
 let heuristic = (canon: Canonical_overlay.t, (ax, ay), (bx, by)) => {
-  let a_elev = Grid.at(canon.elevation, ax, ay);
-  let b_elev = Grid.at(canon.elevation, bx, by);
+  let a_elev = Grid_compat.at(canon.elevation, ax, ay);
+  let b_elev = Grid_compat.at(canon.elevation, bx, by);
   A_star.distance_3d((ax, ay, a_elev), (bx, by, b_elev));
 };
 
 let edge_cost = (canon: Canonical_overlay.t, (ax, ay), (bx, by)) => {
-  let a_elev = Grid.at(canon.elevation, ax, ay);
-  let b_elev = Grid.at(canon.elevation, bx, by);
+  let a_elev = Grid_compat.at(canon.elevation, ax, ay);
+  let b_elev = Grid_compat.at(canon.elevation, bx, by);
   let elev_diff = abs(a_elev - b_elev);
   let b_obs = Sparse_grid.has(canon.obstacles, bx, by);
   if (!b_obs && elev_diff <= 1) {
@@ -98,7 +98,7 @@ let widen_road = (roads: Sparse_grid.t(road)) => {
       switch (niceness) {
       | Dirt => widened_roads /* TODO */
       | Paved =>
-        Grid.eight_directions
+        Grid_compat.eight_directions
         |> List.fold_left(~init=widened_roads, ~f=(roads, (dx, dy)) =>
              heighten_road(roads, x + dx, y + dy, niceness, elevation)
            )
@@ -118,7 +118,7 @@ let add_steps = (roads: Sparse_grid.t(road)) => {
     ((x, y), road) => {
       let {elevation, _} = road;
       let has_lower_neighbor =
-        Grid.four_directions
+        Grid_compat.four_directions
         |> List.exists(~f=((dx, dy)) =>
              switch (Sparse_grid.at(roads, x + dx, y + dy)) {
              | Some({elevation: neighbor_elevation, _})
@@ -148,7 +148,7 @@ let place_road =
     List.map(
       path,
       ~f=((x, y)) => {
-        let elevation = Grid.at(canon.elevation, x, y);
+        let elevation = Grid_compat.at(canon.elevation, x, y);
         (x, y, {elevation, niceness: Paved /* TODO */});
       },
     );
