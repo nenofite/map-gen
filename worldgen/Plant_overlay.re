@@ -115,7 +115,7 @@ let fill_clusters =
           /* TODO vary cluster size */
           let cluster_size = 5;
           let perc =
-            Float.(100. * cluster_dist2 |> to_int) / Int.(cluster_size ** 2);
+            Int.(cluster_size ** 2) * 100 / (1 + Int.of_float(cluster_dist2));
           if (Random.int(100) < perc) {
             place(~x, ~z, cluster, region);
           };
@@ -176,12 +176,26 @@ let apply_flowers =
   );
 };
 
+let cactus_has_space = (~x, ~y, ~z, region) => {
+  Minecraft.Region.(
+    switch (
+      get_block_opt(region, ~x=x - 1, ~y, ~z),
+      get_block_opt(region, ~x, ~y, ~z=z - 1),
+      get_block_opt(region, ~x=x + 1, ~y, ~z),
+      get_block_opt(region, ~x, ~y, ~z=z + 1),
+    ) {
+    | (Some(Air), Some(Air), Some(Air), Some(Air)) => true
+    | _ => false
+    }
+  );
+};
+
 let place_cactus = (~x, ~z, region) => {
   open Core_kernel;
   let y = Minecraft.Region.height_at(region, ~x, ~z);
   let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
   switch (block) {
-  | Sand =>
+  | Sand when cactus_has_space(~x, ~y=y + 1, ~z, region) =>
     let height = Random.int_incl(1, 3);
     for (y in y + 1 to y + height) {
       Minecraft.Region.set_block(~x, ~y, ~z, Cactus, region);
@@ -199,7 +213,7 @@ let apply_cactus =
   let region = args.region;
   let cluster_centers =
     make_clusters(
-      ~spacing=25,
+      ~spacing=100,
       ~biomes,
       region,
       ~f=
