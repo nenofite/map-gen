@@ -77,10 +77,7 @@ let spread_mountain_into = (grid, updated_coords, x, y, new_distance) => {
       /* This distance is shorter, so update */
       let here = {...here, distance_to_mountain: new_distance};
       let grid = Grid_compat.put(grid, x, y, here);
-      let updated_coords = [
-        Grid_flood.{level: new_distance, x, y},
-        ...updated_coords,
-      ];
+      let updated_coords = [(new_distance, (x, y)), ...updated_coords];
       (grid, updated_coords);
     } else {
       (
@@ -122,10 +119,7 @@ let spread_ocean_into = (grid, updated_coords, x, y, new_distance) => {
       /* This distance is shorter, so update */
       let here = {...here, distance_to_ocean: new_distance};
       let grid = Grid_compat.put(grid, x, y, here);
-      let updated_coords = [
-        Grid_flood.{level: new_distance, x, y},
-        ...updated_coords,
-      ];
+      let updated_coords = [(new_distance, (x, y)), ...updated_coords];
       (grid, updated_coords);
     } else {
       (

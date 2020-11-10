@@ -1,3 +1,5 @@
+open Core_kernel;
+
 type priority = float;
 
 /**
@@ -14,7 +16,7 @@ let rec insert = (queue, prio, elt) =>
   switch (queue) {
   | Empty => Node(prio, elt, Empty, Empty)
   | Node(p, e, left, right) =>
-    if (prio <= p) {
+    if (Float.(prio <= p)) {
       Node(prio, elt, insert(right, p, e), left);
     } else {
       Node(p, e, insert(right, prio, elt), left);
@@ -32,7 +34,7 @@ let rec remove_top =
       Node(lprio, lelt, _, _) as left,
       Node(rprio, relt, _, _) as right,
     ) =>
-    if (lprio <= rprio) {
+    if (Float.(lprio <= rprio)) {
       Node(lprio, lelt, remove_top(left), right);
     } else {
       Node(rprio, relt, left, remove_top(right));

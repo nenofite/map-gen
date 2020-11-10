@@ -1703,3 +1703,28 @@ let block_entity = block => {
     }
   );
 };
+
+let is_solid =
+  fun
+  /* Non-solids */
+  /* TODO not exhaustive */
+  | Air
+  | Grass
+  | Dandelion
+  | Poppy
+  | Blue_orchid
+  | Allium
+  | Azure_bluet
+  | Red_tulip
+  | Orange_tulip
+  | White_tulip
+  | Pink_tulip
+  | Oxeye_daisy
+  | Cornflower
+  | Lily_of_the_valley
+  | Wheat(_)
+  | Lava
+  | Water
+  | Flowing_water(_) => false
+  /* All others are solid */
+  | _ => true;

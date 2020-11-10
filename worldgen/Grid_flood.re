@@ -1,19 +1,15 @@
-type needs_update_list('a) = list((int, list('a)));
+open Core_kernel;
 
-type update_coord = {
-  x: int,
-  y: int,
-  level: int,
-};
+type needs_update_list('a) = list((int, list('a)));
 
 let rec pop_update =
         (needs_update: needs_update_list('a))
-        : option(('a, needs_update_list('a))) =>
+        : option((int, 'a, needs_update_list('a))) =>
   switch (needs_update) {
   | [(level, [coord, ...level_rest]), ...update_rest] =>
     /* This level has some available, so pop one off */
     let needs_update = [(level, level_rest), ...update_rest];
-    Some((coord, needs_update));
+    Some((level, coord, needs_update));
   | [(_level, []), ...update_rest] =>
     /* This level is empty, so remove it and move on */
     pop_update(update_rest)
@@ -22,7 +18,7 @@ let rec pop_update =
     None
   };
 
-let rec insert_update = (level, n, needs_update: needs_update_list(_)) =>
+let rec insert_update = (~level, n, needs_update: needs_update_list(_)) =>
   switch (needs_update) {
   | [(hlevel, _), ..._] as update_rest when hlevel > level =>
     /* This index is a higher level than what we're inserting, so make a new level here */
@@ -33,27 +29,27 @@ let rec insert_update = (level, n, needs_update: needs_update_list(_)) =>
   | [(_hlevel, _) as h, ...update_rest] /*when hlevel < level*/ =>
     /* This index is a lower level than what we're inserting, so keep searching */
     /* not tail-recursive, but these lists should be O(100) elements so should be fine*/
-    [h, ...insert_update(level, n, update_rest)]
+    [h, ...insert_update(~level, n, update_rest)]
   | [] =>
     /* We've reached the end of the list, so just create our level */
     [(level, [n])]
   };
 
-let rec flood =
-        (
-          grid: Grid.t('a),
-          ~initial as needs_update: needs_update_list((int, int)),
-          ~spread,
-        ) =>
-  switch (pop_update(needs_update)) {
-  | Some(((x, y), needs_update)) =>
-    let (grid, updated_coords) = spread(grid, x, y);
-    let needs_update =
-      List.fold_left(
-        (ls, {level, x, y}) => insert_update(level, (x, y), ls),
-        needs_update,
-        updated_coords,
+let rec flood_gen = (~init, ~live: needs_update_list(_), ~spread) =>
+  switch (pop_update(live)) {
+  | Some((level, coord, needs_update)) =>
+    let (acc, updated_coords) = spread(init, ~level, coord);
+    let next_live =
+      List.fold(updated_coords, ~init=needs_update, ~f=(ls, (level, coord)) =>
+        insert_update(~level, coord, ls)
       );
-    flood(grid, ~initial=needs_update, ~spread);
-  | None => grid
+    flood_gen(~init=acc, ~live=next_live, ~spread);
+  | None => init
   };
+
+[@deprecated]
+let flood =
+    (grid: Grid.t('a), ~initial: needs_update_list((int, int)), ~spread) => {
+  let spread = (grid, ~level as _, (x, y)) => spread(grid, x, y);
+  flood_gen(~init=grid, ~live=initial, ~spread);
+};
