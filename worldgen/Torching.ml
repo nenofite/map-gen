@@ -163,7 +163,8 @@ let illuminate ?(min_brightness = 8) ~volume region = (
       let (torches, surfaces) = volume ~init:([], []) ~f: add_surface_from_volume in
 
       Tale.log "Marking pre-existing light levels";
-      let light_levels = Vi.Table.create ~size:(List.length torches) () in
+      (* TODO tune initial size *)
+      let light_levels = Vi.Table.create ~size:(List.length surfaces) () in
       List.iter torches ~f: (fun (x, y, z) -> mark_torch_light ~x ~y ~z light_levels region);
 
       Tale.log "Sorting";
