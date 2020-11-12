@@ -544,6 +544,43 @@ let create_farm =
   };
 };
 
+/**
+ adds torches to the town with min-corner x, z
+ */
+let illuminate_town = (~x, ~z, region): unit => {
+  /** determines how far below the first non-Air block to continue illuminating */
+  let bottom_extent = 10;
+  let rec fold_down_column = (~x, ~y, ~z, ~init, ~f) => {
+    switch (Minecraft.Region.get_block_opt(~x, ~y, ~z, region)) {
+    | Some(Air) =>
+      let next_acc = f(init, (x, y, z));
+      fold_down_column(~x, ~y=y - 1, ~z, ~init=next_acc, ~f);
+    | Some(_)
+    | None =>
+      /* Continue below */
+      Mg_util.Range.fold(y - bottom_extent, y, init, (acc, y) => {
+        f(acc, (x, y, z))
+      })
+    };
+  };
+  let over_town = (~init, ~f) => {
+    Mg_util.Range.(
+      fold(z, z + Town_prototype.side - 1, init, (acc, z) => {
+        fold(x, x + Town_prototype.side - 1, acc, (acc, x) => {
+          fold_down_column(
+            ~x,
+            ~y=Minecraft.Region.block_per_region_vertical - 1,
+            ~z,
+            ~init=acc,
+            ~f,
+          )
+        })
+      })
+    );
+  };
+  Torching.illuminate(~volume=over_town, region);
+};
+
 let apply_region =
     ((towns, _canon): t, args: Minecraft_converter.region_args) => {
   List.iter(
@@ -552,6 +589,7 @@ let apply_region =
         create_bell(bell, args);
         List.iter(house => create_house(house, args), houses);
         List.iter(farm => create_farm(farm, args), farms);
+        illuminate_town(~x, ~z, args.region);
       },
     towns,
   );

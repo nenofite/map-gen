@@ -92,8 +92,9 @@ let make_int_list = (~width, ~height, ~spacing=?, ()) => {
   /* |> List.rev; */
 };
 
+let side_f = cloud => cloud.points.side * cloud.spacing;
+
 let distance2 = (ax, ay, bx, by) => Float.((ax - bx) ** 2. + (ay - by) ** 2.);
-let distance_actual = (ax, ay, bx, by) => sqrt(distance2(ax, ay, bx, by));
 
 let rec closest_point = (~radius=1, cloud, x, y) => {
   open Core_kernel;
@@ -113,27 +114,29 @@ let rec closest_point = (~radius=1, cloud, x, y) => {
       )
     );
   switch (neighbors) {
+  | [first, ...rest] =>
+    let first_distance = distance2(first.px, first.py, x, y);
+    let (closest, closest_dist2) =
+      List.fold(
+        rest,
+        ~init=(first, first_distance),
+        ~f=((_, curr_dist) as curr, here) => {
+          let here_dist = distance2(here.px, here.py, x, y);
+          if (Float.(here_dist < curr_dist)) {
+            (here, here_dist);
+          } else {
+            curr;
+          };
+        },
+      );
+    (closest, sqrt(closest_dist2));
   | [] =>
     let next_radius = radius * 2;
-    if (next_radius <= cloud.points.side * cloud.spacing) {
+    if (next_radius <= side_f(cloud)) {
       closest_point(~radius=next_radius, cloud, x, y);
     } else {
       failwithf("could not find closest point for (%f, %f)", x, y, ());
     };
-  | [first, ...rest] =>
-    let first_distance = distance2(first.px, first.py, x, y);
-    List.fold(
-      rest,
-      ~init=(first, first_distance),
-      ~f=((_, curr_dist) as curr, here) => {
-        let here_dist = distance2(here.px, here.py, x, y);
-        if (Float.(here_dist < curr_dist)) {
-          (here, here_dist);
-        } else {
-          curr;
-        };
-      },
-    );
   };
 };
 
@@ -157,21 +160,23 @@ let rec two_closest_points = (~radius=1, cloud, x, y) => {
   | [first, second, ...rest] =>
     let first_distance = distance2(first.px, first.py, x, y);
     let second_distance = distance2(second.px, second.py, x, y);
-    List.fold(
-      rest,
-      ~init=(first, first_distance, second, second_distance),
-      ~f=((a, a_dist, _b, b_dist) as curr, here) => {
-        let here_dist = distance2(here.px, here.py, x, y);
-        switch (Float.(here_dist < a_dist, here_dist < b_dist)) {
-        | (true, _) => (here, here_dist, a, a_dist)
-        | (false, true) => (a, a_dist, here, here_dist)
-        | (false, false) => curr
-        };
-      },
-    );
+    let (a, a_dist2, b, b_dist2) =
+      List.fold(
+        rest,
+        ~init=(first, first_distance, second, second_distance),
+        ~f=((a, a_dist, _b, b_dist) as curr, here) => {
+          let here_dist = distance2(here.px, here.py, x, y);
+          switch (Float.(here_dist < a_dist, here_dist < b_dist)) {
+          | (true, _) => (here, here_dist, a, a_dist)
+          | (false, true) => (a, a_dist, here, here_dist)
+          | (false, false) => curr
+          };
+        },
+      );
+    (a, sqrt(a_dist2), b, sqrt(b_dist2));
   | _ =>
     let next_radius = radius * 2;
-    if (next_radius <= cloud.points.side * cloud.spacing) {
+    if (next_radius <= side_f(cloud)) {
       two_closest_points(~radius=next_radius, cloud, x, y);
     } else {
       failwithf("could not find closest point for (%f, %f)", x, y, ());
@@ -185,7 +190,7 @@ let rec two_closest_points = (~radius=1, cloud, x, y) => {
  */
 let nearest_with_edge = (cloud, edge_value, x, y) => {
   open Float;
-  let side_f = float_of_int(cloud.points.side);
+  let side_f = float_of_int(side_f(cloud));
   let edge_distance = min(min(x, side_f - x), min(y, side_f - y));
   let (closest_point, closest_point_distance) = closest_point(cloud, x, y);
   if (closest_point_distance <= edge_distance) {

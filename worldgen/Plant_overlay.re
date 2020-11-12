@@ -27,7 +27,7 @@ let apply_trees =
         switch (block) {
         | Grass_block =>
           Minecraft_template.place(
-            Tree_template.tree(),
+            Tree_template.random_tree(),
             region,
             ~x,
             ~y=y + 1,
@@ -110,12 +110,11 @@ let fill_clusters =
           Float.of_int(lz),
         )
       ) {
-      | (Point_cloud.{value: Some(cluster), _}, cluster_dist2) =>
+      | (Point_cloud.{value: Some(cluster), _}, cluster_dist) =>
         if (can_place(Grid_compat.at(biomes, x, z), cluster)) {
           /* TODO vary cluster size */
           let cluster_size = 5;
-          let perc =
-            Int.(cluster_size ** 2) * 100 / (1 + Int.of_float(cluster_dist2));
+          let perc = cluster_size * 100 / (1 + Int.of_float(cluster_dist));
           if (Random.int(100) < perc) {
             place(~x, ~z, cluster, region);
           };

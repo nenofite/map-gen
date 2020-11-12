@@ -65,7 +65,7 @@ let combine = (base, addition) => {
  */
 let stack = (base, addition) => {
   let (_, highest_y) = base.bounds_y;
-  translate(addition, 0, highest_y, 0) |> combine(base, _);
+  translate(addition, 0, highest_y + 1, 0) |> combine(base, _);
 };
 
 /**

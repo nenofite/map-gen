@@ -17,24 +17,25 @@ let overlays = {
   let%bind (_roads, _canon) = Road_overlay.overlay(canon, towns);
   /* let%bind _sites = Site_overlay.overlay(canon, cavern); */
   let%bind _plants = Plant_overlay.overlay(biomes);
-  /* let%bind _debug =
-     Debug_overlay.overlay(
-       canon,
-       {
-         glassify:
-           fun
+  let%bind _debug =
+    Debug_overlay.overlay(
+      canon,
+      {
+        glassify: _ => false,
+        /* fun
            | Air => false
            | Stone
            | Dirt
            | Grass => true
-           | _ => false,
-       },
-     ); */
+           | _ => false, */
+        illuminate: false,
+      },
+    );
   Overlay.return();
 };
 
 Progress_view.init();
-let apply_overlays = Overlay.prepare(135, overlays);
+let apply_overlays = Overlay.prepare(35151, overlays);
 
 Minecraft_converter.save(~side, ~apply_overlays);
 

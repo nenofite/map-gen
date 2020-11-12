@@ -3,10 +3,11 @@ open Core_kernel
 module Vec2i = struct
   module T = struct
     type t = int * int
-    [@@deriving eq, ord, sexp, bin_io]
+    [@@deriving eq, ord, hash, sexp, bin_io]
   end
   include T
   include Comparable.Make(T)
+  include Hashable.Make(T)
 
   let (+) (x0, y0) (x1, y1) = Int.(x0 + x1, y0 + y1)
   let (-) (x0, y0) (x1, y1) = Int.(x0 - x1, y0 - y1)
@@ -43,10 +44,11 @@ end
 module Vec3i = struct
   module T = struct
     type t = int * int * int
-    [@@deriving eq, ord, sexp, bin_io]
+    [@@deriving eq, ord, hash, sexp, bin_io]
   end
   include T
   include Comparable.Make(T)
+  include Hashable.Make(T)
 
   let (+) (x0, y0, z0) (x1, y1, z1) = Int.(x0 + x1, y0 + y1, z0 + z1)
   let (-) (x0, y0, z0) (x1, y1, z1) = Int.(x0 - x1, y0 - y1, z0 - z1)
