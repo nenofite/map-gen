@@ -28,14 +28,14 @@ let overlays = {
            | Dirt
            | Grass => true
            | _ => false, */
-        illuminate: true,
+        illuminate: false,
       },
     );
   Overlay.return();
 };
 
 Progress_view.init();
-let apply_overlays = Overlay.prepare(135, overlays);
+let apply_overlays = Overlay.prepare(35151, overlays);
 
 Minecraft_converter.save(~side, ~apply_overlays);
 

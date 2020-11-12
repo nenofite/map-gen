@@ -76,10 +76,10 @@ let convert_region =
 
 /** save creates a Minecraft world with the given heightmap */
 let save = (~side: int, ~apply_overlays: region_args => unit): unit => {
-  Minecraft.World.make("heightmap", ~spawn=(2600, 120, 600), builder => {
+  Minecraft.World.make("heightmap", ~spawn=(100, 120, 600), builder => {
     segment_grid_by_region(
       ~side,
-      ~sub=((4, 1), (2, 2)),
+      ~sub=((0, 1), (2, 2)),
       (~rx, ~rz, ~gx_offset, ~gy_offset, ~gsize) => {
       Minecraft.World.make_region(~rx, ~rz, builder, region => {
         convert_region(

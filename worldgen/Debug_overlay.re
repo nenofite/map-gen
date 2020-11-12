@@ -32,8 +32,7 @@ let apply_region = (options, (), args: Minecraft_converter.region_args) => {
     let (x_off, z_off) = Minecraft.Region.region_offset(args.region);
     let z = (z_off, z_off + Minecraft.Region.block_per_region_side - 1);
     let x = (x_off, x_off + Minecraft.Region.block_per_region_side - 1);
-    /* let y = (0, Minecraft.Region.block_per_region_vertical - 1); */
-    let y = (20, 100);
+    let y = (0, Minecraft.Region.block_per_region_vertical - 1);
     Torching.illuminate_bounds(~x, ~y, ~z, args.region);
   };
 };
