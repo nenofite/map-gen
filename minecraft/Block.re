@@ -84,7 +84,7 @@ type material =
   | Beacon
   | Bedrock
   | Beehive
-  | Bee_nest
+  | Bee_nest(int)
   | Beetroots
   | Bell
   | Birch_button
@@ -874,7 +874,7 @@ let namespace =
   | Beacon => "minecraft:beacon"
   | Bedrock => "minecraft:bedrock"
   | Beehive => "minecraft:beehive"
-  | Bee_nest => "minecraft:bee_nest"
+  | Bee_nest(_) => "minecraft:bee_nest"
   | Beetroots => "minecraft:beetroots"
   | Bell => "minecraft:bell"
   | Birch_button => "minecraft:birch_button"
@@ -1694,11 +1694,25 @@ let data = block => {
   Compound(properties);
 };
 
+let bee_entity =
+  Nbt.Node.(
+    Compound([
+      "MinOccupationTicks" >: Int(1l),
+      "TicksInHive" >: Int(1l),
+      "EntityData" >: Compound(["id" >: String("bee")]),
+    ])
+  );
+
 let block_entity = block => {
   Nbt.Node.(
     switch (block) {
     | Bell => Some(["id" >: String("bell")])
     | Orange_bed(_, _) => Some(["id" >: String("bed")])
+    | Bee_nest(bees) =>
+      Some([
+        "id" >: String("beehive"),
+        "Bees" >: List(Mg_util.Range.map(1, bees, _ => bee_entity)),
+      ])
     | _ => None
     }
   );
