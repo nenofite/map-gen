@@ -37,6 +37,33 @@ let draw_towns = (canon: Canonical_overlay.t, towns) => {
   );
 };
 
+let town_color = (255, 255, 0);
+
+let draw_sparse_towns = (town_centers, draw_point) => {
+  Core_kernel.(
+    List.iter(town_centers, ~f=((x, z)) =>
+      draw_point(~size=Town_prototype.side, x, z, town_color)
+    )
+  );
+};
+
+let apply_progress_view = ((towns, _)) => {
+  open Core_kernel;
+  let town_centers =
+    List.map(towns, ~f=town =>
+      (town.x + Town_prototype.side / 2, town.z + Town_prototype.side / 2)
+    );
+  let town_center = List.hd(town_centers);
+  let l = Progress_view.push_layer();
+  Progress_view.update(
+    ~center=?town_center,
+    ~title="towns",
+    ~draw_sparse=draw_sparse_towns,
+    ~state=town_centers,
+    l,
+  );
+};
+
 let within_region_boundaries = (x, z) =>
   Minecraft.Region.(
     x
@@ -599,6 +626,7 @@ let overlay =
     (canon: Canonical_overlay.t, base: Base_overlay.x): Overlay.monad(t) =>
   Overlay.make(
     "towns",
+    ~apply_progress_view,
     prepare(canon, base),
     apply_region,
     bin_reader_t,
