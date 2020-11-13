@@ -1,3 +1,5 @@
+open Core_kernel;
+
 /** stores blocks in [[z][x][y]] order */
 type section = array(Block.material);
 
@@ -35,17 +37,16 @@ let section_per_region_volume =
 
 let create = (~rx, ~rz) => {
   let sections =
-    Array.init(section_per_region_volume, _i =>
-      Array.make(block_per_section_volume, Block.Air)
+    Array.init(section_per_region_volume, ~f=_i =>
+      Array.create(~len=block_per_section_volume, Block.Air)
     );
   {rx, rz, sections, entities: []};
 };
 
 let reset = (~rx, ~rz, r) => {
-  Array.iter(
-    s => {Array.fill(s, 0, Array.length(s), Block.Air)},
-    r.sections,
-  );
+  Array.iter(r.sections, ~f=s => {
+    Array.fill(s, ~pos=0, ~len=Array.length(s), Block.Air)
+  });
   r.rx = rx;
   r.rz = rz;
   r.entities = [];
@@ -170,9 +171,14 @@ let highest_such_block =
     (~x, ~y=block_per_region_vertical - 1, ~z, r, predicate) =>
   highest_such_block(~x, ~y, ~z, r, predicate);
 
+let is_not_air =
+  fun
+  | Block.Air => false
+  | _ => true;
+
 /** height_at is the y-coord of the highest non-Air block */
 let height_at = (~x, ~y=?, ~z, r) => {
-  switch (highest_such_block(~x, ~y?, ~z, r, b => b != Block.Air)) {
+  switch (highest_such_block(~x, ~y?, ~z, r, is_not_air)) {
   | Some(y) => y
   | None => 0
   };
