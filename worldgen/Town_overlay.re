@@ -8,7 +8,7 @@ type town = {
 };
 
 [@deriving bin_io]
-type t = (list(town), Canonical_overlay.t);
+type t = (list(town), Canonical_overlay.delta);
 
 type x = list(town);
 
@@ -64,15 +64,23 @@ let apply_progress_view = ((towns, _)) => {
   );
 };
 
-let within_region_boundaries = (x, z) =>
-  Minecraft.Region.(
-    x
-    mod block_per_region_side < block_per_region_side
-    - Town_prototype.side
-    && z
-    mod block_per_region_side < block_per_region_side
-    - Town_prototype.side
-  );
+let within_region_boundaries = (~canon_side, min_x, min_z) => {
+  open Core_kernel;
+  let max_x = min_x + Town_prototype.side;
+  let max_z = min_z + Town_prototype.side;
+  let within_world =
+    0 <= min_x && max_x < canon_side && 0 <= min_z && max_z < canon_side;
+  let within_region =
+    Minecraft.Region.(
+      min_x
+      mod block_per_region_side < block_per_region_side
+      - Town_prototype.side
+      && min_z
+      mod block_per_region_side < block_per_region_side
+      - Town_prototype.side
+    );
+  within_world && within_region;
+};
 
 let has_obstacle = (obstacles, x, z) =>
   Range.exists(z, z + Town_prototype.side - 1, z =>
@@ -105,7 +113,7 @@ let acceptable_elevations = (elevations, x, z) => {
 };
 
 let town_area_clear = (canon: Canonical_overlay.t, x, z) =>
-  if (!within_region_boundaries(x, z)) {
+  if (!within_region_boundaries(~canon_side=canon.side, x, z)) {
     Tale.log("region boundaries");
     false;
   } else if (has_obstacle(canon.obstacles, x, z)) {
@@ -176,7 +184,13 @@ let add_block_to_obstacles = (block, obstacles) => {
   );
 };
 
-let prepare_town = (canon: Canonical_overlay.t, town_min_x, town_min_z) => {
+let prepare_town =
+    (
+      canon: Canonical_overlay.t,
+      obstacles: Canonical_overlay.obstacles,
+      town_min_x,
+      town_min_z,
+    ) => {
   let town_max_x = town_min_x + Town_prototype.side - 1;
   let town_max_z = town_min_z + Town_prototype.side - 1;
 
@@ -226,8 +240,8 @@ let prepare_town = (canon: Canonical_overlay.t, town_min_x, town_min_z) => {
     );
   let farms = List.map(translate_block, farms);
 
-  let obstacles =
-    canon.obstacles
+  let updated_obstacles =
+    obstacles
     |> add_block_to_obstacles(bell)
     |> List.fold_left(
          (o, b: Town_prototype.house) => add_block_to_obstacles(b.block, o),
@@ -246,7 +260,7 @@ let prepare_town = (canon: Canonical_overlay.t, town_min_x, town_min_z) => {
     },
   };
 
-  (town, {...canon, obstacles});
+  (town, updated_obstacles);
 };
 
 let prepare = (canon: Canonical_overlay.t, base: Base_overlay.x, ()): t => {
@@ -268,14 +282,16 @@ let prepare = (canon: Canonical_overlay.t, base: Base_overlay.x, ()): t => {
   let towns = first_suitable_towns(canon, num_towns, river_coords, []);
   List.iter(((x, z)) => Tale.logf("town at %d, %d", x, z), towns);
   draw_towns(canon, towns);
-  List.fold_left(
-    ((towns, canon), (x, z)) => {
-      let (town, canon) = prepare_town(canon, x, z);
-      ([town, ...towns], canon);
-    },
-    ([], canon),
-    towns,
-  );
+  let (towns, obs) =
+    List.fold_left(
+      ((towns, obs), (x, z)) => {
+        let (town, obs) = prepare_town(canon, obs, x, z);
+        ([town, ...towns], obs);
+      },
+      ([], Grid.make(~side=canon.side, false)),
+      towns,
+    );
+  (towns, Canonical_overlay.make_delta(~obstacles=`Add(obs), ()));
 };
 
 let create_bell =

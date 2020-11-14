@@ -9,7 +9,7 @@ type metaball = {
 type x = metaball list list
 [@@deriving bin_io]
 
-type t = x * Canonical_overlay.t
+type t = x * Canonical_overlay.delta
 [@@deriving bin_io]
 
 (** Average blocks between cave entrances, before probability is applied *)
@@ -123,25 +123,27 @@ let ball_bounds ball =
 ;;
 
 let obstacles_of_balls balls (canon : Canonical_overlay.t) =
-  List.fold balls ~init: (Grid.make ~side:canon.side false) ~f: (fun obs ball ->
+  List.fold balls ~init: (Sparse_grid.make canon.side) ~f: (fun obs ball ->
       ball_bounds ball |>
       List.filter ~f: (fun (x, y, z) ->
           Grid.is_within x z canon.elevation && y = Grid_compat.at canon.elevation x z
         ) |>
       List.fold ~init: obs ~f: (fun obs (x, _y, z) ->
-          Canonical_overlay.Obstacles.set x z true obs
+          Sparse_grid.put obs x z ()
         )
     )
 ;;
 
-let update_canon caves (canon : Canonical_overlay.t) =
+let update_canon caves (canon : Canonical_overlay.t) = (
   let obstacles =
-    List.fold caves ~init: canon.obstacles ~f: (fun obs cave ->
-        Canonical_overlay.add_obstacles (obstacles_of_balls cave canon) ~onto: obs
+    List.fold caves ~init:(Grid.make ~side:canon.side false) ~f: (fun obs cave ->
+        Sparse_grid.map (obstacles_of_balls cave canon) (fun _ () -> true) |>
+        Sparse_grid.to_grid ~default:false |>
+        Canonical_overlay.add_obstacles ~onto: obs
       )
   in
-  { canon with obstacles }
-;;
+  Canonical_overlay.make_delta ~obstacles:(`Add obstacles) ()
+)
 
 let transform_and_wiggle start joints =
   let module Vi = Geometry.Vec3i in
@@ -157,14 +159,19 @@ let transform_and_wiggle start joints =
 ;;
 
 let has_no_collisions cave canon =
-  Grid.With_coords.for_all (Grid.With_coords.T (obstacles_of_balls cave canon)) ~f:(fun (x, z, has_obs) ->
-      not (has_obs && Grid.get x z canon.obstacles)
+  Sparse_grid.for_all (obstacles_of_balls cave canon) (fun (x, z) () ->
+      not (Grid.get x z canon.obstacles)
     )
 
-let rec try_make_points ~tries canon start =
+(* let intersection = Canonical_overlay.Obstacles.zip_map
+    (obstacles_of_balls cave canon) canon.obstacles ~f:(&&)
+   in
+   Grid.Leafwise.exists (Grid.Leafwise.T intersection) ~f:(fun (b, _) -> b) *)
+
+let rec try_make_points ~tries canon start = (
   if tries <= 0 then
     None
-  else
+  else (
     let points =
       random_joints () |>
       transform_and_wiggle start |>
@@ -174,25 +181,28 @@ let rec try_make_points ~tries canon start =
     in
     if has_no_collisions points canon then
       Some points
-    else
-      try_make_points ~tries: (tries - 1) canon start
-;;
+    else (
+      Tale.logf "Failed cave. Remaining tries: %d" (tries - 1);
+      try_make_points ~tries:(tries - 1) canon start
+    )
+  )
+)
 
-let prepare (canon : Canonical_overlay.t) () =
+let prepare (canon : Canonical_overlay.t) () = (
   let prepare_cave (start_x, start_z) =
     if Random.int 100 >= cave_prob then
       None
     else
-      let start_y = Grid_compat.at canon.elevation start_x start_z in
+      let start_y = Grid.get start_x start_z canon.elevation in
       let start = (start_x, start_y, start_z) in
-      try_make_points ~tries: 10 canon start
+      try_make_points ~tries:10 canon start
   in
   let caves =
     Point_cloud.make_int_list ~spacing:cave_spacing ~side:canon.side () |>
-    List.filter_map ~f: prepare_cave
+    List.filter_map ~f:prepare_cave
   in
   (caves, update_canon caves canon)
-;;
+)
 
 let before_and_after ~half ls =
   let rec go behind remaining result =

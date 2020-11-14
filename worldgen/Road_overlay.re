@@ -30,7 +30,7 @@ type x = {
 };
 
 [@deriving bin_io]
-type t = (x, Canonical_overlay.t);
+type t = (x, Canonical_overlay.delta);
 
 let colorizer =
   fun
@@ -212,10 +212,12 @@ let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
   Tale.log("Drawing");
   Draw.draw_sparse_grid(colorizer, "roads.png", roads);
   let obstacles =
-    Sparse_grid.(map(roads, (_, _) => true) |> to_grid(~default=false))
-    |> Canonical_overlay.add_obstacles(~onto=canon.obstacles);
+    Sparse_grid.(map(roads, (_, _) => true) |> to_grid(~default=false));
   /* TODO: add "stairs" to large increases in elev */
-  ({pois, roads}, {...canon, obstacles});
+  (
+    {pois, roads},
+    Canonical_overlay.make_delta(~obstacles=`Add(obstacles), ()),
+  );
 };
 
 /** fill_beneath_road places a column of cobblestone until it reaches solid ground */

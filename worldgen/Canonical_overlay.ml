@@ -23,13 +23,37 @@ type elevation = int Grid.t
 type obstacles = bool Grid.t
 [@@deriving bin_io]
 
+type delta = {
+  elevation: [`Unchanged | `Replace of elevation];
+  obstacles: [`Unchanged | `Add of obstacles | `Replace of obstacles];
+} [@@deriving bin_io]
+
 type t = {
   side: int;
   elevation: elevation;
   obstacles: obstacles;
 } [@@deriving bin_io]
 
+let make_delta ?(elevation = `Unchanged) ?(obstacles = `Unchanged) () = { elevation; obstacles }
+
 (** wherever there is an obstacle in a, it will be added to onto *)
 let add_obstacles (a: obstacles) ~(onto: obstacles) = (
   Obstacles.zip_map a onto ~f:(||)
+)
+
+(** applies the changes described by delta to get a new, full overlay *)
+let apply_delta (delta: delta) ~(onto: t) = (
+  {
+    side = onto.side;
+    elevation =
+      (match delta.elevation with
+       | `Unchanged -> onto.elevation
+       | `Replace e -> e)
+    ;
+    obstacles = (match delta.obstacles with
+        | `Unchanged -> onto.obstacles
+        | `Add additions -> add_obstacles additions ~onto:onto.obstacles
+        | `Replace o -> o)
+    ;
+  }
 )

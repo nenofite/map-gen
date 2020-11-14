@@ -34,7 +34,7 @@ type biome =
   | High(high_biome);
 
 [@deriving bin_io]
-type t = (Grid.t(biome), Canonical_overlay.t);
+type t = (Grid.t(biome), Canonical_overlay.delta);
 
 let colorize =
   fun
@@ -194,7 +194,7 @@ let has_obstacle = (dirt, biome) => {
 
 let prepare =
     (
-      canon: Canonical_overlay.t,
+      _canon: Canonical_overlay.t,
       base: Grid_compat.t(Base_overlay.tile),
       dirt,
       (),
@@ -211,12 +211,9 @@ let prepare =
     );
   let biome_obstacles =
     Canonical_overlay.Obstacles.zip_map(dirt, biomes, ~f=has_obstacle);
-  let canon = {
-    ...canon,
-    obstacles:
-      Canonical_overlay.add_obstacles(biome_obstacles, ~onto=canon.obstacles),
-  };
-  (biomes, canon);
+  let canond =
+    Canonical_overlay.make_delta(~obstacles=`Add(biome_obstacles), ());
+  (biomes, canond);
 };
 
 /** overwrite_stone_air only sets the block if it is Stone or Air, to avoid overwriting rivers etc. */
