@@ -35,7 +35,6 @@ let get x y t =
     match node with
     | Leaf v -> v
     | Quad (nw, ne, sw, se) ->
-      assert_side_invariant side;
       let half = side / 2 in
       match x >= half, y >= half with
       | false, false -> get_from_node x y half nw
