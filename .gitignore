@@ -9,6 +9,7 @@ _release
 *.ppm
 *.png
 *.bmp
+!/readme-files/*.png
 *.csv
 .DS_Store
 /worlds/
