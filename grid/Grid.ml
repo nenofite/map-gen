@@ -16,9 +16,14 @@ type 'a t = {
 (* This makes it easier to include t in submodules *)
 type 'a grid = 'a t
 
+(** very efficient check if an int is a power of 2. I'm not smart enough to
+    think of this; taken from
+    https://helloacm.com/check-integer-is-the-power-of-two/ *)
+let is_power_of_2 n = (n - 1) land n = 0
+
 let assert_side_invariant side =
   if side <= 1 then failwith (Printf.sprintf "cannot have grid side: %d" side);
-  if Int.(2 ** floor_log2 side <> side) then failwith (Printf.sprintf "side must be power of 2: %d" side)
+  if not (is_power_of_2 side) then failwith (Printf.sprintf "side must be power of 2: %d" side)
 
 let is_within_side ~x ~y side = 0 <= x && x < side && 0 <= y && y < side
 
