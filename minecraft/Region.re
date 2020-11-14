@@ -56,6 +56,7 @@ let reset = (~rx, ~rz, r) => {
 let local_of_region_coords = (~x, ~y, ~z, r) => {
   let x = x - r.rx * block_per_region_side;
   let z = z - r.rz * block_per_region_side;
+  /* TODO try to eliminate this allocation, it's called surprisingly often :0 */
   (x, y, z);
 };
 
@@ -111,6 +112,7 @@ let section_i_block_i = (~lx, ~ly, ~lz) => {
     * block_per_section_vertical
     + by;
   assert(0 <= bi && bi < block_per_section_volume);
+  /* TODO try to eliminate this allocation, it's called surprisingly often :0 */
   (si, bi);
 };
 

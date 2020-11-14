@@ -117,3 +117,12 @@ let iter = (grid, f) => {
   let f = (~key, ~data) => f(key, data);
   Coord.Map.iteri(grid.map, ~f);
 };
+
+/** creates a grid with the same dimensions as the sparse grid. Where the sparse grid is undefined, default is used. */
+let to_grid = (~default, t) => {
+  fold(
+    t,
+    ((x, y), n) => Grid.Poly.set(x, y, n),
+    Grid.make(~side=t.side, default),
+  );
+};

@@ -48,8 +48,7 @@ let make_layer =
       ~ore,
     ) => {
   let densities =
-    Point_cloud.init(
-      ~width=base.side, ~height=base.side, ~spacing=128, (_, _) =>
+    Point_cloud.init(~side=base.side, ~spacing=128, (_, _) =>
       min_density +. Random.float(max_density -. min_density)
     );
   {ore, densities, depth, min_deposit_size, max_deposit_size};
@@ -215,8 +214,7 @@ let apply_layer = (layer, args) => {
   let {ore, densities, depth, min_deposit_size, max_deposit_size} = layer;
   let deposits =
     Point_cloud.init(
-      ~width=gsize,
-      ~height=gsize,
+      ~side=gsize,
       ~spacing=8,
       (x, z) => {
         let x = x + gx_offset;

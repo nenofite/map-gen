@@ -9,13 +9,15 @@ type t = Point_cloud.t(option(site));
 
 let prepare = (canon: Canonical_overlay.t, cavern: Cavern_overlay.t, ()) => {
   Point_cloud.init_f(
-    ~width=canon.side,
-    ~height=canon.side,
+    ~side=canon.side,
     ~spacing=128,
     (~xf, ~yf, ~xi as _, ~yi as _) => {
       let x = int_of_float(xf);
       let y = int_of_float(yf);
-      if (!Sparse_grid.has(canon.obstacles, x, y)) {
+      if (!(
+            Grid.is_within(x, y, canon.obstacles)
+            && Grid.get(x, y, canon.obstacles)
+          )) {
         switch (Grid_compat.at(cavern, x, y)) {
         | {floor_elev, ceiling_elev}
             when

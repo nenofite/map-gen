@@ -372,12 +372,7 @@ let run = (input: input): output => {
 
   /* Use a point cloud for block centers */
   let centers =
-    Point_cloud.make_list(
-      ~width=town_side,
-      ~height=town_side,
-      ~spacing=block_center_spacing,
-      (),
-    )
+    Point_cloud.make_list(~side=town_side, ~spacing=block_center_spacing, ())
     |> List.map(((x, z)) => Mg_util.Floats.(~~x, ~~z))
     /* Sort block centers by how close they are to the center plaza */
     |> sort_by_distance_to_center(town_center);

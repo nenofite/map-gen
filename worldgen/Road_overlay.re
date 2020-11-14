@@ -55,7 +55,7 @@ let edge_cost = (canon: Canonical_overlay.t, (ax, ay), (bx, by)) => {
   let a_elev = Grid_compat.at(canon.elevation, ax, ay);
   let b_elev = Grid_compat.at(canon.elevation, bx, by);
   let elev_diff = abs(a_elev - b_elev);
-  let b_obs = Sparse_grid.has(canon.obstacles, bx, by);
+  let b_obs = Grid.get(bx, by, canon.obstacles);
   if (!b_obs && elev_diff <= 1) {
     Some(Mg_util.Floats.(~.elev_diff +. 1.));
   } else {
@@ -212,7 +212,8 @@ let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
   Tale.log("Drawing");
   Draw.draw_sparse_grid(colorizer, "roads.png", roads);
   let obstacles =
-    Sparse_grid.(map(roads, (_, _) => ()) |> add_all(~onto=canon.obstacles));
+    Sparse_grid.(map(roads, (_, _) => true) |> to_grid(~default=false))
+    |> Canonical_overlay.add_obstacles(~onto=canon.obstacles);
   /* TODO: add "stairs" to large increases in elev */
   ({pois, roads}, {...canon, obstacles});
 };

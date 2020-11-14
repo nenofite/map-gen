@@ -123,13 +123,13 @@ let ball_bounds ball =
 ;;
 
 let obstacles_of_balls balls (canon : Canonical_overlay.t) =
-  List.fold balls ~init: (Sparse_grid.make canon.side) ~f: (fun obs ball ->
+  List.fold balls ~init: (Grid.make ~side:canon.side false) ~f: (fun obs ball ->
       ball_bounds ball |>
       List.filter ~f: (fun (x, y, z) ->
-          Grid.is_within canon.elevation x z && y = Grid_compat.at canon.elevation x z
+          Grid.is_within x z canon.elevation && y = Grid_compat.at canon.elevation x z
         ) |>
       List.fold ~init: obs ~f: (fun obs (x, _y, z) ->
-          Sparse_grid.put_opt obs x z ()
+          Canonical_overlay.Obstacles.set x z true obs
         )
     )
 ;;
@@ -137,7 +137,7 @@ let obstacles_of_balls balls (canon : Canonical_overlay.t) =
 let update_canon caves (canon : Canonical_overlay.t) =
   let obstacles =
     List.fold caves ~init: canon.obstacles ~f: (fun obs cave ->
-        Sparse_grid.add_all (obstacles_of_balls cave canon) ~onto: obs
+        Canonical_overlay.add_obstacles (obstacles_of_balls cave canon) ~onto: obs
       )
   in
   { canon with obstacles }
@@ -157,8 +157,8 @@ let transform_and_wiggle start joints =
 ;;
 
 let has_no_collisions cave canon =
-  Sparse_grid.for_all (obstacles_of_balls cave canon) (fun (x, z) () ->
-      not (Sparse_grid.has canon.obstacles x z)
+  Grid.With_coords.for_all (Grid.With_coords.T (obstacles_of_balls cave canon)) ~f:(fun (x, z, has_obs) ->
+      not (has_obs && Grid.get x z canon.obstacles)
     )
 
 let rec try_make_points ~tries canon start =
@@ -188,7 +188,7 @@ let prepare (canon : Canonical_overlay.t) () =
       try_make_points ~tries: 10 canon start
   in
   let caves =
-    Point_cloud.make_int_list ~spacing: cave_spacing ~width: canon.side ~height: canon.side () |>
+    Point_cloud.make_int_list ~spacing:cave_spacing ~side:canon.side () |>
     List.filter_map ~f: prepare_cave
   in
   (caves, update_canon caves canon)

@@ -72,8 +72,7 @@ let prepare = (world: Grid_compat.t(Base_overlay.tile), ()) => {
   let r = 32;
   let start_side = world.side / r;
   let floor_cloud =
-    Point_cloud.init(
-      ~width=start_side, ~height=start_side, ~spacing=16, (_x, _y) =>
+    Point_cloud.init(~side=start_side, ~spacing=16, (_x, _y) =>
       switch (Random.int(3)) {
       | 0 => 1.
       | 1 => 3. +. Random.float(5.)
@@ -81,15 +80,11 @@ let prepare = (world: Grid_compat.t(Base_overlay.tile), ()) => {
       }
     );
   let ceiling_cloud =
-    Point_cloud.init(
-      ~width=start_side, ~height=start_side, ~spacing=4, (_x, _y) =>
+    Point_cloud.init(~side=start_side, ~spacing=4, (_x, _y) =>
       Random.float(10.) +. 30.
     );
   let pillar_cloud =
-    Point_cloud.init(
-      ~width=start_side * 4, ~height=start_side * 4, ~spacing=8, (_, _) =>
-      true
-    );
+    Point_cloud.init(~side=start_side * 4, ~spacing=8, (_, _) => true);
   let floor =
     Phase_chain.(
       run_all(

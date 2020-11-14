@@ -20,13 +20,17 @@ let assert_side_invariant side =
   if side <= 1 then failwith (Printf.sprintf "cannot have grid side: %d" side);
   if Int.(2 ** floor_log2 side <> side) then failwith (Printf.sprintf "side must be power of 2: %d" side)
 
-let assert_within ~x ~y side =
-  if not (0 <= x && x < side && 0 <= y && y < side) then
+let is_within_side ~x ~y side = 0 <= x && x < side && 0 <= y && y < side
+
+let is_within x y t = is_within_side ~x ~y t.side
+
+let assert_within_side ~x ~y side =
+  if not (is_within_side ~x ~y side) then
     invalid_argf "outside grid bounds: (%d, %d) but side=%d" x y side ()
 ;;
 
 let get x y t =
-  assert_within ~x ~y t.side;
+  assert_within_side ~x ~y t.side;
   let rec get_from_node x y side node =
     match node with
     | Leaf v -> v
@@ -71,7 +75,7 @@ let rec force_set_node x y new_v side node =
 ;;
 
 let force_set x y new_v t =
-  assert_within ~x ~y t.side;
+  assert_within_side ~x ~y t.side;
   { t with root = force_set_node x y new_v t.side t.root }
 
 let rec force_set_path path new_v node =
@@ -358,13 +362,6 @@ module Poly = Make(struct
     type 'a t = 'a
     let (=) = Poly.(=)
   end)
-
-let is_within t x y = 0 <= x && x < t.side && 0 <= y && y < t.side
-
-let assert_within side x y =
-  if not (0 <= x && x < side && 0 <= y && y < side) then
-    invalid_argf "Coordinate out of bounds: (%d, %d)" x y ()
-;;
 
 let wrap_coord t x y = x % t.side, y % t.side
 

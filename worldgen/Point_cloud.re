@@ -23,24 +23,20 @@ type t('v) = {
   spacing: int,
 };
 
-let is_within = (width, height, x, y) =>
-  Float.(0. <= x && x < of_int(width) && 0. <= y && y < of_int(height));
+let is_within = (side, x, y) =>
+  Float.(0. <= x && x < of_int(side) && 0. <= y && y < of_int(side));
 
-let assert_within = (width, height, x, y) =>
-  if (!is_within(width, height, x, y)) {
+let assert_within = (side, x, y) =>
+  if (!is_within(side, x, y)) {
     let msg =
       Printf.sprintf("point is outside boundaries of cloud: %f, %f", x, y);
     raise(Invalid_argument(msg));
   };
 
-let init_f = (~width, ~height, ~spacing=1, f) => {
-  if (width != height) {
-    invalid_argf("Point_cloud isn't square: %d %d", width, height, ());
-  };
-  let side = width;
+let init_f = (~side, ~spacing=1, f) => {
   let points = ref(Sparse_grid.make(side / spacing + 1));
-  for (yi in 0 to height / spacing) {
-    for (xi in 0 to width / spacing) {
+  for (yi in 0 to side / spacing) {
+    for (xi in 0 to side / spacing) {
       let x = xi * spacing;
       let y = yi * spacing;
       let xf =
@@ -52,7 +48,7 @@ let init_f = (~width, ~height, ~spacing=1, f) => {
         +. (Random.float(1.) -. 0.5)
         *. float_of_int(spacing);
       /* Discard if the point is outside */
-      if (is_within(width, height, xf, yf)) {
+      if (is_within(side, xf, yf)) {
         let point = {px: xf, py: yf, value: f(~xf, ~yf, ~xi=x, ~yi=y)};
         points := Sparse_grid.put(points^, xi, yi, point);
       };
@@ -64,16 +60,14 @@ let init_f = (~width, ~height, ~spacing=1, f) => {
   init creates a point cloud, randomizes the points, and initializes their
   value by calling `f(x, y)`.
 
-  spacing determines how many points will fill the space. If width=10 and
+  spacing determines how many points will fill the space. If side=10 and
   spacing=2, then there will be 5 points horizontally.
  */
-let init = (~width, ~height, ~spacing=?, f) =>
-  init_f(~width, ~height, ~spacing?, (~xf as _, ~yf as _, ~xi, ~yi) =>
-    f(xi, yi)
-  );
+let init = (~side, ~spacing=?, f) =>
+  init_f(~side, ~spacing?, (~xf as _, ~yf as _, ~xi, ~yi) => f(xi, yi));
 
-let make_list = (~width, ~height, ~spacing=?, ()) => {
-  let cloud = init(~width, ~height, ~spacing?, (_, _) => ());
+let make_list = (~side, ~spacing=?, ()) => {
+  let cloud = init(~side, ~spacing?, (_, _) => ());
   Sparse_grid.fold(
     cloud.points,
     (_, {px, py, value: _}, ls) => [(px, py), ...ls],
@@ -82,8 +76,8 @@ let make_list = (~width, ~height, ~spacing=?, ()) => {
   /* |> List.rev; */
 };
 
-let make_int_list = (~width, ~height, ~spacing=?, ()) => {
-  let cloud = init(~width, ~height, ~spacing?, (_, _) => ());
+let make_int_list = (~side, ~spacing=?, ()) => {
+  let cloud = init(~side, ~spacing?, (_, _) => ());
   Sparse_grid.fold(
     cloud.points,
     (_, {px, py, value: _}, ls) => [Mg_util.Floats.(~~px, ~~py), ...ls],

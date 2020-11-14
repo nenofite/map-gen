@@ -77,7 +77,7 @@ let within_region_boundaries = (x, z) =>
 let has_obstacle = (obstacles, x, z) =>
   Range.exists(z, z + Town_prototype.side - 1, z =>
     Range.exists(x, x + Town_prototype.side - 1, x =>
-      Sparse_grid.has(obstacles, x, z)
+      Grid.is_within(x, z, obstacles) && Grid.get(x, z, obstacles)
     )
   );
 
@@ -171,7 +171,7 @@ let add_block_to_obstacles = (block, obstacles) => {
   let Town_prototype.{min_x, max_x, min_z, max_z, elevation: _} = block;
   Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
     Range.fold(min_x, max_x, obstacles, (obstacles, x) =>
-      Sparse_grid.put(obstacles, x, z, ())
+      Canonical_overlay.Obstacles.set(x, z, true, obstacles)
     )
   );
 };
@@ -192,18 +192,19 @@ let prepare_town = (canon: Canonical_overlay.t, town_min_x, town_min_z) => {
 
   /* TODO misnomer */
   let roads =
-    Sparse_grid.fold(
-      canon.obstacles,
-      ((x, z), (), town_obstacles) =>
-        if (town_min_x <= x
-            && x <= town_max_x
-            && town_min_z <= z
-            && z <= town_max_z) {
-          Sparse_grid.put(town_obstacles, x - town_min_x, z - town_min_z, ());
-        } else {
-          town_obstacles;
-        },
-      Sparse_grid.make(Town_prototype.side),
+    Grid.With_coords.fold(
+      Grid.With_coords.T(canon.obstacles),
+      ~init=Sparse_grid.make(Town_prototype.side),
+      ~f=(town_obstacles, (x, z, has_obs)) =>
+      if (has_obs
+          && town_min_x <= x
+          && x <= town_max_x
+          && town_min_z <= z
+          && z <= town_max_z) {
+        Sparse_grid.put(town_obstacles, x - town_min_x, z - town_min_z, ());
+      } else {
+        town_obstacles;
+      }
     );
 
   let Town_prototype.{bell, houses, farms} =

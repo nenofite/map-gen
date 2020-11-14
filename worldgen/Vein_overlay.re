@@ -132,8 +132,7 @@ let make_layer =
 let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
   /* Create a point cloud with ore types */
   let iron_cloud =
-    Point_cloud.init(
-      ~width=base.side, ~height=base.side, ~spacing=128, (_, _) =>
+    Point_cloud.init(~side=base.side, ~spacing=128, (_, _) =>
       Random.int(100) < 10 ? Some(random_ore()) : None
     );
   let iron_layer =
@@ -145,8 +144,7 @@ let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
       ~ore_cloud=iron_cloud,
     );
   let diamond_cloud =
-    Point_cloud.init(
-      ~width=base.side, ~height=base.side, ~spacing=128, (_, _) =>
+    Point_cloud.init(~side=base.side, ~spacing=128, (_, _) =>
       Random.int(100) < 10 ? Some(Minecraft.Block.Diamond_ore) : None
     );
   let diamond_layer =
