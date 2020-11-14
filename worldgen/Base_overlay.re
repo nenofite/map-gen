@@ -24,14 +24,7 @@ let extract_canonical = (grid: Grid.t(tile)) =>
     side: grid.side,
     elevation: Grid_compat.map(grid, (_x, _y, tile) => tile.elevation),
     obstacles:
-      Grid_compat.fold(
-        grid, Sparse_grid.make(grid.side), (obstacles, x, y, tile) =>
-        if (tile.river || tile.ocean) {
-          Sparse_grid.put(obstacles, x, y, ());
-        } else {
-          obstacles;
-        }
-      ),
+      Obstacles.map(grid, ~f=tile => River.(tile.river || tile.ocean)),
   };
 
 let prepare = () => {

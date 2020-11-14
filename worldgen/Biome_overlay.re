@@ -34,7 +34,7 @@ type biome =
   | High(high_biome);
 
 [@deriving bin_io]
-type t = (Grid.t(biome), Canonical_overlay.t);
+type t = (Grid.t(biome), Canonical_overlay.delta);
 
 let colorize =
   fun
@@ -76,7 +76,7 @@ let prepare_mid = side => {
   /* Start with a point cloud then subdivide a couple times */
   let r = 16;
   let cloud =
-    Point_cloud.init(~width=side / r, ~height=side / r, ~spacing=32, (_x, _y) =>
+    Point_cloud.init(~side=side / r, ~spacing=32, (_x, _y) =>
       switch (/* TODO */ Caml.Random.int(10)) {
       | 0
       | 1
@@ -111,7 +111,7 @@ let prepare_shore = side => {
   /* Start with a point cloud then subdivide a couple times */
   let r = 16;
   let cloud =
-    Point_cloud.init(~width=side / r, ~height=side / r, ~spacing=32, (_x, _y) =>
+    Point_cloud.init(~side=side / r, ~spacing=32, (_x, _y) =>
       switch (/* TODO */ Caml.Random.int(3)) {
       | 0 => Sand
       | 1 => Gravel
@@ -139,7 +139,7 @@ let prepare_high = side => {
   /* Start with a point cloud then subdivide a couple times */
   let r = 16;
   let cloud =
-    Point_cloud.init(~width=side / r, ~height=side / r, ~spacing=32, (_x, _y) =>
+    Point_cloud.init(~side=side / r, ~spacing=32, (_x, _y) =>
       switch (/* TODO */ Caml.Random.int(3)) {
       | 0 => Pine_forest
       | 1 => Barren
@@ -185,16 +185,16 @@ let zip_biomes =
   );
 };
 
-let has_obstacle = (_base, dirt, biomes, x, y) => {
-  switch (Grid_compat.at(biomes, x, y)) {
-  | Mid(Desert(_)) => Grid_compat.at(dirt, x, y) == 0
+let has_obstacle = (dirt, biome) => {
+  switch (biome) {
+  | Mid(Desert(_)) => dirt == 0
   | _ => false
   };
 };
 
 let prepare =
     (
-      canon: Canonical_overlay.t,
+      _canon: Canonical_overlay.t,
       base: Grid_compat.t(Base_overlay.tile),
       dirt,
       (),
@@ -209,18 +209,11 @@ let prepare =
         @> Draw.phase("biome.png", colorize),
       )
     );
-  let canon = {
-    ...canon,
-    obstacles:
-      Grid_compat.fold(biomes, canon.obstacles, (obstacles, x, y, _biome) =>
-        if (has_obstacle(base, dirt, biomes, x, y)) {
-          Sparse_grid.put(obstacles, x, y, ());
-        } else {
-          obstacles;
-        }
-      ),
-  };
-  (biomes, canon);
+  let biome_obstacles =
+    Canonical_overlay.Obstacles.zip_map(dirt, biomes, ~f=has_obstacle);
+  let canond =
+    Canonical_overlay.make_delta(~obstacles=`Add(biome_obstacles), ());
+  (biomes, canond);
 };
 
 /** overwrite_stone_air only sets the block if it is Stone or Air, to avoid overwriting rivers etc. */

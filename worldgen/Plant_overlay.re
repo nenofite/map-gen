@@ -12,7 +12,7 @@ let apply_trees =
     ) => {
   let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
   let trees =
-    Point_cloud.init(~width=gsize, ~height=gsize, ~spacing=8, (_, _) =>
+    Point_cloud.init(~side=gsize, ~spacing=8, (_, _) =>
       Random.int(100) < 67
     );
   /* Try placing them where it's forest && solid ground */
@@ -71,8 +71,7 @@ let make_clusters =
   open Core_kernel;
   let (x_off, z_off) = Minecraft.Region.region_offset(region);
   Point_cloud.init(
-    ~width=Minecraft.Region.block_per_region_side,
-    ~height=Minecraft.Region.block_per_region_side,
+    ~side=Minecraft.Region.block_per_region_side,
     ~spacing,
     (lx, lz) => {
       let (x, z) = (lx + x_off, lz + z_off);
@@ -94,8 +93,7 @@ let fill_clusters =
   let (x_off, z_off) = Minecraft.Region.region_offset(region);
   let coords =
     Point_cloud.make_int_list(
-      ~width=Minecraft.Region.block_per_region_side,
-      ~height=Minecraft.Region.block_per_region_side,
+      ~side=Minecraft.Region.block_per_region_side,
       ~spacing,
       (),
     );
@@ -243,7 +241,7 @@ let apply_tallgrass =
     ) => {
   let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
   let tallgrass =
-    Point_cloud.init(~width=gsize, ~height=gsize, ~spacing=2, (_, _) =>
+    Point_cloud.init(~side=gsize, ~spacing=2, (_, _) =>
       Random.int(100) < 67
     );
   Sparse_grid.iter(tallgrass.points, (_, Point_cloud.{px: x, py: z, value}) =>

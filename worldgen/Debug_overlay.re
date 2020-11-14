@@ -6,11 +6,10 @@ type options = {
 };
 
 let prepare = (canon: Canonical_overlay.t, ()) => {
-  Draw.draw_sparse_grid(
-    ~point_size=1,
+  Draw.draw_grid(
     fun
-    | None => 0
-    | Some () => 0xFFFFFF,
+    | false => 0
+    | true => 0xFFFFFF,
     "obstacles.bmp",
     canon.obstacles,
   );

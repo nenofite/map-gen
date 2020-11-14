@@ -1,3 +1,5 @@
+open Core_kernel;
+
 /** stores blocks in [[z][x][y]] order */
 type section = array(Block.material);
 
@@ -35,31 +37,43 @@ let section_per_region_volume =
 
 let create = (~rx, ~rz) => {
   let sections =
-    Array.init(section_per_region_volume, _i =>
-      Array.make(block_per_section_volume, Block.Air)
+    Array.init(section_per_region_volume, ~f=_i =>
+      Array.create(~len=block_per_section_volume, Block.Air)
     );
   {rx, rz, sections, entities: []};
 };
 
 let reset = (~rx, ~rz, r) => {
-  Array.iter(
-    s => {Array.fill(s, 0, Array.length(s), Block.Air)},
-    r.sections,
-  );
+  Array.iter(r.sections, ~f=s => {
+    Array.fill(s, ~pos=0, ~len=Array.length(s), Block.Air)
+  });
   r.rx = rx;
   r.rz = rz;
   r.entities = [];
   ();
 };
 
+/**
+ * translates a global coord to a region-local coord. These are split into three
+ * separate functions because allocating the tuple was causing a surprising
+ * amount of memory churn
+ */
+let localize_x = (x, r) => x - r.rx * block_per_region_side;
+let localize_y = (y, _r) => y;
+let localize_z = (z, r) => z - r.rz * block_per_region_side;
+
+/**
+ * same as localize_* but allocates a tuple. Generally better to use this unless
+ * you're in a hot loop.
+ */
 let local_of_region_coords = (~x, ~y, ~z, r) => {
-  let x = x - r.rx * block_per_region_side;
-  let z = z - r.rz * block_per_region_side;
-  (x, y, z);
+  (localize_x(x, r), localize_y(y, r), localize_z(z, r));
 };
 
 let is_within = (~x, ~y, ~z, r) => {
-  let (lx, ly, lz) = local_of_region_coords(~x, ~y, ~z, r);
+  let lx = localize_x(x, r);
+  let ly = localize_y(y, r);
+  let lz = localize_z(z, r);
   0 <= lx
   && lx < block_per_region_side
   && 0 <= ly
@@ -68,10 +82,8 @@ let is_within = (~x, ~y, ~z, r) => {
   && lz < block_per_region_side;
 };
 
-let assert_and_localize = (~x, ~y, ~z, r) =>
-  if (is_within(~x, ~y, ~z, r)) {
-    local_of_region_coords(~x, ~y, ~z, r);
-  } else {
+let assert_within = (~x, ~y, ~z, r) =>
+  if (!is_within(~x, ~y, ~z, r)) {
     let msg =
       Printf.sprintf(
         "coords outside of %d, %d region: %d, %d, %d",
@@ -84,8 +96,8 @@ let assert_and_localize = (~x, ~y, ~z, r) =>
     raise(Invalid_argument(msg));
   };
 
-/** converts a local coord to indices within sections and section */
-let section_i_block_i = (~lx, ~ly, ~lz) => {
+/** converts a local coord to an index of a section within sections */
+let section_i = (~lx, ~ly, ~lz) => {
   let cx = lx / block_per_chunk_side;
   let sy = ly / block_per_section_vertical;
   let cz = lz / block_per_chunk_side;
@@ -96,12 +108,15 @@ let section_i_block_i = (~lx, ~ly, ~lz) => {
     + cx
     * section_per_chunk_vertical
     + sy;
-  if (!(0 <= si && si < section_per_region_volume)) {
-    Tale.logf("%d %d %d", lx, ly, lz);
-  };
-  let bx = lx - cx * block_per_chunk_side;
-  let by = ly - sy * block_per_section_vertical;
-  let bz = lz - cz * block_per_chunk_side;
+  assert(0 <= si && si < section_per_region_volume);
+  si;
+};
+
+/** converts a local coord to an index of a block within a section */
+let block_i = (~lx, ~ly, ~lz) => {
+  let bx = lx % block_per_chunk_side;
+  let by = ly % block_per_section_vertical;
+  let bz = lz % block_per_chunk_side;
   let bi =
     bz
     * block_per_chunk_side
@@ -110,12 +125,16 @@ let section_i_block_i = (~lx, ~ly, ~lz) => {
     * block_per_section_vertical
     + by;
   assert(0 <= bi && bi < block_per_section_volume);
-  (si, bi);
+  bi;
 };
 
 let set_block = (material, ~x, ~y, ~z, r) => {
-  let (lx, ly, lz) = assert_and_localize(~x, ~y, ~z, r);
-  let (si, bi) = section_i_block_i(~lx, ~ly, ~lz);
+  assert_within(~x, ~y, ~z, r);
+  let lx = localize_x(x, r);
+  let ly = localize_y(y, r);
+  let lz = localize_z(z, r);
+  let si = section_i(~lx, ~ly, ~lz);
+  let bi = block_i(~lx, ~ly, ~lz);
   r.sections[si][bi] = material;
 };
 
@@ -125,8 +144,12 @@ let set_block_opt = (material, ~x, ~y, ~z, r) =>
   };
 
 let get_block = (~x, ~y, ~z, r) => {
-  let (lx, ly, lz) = assert_and_localize(~x, ~y, ~z, r);
-  let (si, bi) = section_i_block_i(~lx, ~ly, ~lz);
+  assert_within(~x, ~y, ~z, r);
+  let lx = localize_x(x, r);
+  let ly = localize_y(y, r);
+  let lz = localize_z(z, r);
+  let si = section_i(~lx, ~ly, ~lz);
+  let bi = block_i(~lx, ~ly, ~lz);
   r.sections[si][bi];
 };
 
@@ -146,7 +169,7 @@ let add_entity = (entity: Entity.t, r) => {
   let x = ~~x;
   let y = ~~y;
   let z = ~~z;
-  ignore(assert_and_localize(~x, ~y, ~z, r));
+  assert_within(~x, ~y, ~z, r);
   r.entities = [entity, ...r.entities];
 };
 
@@ -170,9 +193,14 @@ let highest_such_block =
     (~x, ~y=block_per_region_vertical - 1, ~z, r, predicate) =>
   highest_such_block(~x, ~y, ~z, r, predicate);
 
+let is_not_air =
+  fun
+  | Block.Air => false
+  | _ => true;
+
 /** height_at is the y-coord of the highest non-Air block */
 let height_at = (~x, ~y=?, ~z, r) => {
-  switch (highest_such_block(~x, ~y?, ~z, r, b => b != Block.Air)) {
+  switch (highest_such_block(~x, ~y?, ~z, r, is_not_air)) {
   | Some(y) => y
   | None => 0
   };

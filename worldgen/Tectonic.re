@@ -59,8 +59,7 @@ let generate = () => {
   let next_id = ref(1);
   let continents =
     Point_cloud.init(
-      ~width=size,
-      ~height=size,
+      ~side=size,
       ~spacing=size / 5,
       (_, _) => {
         let direction = random_direction();
@@ -72,7 +71,7 @@ let generate = () => {
     );
   let edge = {direction: S, is_ocean: true, id: 0};
   let plates =
-    Point_cloud.init(~width=size, ~height=size, ~spacing=size / 14, (x, y) => {
+    Point_cloud.init(~side=size, ~spacing=size / 14, (x, y) => {
       Point_cloud.nearest_with_edge(
         continents,
         edge,
