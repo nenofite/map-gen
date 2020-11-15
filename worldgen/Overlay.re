@@ -101,7 +101,8 @@ module Let_syntax = {
 };
 
 let prepare = (seed, monad) => {
-  /* TODO */ Caml.Random.init(seed);
+  Caml.Random.init(seed);
+  Random.init(seed);
   let (_state, apply_region) = monad.prepare();
   apply_region;
 };
