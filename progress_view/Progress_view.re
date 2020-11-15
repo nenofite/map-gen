@@ -119,3 +119,13 @@ let update =
   Layer.update(~state, ~draw_dense?, ~draw_sparse?, layer, s.stack);
   update_window();
 };
+
+let center = (~zoom=?, ~title=?, center) => {
+  apply_optionals(zoom, Some(center), None, title);
+  update_window();
+};
+
+let fit = (~title=?, fit) => {
+  apply_optionals(None, None, Some(fit), title);
+  update_window();
+};

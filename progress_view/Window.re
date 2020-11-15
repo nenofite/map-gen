@@ -4,7 +4,7 @@ type t = {
   height: int,
 };
 
-let make_window = (~pixels_per_tile=2, ~width=400, ~height=300, ()) => {
+let make_window = (~pixels_per_tile=2, ~width=400, ~height=400, ()) => {
   let w = {pixels_per_tile, width, height};
   open Graphics;
   open_graph(
