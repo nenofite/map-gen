@@ -39,6 +39,7 @@ let update =
 let draw_all_layers =
     (
       stack: stack,
+      ~zoom: int,
       ~x: (int, int),
       ~z: (int, int),
       set_coord: (int, int, color) => unit,
@@ -57,8 +58,12 @@ let draw_all_layers =
     };
   };
   let draw_one = ({contents: Layer(state, draw_sparse, draw_dense)}) => {
-    for (z in min_z to max_z) {
-      for (x in min_x to max_x) {
+    let zsteps = (max_z - min_z) / zoom;
+    let xsteps = (max_x - min_x) / zoom;
+    for (z in 0 to zsteps) {
+      let z = z * zoom + min_z;
+      for (x in 0 to xsteps) {
+        let x = x * zoom + min_x;
         switch (draw_dense(state, x, z)) {
         | Some(c) => set_coord(x, z, c)
         | None => ()
@@ -92,7 +97,7 @@ let%expect_test "draw two layers" = {
 
   let set_coord = (x, z, (r, g, b)) =>
     Printf.printf("set %d,%d to %d,%d,%d\n", x, z, r, g, b);
-  draw_all_layers(stack, ~x=(0, 3), ~z=(0, 0), set_coord);
+  draw_all_layers(stack, ~zoom=1, ~x=(0, 3), ~z=(0, 0), set_coord);
 
   %expect
   {|

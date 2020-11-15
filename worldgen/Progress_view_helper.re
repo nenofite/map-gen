@@ -14,6 +14,7 @@ let dense = (colorizer, grid, x, y) =>
 let phase = (~title=?, layer, colorizer) => {
   Phase_chain.phase("preview", grid => {
     Progress_view.update(
+      ~fit=(0, grid.Grid.side, 0, grid.Grid.side),
       ~title?,
       ~draw_dense=dense(colorizer),
       ~state=grid,

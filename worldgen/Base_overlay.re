@@ -12,6 +12,7 @@ let apply_progress_view = (state: t) => {
   let (world, _canon) = state;
   let layer = Progress_view.push_layer();
   Progress_view.update(
+    ~fit=(0, world.Grid.side, 0, world.Grid.side),
     ~draw_dense=Progress_view_helper.dense(River.colorize),
     ~state=world,
     layer,
