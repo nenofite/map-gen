@@ -1,19 +1,14 @@
-type tile = River.tile;
+open Core_kernel;
+
+module Tile = River.Tile;
+type tile = Tile.t;
 
 let touchup = (grid: Grid.t(tile)) => {
-  Grid_compat.map(
+  Tile.Grid.map(
     grid,
-    (_x, _y, here) => {
-      /* let here =
-         switch (here) {
-         | {river: true, elevation, _} as here => {
-             ...here,
-             elevation: elevation - 1,
-           }
-         | {river: false, _} as here => here
-         }; */
+    ~f=here => {
       let here =
-        if (here.elevation <= Heightmap.sea_level) {
+        if (here.Tile.elevation <= Heightmap.sea_level) {
           {...here, ocean: true, river: false};
         } else {
           {...here, ocean: false};

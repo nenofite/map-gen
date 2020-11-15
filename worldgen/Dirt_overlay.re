@@ -22,7 +22,10 @@ let prepare = (side, ()) => {
       @> phase_repeat(
            2,
            "Line subdivide",
-           Subdivide.subdivide_with_fill(_, Fill.(line() **> random_avg)),
+           Subdivide.subdivide_with_fill(
+             _,
+             Fill.(line(~eq=Int.(==), ()) **> random_avg),
+           ),
          )
       @> Draw.phase("dirt.png", i => i * 20 * 0x010101),
     )

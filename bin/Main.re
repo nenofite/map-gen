@@ -3,12 +3,14 @@ open Worldgen;
 Printexc.record_backtrace(true);
 Stats.init();
 
+/* let side = 16_384; */
+/* let side = 8_192; */
 let side = 4096;
 
 let overlays = {
   module Let_syntax = Overlay.Let_syntax;
   let%bind dirt = Dirt_overlay.overlay(side);
-  let%bind (base, canon) = Base_overlay.overlay;
+  let%bind (base, canon) = Base_overlay.overlay(side);
   let%bind (biomes, canond) = Biome_overlay.overlay(canon, base, dirt);
   let canon = Canonical_overlay.apply_delta(canond, ~onto=canon);
   let%bind _ores = Ore_overlay.overlay(base);

@@ -25,16 +25,16 @@ let extract_canonical = (grid: Grid.t(tile)) =>
     side: grid.side,
     elevation: Grid_compat.map(grid, (_x, _y, tile) => tile.elevation),
     obstacles:
-      Obstacles.map(grid, ~f=tile => River.(tile.river || tile.ocean)),
+      Obstacles.map(grid, ~f=tile => River.Tile.(tile.river || tile.ocean)),
   };
 
-let prepare = () => {
+let prepare = (side, ()) => {
   module Pvh = Progress_view_helper;
   let layer = Progress_view.push_layer();
   let s =
     Phase_chain.(
       run_all(
-        Tectonic.phase
+        Tectonic.phase(side)
         @> Heightmap.phase
         @> Pvh.phase(~title="height", layer, Heightmap.colorize)
         @> Draw.phase("grid-height.png", Heightmap.colorize)
@@ -83,11 +83,11 @@ let apply_region = (state: t, args: Minecraft_converter.region_args) => {
   );
 };
 
-let overlay: Overlay.monad(t) =
+let overlay = (side): Overlay.monad(t) =>
   Overlay.make(
     "base",
     ~apply_progress_view,
-    prepare,
+    prepare(side),
     apply_region,
     bin_reader_t,
     bin_writer_t,

@@ -54,8 +54,8 @@ let random_direction = () =>
   | _ => W
   };
 
-let generate = () => {
-  let size = 128;
+let generate = target_size => {
+  let size = target_size / 32;
   let next_id = ref(1);
   let continents =
     Point_cloud.init(
@@ -107,9 +107,9 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
   );
 };
 
-let phase =
+let phase = side =>
   Phase_chain.(
-    phase("Generate tectonic plates", generate(_))
+    phase("Generate tectonic plates", () => generate(side))
     @> Draw.phase("plates.png", draw_intermediate)
     @> phase("Convert", convert_intermediate(_))
     @> phase_repeat(1, "Subdivide tectonic", Subdivide.subdivide)

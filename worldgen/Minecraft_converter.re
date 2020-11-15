@@ -82,7 +82,7 @@ let save = (~side: int, ~apply_overlays: region_args => unit): unit => {
     builder => {
     segment_grid_by_region(
       ~side,
-      ~sub=((0, 3), (2, 2)),
+      /* ~sub=((0, 3), (2, 2)), */
       (~rx, ~rz, ~gx_offset, ~gy_offset, ~gsize) => {
       Minecraft.World.make_region(
         ~rx,
