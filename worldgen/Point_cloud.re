@@ -21,6 +21,7 @@ type point('v) = {
 type t('v) = {
   points: Sparse_grid.t(point('v)),
   spacing: int,
+  side: int,
 };
 
 let is_within = (side, x, y) =>
@@ -33,20 +34,26 @@ let assert_within = (side, x, y) =>
     raise(Invalid_argument(msg));
   };
 
-let init_f = (~side, ~spacing=1, f) => {
-  let points = ref(Sparse_grid.make(side / spacing + 1));
-  for (yi in 0 to side / spacing) {
-    for (xi in 0 to side / spacing) {
+let init_f = (~avoid_edges=false, ~side, ~spacing=1, f) => {
+  if (avoid_edges && side % spacing != 0) {
+    invalid_argf(
+      "when using avoid_edges, side (%d) must divide evenly by spacing (%d)",
+      side,
+      spacing,
+      (),
+    );
+  };
+  let points_per_side = (side - 1) / spacing + 1;
+  let points = ref(Sparse_grid.make(points_per_side));
+  let imin = avoid_edges ? 1 : 0;
+  let imax = avoid_edges ? points_per_side - 2 : points_per_side - 1;
+  let spacing_f = Float.of_int(spacing);
+  for (yi in imin to imax) {
+    for (xi in imin to imax) {
       let x = xi * spacing;
       let y = yi * spacing;
-      let xf =
-        float_of_int(x)
-        +. (Random.float(1.) -. 0.5)
-        *. float_of_int(spacing);
-      let yf =
-        float_of_int(y)
-        +. (Random.float(1.) -. 0.5)
-        *. float_of_int(spacing);
+      let xf = Float.of_int(x) +. Random.float(spacing_f);
+      let yf = Float.of_int(y) +. Random.float(spacing_f);
       /* Discard if the point is outside */
       if (is_within(side, xf, yf)) {
         let point = {px: xf, py: yf, value: f(~xf, ~yf, ~xi=x, ~yi=y)};
@@ -54,20 +61,49 @@ let init_f = (~side, ~spacing=1, f) => {
       };
     };
   };
-  {points: points^, spacing};
+  {points: points^, spacing, side};
 };
 /**
   init creates a point cloud, randomizes the points, and initializes their
   value by calling `f(x, y)`.
 
   spacing determines how many points will fill the space. If side=10 and
-  spacing=2, then there will be 5 points horizontally.
- */
-let init = (~side, ~spacing=?, f) =>
-  init_f(~side, ~spacing?, (~xf as _, ~yf as _, ~xi, ~yi) => f(xi, yi));
+  spacing=2, then there will be 5 points horizontally. If side=10 and
+  spacing=3, then there will be 4 points horizontally--the division is
+  rounded up to ensure the space gets filled completely.
 
-let make_list = (~side, ~spacing=?, ()) => {
-  let cloud = init(~side, ~spacing?, (_, _) => ());
+  avoid_edges causes no points to be generated along the edges, ensuring that
+  the nearest_with_edge would return a natural-looking edge along the edges
+  of the point cloud. It defaults to false.
+
+  For example, with side=12 and spacing=4:
+
+  - If avoid_edges=true, points are generated at 2 + 4n ± 2, for n in {0, 1, 2}
+  - If avoid_edges=false, points are generated at 2 + 4n ± 2, for n in {-1, 0, 1, 2, 3}
+  - Any points that fall outside 0 <= p < 12 are discarded, regardless of
+    avoid_edges setting.
+
+  . 0 1 2 3 4 5 6 7 8 9 0 1
+  0 - - - - - - - - - - - -
+  1 - - - - - - - - - - - -
+  2 - - o - - - o - - - o -
+  3 - - - - - - - - - - - -
+  4 - - - - ^ ^ ^ ^ ^ - - -
+  5 - - - - < - - - > - - -
+  6 - - o - < - o - > - o -
+  7 - - - - < - - - > - - -
+  8 - - - - v v v v v - - -
+  9 - - - - - - - - - - - -
+  0 - - o - - - o - - - o -
+  1 - - - - - - - - - - - -
+ */
+let init = (~avoid_edges=?, ~side, ~spacing=?, f) =>
+  init_f(~avoid_edges?, ~side, ~spacing?, (~xf as _, ~yf as _, ~xi, ~yi) =>
+    f(xi, yi)
+  );
+
+let make_list = (~avoid_edges=?, ~side, ~spacing=?, ()) => {
+  let cloud = init(~avoid_edges?, ~side, ~spacing?, (_, _) => ());
   Sparse_grid.fold(
     cloud.points,
     (_, {px, py, value: _}, ls) => [(px, py), ...ls],
@@ -76,8 +112,8 @@ let make_list = (~side, ~spacing=?, ()) => {
   /* |> List.rev; */
 };
 
-let make_int_list = (~side, ~spacing=?, ()) => {
-  let cloud = init(~side, ~spacing?, (_, _) => ());
+let make_int_list = (~avoid_edges=?, ~side, ~spacing=?, ()) => {
+  let cloud = init(~avoid_edges?, ~side, ~spacing?, (_, _) => ());
   Sparse_grid.fold(
     cloud.points,
     (_, {px, py, value: _}, ls) => [Mg_util.Floats.(~~px, ~~py), ...ls],
@@ -85,8 +121,6 @@ let make_int_list = (~side, ~spacing=?, ()) => {
   );
   /* |> List.rev; */
 };
-
-let side_f = cloud => cloud.points.side * cloud.spacing;
 
 let distance2 = (ax, ay, bx, by) => Float.((ax - bx) ** 2. + (ay - by) ** 2.);
 
@@ -126,7 +160,7 @@ let rec closest_point = (~radius=1, cloud, x, y) => {
     (closest, sqrt(closest_dist2));
   | [] =>
     let next_radius = radius * 2;
-    if (next_radius <= side_f(cloud)) {
+    if (next_radius <= cloud.side) {
       closest_point(~radius=next_radius, cloud, x, y);
     } else {
       failwithf("could not find closest point for (%f, %f)", x, y, ());
@@ -170,7 +204,7 @@ let rec two_closest_points = (~radius=1, cloud, x, y) => {
     (a, sqrt(a_dist2), b, sqrt(b_dist2));
   | _ =>
     let next_radius = radius * 2;
-    if (next_radius <= side_f(cloud)) {
+    if (next_radius <= cloud.side) {
       two_closest_points(~radius=next_radius, cloud, x, y);
     } else {
       failwithf("could not find closest point for (%f, %f)", x, y, ());
@@ -184,7 +218,7 @@ let rec two_closest_points = (~radius=1, cloud, x, y) => {
  */
 let nearest_with_edge = (cloud, edge_value, x, y) => {
   open Float;
-  let side_f = float_of_int(side_f(cloud));
+  let side_f = of_int(cloud.side);
   let edge_distance = min(min(x, side_f - x), min(y, side_f - y));
   let (closest_point, closest_point_distance) = closest_point(cloud, x, y);
   if (closest_point_distance <= edge_distance) {
@@ -210,4 +244,101 @@ let interpolate = (cloud, x, y) => {
   let (a, a_distance, b, b_distance) = two_closest_points(cloud, x, y);
   let frac = a_distance /. (a_distance +. b_distance);
   a.value *. (1. -. frac) +. b.value *. frac;
+};
+
+let%expect_test "points" = {
+  Random.init(283);
+  let side = 8;
+  let rec print_grid_of_points = (~x, ~y, p) =>
+    if (y >= side) {
+      ();
+    } else if (x >= side) {
+      print_endline("");
+      print_grid_of_points(~x=0, ~y=y + 1, p);
+    } else {
+      if (List.exists(p, ~f=((here_x, here_y)) => here_x == x && here_y == y)) {
+        Printf.printf("%02d", 10 * y + x);
+      } else {
+        print_string("..");
+      };
+      print_string(" ");
+      print_grid_of_points(~x=x + 1, ~y, p);
+    };
+  let p = make_int_list(~side=8, ~spacing=2, ());
+  print_grid_of_points(~x=0, ~y=0, p);
+
+  %expect
+  {|
+    00 .. 02 .. .. .. .. 07
+    .. .. .. .. .. 15 .. ..
+    20 .. .. .. 24 .. .. ..
+    .. .. .. 33 .. .. 36 ..
+    .. .. .. .. 44 .. .. ..
+    50 .. .. 53 .. .. .. 57
+    .. .. .. .. 64 .. .. ..
+    70 .. 72 .. .. .. .. 77 |};
+};
+
+let%expect_test "nearest_with_edge without avoid_edges" = {
+  Random.init(283);
+  let rec print_grid_of_nearest = (~x, ~y, p) =>
+    if (y >= p.side) {
+      ();
+    } else if (x >= p.side) {
+      print_endline("");
+      print_grid_of_nearest(~x=0, ~y=y + 1, p);
+    } else {
+      let here =
+        nearest_with_edge(p, "##", Float.of_int(x), Float.of_int(y));
+      print_string(here);
+      print_string(" ");
+      print_grid_of_nearest(~x=x + 1, ~y, p);
+    };
+  let p =
+    init(~side=8, ~spacing=2, (x, y) => Printf.sprintf("%02d", 10 * y + x));
+  print_grid_of_nearest(~x=0, ~y=0, p);
+
+  %expect
+  {|
+    ## ## ## ## ## ## ## ##
+    ## ## 02 ## ## 04 04 06
+    ## 20 20 24 24 04 04 ##
+    ## 20 22 22 24 24 26 26
+    ## ## 22 22 44 44 26 26
+    ## ## 42 42 42 44 44 46
+    ## ## 42 42 64 64 46 46
+    ## 60 ## ## 64 ## ## 66 |};
+};
+
+let%expect_test "nearest_with_edge with avoid_edges" = {
+  Random.init(283);
+  let rec print_grid_of_nearest = (~x, ~y, p) =>
+    if (y >= p.side) {
+      ();
+    } else if (x >= p.side) {
+      print_endline("");
+      print_grid_of_nearest(~x=0, ~y=y + 1, p);
+    } else {
+      let here =
+        nearest_with_edge(p, "##", Float.of_int(x), Float.of_int(y));
+      print_string(here);
+      print_string(" ");
+      print_grid_of_nearest(~x=x + 1, ~y, p);
+    };
+  let p =
+    init(~avoid_edges=true, ~side=8, ~spacing=2, (x, y) =>
+      Printf.sprintf("%02d", 10 * y + x)
+    );
+  print_grid_of_nearest(~x=0, ~y=0, p);
+
+  %expect
+  {|
+    ## ## ## ## ## ## ## ##
+    ## ## ## ## ## ## ## ##
+    ## ## 22 22 24 24 24 ##
+    ## ## 22 22 24 24 44 ##
+    ## ## ## 42 42 44 44 ##
+    ## ## 42 42 42 44 44 ##
+    ## ## 42 42 42 44 44 ##
+    ## ## ## ## ## ## ## ## |};
 };
