@@ -23,6 +23,27 @@ let draw =
   ();
 };
 
+/* module type Dgs = {
+     type t;
+     type elt;
+     let side: t => int;
+     let get: (~x: int, ~z: int, t) => elt;
+   }; */
+let draw_griddable =
+    /*module G: Dgs with type t = t and type elt = elt, */
+    (
+      type t,
+      type elt,
+      module G: Grid.Griddable.S0 with type t = t and type elt = elt,
+      ~f: elt => int,
+      ~file: string,
+      grid: t,
+    )
+    : unit => {
+  let s = G.side(grid);
+  draw((x, y) => f(G.get(~x, ~z=y, grid)), s, s, file);
+};
+
 /** draw_grid creates a .PPM bitmap file with each pixel representing a tile on the grid */
 let draw_grid = (colorizer: 'a => int, file: string, grid: Grid.t('a)): unit => {
   draw(

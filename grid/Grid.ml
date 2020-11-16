@@ -1,5 +1,6 @@
 open Core_kernel
 
+module Griddable = Griddable
 module Mut = Mut
 
 type 'a node =
