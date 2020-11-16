@@ -1,11 +1,24 @@
+open Core_kernel;
 open Worldgen;
+
+let default_seed = 123;
+let get_seed = () => {
+  switch (Sys.argv) {
+  | [|_cmd, seed|] =>
+    switch (int_of_string_opt(seed)) {
+    | Some(seed) => seed
+    | None => default_seed
+    }
+  | _ => default_seed
+  };
+};
 
 Printexc.record_backtrace(true);
 Stats.init();
 
 /* let side = 16_384; */
-/* let side = 8_192; */
-let side = 4096;
+let side = 8_192;
+/* let side = 4096; */
 
 let overlays = {
   module Let_syntax = Overlay.Let_syntax;
@@ -40,7 +53,9 @@ let overlays = {
 };
 
 Progress_view.init();
-let apply_overlays = Overlay.prepare(35151, overlays);
+let seed = get_seed();
+Tale.logf("Using seed %d", seed);
+let apply_overlays = Overlay.prepare(seed, overlays);
 
 Minecraft_converter.save(~side, ~apply_overlays);
 
