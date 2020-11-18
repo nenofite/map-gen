@@ -58,3 +58,20 @@ let subdivide_with_fill ~fill m = (
 )
 
 let subdivide m = subdivide_with_fill ~fill:Fill.random m
+
+let overwrite_subdivide_with_fill ~fill m = (
+  let open Grid.Mut in
+  let old_side = side m in
+  subdivide_with_fill ~fill m;
+  for zi = 0 to old_side - 1 do
+    let z = zi * 2 in
+    for xi = 0 to old_side - 1 do
+      let x = xi * 2 in
+      let n = get_wrap ~x ~z:(z - 1) m in
+      let e = get_wrap ~x:(x + 1) ~z m in
+      let s = get_wrap ~x ~z:(z + 1) m in
+      let w = get_wrap ~x:(x - 1) ~z m in
+      set ~x ~z (fill n e s w) m
+    done
+  done
+)

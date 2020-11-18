@@ -109,8 +109,10 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
 
 let phase = side =>
   Phase_chain.(
-    phase("Generate tectonic plates", () => generate(side))
-    @> Draw.phase("plates.png", draw_intermediate)
-    @> phase("Convert", convert_intermediate(_))
-    @> phase_repeat(1, "Subdivide tectonic", Subdivide.subdivide)
+    run_all(
+      phase("Generate tectonic plates", () => generate(side))
+      @> Draw.phase("plates.png", draw_intermediate)
+      @> phase("Convert", convert_intermediate(_))
+      @> phase_repeat(1, "Subdivide tectonic", Subdivide.subdivide),
+    )
   );

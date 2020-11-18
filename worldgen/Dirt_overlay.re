@@ -1,9 +1,5 @@
 open Core_kernel;
 
-/* module Dirt_mut_griddable =
-   Grid.Mut.Intf0({
-     type elt = int;
-   }); */
 module Dirt_grid = Grid.Make0(Int);
 
 let max_depth = 9;

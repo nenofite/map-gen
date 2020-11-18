@@ -29,25 +29,40 @@ let extract_canonical = (grid: Grid.t(tile)) =>
   };
 
 let prepare = (side, ()) => {
-  module Pvh = Progress_view_helper;
+  module Pvh = Progress_view_helper.Make(Grid.Mut.Intf);
   let layer = Progress_view.push_layer();
-  let s =
-    Phase_chain.(
-      run_all(
-        Tectonic.phase(side)
-        @> Heightmap.phase
-        @> Pvh.phase(~title="height", layer, Heightmap.colorize)
-        @> Draw.phase("grid-height.png", Heightmap.colorize)
-        @> River.phase
-        @> Pvh.phase(~title="river", layer, River.colorize)
-        @> Draw.phase("grid-river.png", River.colorize)
-        @> Sites.phase
-        @> Pvh.phase(~title="sites", layer, River.colorize)
-        @> Draw.phase("grid-sites.png", River.colorize),
-      )
-    );
+
+  let grid = Tectonic.phase(side);
+  let grid = Heightmap.phase(grid);
+  Pvh.update_with_colorize(
+    ~title="height",
+    ~colorize=Heightmap.colorize,
+    grid,
+    layer,
+  );
+  let grid = River.phase(grid, ~alloc_side=Grid.Mut.side(grid) * 4);
+  Pvh.update_with_colorize(
+    ~title="river",
+    ~colorize=River.colorize,
+    grid,
+    layer,
+  );
+  let grid = Sites.phase(grid);
+  Pvh.update_with_colorize(
+    ~title="sites",
+    ~colorize=River.colorize,
+    grid,
+    layer,
+  );
+  Draw.draw_griddable(
+    Grid.Mut.intf0(grid),
+    ~f=River.colorize,
+    ~file="grid-river.bmp",
+    grid,
+  );
   Progress_view.remove_layer(layer);
-  (s, extract_canonical(s));
+  let grid = River.Tile.Grid.of_mut(grid);
+  (grid, extract_canonical(grid));
 };
 
 let apply_region = (state: t, args: Minecraft_converter.region_args) => {

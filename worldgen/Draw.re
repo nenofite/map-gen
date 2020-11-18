@@ -23,14 +23,7 @@ let draw =
   ();
 };
 
-/* module type Dgs = {
-     type t;
-     type elt;
-     let side: t => int;
-     let get: (~x: int, ~z: int, t) => elt;
-   }; */
 let draw_griddable =
-    /*module G: Dgs with type t = t and type elt = elt, */
     (
       type t,
       type elt,

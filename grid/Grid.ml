@@ -359,6 +359,8 @@ module Make(Args: sig
   ;;
 
   let of_mut m = init ~side:(Mut.side m) (fun (x, z) -> Mut.get ~x ~z m)
+
+  let map_of_mut ~f m = init ~side:(Mut.side m) (fun (x, z) -> f ~x ~z (Mut.get ~x ~z m))
 end
 
 module Make0(Args: sig
@@ -382,6 +384,18 @@ let to_mut ?alloc_side ?fill t = (
   let m = Mut.create ~side:(side t) ?alloc_side fill in
   With_coords.iter (With_coords.T t) ~f:(fun (x, z, v) ->
       Mut.set ~x ~z v m
+    );
+  m
+)
+
+let map_to_mut ?alloc_side ?fill ~f t = (
+  let fill = match fill with
+    | Some f -> f
+    | None -> f ~x:0 ~z:0 (get 0 0 t)
+  in
+  let m = Mut.create ~side:(side t) ?alloc_side fill in
+  With_coords.iter (With_coords.T t) ~f:(fun (x, z, v) ->
+      Mut.set ~x ~z (f ~x ~z v) m
     );
   m
 )

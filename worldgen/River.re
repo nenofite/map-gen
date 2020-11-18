@@ -1,5 +1,6 @@
+open Core_kernel;
+
 module Tile = {
-  open Core_kernel;
   module T = {
     [@deriving (eq, ord, sexp, bin_io)]
     type t = {
@@ -22,6 +23,8 @@ module Tile = {
 [@deriving bin_io]
 type tile = Tile.t;
 
+let empty_tile = Tile.{elevation: 0, river: false, ocean: false};
+
 let min_river_length = 30;
 let min_source_elevation = 70;
 let max_source_elevation = 100;
@@ -36,12 +39,15 @@ let colorize = (tile: tile): int => {
   };
 };
 
-let convert = (old_grid: Grid.t(int)) => {
-  Tile.Grid.map(
-    old_grid,
-    ~f=elevation => {
+let convert = (~alloc_side: int, old_grid: Grid.Mut.t(int)) => {
+  Grid.Mut.init(
+    ~alloc_side,
+    ~side=Grid.Mut.side(old_grid),
+    empty_tile,
+    ~f=(~x, ~z) => {
+      let elevation = Grid.Mut.get(~x, ~z, old_grid);
       let ocean = elevation <= Heightmap.sea_level;
-      {elevation, ocean, river: false};
+      Tile.{elevation, ocean, river: false};
     },
   );
 };
@@ -54,8 +60,8 @@ let compare_elevations = (a, b) => {
 
 /** fall_to determines which neighbor the river will flow to */
 let fall_to = (here, neighbors) => {
-  let neighbors = List.fast_sort(compare_elevations, neighbors);
-  let (_, lx, ly) as l = List.hd(neighbors);
+  let neighbors = List.sort(~compare=compare_elevations, neighbors);
+  let (_, lx, ly) as l = List.hd_exn(neighbors);
   let cmp = compare_elevations(l, (here, 0, 0));
   if (cmp < 0) {
     Some((lx, ly));
@@ -86,10 +92,13 @@ let fall_to_with_flat_dir = (here, neighbors, flat_dir) => {
   let (flat_dir_x, flat_dir_y) = flat_dir;
   assert(flat_dir_x != 0 || flat_dir_y != 0);
   let flat_dir_n =
-    List.find(((_, x, y)) => x == flat_dir_x && y == flat_dir_y, neighbors);
+    List.find_exn(
+      ~f=((_, x, y)) => x == flat_dir_x && y == flat_dir_y,
+      neighbors,
+    );
 
-  let neighbors = List.fast_sort(compare_elevations, neighbors);
-  let (_, lowest_x, lowest_y) as lowest = List.hd(neighbors);
+  let neighbors = List.sort(~compare=compare_elevations, neighbors);
+  let (_, lowest_x, lowest_y) as lowest = List.hd_exn(neighbors);
 
   if (compare_elevations(lowest, (here, 0, 0)) < 0) {
     Some((lowest_x, lowest_y));
@@ -97,22 +106,21 @@ let fall_to_with_flat_dir = (here, neighbors, flat_dir) => {
     Some(flat_dir);
   } else {
     Mg_util.shuffle(neighbors)
-    |> List.find_opt(x => compare_elevations(x, (here, 0, 0)) <= 0, _)
-    |> Option.map(((_, x, y)) => (x, y), _);
+    |> List.find(~f=x => compare_elevations(x, (here, 0, 0)) <= 0)
+    |> Option.map(~f=((_, x, y)) => (x, y));
   };
 };
 
 /** river_sources gets all potential river sources on the map, in random order */
-let river_sources = (grid: Grid.t(tile)) => {
-  open Core_kernel;
+let river_sources = (grid: Grid.Mut.t(tile)) => {
   let coords =
-    Grid_compat.fold(grid, [], (acc, x, y, here) =>
-      if (!here.ocean
+    Grid.Mut.fold(grid, ~init=[], ~f=(~x, ~z, acc, here) =>
+      if (!here.Tile.ocean
           && min_source_elevation <= here.elevation
           && here.elevation <= max_source_elevation) {
-        let neighbors = Grid_compat.neighbors_xy(grid, x, y);
+        let neighbors = Grid.Mut.neighbors_coords(grid, ~x, ~z);
         if (Option.is_some(fall_to(here, neighbors))) {
-          [(x, y, Random.bits()), ...acc];
+          [(x, z, Random.bits()), ...acc];
         } else {
           acc;
         };
@@ -128,8 +136,8 @@ let river_sources = (grid: Grid.t(tile)) => {
   place_river_tile modifies the given tile to have a river on it. If there's
   already a river there, it raises [Invalid_argument]
  */
-let place_river_tile = (grid, x, y) => {
-  Tile.Grid.update(x, y, grid, ~f=here =>
+let place_river_tile = (grid, x, z) => {
+  Grid.Mut.update(grid, ~x, ~z, ~f=here =>
     switch (here) {
     | Tile.{river: true, _} =>
       raise(Invalid_argument("Tile already has river"))
@@ -141,8 +149,8 @@ let place_river_tile = (grid, x, y) => {
 /**
   deposit_sediment increases the elevation by 1 at the given coordinate.
  */
-let deposit_sediment = (grid, x, y) => {
-  Tile.Grid.update(x, y, grid, ~f=here =>
+let deposit_sediment = (grid, x, z) => {
+  Grid.Mut.update(grid, ~x, ~z, ~f=here =>
     Tile.{...here, elevation: here.elevation + 1}
   );
 };
@@ -165,34 +173,36 @@ let current_flow_direction = (path, x, y) => {
   tile. If the river reaches an ocean or another river, it succeeds and
   returns the path it took.
  */
-let rec flow_river = (grid, path, x, y) => {
-  let here = Grid_compat.at(grid, x, y);
+let rec flow_river = (grid, path, x, z) => {
+  let here = Grid.Mut.get(~x, ~z, grid);
   if (!here.Tile.ocean && !here.river) {
-    let next_path = [(x, y), ...path];
-    let neighbors = Grid_compat.neighbors_xy(grid, x, y);
-    let flat_dir = current_flow_direction(path, x, y);
+    let next_path = [(x, z), ...path];
+    let neighbors = Grid.Mut.neighbors_coords(grid, ~x, ~z);
+    let flat_dir = current_flow_direction(path, x, z);
     switch (fall_to_with_flat_dir(here, neighbors, flat_dir)) {
-    | Some((dx, dy)) =>
-      let (next_x, next_y) = Grid_compat.wrap_coord(grid, x + dx, y + dy);
-      assert(next_x != x || next_y != y);
-      if (!List.exists(((lx, ly)) => lx == next_x && ly == next_y, path)) {
-        flow_river(grid, next_path, next_x, next_y);
+    | Some((dx, dz)) =>
+      let side = Grid.Mut.side(grid);
+      let next_x = (x + dx) % side;
+      let next_z = (z + dz) % side;
+      assert(next_x != x || next_z != z);
+      if (!List.exists(~f=((lx, lz)) => lx == next_x && lz == next_z, path)) {
+        flow_river(grid, next_path, next_x, next_z);
       } else {
         /* We formed a loop. Deposit sediment and backtrack. */
-        let grid = deposit_sediment(grid, x, y);
+        let grid = deposit_sediment(grid, x, z);
         switch (path) {
         | [(previous_x, previous_y), ...previous_path] =>
           flow_river(grid, previous_path, previous_x, previous_y)
-        | [] => flow_river(grid, [], x, y)
+        | [] => flow_river(grid, [], x, z)
         };
       };
     | None =>
       /* We're stuck in a ditch. Deposit sediment and backtrack. */
-      let grid = deposit_sediment(grid, x, y);
+      let grid = deposit_sediment(grid, x, z);
       switch (path) {
       | [(previous_x, previous_y), ...previous_path] =>
         flow_river(grid, previous_path, previous_x, previous_y)
-      | [] => flow_river(grid, [], x, y)
+      | [] => flow_river(grid, [], x, z)
       };
     };
   } else if (List.length(path) > min_river_length) {
@@ -209,13 +219,13 @@ let rec flow_river = (grid, path, x, y) => {
   mountains, then creates a river with the given id there. The river is only
   kept if it can reach the ocean.
  */
-let river = (grid: Grid.t(tile), _id: int, source_x: int, source_y: int) => {
+let river = (grid: Grid.Mut.t(tile), _id: int, source_x: int, source_y: int) => {
   switch (flow_river(grid, [], source_x, source_y)) {
   | Some(path) =>
     Some(
-      List.fold_left(
-        (grid, (x, y)) => place_river_tile(grid, x, y),
-        grid,
+      List.fold(
+        ~f=(grid, (x, y)) => place_river_tile(grid, x, y),
+        ~init=grid,
         path,
       ),
     )
@@ -223,27 +233,29 @@ let river = (grid: Grid.t(tile), _id: int, source_x: int, source_y: int) => {
   };
 };
 
-let add_rivers = (grid, amount): Grid.t(tile) => {
+let add_rivers = (grid, amount): Grid.Mut.t(tile) => {
   let sources = river_sources(grid) |> Mg_util.take(amount, _);
   let amount = min(amount, List.length(sources));
 
   let (grid, succeeded) =
-    List.fold_left(
-      ((grid, next_id), (x, y)) => {
-        switch (river(grid, next_id, x, y)) {
-        | Some(grid) => (grid, next_id + 1)
-        | None => (grid, next_id)
-        }
-      },
-      (grid, 0),
+    List.fold(
+      ~f=
+        ((grid, next_id), (x, y)) => {
+          switch (river(grid, next_id, x, y)) {
+          | Some(grid) => (grid, next_id + 1)
+          | None => (grid, next_id)
+          }
+        },
+      ~init=(grid, 0),
       sources,
     );
   Tale.logf("Successfully placed %d of %d rivers", succeeded, amount);
   grid;
 };
 
-let phase =
-  Phase_chain.(
-    phase("Convert to river", convert(_))
-    @> phase("Flow rivers", add_rivers(_, 100))
-  );
+let phase = (~alloc_side, input) => {
+  Tale.block("Flow rivers", ~f=() => {
+    let m = convert(~alloc_side, input);
+    add_rivers(m, 100);
+  });
+};
