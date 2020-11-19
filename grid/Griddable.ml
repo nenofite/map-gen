@@ -52,6 +52,7 @@ module type S = sig
 
   val neighbors : x:int -> z:int -> 'a t -> 'a elt list
   val neighbors_coords : x:int -> z:int -> 'a t -> ('a elt * int * int) list
+  val neighbors_offsets : x:int -> z:int -> 'a t -> ('a elt * int * int) list
 end
 
 module type Arg0 = sig
@@ -119,6 +120,13 @@ struct
 
   let neighbors ~x ~z t =
     List.map eight_directions ~f:(fun (dx, dz) -> get_wrap t ~x:(x + dx) ~z:(z + dz))
+
+  let neighbors_offsets ~x ~z t =
+    List.map eight_directions ~f:(fun (dx, dz) ->
+        let nx = x + dx in
+        let nz = z + dz in
+        (get_wrap t ~x:nx ~z:nz, dx, dz)
+      )
 
   let neighbors_coords ~x ~z t =
     List.map eight_directions ~f:(fun (dx, dz) ->

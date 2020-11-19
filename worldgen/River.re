@@ -177,7 +177,7 @@ let rec flow_river = (grid, path, x, z) => {
   let here = Grid.Mut.get(~x, ~z, grid);
   if (!here.Tile.ocean && !here.river) {
     let next_path = [(x, z), ...path];
-    let neighbors = Grid.Mut.neighbors_coords(grid, ~x, ~z);
+    let neighbors = Grid.Mut.neighbors_offsets(grid, ~x, ~z);
     let flat_dir = current_flow_direction(path, x, z);
     switch (fall_to_with_flat_dir(here, neighbors, flat_dir)) {
     | Some((dx, dz)) =>
