@@ -1,0 +1,69 @@
+open Core_kernel
+
+module Make(Coord : Comparable.S) = struct
+  type node = {
+    coord: Coord.t;
+    came_from: Coord.t;
+    g_score: float;
+    f_score: float;
+  }
+
+  let reconstruct_path ~goal_coord ~closed_set = (
+    let rec go coord coords = 
+      let node = Coord.Map.find_exn closed_set coord in
+      if Coord.(node.coord = node.came_from) then
+        coord :: coords
+      else
+        go node.came_from (coord :: coords)
+    in
+    go goal_coord []
+  )
+
+  let pathfind ~neighbors ~heuristic ~start_set ~goal = (
+    let rec go ~closed_set ~open_set ~remaining_iters = (
+      if remaining_iters <= 0 then
+        None
+      else (
+        match Priority_queue.extract open_set with
+        | None, _ -> None
+        | (Some open_node), _open_set when goal open_node.coord ->
+          let closed_set = Coord.Map.add_exn ~key:open_node.coord ~data:open_node closed_set in
+          Some (reconstruct_path ~goal_coord:open_node.coord ~closed_set)
+        | (Some open_node), open_set ->
+          match Coord.Map.add ~key:open_node.coord ~data:open_node closed_set with
+          | `Duplicate -> 
+            go ~open_set ~closed_set ~remaining_iters:(remaining_iters - 1)
+          | `Ok closed_set ->
+            let open_set = List.fold
+                (neighbors open_node.coord)
+                ~init:open_set
+                ~f:(fun acc (neighbor_coord, neighbor_cost) ->
+                    if Coord.Map.mem closed_set neighbor_coord then
+                      acc
+                    else
+                      let node = {
+                        coord = neighbor_coord;
+                        came_from = open_node.coord;
+                        g_score = Float.(open_node.g_score + neighbor_cost);
+                        f_score = heuristic neighbor_coord;
+                      } in
+                      let priority = Float.(node.g_score + node.f_score) in
+                      Priority_queue.insert acc priority node
+                  )
+            in
+            go ~open_set ~closed_set ~remaining_iters:(remaining_iters - 1)
+      )
+    ) in
+    let closed_set = Coord.Map.empty in
+    let open_set = List.fold
+        start_set
+        ~init:Priority_queue.empty
+        ~f:(fun acc start_coord ->
+            let f_score = heuristic start_coord in
+            let node = { coord = start_coord; came_from = start_coord; g_score = 0.; f_score } in
+            Priority_queue.insert acc f_score node
+          )
+    in
+    go ~closed_set ~open_set ~remaining_iters:100_000
+  )
+end
