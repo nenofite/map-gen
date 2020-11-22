@@ -188,10 +188,10 @@ let zip_biomes = (base: Grid.t(Base_overlay.tile), ~mid, ~shore, ~high) => {
   );
 };
 
-let has_obstacle = (dirt, biome) => {
+let get_obstacle = (dirt, biome) => {
   switch (biome) {
-  | Mid(Desert(_)) => dirt == 0
-  | _ => false
+  | Mid(Desert(_)) => dirt == 0 ? Canonical_overlay.Impassable : Clear
+  | _ => Clear
   };
 };
 
@@ -213,7 +213,7 @@ let prepare =
       )
     );
   let biome_obstacles =
-    Canonical_overlay.Obstacles.zip_map(dirt, biomes, ~f=has_obstacle);
+    Canonical_overlay.Obstacles.zip_map(dirt, biomes, ~f=get_obstacle);
   let canond =
     Canonical_overlay.make_delta(~obstacles=`Add(biome_obstacles), ());
   (biomes, canond);

@@ -65,3 +65,12 @@ let apply_delta (delta: delta) ~(onto: t) = (
     ;
   }
 )
+
+(* Obstacle helpers *)
+let can_build_on = function
+  | Clear -> true
+  | Bridgeable | Impassable -> false
+
+let can_build_over = function
+  | Clear | Bridgeable -> true
+  | Impassable -> false

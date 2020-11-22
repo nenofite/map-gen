@@ -82,10 +82,13 @@ let within_region_boundaries = (~canon_side, min_x, min_z) => {
   within_world && within_region;
 };
 
+let obstacle_at = (~x, ~z, obstacles) =>
+  Canonical_overlay.can_build_on(Grid.get(x, z, obstacles));
+
 let has_obstacle = (obstacles, x, z) =>
   Range.exists(z, z + Town_prototype.side - 1, z =>
     Range.exists(x, x + Town_prototype.side - 1, x =>
-      Grid.is_within(x, z, obstacles) && Grid.get(x, z, obstacles)
+      Grid.is_within(x, z, obstacles) && obstacle_at(~x, ~z, obstacles)
     )
   );
 
@@ -179,7 +182,7 @@ let add_block_to_obstacles = (block, obstacles) => {
   let Town_prototype.{min_x, max_x, min_z, max_z, elevation: _} = block;
   Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
     Range.fold(min_x, max_x, obstacles, (obstacles, x) =>
-      Canonical_overlay.Obstacles.set(x, z, true, obstacles)
+      Canonical_overlay.Obstacles.set(x, z, Impassable, obstacles)
     )
   );
 };
@@ -209,8 +212,8 @@ let prepare_town =
     Grid.With_coords.fold(
       Grid.With_coords.T(canon.obstacles),
       ~init=Sparse_grid.make(Town_prototype.side),
-      ~f=(town_obstacles, (x, z, has_obs)) =>
-      if (has_obs
+      ~f=(town_obstacles, (x, z, obs)) =>
+      if (Canonical_overlay.can_build_on(obs)
           && town_min_x <= x
           && x <= town_max_x
           && town_min_z <= z
@@ -288,7 +291,7 @@ let prepare = (canon: Canonical_overlay.t, base: Base_overlay.x, ()): t => {
         let (town, obs) = prepare_town(canon, obs, x, z);
         ([town, ...towns], obs);
       },
-      ([], Grid.make(~side=canon.side, false)),
+      ([], Grid.make(~side=canon.side, Canonical_overlay.Clear)),
       towns,
     );
   (towns, Canonical_overlay.make_delta(~obstacles=`Add(obs), ()));

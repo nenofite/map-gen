@@ -20,12 +20,23 @@ let apply_progress_view = (state: t) => {
   ();
 };
 
+let obstacle_of_tile = tile => {
+  Canonical_overlay.(
+    if (tile.River.Tile.ocean) {
+      Impassable;
+    } else if (tile.river) {
+      Bridgeable;
+    } else {
+      Clear;
+    }
+  );
+};
+
 let extract_canonical = (grid: Grid.t(tile)) =>
   Canonical_overlay.{
     side: grid.side,
     elevation: Grid_compat.map(grid, (_x, _y, tile) => tile.elevation),
-    obstacles:
-      Obstacles.map(grid, ~f=tile => River.Tile.(tile.river || tile.ocean)),
+    obstacles: Obstacles.map(grid, ~f=obstacle_of_tile),
   };
 
 let prepare = (side, ()) => {

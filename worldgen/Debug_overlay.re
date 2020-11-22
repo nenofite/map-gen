@@ -7,9 +7,12 @@ type options = {
 
 let prepare = (canon: Canonical_overlay.t, ()) => {
   Draw.draw_grid(
-    fun
-    | false => 0
-    | true => 0xFFFFFF,
+    Canonical_overlay.(
+      fun
+      | Clear => 0
+      | Bridgeable => 0x0000FF
+      | Impassable => 0xFFFFFF
+    ),
     "obstacles.bmp",
     canon.obstacles,
   );
