@@ -56,7 +56,7 @@ let edge_cost = (canon: Canonical_overlay.t, (ax, ay), (bx, by)) => {
   let b_elev = Grid_compat.at(canon.elevation, bx, by);
   let elev_diff = abs(a_elev - b_elev);
   let b_obs =
-    Canonical_overlay.can_build_on(Grid.get(bx, by, canon.obstacles));
+    !Canonical_overlay.can_build_on(Grid.get(bx, by, canon.obstacles));
   if (!b_obs && elev_diff <= 1) {
     Some(Mg_util.Floats.(~.elev_diff +. 1.));
   } else {
@@ -188,7 +188,7 @@ let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
   let pois = List.map(~f=poi_of_town, towns);
   /* Run A* to go from each point to each other point */
   let roads = Sparse_grid.make(canon.side);
-  let poi_pairs = all_pairs(pois, []) |> Mg_util.take(100, _);
+  let poi_pairs = all_pairs(pois, []) |> Mg_util.take(1000, _);
 
   Tale.log("Pathfinding roads");
   let get_elevation = (~x, ~z) => Grid.get(x, z, canon.elevation);

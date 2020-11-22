@@ -83,7 +83,7 @@ let within_region_boundaries = (~canon_side, min_x, min_z) => {
 };
 
 let obstacle_at = (~x, ~z, obstacles) =>
-  Canonical_overlay.can_build_on(Grid.get(x, z, obstacles));
+  !Canonical_overlay.can_build_on(Grid.get(x, z, obstacles));
 
 let has_obstacle = (obstacles, x, z) =>
   Range.exists(z, z + Town_prototype.side - 1, z =>
@@ -213,7 +213,7 @@ let prepare_town =
       Grid.With_coords.T(canon.obstacles),
       ~init=Sparse_grid.make(Town_prototype.side),
       ~f=(town_obstacles, (x, z, obs)) =>
-      if (Canonical_overlay.can_build_on(obs)
+      if (!Canonical_overlay.can_build_on(obs)
           && town_min_x <= x
           && x <= town_max_x
           && town_min_z <= z
