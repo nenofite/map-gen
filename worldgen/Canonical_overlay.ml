@@ -1,6 +1,5 @@
 open Core_kernel
 
-module Obstacles = Grid.Make0(Bool)
 
 (**
    This is not a true overlay, but rather this defines the canonical data which
@@ -20,7 +19,15 @@ type elevation = int Grid.t
    Anything which cannot (or should not) be walked over or built on. For
    example oceans, rivers, ravines, buildings
 *)
-type obstacles = bool Grid.t
+type obstacle = Clear | Bridgeable | Impassable
+[@@deriving eq, ord, bin_io]
+
+module Obstacles = Grid.Make0(struct
+    type t = obstacle
+    let (=) = equal_obstacle
+  end)
+
+type obstacles = obstacle Grid.t
 [@@deriving bin_io]
 
 type delta = {
@@ -38,7 +45,8 @@ let make_delta ?(elevation = `Unchanged) ?(obstacles = `Unchanged) () = { elevat
 
 (** wherever there is an obstacle in a, it will be added to onto *)
 let add_obstacles (a: obstacles) ~(onto: obstacles) = (
-  Obstacles.zip_map a onto ~f:(||)
+  let f a onto = if compare_obstacle a onto > 0 then a else onto in
+  Obstacles.zip_map a onto ~f
 )
 
 (** applies the changes described by delta to get a new, full overlay *)
