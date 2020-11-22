@@ -1,11 +1,20 @@
 open Core_kernel
 
-module Make(Coord : Comparable.S) = struct
+module type Score = sig
+  type t
+  val zero : t
+  val (+) : t -> t -> t
+  val (<=) : t -> t -> bool
+end
+
+module Make (Score : Score) (Coord : Comparable.S) = struct
+  module Pq = Priority_queue.Make(Score)
+
   type node = {
     coord: Coord.t;
     came_from: Coord.t;
-    g_score: float;
-    f_score: float;
+    g_score: Score.t;
+    f_score: Score.t;
   }
 
   let reconstruct_path ~goal_coord ~closed_set = (
@@ -24,7 +33,7 @@ module Make(Coord : Comparable.S) = struct
       if remaining_iters <= 0 then
         None
       else (
-        match Priority_queue.extract open_set with
+        match Pq.extract open_set with
         | None, _ -> None
         | (Some open_node), _open_set when goal open_node.coord ->
           let closed_set = Coord.Map.add_exn ~key:open_node.coord ~data:open_node closed_set in
@@ -44,11 +53,11 @@ module Make(Coord : Comparable.S) = struct
                       let node = {
                         coord = neighbor_coord;
                         came_from = open_node.coord;
-                        g_score = Float.(open_node.g_score + neighbor_cost);
+                        g_score = Score.(open_node.g_score + neighbor_cost);
                         f_score = heuristic neighbor_coord;
                       } in
-                      let priority = Float.(node.g_score + node.f_score) in
-                      Priority_queue.insert acc priority node
+                      let priority = Score.(node.g_score + node.f_score) in
+                      Pq.insert acc priority node
                   )
             in
             go ~open_set ~closed_set ~remaining_iters:(remaining_iters - 1)
@@ -57,11 +66,11 @@ module Make(Coord : Comparable.S) = struct
     let closed_set = Coord.Map.empty in
     let open_set = List.fold
         start_set
-        ~init:Priority_queue.empty
+        ~init:Pq.empty
         ~f:(fun acc start_coord ->
             let f_score = heuristic start_coord in
-            let node = { coord = start_coord; came_from = start_coord; g_score = 0.; f_score } in
-            Priority_queue.insert acc f_score node
+            let node = { coord = start_coord; came_from = start_coord; g_score = Score.zero; f_score } in
+            Pq.insert acc f_score node
           )
     in
     go ~closed_set ~open_set ~remaining_iters:100_000

@@ -24,14 +24,14 @@ module Coord = struct
 end
 include Coord.T
 
-module A_star = A_star_gen.Make(Coord)
+module A_star = A_star_gen.Make(Int)(Coord)
 
 type obstacle = Clear | River | Impassable
 
 (* Costs *)
-let flat_ground_cost = 1.
-let slope_ground_cost = 2.
-let bridge_cost = 10.
+let flat_ground_cost = 1
+let slope_ground_cost = 2
+let bridge_cost = 10
 
 let direction_of_bridge_exn = function
   | Ns_bridge -> Ns
@@ -128,7 +128,7 @@ let pathfind_road ~get_elevation ~get_obstacle ~start_coords ~goal_pred ~goal_co
     | b -> bridge_neighbors ~x ~y ~z b
   in
 
-  let heuristic { x; y; z; bridge = _ } = Float.of_int @@ abs (goal_x - x) + abs (goal_z - z) + abs (goal_y - y) in
+  let heuristic { x; y; z; bridge = _ } = abs (goal_x - x) + abs (goal_z - z) + abs (goal_y - y) in
   (* let heuristic { x; y; z; bridge = _ } = Float.of_int @@ Int.((goal_x - x) ** 2 + (goal_z - z) ** 2 + (goal_y - y) ** 2) in *)
 
   let start_set = List.map start_coords ~f:(fun (x, y, z) -> { x; y; z; bridge = No_bridge }) in
