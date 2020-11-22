@@ -26,8 +26,6 @@ include Coord.T
 
 module A_star = A_star_gen.Make(Int)(Coord)
 
-type obstacle = Clear | River | Impassable
-
 (* Costs *)
 let flat_ground_cost = 1
 let slope_ground_cost = 2
@@ -55,7 +53,8 @@ let make_direction_exn x1 z1 x2 z2 =
 
 let pathfind_road ~get_elevation ~get_obstacle ~start_coords ~goal_pred ~goal_coord = (
 
-  let (goal_x, goal_y, goal_z) = goal_coord in
+  let (goal_x, goal_z) = goal_coord in
+  let goal_y = get_elevation ~x:goal_x ~z:goal_z in
   let wrapped_goal_pred { x; y = _; z; bridge } = match bridge with
     | No_bridge -> goal_pred ~x ~z
     | _ -> false
@@ -80,8 +79,8 @@ let pathfind_road ~get_elevation ~get_obstacle ~start_coords ~goal_pred ~goal_co
           let nx = x + dx in
           let nz = z + dz in
           match get_obstacle ~x:nx ~z:nz with
-          | Impassable -> acc
-          | River -> 
+          | Canonical_overlay.Impassable -> acc
+          | Bridgeable -> 
             let ny = get_elevation ~x:nx ~z:nz in
             add_bridge_start_neighbor ~y ~ny ~x ~z ~nx ~nz acc
           | Clear -> 
@@ -110,8 +109,8 @@ let pathfind_road ~get_elevation ~get_obstacle ~start_coords ~goal_pred ~goal_co
           let nx = x + dx in
           let nz = z + dz in
           match get_obstacle ~x:nx ~z:nz with
-          | Impassable -> acc
-          | River ->
+          | Canonical_overlay.Impassable -> acc
+          | Bridgeable ->
             let ny = get_elevation ~x:nx ~z:nz in
             add_bridge_continue_neighbor bridge ~y ~ny ~nx ~nz acc
           | Clear ->
@@ -131,16 +130,16 @@ let pathfind_road ~get_elevation ~get_obstacle ~start_coords ~goal_pred ~goal_co
   let heuristic { x; y; z; bridge = _ } = abs (goal_x - x) + abs (goal_z - z) + abs (goal_y - y) in
   (* let heuristic { x; y; z; bridge = _ } = Float.of_int @@ Int.((goal_x - x) ** 2 + (goal_z - z) ** 2 + (goal_y - y) ** 2) in *)
 
-  let start_set = List.map start_coords ~f:(fun (x, y, z) -> { x; y; z; bridge = No_bridge }) in
+  let start_set = List.map start_coords ~f:(fun (x, z) -> { x; y = get_elevation ~x ~z; z; bridge = No_bridge }) in
 
   A_star.pathfind ~neighbors ~heuristic ~start_set ~goal:wrapped_goal_pred
 )
 
 let%test_module "tests" = (module struct
   let palette = [
-    ".", Clear;
+    ".", Canonical_overlay.Clear;
     "X", Impassable;
-    "O", River;
+    "O", Bridgeable;
   ]
 
   let print_path grid road = (
@@ -155,9 +154,9 @@ let%test_module "tests" = (module struct
               | Ew_bridge -> ">"
             )
           | None -> (match Grid.Mut.get ~x ~z grid with
-              | Clear -> "."
+              | Canonical_overlay.Clear -> "."
               | Impassable -> "X"
-              | River -> "O"
+              | Bridgeable -> "O"
             )
         in
         print_string p;
@@ -187,8 +186,8 @@ let%test_module "tests" = (module struct
     |} in
     let get_elevation ~x:_ ~z:_ = 0 in
     let get_obstacle ~x ~z = Grid.Mut.get ~x ~z grid in
-    let start = (2, 0, 1) in
-    let goal = (13, 0, 13) in
+    let start = (2, 1) in
+    let goal = (13, 13) in
     let road = Option.value_exn
         (pathfind_road ~get_elevation ~get_obstacle
            ~start_coords:[start]
@@ -235,8 +234,8 @@ let%test_module "tests" = (module struct
     |} in
     let get_elevation ~x:_ ~z:_ = 0 in
     let get_obstacle ~x ~z = Grid.Mut.get ~x ~z grid in
-    let start = (2, 0, 1) in
-    let goal = (13, 0, 13) in
+    let start = (2, 1) in
+    let goal = (13, 13) in
     let road = Option.value_exn
         (pathfind_road ~get_elevation ~get_obstacle
            ~start_coords:[start]
