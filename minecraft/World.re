@@ -380,26 +380,32 @@ let make =
 };
 
 let make_region = (~rx: int, ~rz: int, builder: builder, fn) => {
-  Tale.logf("Creating region (%d, %d)", rx, rz);
-  let start_time = Mg_util.time_ms();
+  Tale.blockf(
+    "Creating region (%d, %d)",
+    rx,
+    rz,
+    ~f=() => {
+      let start_time = Mg_util.time_ms();
 
-  let r =
-    switch (builder.cached_region) {
-    | Some(r) =>
-      Region.reset(~rx, ~rz, r);
-      r;
-    | None =>
-      let r = Region.create(~rx, ~rz);
-      builder.cached_region = Some(r);
-      r;
-    };
-  let result = fn(r);
-  save_region(builder.memory, builder.path, r);
+      let r =
+        switch (builder.cached_region) {
+        | Some(r) =>
+          Region.reset(~rx, ~rz, r);
+          r;
+        | None =>
+          let r = Region.create(~rx, ~rz);
+          builder.cached_region = Some(r);
+          r;
+        };
+      let result = fn(r);
+      save_region(builder.memory, builder.path, r);
 
-  let elapsed_time =
-    Int64.sub(Mg_util.time_ms(), start_time) |> Int64.to_float;
-  Tale.logf("Finished (%d, %d) in %fs", rx, rz, elapsed_time /. 1000.);
-  Stats.recordf(`Region_time, elapsed_time);
+      let elapsed_time =
+        Int64.sub(Mg_util.time_ms(), start_time) |> Int64.to_float;
+      Tale.logf("Finished (%d, %d) in %fs", rx, rz, elapsed_time /. 1000.);
+      Stats.recordf(`Region_time, elapsed_time);
 
-  result;
+      result;
+    },
+  );
 };
