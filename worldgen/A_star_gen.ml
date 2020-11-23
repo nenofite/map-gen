@@ -28,7 +28,7 @@ module Make (Score : Score) (Coord : Comparable.S) = struct
     go goal_coord []
   )
 
-  let pathfind ~neighbors ~heuristic ~start_set ~goal = (
+  let pathfind ~neighbors ~heuristic ~start_set ~goal ~max_iters = (
     let rec go ~closed_set ~open_set ~remaining_iters = (
       if remaining_iters <= 0 then (
         Tale.log "Ran out of iterations";
@@ -76,6 +76,6 @@ module Make (Score : Score) (Coord : Comparable.S) = struct
             Pq.insert acc f_score node
           )
     in
-    go ~closed_set ~open_set ~remaining_iters:20_000_000
+    go ~closed_set ~open_set ~remaining_iters:max_iters
   )
 end

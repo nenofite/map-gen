@@ -187,31 +187,39 @@ let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
   Tale.log("Making points of interest");
   let pois = List.map(~f=poi_of_town, towns);
   /* Run A* to go from each point to each other point */
-  let roads = Sparse_grid.make(canon.side);
   let poi_pairs = all_pairs(pois, []) |> Mg_util.take(1000, _);
 
   Tale.log("Pathfinding roads");
   let get_elevation = (~x, ~z) => Grid.get(x, z, canon.elevation);
   let get_obstacle = (~x, ~z) => Grid.get(x, z, canon.obstacles);
+  module Cs = Bridge_pathing.Coord.Set;
   let roads =
-    List.fold_left(poi_pairs, ~init=roads, ~f=(roads, (start, goal)) => {
-      switch (
-        Bridge_pathing.pathfind_road(
-          ~get_elevation,
-          ~get_obstacle,
-          ~start_coords=starts_of_poi(start),
-          ~goal_pred=goalf_of_poi(goal),
-          ~goal_coord=goal,
-        )
-      ) {
-      | Some(path) =>
-        Tale.log("found a road");
-        place_road(canon, roads, path); /* Add the path to the grid */
-      | None =>
-        Tale.log("couldn't find road");
-        roads;
-      }
-    });
+    List.fold_left(
+      poi_pairs,
+      ~init=Cs.empty,
+      ~f=(roads, (start, goal)) => {
+        let has_existing_road = coord => Cs.mem(roads, coord);
+        switch (
+          Bridge_pathing.pathfind_road(
+            ~get_elevation,
+            ~get_obstacle,
+            ~has_existing_road,
+            ~start_coords=starts_of_poi(start),
+            ~goal_pred=goalf_of_poi(goal),
+            ~goal_coord=goal,
+          )
+        ) {
+        | Some(path) =>
+          Tale.log("found a road");
+          List.fold(path, ~init=roads, ~f=Cs.add);
+        | None =>
+          Tale.log("couldn't find road");
+          roads;
+        };
+      },
+    );
+  let roads =
+    place_road(canon, Sparse_grid.make(canon.side), Cs.to_list(roads));
   Tale.log("Widening roads and adding steps");
   let roads = widen_road(roads);
   let roads = add_steps(roads);

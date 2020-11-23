@@ -148,7 +148,7 @@ let pathfind_road ~get_elevation ~get_obstacle ~has_existing_road ~start_coords 
 
   let start_set = List.map start_coords ~f:(fun (x, z) -> { x; y = get_elevation ~x ~z; z; bridge = No_bridge }) in
 
-  A_star.pathfind ~neighbors ~heuristic ~start_set ~goal:wrapped_goal_pred
+  A_star.pathfind ~neighbors ~heuristic ~start_set ~goal:wrapped_goal_pred ~max_iters:10_000_000
 )
 
 let%test_module "tests" = (module struct
