@@ -45,7 +45,7 @@ let overlays = {
           | Air => false
           | Stone
           | Dirt
-          | Grass => true
+          | Grass_block => true
           | _ => false,
         illuminate: false,
       },
