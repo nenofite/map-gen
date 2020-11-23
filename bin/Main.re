@@ -40,24 +40,25 @@ let overlays = {
     Debug_overlay.overlay(
       canon,
       {
-        glassify: _ => false,
-        /* fun
-           | Air => false
-           | Stone
-           | Dirt
-           | Grass => true
-           | _ => false, */
+        glassify:
+          fun
+          | Air => false
+          | Stone
+          | Dirt
+          | Grass => true
+          | _ => false,
         illuminate: false,
       },
     );
-  Overlay.return();
+  let spawn_point = Mg_util.shuffle(canon.spawn_points) |> List.hd_exn;
+  Overlay.return(spawn_point);
 };
 
 Progress_view.init();
 let seed = get_seed();
 Tale.logf("Using seed %d", seed);
-let apply_overlays = Overlay.prepare(seed, overlays);
+let (spawn, apply_overlays) = Overlay.prepare(seed, overlays);
 
-Minecraft_converter.save(~side, ~apply_overlays);
+Minecraft_converter.save(~side, ~spawn, ~apply_overlays);
 
 Stats.finalize();

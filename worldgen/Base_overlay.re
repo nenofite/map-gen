@@ -37,6 +37,7 @@ let extract_canonical = (grid: Grid.t(tile)) =>
     side: grid.side,
     elevation: Grid_compat.map(grid, (_x, _y, tile) => tile.elevation),
     obstacles: Obstacles.map(grid, ~f=obstacle_of_tile),
+    spawn_points: [],
   };
 
 let prepare = (side, ()) => {

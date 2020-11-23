@@ -33,15 +33,17 @@ type obstacles = obstacle Grid.t
 type delta = {
   elevation: [`Unchanged | `Replace of elevation];
   obstacles: [`Unchanged | `Add of obstacles | `Replace of obstacles];
+  spawn_points: [`Unchanged | `Add of (int * int * int) list];
 } [@@deriving bin_io]
 
 type t = {
   side: int;
   elevation: elevation;
   obstacles: obstacles;
+  spawn_points: (int * int * int) list;
 } [@@deriving bin_io]
 
-let make_delta ?(elevation = `Unchanged) ?(obstacles = `Unchanged) () = { elevation; obstacles }
+let make_delta ?(elevation = `Unchanged) ?(obstacles = `Unchanged) ?(spawn_points = `Unchanged) () = { elevation; obstacles; spawn_points }
 
 (** wherever there is an obstacle in a, it will be added to onto *)
 let add_obstacles (a: obstacles) ~(onto: obstacles) = (
@@ -62,6 +64,10 @@ let apply_delta (delta: delta) ~(onto: t) = (
         | `Unchanged -> onto.obstacles
         | `Add additions -> add_obstacles additions ~onto:onto.obstacles
         | `Replace o -> o)
+    ;
+    spawn_points = (match delta.spawn_points with
+        | `Unchanged -> onto.spawn_points
+        | `Add sp -> sp @ onto.spawn_points)
     ;
   }
 )

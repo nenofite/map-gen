@@ -187,10 +187,18 @@ let add_block_to_obstacles = (block, obstacles) => {
   );
 };
 
+let spawn_point_of_block = block => {
+  let Town_prototype.{min_x, max_x, min_z, max_z, elevation: block_y} = block;
+  let x = (min_x + max_x) / 2;
+  let z = (min_z + max_z) / 2;
+  let y = block_y + 1;
+  (x, y, z);
+};
+
 let prepare_town =
     (
       canon: Canonical_overlay.t,
-      obstacles: Canonical_overlay.obstacles,
+      canon_obstacles: Canonical_overlay.obstacles,
       town_min_x,
       town_min_z,
     ) => {
@@ -208,7 +216,7 @@ let prepare_town =
     });
 
   /* TODO misnomer */
-  let roads =
+  let town_obstacles =
     Grid.With_coords.fold(
       Grid.With_coords.T(canon.obstacles),
       ~init=Sparse_grid.make(Town_prototype.side),
@@ -225,7 +233,7 @@ let prepare_town =
     );
 
   let Town_prototype.{bell, houses, farms} =
-    Town_prototype.run({elevation, roads});
+    Town_prototype.run({elevation, roads: town_obstacles});
 
   /* Translate blocks into global coords */
   let translate_block = (b: Town_prototype.block) => {
@@ -244,7 +252,7 @@ let prepare_town =
   let farms = List.map(translate_block, farms);
 
   let updated_obstacles =
-    obstacles
+    canon_obstacles
     |> add_block_to_obstacles(bell)
     |> List.fold_left(
          (o, b: Town_prototype.house) => add_block_to_obstacles(b.block, o),
@@ -263,7 +271,9 @@ let prepare_town =
     },
   };
 
-  (town, updated_obstacles);
+  let spawn_point = spawn_point_of_block(bell);
+
+  (town, updated_obstacles, spawn_point);
 };
 
 let prepare = (canon: Canonical_overlay.t, base: Base_overlay.x, ()): t => {
@@ -285,16 +295,23 @@ let prepare = (canon: Canonical_overlay.t, base: Base_overlay.x, ()): t => {
   let towns = first_suitable_towns(canon, num_towns, river_coords, []);
   List.iter(((x, z)) => Tale.logf("town at %d, %d", x, z), towns);
   draw_towns(canon, towns);
-  let (towns, obs) =
+  let (towns, obs, spawn_points) =
     List.fold_left(
-      ((towns, obs), (x, z)) => {
-        let (town, obs) = prepare_town(canon, obs, x, z);
-        ([town, ...towns], obs);
+      ((towns, obs, spawn_points), (x, z)) => {
+        let (town, obs, spawn_point) = prepare_town(canon, obs, x, z);
+        ([town, ...towns], obs, [spawn_point, ...spawn_points]);
       },
-      ([], Grid.make(~side=canon.side, Canonical_overlay.Clear)),
+      ([], Grid.make(~side=canon.side, Canonical_overlay.Clear), []),
       towns,
     );
-  (towns, Canonical_overlay.make_delta(~obstacles=`Add(obs), ()));
+  (
+    towns,
+    Canonical_overlay.make_delta(
+      ~obstacles=`Add(obs),
+      ~spawn_points=`Add(spawn_points),
+      (),
+    ),
+  );
 };
 
 let create_bell =
