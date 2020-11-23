@@ -64,7 +64,8 @@ let edge_cost = (canon: Canonical_overlay.t, (ax, ay), (bx, by)) => {
   };
 };
 
-let heighten_road = (roads, x, y, up_to_niceness, up_to_elevation) => {
+let heighten_road =
+    (~get_obstacle, roads, x, y, up_to_niceness, up_to_elevation) => {
   switch (Sparse_grid.at(roads, x, y)) {
   | Some({elevation, niceness})
       when elevation < up_to_elevation || Niceness.(niceness < up_to_niceness) =>
@@ -78,12 +79,17 @@ let heighten_road = (roads, x, y, up_to_niceness, up_to_elevation) => {
     );
   | Some(_) => roads
   | None =>
-    Sparse_grid.put(
-      roads,
-      x,
-      y,
-      {elevation: up_to_elevation, niceness: up_to_niceness},
-    )
+    switch (get_obstacle(~x, ~z=y)) {
+    | Canonical_overlay.Impassable
+    | Bridgeable => roads
+    | Clear =>
+      Sparse_grid.put(
+        roads,
+        x,
+        y,
+        {elevation: up_to_elevation, niceness: up_to_niceness},
+      )
+    }
   };
 };
 
@@ -91,7 +97,7 @@ let heighten_road = (roads, x, y, up_to_niceness, up_to_elevation) => {
   widen_path makes Paved roads three blocks wide. Each block is the highest
   elevation and nicest niceness of any road it touches.
  */
-let widen_road = (roads: Sparse_grid.t(road)) => {
+let widen_road = (~get_obstacle, roads: Sparse_grid.t(road)) => {
   Sparse_grid.fold(
     roads,
     ((x, y), road, widened_roads) => {
@@ -101,7 +107,14 @@ let widen_road = (roads: Sparse_grid.t(road)) => {
       | Paved =>
         Grid_compat.eight_directions
         |> List.fold_left(~init=widened_roads, ~f=(roads, (dx, dy)) =>
-             heighten_road(roads, x + dx, y + dy, niceness, elevation)
+             heighten_road(
+               ~get_obstacle,
+               roads,
+               x + dx,
+               y + dy,
+               niceness,
+               elevation,
+             )
            )
       };
     },
@@ -221,7 +234,7 @@ let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
   let roads =
     place_road(canon, Sparse_grid.make(canon.side), Cs.to_list(roads));
   Tale.log("Widening roads and adding steps");
-  let roads = widen_road(roads);
+  let roads = widen_road(~get_obstacle, roads);
   let roads = add_steps(roads);
   Tale.log("Drawing");
   Draw.draw_sparse_grid(colorizer, "roads.png", roads);
