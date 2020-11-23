@@ -32,6 +32,8 @@ type x = {
 [@deriving bin_io]
 type t = (x, Canonical_overlay.delta);
 
+let town_goal_side = Town_prototype.side;
+
 let colorizer =
   fun
   | None => 0
@@ -176,22 +178,24 @@ let poi_of_town = (town: Town_overlay.town) => {
   Town_prototype.(town.x + side / 2, town.z + side / 2);
 };
 
-let starts_of_poi = ((x, z)) => {
-  open Town_prototype;
-  let min_x = x - side / 2;
-  let min_z = z - side / 2;
-  let max_x = min_x + side - 1;
-  let max_z = min_z + side - 1;
-  Range.map(min_z, max_z, z => Range.map(min_x, max_x, x => (x, z)))
+let starts_of_poi = ((poi_x, poi_z)) => {
+  let min_x = poi_x - town_goal_side / 2;
+  let min_z = poi_z - town_goal_side / 2;
+  let max_x = min_x + town_goal_side - 1;
+  let max_z = min_z + town_goal_side - 1;
+  let g_score_at = (~x, ~z) =>
+    Int.((x - poi_x) ** 2 + (z - poi_z) ** 2) * Bridge_pathing.flat_ground_cost;
+  Range.map(min_z, max_z, z =>
+    Range.map(min_x, max_x, x => (x, z, g_score_at(~x, ~z)))
+  )
   |> List.concat;
 };
 
 let goalf_of_poi = ((poi_x, poi_z)) => {
-  open Town_prototype;
-  let min_x = poi_x - side / 2;
-  let min_z = poi_z - side / 2;
-  let max_x = min_x + side - 1;
-  let max_z = min_z + side - 1;
+  let min_x = poi_x - town_goal_side / 2;
+  let min_z = poi_z - town_goal_side / 2;
+  let max_x = min_x + town_goal_side - 1;
+  let max_z = min_z + town_goal_side - 1;
   (~x, ~z) => min_x <= x && x <= max_x && min_z <= z && z <= max_z;
 };
 

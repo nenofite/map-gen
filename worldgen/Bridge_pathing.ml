@@ -146,7 +146,7 @@ let pathfind_road ~get_elevation ~get_obstacle ~has_existing_road ~start_coords 
 
   let heuristic { x; y; z; bridge = _ } = existing_road_cost * (abs (goal_x - x) + abs (goal_z - z) + abs (goal_y - y)) in
 
-  let start_set = List.map start_coords ~f:(fun (x, z) -> { x; y = get_elevation ~x ~z; z; bridge = No_bridge }) in
+  let start_set = List.map start_coords ~f:(fun (x, z, g) -> ({ x; y = get_elevation ~x ~z; z; bridge = No_bridge }, g)) in
 
   A_star.pathfind ~neighbors ~heuristic ~start_set ~goal:wrapped_goal_pred ~max_iters:10_000_000
 )
@@ -203,7 +203,7 @@ let%test_module "tests" = (module struct
     let get_elevation ~x:_ ~z:_ = 0 in
     let get_obstacle ~x ~z = Grid.Mut.get ~x ~z grid in
     let has_existing_road _ = false in
-    let start = (2, 1) in
+    let start = (2, 1, 0) in
     let goal = (13, 13) in
     let road = Option.value_exn
         (pathfind_road ~get_elevation ~get_obstacle ~has_existing_road
@@ -252,7 +252,7 @@ let%test_module "tests" = (module struct
     let get_elevation ~x:_ ~z:_ = 0 in
     let get_obstacle ~x ~z = Grid.Mut.get ~x ~z grid in
     let has_existing_road _ = false in
-    let start = (2, 1) in
+    let start = (2, 1, 0) in
     let goal = (13, 13) in
     let road = Option.value_exn
         (pathfind_road ~get_elevation ~get_obstacle ~has_existing_road
@@ -301,7 +301,7 @@ let%test_module "tests" = (module struct
     let get_elevation ~x:_ ~z:_ = 0 in
     let get_obstacle ~x ~z = Grid.Mut.get ~x ~z grid in
     let has_existing_road coord = coord.z = 2 in
-    let start = (2, 1) in
+    let start = (2, 1, 0) in
     let goal = (13, 1) in
     let road = Option.value_exn
         (pathfind_road ~get_elevation ~get_obstacle ~has_existing_road

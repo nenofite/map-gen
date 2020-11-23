@@ -2,7 +2,6 @@ open Core_kernel
 
 module type Score = sig
   type t
-  val zero : t
   val (+) : t -> t -> t
   val (<=) : t -> t -> bool
 end
@@ -70,10 +69,11 @@ module Make (Score : Score) (Coord : Comparable.S) = struct
     let open_set = List.fold
         start_set
         ~init:Pq.empty
-        ~f:(fun acc start_coord ->
+        ~f:(fun acc (start_coord, g_score) ->
             let f_score = heuristic start_coord in
-            let node = { coord = start_coord; came_from = start_coord; g_score = Score.zero; f_score } in
-            Pq.insert acc f_score node
+            let node = { coord = start_coord; came_from = start_coord; g_score; f_score } in
+            let priority = Score.(node.g_score + node.f_score) in
+            Pq.insert acc priority node
           )
     in
     go ~closed_set ~open_set ~remaining_iters:max_iters
