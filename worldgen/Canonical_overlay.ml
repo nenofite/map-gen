@@ -19,13 +19,18 @@ type elevation = int Grid.t
    Anything which cannot (or should not) be walked over or built on. For
    example oceans, rivers, ravines, buildings
 *)
-type obstacle = Clear | Bridgeable | Impassable
+module Obstacle = struct
+  module T = struct
+    type t = Clear | Bridgeable | Impassable
+    [@@deriving eq, ord, sexp, bin_io]
+  end
+  include T
+  include Comparable.Make(T)
+end
+type obstacle = Obstacle.t = Clear | Bridgeable | Impassable
 [@@deriving eq, ord, bin_io]
 
-module Obstacles = Grid.Make0(struct
-    type t = obstacle
-    let (=) = equal_obstacle
-  end)
+module Obstacles = Grid.Make0(Obstacle)
 
 type obstacles = obstacle Grid.t
 [@@deriving bin_io]

@@ -205,6 +205,18 @@ let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
   Tale.log("Pathfinding roads");
   let get_elevation = (~x, ~z) => Grid.get(x, z, canon.elevation);
   let get_obstacle = (~x, ~z) => Grid.get(x, z, canon.obstacles);
+  let get_obstacle_in_margin = (~margin, ~x, ~z) =>
+    Range.fold(z - margin, z + margin, Canonical_overlay.Clear, (obs, z) =>
+      Range.fold(
+        x - margin,
+        x + margin,
+        obs,
+        (obs, x) => {
+          let here_obs = get_obstacle(~x, ~z);
+          Canonical_overlay.Obstacle.max(obs, here_obs);
+        },
+      )
+    );
   module Cs = Bridge_pathing.Coord.Set;
   let roads =
     List.fold_left(
@@ -215,7 +227,7 @@ let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
         switch (
           Bridge_pathing.pathfind_road(
             ~get_elevation,
-            ~get_obstacle,
+            ~get_obstacle=get_obstacle_in_margin(~margin=3),
             ~has_existing_road,
             ~start_coords=starts_of_poi(start),
             ~goal_pred=goalf_of_poi(goal),
