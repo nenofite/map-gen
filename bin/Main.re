@@ -42,10 +42,10 @@ let overlays = {
       {
         glassify:
           fun
-          | Air => false
-          | Stone
-          | Dirt
-          | Grass_block => true
+          /* | Air => false
+             | Stone
+             | Dirt
+             | Grass_block => true */
           | _ => false,
         illuminate: false,
       },
