@@ -1718,6 +1718,7 @@ let block_entity = block => {
   );
 };
 
+/** whether you can stand on this block and it'll stop you falling */
 let is_solid =
   fun
   /* Non-solids */
@@ -1742,3 +1743,32 @@ let is_solid =
   | Flowing_water(_) => false
   /* All others are solid */
   | _ => true;
+
+/** whether light passes through this block */
+let is_transparent =
+  fun
+  | Air
+  | Grass
+  | Torch
+  | Wall_torch(_)
+  /* TODO other doors */
+  | Oak_door(_, _)
+  | Dandelion
+  | Poppy
+  | Blue_orchid
+  | Allium
+  | Azure_bluet
+  | Red_tulip
+  | Orange_tulip
+  | White_tulip
+  | Pink_tulip
+  | Oxeye_daisy
+  | Cornflower
+  | Lily_of_the_valley
+  | Wheat(_)
+  | Water
+  | Flowing_water(_) => true
+  /* All others are opaque */
+  | _ => false;
+
+let is_opaque = b => !is_transparent(b);

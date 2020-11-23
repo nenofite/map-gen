@@ -42,6 +42,13 @@ let apply_trees =
   );
 };
 
+let is_opaque_or_water = b =>
+  switch (b) {
+  | Minecraft.Block.Water
+  | Flowing_water(_) => true
+  | _ => Minecraft.Block.is_opaque(b)
+  };
+
 let apply_ground_cover =
     (
       biomes: Grid.t(Biome_overlay.biome),
@@ -53,7 +60,11 @@ let apply_ground_cover =
     region,
     (~x, ~z) => {
       open Minecraft.Region;
-      let y = height_at(region, ~x, ~z);
+      let y =
+        Option.value(
+          highest_such_block(region, ~x, ~z, is_opaque_or_water),
+          ~default=0,
+        );
       let top = get_block(region, ~x, ~y, ~z);
       let biome = Grid_compat.at(biomes, x, z);
       switch (biome, top) {
