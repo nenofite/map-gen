@@ -27,9 +27,10 @@ include Coord.T
 module A_star = A_star_gen.Make(Int)(Coord)
 
 (* Costs *)
-let flat_ground_cost = 1
-let slope_ground_cost = 2
-let bridge_cost = 10
+let flat_ground_cost = 10
+let slope_ground_cost = 20
+let bridge_cost = 100
+let existing_road_cost = 1
 
 let direction_of_bridge_exn = function
   | Ns_bridge -> Ns
@@ -51,7 +52,7 @@ let make_direction_exn x1 z1 x2 z2 =
   then Ew
   else invalid_argf "cannot make direction: (%d, %d) (%d, %d)" x1 z1 x2 z2 ()
 
-let pathfind_road ~get_elevation ~get_obstacle ~start_coords ~goal_pred ~goal_coord = (
+let pathfind_road ~get_elevation ~get_obstacle ~has_existing_road ~start_coords ~goal_pred ~goal_coord = (
 
   let (goal_x, goal_z) = goal_coord in
   let goal_y = get_elevation ~x:goal_x ~z:goal_z in
@@ -59,6 +60,20 @@ let pathfind_road ~get_elevation ~get_obstacle ~start_coords ~goal_pred ~goal_co
     | No_bridge -> goal_pred ~x ~z
     | _ -> false
   in
+
+  let rec reuse_existing_roads_opt neighbors = match neighbors with
+    | (coord, _cost) as old_here :: rest ->
+      if has_existing_road coord then (
+        let n = (coord, existing_road_cost) :: Option.value (reuse_existing_roads_opt rest) ~default:rest in
+        Some n
+      ) else (
+        match reuse_existing_roads_opt rest with
+        | None -> None
+        | Some new_rest -> Some (old_here :: new_rest)
+      )
+    | [] -> None
+  in
+  let reuse_existing_roads neighbors = Option.value (reuse_existing_roads_opt neighbors) ~default:neighbors in
 
   let add_ground_neighbor ~y ~nx ~ny ~nz list =
     if abs (y - ny) <= 1
@@ -122,13 +137,14 @@ let pathfind_road ~get_elevation ~get_obstacle ~start_coords ~goal_pred ~goal_co
   in
 
   let neighbors { x; y; z; bridge } =
-    match bridge with
-    | No_bridge -> ground_neighbors ~x ~y ~z
-    | b -> bridge_neighbors ~x ~y ~z b
+    let n = match bridge with
+      | No_bridge -> ground_neighbors ~x ~y ~z
+      | b -> bridge_neighbors ~x ~y ~z b
+    in
+    reuse_existing_roads n
   in
 
-  let heuristic { x; y; z; bridge = _ } = abs (goal_x - x) + abs (goal_z - z) + abs (goal_y - y) in
-  (* let heuristic { x; y; z; bridge = _ } = Float.of_int @@ Int.((goal_x - x) ** 2 + (goal_z - z) ** 2 + (goal_y - y) ** 2) in *)
+  let heuristic { x; y; z; bridge = _ } = existing_road_cost * (abs (goal_x - x) + abs (goal_z - z) + abs (goal_y - y)) in
 
   let start_set = List.map start_coords ~f:(fun (x, z) -> { x; y = get_elevation ~x ~z; z; bridge = No_bridge }) in
 
@@ -186,10 +202,11 @@ let%test_module "tests" = (module struct
     |} in
     let get_elevation ~x:_ ~z:_ = 0 in
     let get_obstacle ~x ~z = Grid.Mut.get ~x ~z grid in
+    let has_existing_road _ = false in
     let start = (2, 1) in
     let goal = (13, 13) in
     let road = Option.value_exn
-        (pathfind_road ~get_elevation ~get_obstacle
+        (pathfind_road ~get_elevation ~get_obstacle ~has_existing_road
            ~start_coords:[start]
            ~goal_pred:(fun ~x ~z -> x = 13 && z = 13)
            ~goal_coord:goal)
@@ -197,16 +214,16 @@ let%test_module "tests" = (module struct
     print_path grid road;
     [%expect {|
       X X X X X X X X X X X X X X X
-      X . = = = = X . . . . . . . X
-      X . . . . = X . . . . . . . X
-      X . . . . = X . . . . . . . X
-      X . . . . = X . . . . . . . X
-      X . . . . = X . . . . . . . X
-      X . . . . = X = = = = . . . X
-      X . . . . = X = . X = . . . X
-      X . . . . = X = . X = . . . X
-      X . . . . = X = . X = . . . X
-      X . . . . = = = . X = . . . X
+      X . = . . . X . . . . . . . X
+      X . = . . . X . . . . . . . X
+      X . = . . . X . . . . . . . X
+      X . = . . . X . . . . . . . X
+      X . = . . . X . . . . . . . X
+      X . = . . . X = = = = . . . X
+      X . = . . . X = . X = . . . X
+      X . = . . . X = . X = . . . X
+      X . = = = . X = . X = . . . X
+      X . . . = = = = . X = . . . X
       X . . . . . . . . X = . . . X
       X . . . X X X X X X = X X X X
       X . . . X . . . . . = = = = X
@@ -234,10 +251,11 @@ let%test_module "tests" = (module struct
     |} in
     let get_elevation ~x:_ ~z:_ = 0 in
     let get_obstacle ~x ~z = Grid.Mut.get ~x ~z grid in
+    let has_existing_road _ = false in
     let start = (2, 1) in
     let goal = (13, 13) in
     let road = Option.value_exn
-        (pathfind_road ~get_elevation ~get_obstacle
+        (pathfind_road ~get_elevation ~get_obstacle ~has_existing_road
            ~start_coords:[start]
            ~goal_pred:(fun ~x ~z -> x = 13 && z = 13)
            ~goal_coord:goal)
@@ -245,19 +263,68 @@ let%test_module "tests" = (module struct
     print_path grid road;
     [%expect {|
       X X X X X X X X X X X X X X X
-      X . = = = O O O . . . . . . X
-      X . . . = O O O . . . . . . X
-      X . . . = O O O . . . . . . X
-      X . . . = O O O . . . . . . X
-      X . . . = O O O . . . . . . X
-      X . . . = O O O = = = . . . X
-      X . . . = O O O = X v O . . X
-      X . . . = O O O = X v O . . X
-      X . . . = > > = = X v O . . X
+      X . = . . O O O . . . . . . X
+      X . = . . O O O . . . . . . X
+      X . = . . O O O . . . . . . X
+      X . = . . O O O . . . . . . X
+      X . = . . O O O . . . . . . X
+      X . = . . O O O = = = . . . X
+      X . = . . O O O = X v O . . X
+      X . = . . O O O = X v O . . X
+      X . = = = > > = = X v O . . X
       X . . . . O O . . X v O . . X
       X . . . . O O O . X v O . . X
       X . . . X X X X X X = X X X X
       X . . . X . . . . . = = = = X
+      X X X X X X X X X X X X X X X
+    |}];
+  )
+
+  let%expect_test "reuse existing roads" = (
+    let grid = Test_helpers.grid_of_txt ~palette {|
+      X X X X X X X X X X X X X X X 
+      X . . . . . . . . . . . . . X 
+      X . . . . . . . . . . . . . X 
+      X . . . . . . . . . . . . . X 
+      X . . . . . . . . . . . . . X 
+      X . . . . . . . . . . . . . X 
+      X . . . . . . . . . . . . . X 
+      X . . . . . . . . . . . . . X 
+      X . . . . . . . . . . . . . X 
+      X . . . . . . . . . . . . . X 
+      X . . . . . . . . . . . . . X 
+      X . . . . . . . . . . . . . X 
+      X . . . . . . . . . . . . . X 
+      X . . . . . . . . . . . . . X 
+      X X X X X X X X X X X X X X X 
+    |} in
+    let get_elevation ~x:_ ~z:_ = 0 in
+    let get_obstacle ~x ~z = Grid.Mut.get ~x ~z grid in
+    let has_existing_road coord = coord.z = 2 in
+    let start = (2, 1) in
+    let goal = (13, 1) in
+    let road = Option.value_exn
+        (pathfind_road ~get_elevation ~get_obstacle ~has_existing_road
+           ~start_coords:[start]
+           ~goal_pred:(fun ~x ~z -> x = 13 && z = 1)
+           ~goal_coord:goal)
+    in
+    print_path grid road;
+    [%expect {|
+      X X X X X X X X X X X X X X X
+      X . = . . . . . . . . . . = X
+      X . = = = = = = = = = = = = X
+      X . . . . . . . . . . . . . X
+      X . . . . . . . . . . . . . X
+      X . . . . . . . . . . . . . X
+      X . . . . . . . . . . . . . X
+      X . . . . . . . . . . . . . X
+      X . . . . . . . . . . . . . X
+      X . . . . . . . . . . . . . X
+      X . . . . . . . . . . . . . X
+      X . . . . . . . . . . . . . X
+      X . . . . . . . . . . . . . X
+      X . . . . . . . . . . . . . X
       X X X X X X X X X X X X X X X
     |}];
   )
