@@ -26,8 +26,6 @@ let cardinal_directions_3d = [
   (0, (-1), 0),
 ];
 
-let random_ore = () => Minecraft.Block.Iron_ore; /* TODO other ores */
-
 /** can_place_ore determines whether ore can be inserted into the given material */
 let can_place_ore = (block: Minecraft.Block.material) =>
   switch (block) {
@@ -55,16 +53,6 @@ let make_layer =
 };
 
 let prepare = (base, ()) => {
-  /* let iron_surface =
-     make_layer(
-       base,
-       ~ore=Minecraft.Block.Iron_ore,
-       ~min_density=0.1,
-       ~max_density=0.1,
-       ~depth=From_surface(0, 2),
-       ~min_deposit_size=3,
-       ~max_deposit_size=10,
-     ); */
   let iron_low_density =
     [40, 60, 80, 100, 120, 140, 160]
     |> List.map(
@@ -95,6 +83,16 @@ let prepare = (base, ()) => {
            ),
          _,
        );
+  let coal =
+    make_layer(
+      base,
+      ~ore=Minecraft.Block.Coal_ore,
+      ~min_density=0.5,
+      ~max_density=1.,
+      ~depth=From_bedrock(5, 120),
+      ~min_deposit_size=1,
+      ~max_deposit_size=17,
+    );
   let gravel =
     make_layer(
       base,
@@ -115,7 +113,7 @@ let prepare = (base, ()) => {
       ~min_deposit_size=15,
       ~max_deposit_size=30,
     );
-  iron_low_density @ iron_high_density @ [diamond, gravel];
+  iron_low_density @ iron_high_density @ [diamond, coal, gravel];
 };
 
 let rec remove_i = (i, list) =>
