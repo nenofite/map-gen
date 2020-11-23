@@ -506,7 +506,12 @@ let create_house =
     ~z=door_z,
     args.region,
   );
-  Building.raise_lower_elev_match(args, door_x, door_z - 1, elevation);
+  /* 2x3 empty space in front of door */
+  for (z in door_z - 2 to door_z - 1) {
+    for (x in door_x - 1 to door_x + 1) {
+      Building.raise_lower_elev_match(args, x, z, elevation);
+    };
+  };
 
   /* Torch on outside wall next to door */
   set_block(
