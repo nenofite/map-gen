@@ -283,12 +283,31 @@ let apply_tallgrass =
   );
 };
 
+let apply_sandstone = (args: Minecraft_converter.region_args) => {
+  let region = args.region;
+  Minecraft_converter.iter_blocks(region, (~x, ~z) => {
+    Minecraft.Region.(
+      Range.fold(0, block_per_chunk_vertical - 1, false, (below_is_air, y) => {
+        switch (get_block(~x, ~y, ~z, region)) {
+        | Air => true
+        | Sand when below_is_air =>
+          set_block(~x, ~y, ~z, Sandstone, region);
+          false;
+        | _ => false
+        }
+      })
+      |> ignore
+    )
+  });
+};
+
 let apply_region = (biomes, (), args: Minecraft_converter.region_args) => {
   apply_ground_cover(biomes, args);
   apply_trees(biomes, args);
   apply_flowers(biomes, args);
   apply_cactus(biomes, args);
   apply_tallgrass(biomes, args);
+  apply_sandstone(args);
 };
 
 let overlay = (biomes: Grid_compat.t(Biome_overlay.biome)): Overlay.monad(t) =>
