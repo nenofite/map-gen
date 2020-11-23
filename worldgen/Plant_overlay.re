@@ -42,12 +42,7 @@ let apply_trees =
   );
 };
 
-let is_opaque_or_water = b =>
-  switch (b) {
-  | Minecraft.Block.Water
-  | Flowing_water(_) => true
-  | _ => Minecraft.Block.is_opaque(b)
-  };
+let is_opaque_or_water = b => Minecraft.Block.(is_wet(b) || is_opaque(b));
 
 let apply_ground_cover =
     (

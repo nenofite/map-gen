@@ -2,23 +2,37 @@ open Core_kernel
 
 let torch_light_level = 14
 
+(* Common blocks that take memory *)
+let dry_fence = Minecraft.Block.Oak_fence Dry
+let waterlogged_fence = Minecraft.Block.Oak_fence Waterlogged
+
 (* Helpers *)
 let is_air = function
   | Minecraft.Block.Air -> true
   | _ -> false
 
 let is_air_opt = function
-  | Some Minecraft.Block.Air -> true
+  | Some block  -> is_air block
+  | _ -> false
+
+let is_water = function
+  | Minecraft.Block.Water | Flowing_water _ -> true
+  | _ -> false
+
+let is_water_opt = function
+  | Some block -> is_water block
   | _ -> false
 
 let is_solid = Minecraft.Block.is_solid
 
+let is_opaque = Minecraft.Block.is_opaque
+
 let is_solid_opt = function
-  | Some b when is_solid b -> true
+  | Some b -> is_solid b
   | _ -> false
 
 module Preference = struct
-  type t = Wall | Flat | Lowest
+  type t = Wall | Torch_with_space | Torch_no_space | Water_post | Untorchable
   [@@deriving eq, ord, sexp]
 
   let is_wall_at ~x ~y ~z region = (
@@ -30,34 +44,58 @@ module Preference = struct
   (** tries preferences from most to least preferred and returns the first
       which can be applied here. The coord is that of the Air above a solid
       block. *)
-  let highest_preference_at ~x ~y ~z region = (
+  let highest_land_preference_at ~x ~y ~z region = (
     let open Minecraft.Region in
         (*
         - X
         = X
         X
         *)
-    if is_air_opt (get_block_opt ~x ~y:(y + 1) ~z region) && (
-        is_wall_at ~x ~y ~z:(z - 1) region ||
+    if is_air_opt (get_block_opt ~x ~y:(y + 1) ~z region) &&
+       (is_wall_at ~x ~y ~z:(z - 1) region ||
         is_wall_at ~x:(x - 1) ~y ~z region ||
         is_wall_at ~x ~y ~z:(z + 1) region ||
-        is_wall_at ~x:(x + 1) ~y ~z region
-      )
+        is_wall_at ~x:(x + 1) ~y ~z region)
     then Wall
     (*
     - = -
       X
     *)
-    else if is_air_opt (get_block_opt ~x ~y ~z:(z - 1) region) &&
-            is_air_opt (get_block_opt ~x:(x + 1) ~y ~z:(z - 1) region) &&
-            is_air_opt (get_block_opt ~x:(x + 1) ~y ~z region) &&
-            is_air_opt (get_block_opt ~x:(x + 1) ~y ~z:(z + 1) region) &&
-            is_air_opt (get_block_opt ~x ~y ~z:(z + 1) region) &&
-            is_air_opt (get_block_opt ~x:(x - 1) ~y ~z:(z + 1) region) &&
-            is_air_opt (get_block_opt ~x:(x - 1) ~y ~z region) &&
-            is_air_opt (get_block_opt ~x:(x - 1) ~y ~z:(z - 1) region)
-    then Flat
-    else Lowest
+    else if Range.for_all (z - 1) (z + 1) (fun z ->
+        Range.for_all (x - 1) (x + 1) (fun x ->
+            is_air_opt (get_block_opt ~x ~y ~z region)
+          )
+      )
+    then Torch_with_space
+    (*
+    =
+    X
+    *)
+    else Torch_no_space
+  )
+
+  let highest_water_preference_at ~x ~y ~z region = (
+    let open Minecraft.Region in
+    (*
+    =
+    i
+    ~
+    X
+    *)
+    if is_air_opt (get_block_opt ~x ~y:(y + 1) ~z region) &&
+       is_air_opt (get_block_opt ~x ~y:(y + 2) ~z region)
+    then Water_post
+    else Untorchable
+  )
+
+  let highest_preference_at ~x ~y ~z region = (
+    let open Minecraft.Region in
+    let surface = get_block_opt ~x ~y ~z region in
+    if is_water_opt surface
+    then highest_water_preference_at ~x ~y ~z region
+    else if is_air_opt surface
+    then highest_land_preference_at ~x ~y ~z region
+    else Untorchable
   )
 
   (** attempts to apply this preference. Returns the coord that a torch was
@@ -80,9 +118,15 @@ module Preference = struct
         set_block_opt (Wall_torch E) ~x ~y:(y + 1) ~z region;
         torch_coord
       ) else None
-    | Flat | Lowest ->
+    | Torch_with_space | Torch_no_space ->
       set_block Torch ~x ~y ~z region;
       Some (x, y, z)
+    | Water_post ->
+      set_block_opt waterlogged_fence ~x ~y ~z region;
+      set_block_opt dry_fence ~x ~y:(y + 1) ~z region;
+      set_block_opt Torch ~x ~y:(y + 2) ~z region;
+      Some (x, y + 2, z)
+    | Untorchable -> None
   )
 end
 
@@ -152,7 +196,7 @@ let illuminate ?(min_brightness = 8) ~volume region = (
         let below = get_block_opt ~x ~y:(y - 1) ~z region in
         match here, below with
         | (Torch | Wall_torch _), _ -> (xyz :: torches, surfaces)
-        | here, Some below when is_solid below && is_air here -> 
+        | here, Some below when is_solid below && is_opaque below && (is_air here || is_water here) -> 
           let preference = Preference.highest_preference_at ~x ~y ~z region in
           let priority = Priority.with_random preference in
           (torches, (priority, xyz) :: surfaces)

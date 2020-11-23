@@ -37,6 +37,11 @@ type slab_type =
   | Double;
 
 [@deriving (eq, bin_io)]
+type waterlogged =
+  | Dry
+  | Waterlogged;
+
+[@deriving (eq, bin_io)]
 type axis =
   | X
   | Y
@@ -490,7 +495,7 @@ type material =
   | Oak_button
   | Oak_door(dir, door_part)
   | Oak_fence_gate
-  | Oak_fence
+  | Oak_fence(waterlogged)
   | Oak_leaves
   | Oak_log(axis)
   | Oak_planks
@@ -1280,7 +1285,7 @@ let namespace =
   | Oak_button => "minecraft:oak_button"
   | Oak_door(_, _) => "minecraft:oak_door"
   | Oak_fence_gate => "minecraft:oak_fence_gate"
-  | Oak_fence => "minecraft:oak_fence"
+  | Oak_fence(_) => "minecraft:oak_fence"
   | Oak_leaves => "minecraft:oak_leaves"
   | Oak_log(_) => "minecraft:oak_log"
   | Oak_planks => "minecraft:oak_planks"
@@ -1616,6 +1621,17 @@ let string_of_axis =
   | Y => "y"
   | Z => "z";
 
+let data_of_waterlogged = w =>
+  Nbt.Node.(
+    "waterlogged"
+    >: String(
+         switch (w) {
+         | Dry => "false"
+         | Waterlogged => "true"
+         },
+       )
+  );
+
 let data = block => {
   open Nbt.Node;
   let properties =
@@ -1632,6 +1648,7 @@ let data = block => {
              },
            ),
       ]
+    | Oak_fence(waterlogged) => [data_of_waterlogged(waterlogged)]
     | Oak_log(axis) => ["axis" >: String(string_of_axis(axis))]
     | Orange_bed(dir, part) => [
         "facing" >: String(string_of_dir(dir)),
@@ -1751,8 +1768,10 @@ let is_transparent =
   | Grass
   | Torch
   | Wall_torch(_)
-  /* TODO other doors */
+  | Bell
+  /* TODO other woods */
   | Oak_door(_, _)
+  | Oak_fence(_)
   | Dandelion
   | Poppy
   | Blue_orchid
@@ -1772,3 +1791,11 @@ let is_transparent =
   | _ => false;
 
 let is_opaque = b => !is_transparent(b);
+
+/** whether this block is water or waterlogged */
+let is_wet =
+  fun
+  | Water
+  | Flowing_water(_)
+  | Oak_fence(Waterlogged) => true
+  | _ => false;
