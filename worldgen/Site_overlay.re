@@ -16,7 +16,10 @@ let prepare = (canon: Canonical_overlay.t, cavern: Cavern_overlay.t, ()) => {
       let y = int_of_float(yf);
       if (!(
             Grid.is_within(x, y, canon.obstacles)
-            && Grid.get(x, y, canon.obstacles)
+            && !
+                 Canonical_overlay.can_build_on(
+                   Grid.get(x, y, canon.obstacles),
+                 )
           )) {
         switch (Grid_compat.at(cavern, x, y)) {
         | {floor_elev, ceiling_elev}

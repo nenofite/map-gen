@@ -12,6 +12,7 @@ let apply_progress_view = (state: t) => {
   let (world, _canon) = state;
   let layer = Progress_view.push_layer();
   Progress_view.update(
+    ~fit=(0, world.Grid.side, 0, world.Grid.side),
     ~draw_dense=Progress_view_helper.dense(River.colorize),
     ~state=world,
     layer,
@@ -19,34 +20,60 @@ let apply_progress_view = (state: t) => {
   ();
 };
 
+let obstacle_of_tile = tile => {
+  Canonical_overlay.(
+    if (tile.River.Tile.ocean) {
+      Impassable;
+    } else if (tile.river) {
+      Bridgeable;
+    } else {
+      Clear;
+    }
+  );
+};
+
 let extract_canonical = (grid: Grid.t(tile)) =>
   Canonical_overlay.{
     side: grid.side,
     elevation: Grid_compat.map(grid, (_x, _y, tile) => tile.elevation),
-    obstacles:
-      Obstacles.map(grid, ~f=tile => River.(tile.river || tile.ocean)),
+    obstacles: Obstacles.map(grid, ~f=obstacle_of_tile),
   };
 
-let prepare = () => {
-  module Pvh = Progress_view_helper;
+let prepare = (side, ()) => {
+  module Pvh = Progress_view_helper.Make(Grid.Mut.Intf);
   let layer = Progress_view.push_layer();
-  let s =
-    Phase_chain.(
-      run_all(
-        Tectonic.phase
-        @> Heightmap.phase
-        @> Pvh.phase(~title="height", layer, Heightmap.colorize)
-        @> Draw.phase("grid-height.png", Heightmap.colorize)
-        @> River.phase
-        @> Pvh.phase(~title="river", layer, River.colorize)
-        @> Draw.phase("grid-river.png", River.colorize)
-        @> Sites.phase
-        @> Pvh.phase(~title="sites", layer, River.colorize)
-        @> Draw.phase("grid-sites.png", River.colorize),
-      )
-    );
+
+  let grid = Tectonic.phase(side);
+  let grid = Heightmap.phase(grid);
+  Pvh.update_with_colorize(
+    ~title="height",
+    ~colorize=Heightmap.colorize,
+    grid,
+    layer,
+  );
+  let grid = River.phase(grid, ~alloc_side=Grid.Mut.side(grid) * 4);
+  Pvh.update_with_colorize(
+    ~title="river",
+    ~colorize=River.colorize,
+    grid,
+    layer,
+  );
+  let grid = Sites.phase(grid);
+  Pvh.update_with_colorize(
+    ~title="sites",
+    ~colorize=River.colorize,
+    grid,
+    layer,
+  );
+  Draw.draw_griddable(
+    Grid.Mut.intf0(grid),
+    ~f=River.colorize,
+    ~file="grid-river.bmp",
+    grid,
+  );
   Progress_view.remove_layer(layer);
-  (s, extract_canonical(s));
+  let grid = River.Tile.Grid.of_mut(grid);
+  (grid, extract_canonical(grid));
 };
 
 let apply_region = (state: t, args: Minecraft_converter.region_args) => {
@@ -82,11 +109,11 @@ let apply_region = (state: t, args: Minecraft_converter.region_args) => {
   );
 };
 
-let overlay: Overlay.monad(t) =
+let overlay = (side): Overlay.monad(t) =>
   Overlay.make(
     "base",
     ~apply_progress_view,
-    prepare,
+    prepare(side),
     apply_region,
     bin_reader_t,
     bin_writer_t,

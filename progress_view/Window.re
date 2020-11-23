@@ -4,7 +4,7 @@ type t = {
   height: int,
 };
 
-let make_window = (~pixels_per_tile=2, ~width=400, ~height=300, ()) => {
+let make_window = (~pixels_per_tile=2, ~width=400, ~height=400, ()) => {
   let w = {pixels_per_tile, width, height};
   open Graphics;
   open_graph(
@@ -25,11 +25,13 @@ let close_window = (_w: t) => {
 
 let update =
     (
+      ~zoom: int,
       ~center_x: int,
       ~center_z: int,
       title: string,
       draw_tiles:
         (
+          ~zoom: int,
           ~x: (int, int),
           ~z: (int, int),
           (int, int, (int, int, int)) => unit
@@ -38,30 +40,35 @@ let update =
       w: t,
     ) => {
   open Graphics;
+  let tiles_width = w.width * zoom;
+  let tiles_height = w.height * zoom;
   let wwidth = w.width * w.pixels_per_tile;
   let wheight = w.height * w.pixels_per_tile;
-  let min_x = center_x - w.width / 2;
-  let min_z = center_z - w.height / 2;
-  let max_x = min_x + w.width;
-  let max_z = min_z + w.height;
+  let min_x = center_x - tiles_width / 2;
+  let min_z = center_z - tiles_height / 2;
+  let max_x = min_x + tiles_width;
+  let max_z = min_z + tiles_height;
   set_color(black);
   fill_rect(0, 0, wwidth, wheight);
 
   let draw_tile = (x, z, (r, g, b)) => {
-    let wx = (x - min_x) * w.pixels_per_tile;
-    let wy = (z - min_z) * w.pixels_per_tile;
+    let wx = (x - min_x) / zoom * w.pixels_per_tile;
+    /* In Minecraft, increasing Z moves south, whereas in Graphics increasing Y
+     * moves up. So we reverse the vertical axis when drawing: */
+    let wy = (max_z - z) / zoom * w.pixels_per_tile;
     set_color(rgb(r, g, b));
     fill_rect(wx, wy, w.pixels_per_tile, w.pixels_per_tile);
   };
 
-  draw_tiles(~x=(min_x, max_x), ~z=(min_z, max_z), draw_tile);
+  draw_tiles(~zoom, ~x=(min_x, max_x), ~z=(min_z, max_z), draw_tile);
   set_window_title(title);
   synchronize();
 };
 
 let manual_test = () => {
   let w = make_window();
-  let draw = (~x as (min_x, max_x), ~z as (min_z, max_z), set_coord) => {
+  let draw =
+      (~zoom as _, ~x as (min_x, max_x), ~z as (min_z, max_z), set_coord) => {
     for (z in min_z to max_z) {
       for (x in min_x to max_x) {
         if (x mod 3 == 0) {
@@ -73,6 +80,6 @@ let manual_test = () => {
       };
     };
   };
-  update(~center_x=200, ~center_z=200, "howdy", draw, w);
+  update(~zoom=1, ~center_x=200, ~center_z=200, "howdy", draw, w);
   ();
 };

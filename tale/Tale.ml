@@ -27,6 +27,7 @@ let rec print_indents i =
 let print_line s =
   print_indents (current_indents ());
   print_endline s;
+  Out_channel.flush stdout;
   mark_level_needs_closer ()
 
 let pop_level () =

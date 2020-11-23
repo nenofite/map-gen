@@ -135,11 +135,12 @@ let obstacles_of_balls balls (canon : Canonical_overlay.t) =
 ;;
 
 let update_canon caves (canon : Canonical_overlay.t) = (
+  let open Canonical_overlay in
   let obstacles =
-    List.fold caves ~init:(Grid.make ~side:canon.side false) ~f: (fun obs cave ->
-        Sparse_grid.map (obstacles_of_balls cave canon) (fun _ () -> true) |>
-        Sparse_grid.to_grid ~default:false |>
-        Canonical_overlay.add_obstacles ~onto: obs
+    List.fold caves ~init:(Grid.make ~side:canon.side Clear) ~f: (fun obs cave ->
+        Sparse_grid.map (obstacles_of_balls cave canon) (fun _ () -> Impassable) |>
+        Sparse_grid.to_grid ~default:Clear |>
+        add_obstacles ~onto: obs
       )
   in
   Canonical_overlay.make_delta ~obstacles:(`Add obstacles) ()
@@ -160,7 +161,9 @@ let transform_and_wiggle start joints =
 
 let has_no_collisions cave canon =
   Sparse_grid.for_all (obstacles_of_balls cave canon) (fun (x, z) () ->
-      not (Grid.get x z canon.obstacles)
+      match Grid.get x z canon.obstacles with
+      | Clear -> true
+      | Bridgeable | Impassable -> false
     )
 
 (* let intersection = Canonical_overlay.Obstacles.zip_map

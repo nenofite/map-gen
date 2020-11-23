@@ -36,6 +36,12 @@ type biome =
 [@deriving bin_io]
 type t = (Grid.t(biome), Canonical_overlay.delta);
 
+module Biome_grid =
+  Grid.Make0({
+    type t = biome;
+    let (==) = equal_biome;
+  });
+
 let colorize =
   fun
   | Mid(Plain(_)) => 0x86A34D
@@ -72,123 +78,120 @@ let random_flower = () => {
 
 let random_cactus = () => {percentage: Random.int_incl(10, 100)};
 
-let prepare_mid = side => {
-  /* Start with a point cloud then subdivide a couple times */
-  let r = 16;
-  let cloud =
-    Point_cloud.init(~side=side / r, ~spacing=32, (_x, _y) =>
-      switch (/* TODO */ Caml.Random.int(10)) {
-      | 0
-      | 1
-      | 2
-      | 3
-      | 4 => Plain(random_flower())
-      | 5
-      | 6
-      | 7 => Forest(random_flower())
-      | 8
-      | _ => Desert(random_cactus())
-      }
-    );
+let prepare_mid = side =>
+  Tale.block("Prepare mid biomes", ~f=() => {
+    /* Start with a point cloud then subdivide a couple times */
+    let r = 16;
+    let cloud =
+      Point_cloud.init(~side=side / r, ~spacing=32, (_x, _y) =>
+        switch (Random.int(10)) {
+        | 0
+        | 1
+        | 2
+        | 3
+        | 4 => Plain(random_flower())
+        | 5
+        | 6
+        | 7 => Forest(random_flower())
+        | 8
+        | _ => Desert(random_cactus())
+        }
+      );
 
-  Phase_chain.(
-    run_all(
-      phase("Init mid biomes", () =>
-        Grid_compat.init(side / r, (x, y) =>
-          Point_cloud.nearest(cloud, float_of_int(x), float_of_int(y))
-        )
-      )
-      @> phase_repeat(
-           4,
-           "Subdivide",
-           Subdivide.subdivide_with_fill(_, Fill.(line() **> random)),
-         ),
-    )
-  );
-};
+    Tale.log("Init");
+    let empty_val = Plain({block: Minecraft.Block.Air, percentage: 0});
+    let grid =
+      Grid.Mut.init(~side=side / r, ~alloc_side=side, empty_val, ~f=(~x, ~z) => {
+        Point_cloud.nearest(cloud, float_of_int(x), float_of_int(z))
+      });
+    let fill = Fill.(line() **> random);
+    for (i in 1 to 4) {
+      Tale.logf("Subdivide %d", i);
+      Subdivide_mut.subdivide_with_fill(grid, ~fill);
+    };
+    grid;
+  });
 
-let prepare_shore = side => {
-  /* Start with a point cloud then subdivide a couple times */
-  let r = 16;
-  let cloud =
-    Point_cloud.init(~side=side / r, ~spacing=32, (_x, _y) =>
-      switch (/* TODO */ Caml.Random.int(3)) {
-      | 0 => Sand
-      | 1 => Gravel
-      | _ => Clay
-      }
-    );
+let prepare_shore = side =>
+  Tale.block("Prepare shore biomes", ~f=() => {
+    /* Start with a point cloud then subdivide a couple times */
+    let r = 16;
+    let cloud =
+      Point_cloud.init(~side=side / r, ~spacing=32, (_x, _y) =>
+        switch (Random.int(3)) {
+        | 0 => Sand
+        | 1 => Gravel
+        | _ => Clay
+        }
+      );
 
-  Phase_chain.(
-    run_all(
-      phase("Init shore biomes", () =>
-        Grid_compat.init(side / r, (x, y) =>
-          Point_cloud.nearest(cloud, float_of_int(x), float_of_int(y))
-        )
-      )
-      @> phase_repeat(
-           4,
-           "Subdivide",
-           Subdivide.subdivide_with_fill(_, Fill.(line() **> random)),
-         ),
-    )
-  );
-};
+    Tale.log("Init");
+    let grid =
+      Grid.Mut.init(~side=side / r, ~alloc_side=side, Sand, ~f=(~x, ~z) =>
+        Point_cloud.nearest(cloud, float_of_int(x), float_of_int(z))
+      );
+    let fill = Fill.(line() **> random);
+    for (i in 1 to 4) {
+      Tale.logf("Subdivide %d", i);
+      Subdivide_mut.subdivide_with_fill(grid, ~fill);
+    };
+    assert(Grid.Mut.side(grid) == side);
+    grid;
+  });
 
-let prepare_high = side => {
-  /* Start with a point cloud then subdivide a couple times */
-  let r = 16;
-  let cloud =
-    Point_cloud.init(~side=side / r, ~spacing=32, (_x, _y) =>
-      switch (/* TODO */ Caml.Random.int(3)) {
-      | 0 => Pine_forest
-      | 1 => Barren
-      | _ => Snow
-      }
-    );
+let prepare_high = side =>
+  Tale.block("Init high biomes", ~f=() => {
+    /* Start with a point cloud then subdivide a couple times */
+    let r = 16;
+    let cloud =
+      Point_cloud.init(~side=side / r, ~spacing=32, (_x, _y) =>
+        switch (Random.int(3)) {
+        | 0 => Pine_forest
+        | 1 => Barren
+        | _ => Snow
+        }
+      );
 
-  Phase_chain.(
-    run_all(
-      phase("Init high biomes", () =>
-        Grid_compat.init(side / r, (x, y) =>
-          Point_cloud.nearest(cloud, float_of_int(x), float_of_int(y))
-        )
-      )
-      @> phase_repeat(
-           4,
-           "Subdivide",
-           Subdivide.subdivide_with_fill(_, Fill.(line() **> random)),
-         ),
-    )
-  );
-};
+    let grid =
+      Grid.Mut.init(
+        ~side=side / r, ~alloc_side=side, Pine_forest, ~f=(~x, ~z) => {
+        Point_cloud.nearest(cloud, float_of_int(x), float_of_int(z))
+      });
+    let fill = Fill.(line() **> random);
+    for (i in 1 to 4) {
+      Tale.logf("Subdivide %d", i);
+      Subdivide_mut.subdivide_with_fill(grid, ~fill);
+    };
+    grid;
+  });
 
-let zip_biomes =
-    (base: Grid_compat.t(Base_overlay.tile), ~mid, ~shore, ~high) => {
-  let all_biomes = Grid_compat.zip(mid, Grid_compat.zip(shore, high));
-  Grid_compat.zip_map(
-    base,
-    all_biomes,
-    (base, (mid, (shore, high))) => {
-      let elevation = base.elevation;
-      if (base.river || base.ocean || elevation <= Heightmap.sea_level + 2) {
-        Shore(shore);
+let zip_biomes = (base: Grid.t(Base_overlay.tile), ~mid, ~shore, ~high) => {
+  Biome_grid.init(
+    ~side=base.Grid.side,
+    ((x, z)) => {
+      let here_base = Grid.get(x, z, base);
+      let elevation = here_base.elevation;
+      if (here_base.river
+          || here_base.ocean
+          || elevation <= Heightmap.sea_level
+          + 2) {
+        Shore(Grid.Mut.get(~x, ~z, shore));
       } else if (elevation >= Heightmap.mountain_level - 20) {
         /* TODO use some sort of interp for mid-high cutoff, instead of flat line */
         High(
-          high,
+          Grid.Mut.get(~x, ~z, high),
         );
       } else {
-        Mid(mid);
+        Mid(Grid.Mut.get(~x, ~z, mid));
       };
     },
   );
 };
 
-let has_obstacle = (dirt, biome) => {
+let get_obstacle = (dirt, biome) => {
   switch (biome) {
-  | Mid(Desert(_)) => dirt == 0
-  | _ => false
+  | Mid(Desert(_)) => dirt == 0 ? Canonical_overlay.Impassable : Clear
+  | _ => Clear
   };
 };
 
@@ -210,7 +213,7 @@ let prepare =
       )
     );
   let biome_obstacles =
-    Canonical_overlay.Obstacles.zip_map(dirt, biomes, ~f=has_obstacle);
+    Canonical_overlay.Obstacles.zip_map(dirt, biomes, ~f=get_obstacle);
   let canond =
     Canonical_overlay.make_delta(~obstacles=`Add(biome_obstacles), ());
   (biomes, canond);

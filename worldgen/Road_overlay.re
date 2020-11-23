@@ -55,7 +55,8 @@ let edge_cost = (canon: Canonical_overlay.t, (ax, ay), (bx, by)) => {
   let a_elev = Grid_compat.at(canon.elevation, ax, ay);
   let b_elev = Grid_compat.at(canon.elevation, bx, by);
   let elev_diff = abs(a_elev - b_elev);
-  let b_obs = Grid.get(bx, by, canon.obstacles);
+  let b_obs =
+    !Canonical_overlay.can_build_on(Grid.get(bx, by, canon.obstacles));
   if (!b_obs && elev_diff <= 1) {
     Some(Mg_util.Floats.(~.elev_diff +. 1.));
   } else {
@@ -63,7 +64,8 @@ let edge_cost = (canon: Canonical_overlay.t, (ax, ay), (bx, by)) => {
   };
 };
 
-let heighten_road = (roads, x, y, up_to_niceness, up_to_elevation) => {
+let heighten_road =
+    (~get_obstacle, roads, x, y, up_to_niceness, up_to_elevation) => {
   switch (Sparse_grid.at(roads, x, y)) {
   | Some({elevation, niceness})
       when elevation < up_to_elevation || Niceness.(niceness < up_to_niceness) =>
@@ -77,12 +79,17 @@ let heighten_road = (roads, x, y, up_to_niceness, up_to_elevation) => {
     );
   | Some(_) => roads
   | None =>
-    Sparse_grid.put(
-      roads,
-      x,
-      y,
-      {elevation: up_to_elevation, niceness: up_to_niceness},
-    )
+    switch (get_obstacle(~x, ~z=y)) {
+    | Canonical_overlay.Impassable
+    | Bridgeable => roads
+    | Clear =>
+      Sparse_grid.put(
+        roads,
+        x,
+        y,
+        {elevation: up_to_elevation, niceness: up_to_niceness},
+      )
+    }
   };
 };
 
@@ -90,7 +97,7 @@ let heighten_road = (roads, x, y, up_to_niceness, up_to_elevation) => {
   widen_path makes Paved roads three blocks wide. Each block is the highest
   elevation and nicest niceness of any road it touches.
  */
-let widen_road = (roads: Sparse_grid.t(road)) => {
+let widen_road = (~get_obstacle, roads: Sparse_grid.t(road)) => {
   Sparse_grid.fold(
     roads,
     ((x, y), road, widened_roads) => {
@@ -100,7 +107,14 @@ let widen_road = (roads: Sparse_grid.t(road)) => {
       | Paved =>
         Grid_compat.eight_directions
         |> List.fold_left(~init=widened_roads, ~f=(roads, (dx, dy)) =>
-             heighten_road(roads, x + dx, y + dy, niceness, elevation)
+             heighten_road(
+               ~get_obstacle,
+               roads,
+               x + dx,
+               y + dy,
+               niceness,
+               elevation,
+             )
            )
       };
     },
@@ -142,16 +156,18 @@ let rec add_road_to_grid = (roads: Sparse_grid.t(road), path) =>
   };
 
 let place_road =
-    (canon: Canonical_overlay.t, roads: Sparse_grid.t(road), path) => {
+    (_canon: Canonical_overlay.t, roads: Sparse_grid.t(road), path) => {
   /* Add elevations */
   let path =
-    List.map(
-      path,
-      ~f=((x, y)) => {
-        let elevation = Grid_compat.at(canon.elevation, x, y);
-        (x, y, {elevation, niceness: Paved /* TODO */});
-      },
-    );
+    List.filter_map(path, ~f=(Bridge_pathing.{x, y, z, bridge}) => {
+      switch (bridge) {
+      | No_bridge => Some((x, z, {elevation: y, niceness: Paved /* TODO */}))
+      | Ns_bridge
+      | Ew_bridge =>
+        Tale.logf("bridge at %d, %d", x, z);
+        None;
+      }
+    });
   /* Add to grid */
   add_road_to_grid(roads, path);
 };
@@ -176,7 +192,7 @@ let goalf_of_poi = ((poi_x, poi_z)) => {
   let min_z = poi_z - side / 2;
   let max_x = min_x + side - 1;
   let max_z = min_z + side - 1;
-  ((x, z)) => min_x <= x && x <= max_x && min_z <= z && z <= max_z;
+  (~x, ~z) => min_x <= x && x <= max_x && min_z <= z && z <= max_z;
 };
 
 let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
@@ -184,36 +200,49 @@ let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
   Tale.log("Making points of interest");
   let pois = List.map(~f=poi_of_town, towns);
   /* Run A* to go from each point to each other point */
-  let roads = Sparse_grid.make(canon.side);
-  let poi_pairs = all_pairs(pois, []) |> Mg_util.take(100, _);
+  let poi_pairs = all_pairs(pois, []) |> Mg_util.take(1000, _);
+
   Tale.log("Pathfinding roads");
+  let get_elevation = (~x, ~z) => Grid.get(x, z, canon.elevation);
+  let get_obstacle = (~x, ~z) => Grid.get(x, z, canon.obstacles);
+  module Cs = Bridge_pathing.Coord.Set;
   let roads =
-    List.fold_left(poi_pairs, ~init=roads, ~f=(roads, (start, goal)) => {
-      switch (
-        A_star.run_multi(
-          ~grid_side=canon.side,
-          ~starts=starts_of_poi(start),
-          ~goalf=goalf_of_poi(goal),
-          ~edge_cost=edge_cost(canon),
-          ~heuristic=heuristic(canon, goal),
-        )
-      ) {
-      | Some(path) =>
-        Tale.log("found a road");
-        place_road(canon, roads, path); /* Add the path to the grid */
-      | None =>
-        Tale.log("couldn't find road");
-        roads;
-      }
-    });
+    List.fold_left(
+      poi_pairs,
+      ~init=Cs.empty,
+      ~f=(roads, (start, goal)) => {
+        let has_existing_road = coord => Cs.mem(roads, coord);
+        switch (
+          Bridge_pathing.pathfind_road(
+            ~get_elevation,
+            ~get_obstacle,
+            ~has_existing_road,
+            ~start_coords=starts_of_poi(start),
+            ~goal_pred=goalf_of_poi(goal),
+            ~goal_coord=goal,
+          )
+        ) {
+        | Some(path) =>
+          Tale.log("found a road");
+          List.fold(path, ~init=roads, ~f=Cs.add);
+        | None =>
+          Tale.log("couldn't find road");
+          roads;
+        };
+      },
+    );
+  let roads =
+    place_road(canon, Sparse_grid.make(canon.side), Cs.to_list(roads));
   Tale.log("Widening roads and adding steps");
-  let roads = widen_road(roads);
+  let roads = widen_road(~get_obstacle, roads);
   let roads = add_steps(roads);
   Tale.log("Drawing");
   Draw.draw_sparse_grid(colorizer, "roads.png", roads);
   let obstacles =
-    Sparse_grid.(map(roads, (_, _) => true) |> to_grid(~default=false));
-  /* TODO: add "stairs" to large increases in elev */
+    Sparse_grid.(
+      map(roads, (_, _) => Canonical_overlay.Impassable)
+      |> to_grid(~default=Canonical_overlay.Clear)
+    );
   (
     {pois, roads},
     Canonical_overlay.make_delta(~obstacles=`Add(obstacles), ()),

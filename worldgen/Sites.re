@@ -1,29 +1,25 @@
-type tile = River.tile;
+open Core_kernel;
 
-let touchup = (grid: Grid.t(tile)) => {
-  Grid_compat.map(
+module Tile = River.Tile;
+type tile = Tile.t;
+
+let touchup = (grid: Grid.Mut.t(tile)) => {
+  Grid.Mut.map(
     grid,
-    (_x, _y, here) => {
-      /* let here =
-         switch (here) {
-         | {river: true, elevation, _} as here => {
-             ...here,
-             elevation: elevation - 1,
-           }
-         | {river: false, _} as here => here
-         }; */
+    ~f=(~x as _, ~z as _, here) => {
       let here =
-        if (here.elevation <= Heightmap.sea_level) {
+        if (here.Tile.elevation <= Heightmap.sea_level) {
           {...here, ocean: true, river: false};
         } else {
           {...here, ocean: false};
         };
       here;
     },
-  );
+  )
+  |> ignore;
 };
 
-let fill = (~fill_diags=false, a: tile, b: tile, c: tile, d: tile): tile => {
+let fill = (~fill_diags, a: tile, b: tile, c: tile, d: tile): tile => {
   /* Elevation forms lines, otherwise is average */
   let elevation =
     switch (a.elevation == c.elevation, b.elevation == d.elevation) {
@@ -84,16 +80,16 @@ let fill = (~fill_diags=false, a: tile, b: tile, c: tile, d: tile): tile => {
   river.
  */
 
-let phase =
-  Phase_chain.(
-    phase(
-      "Subdivide into sites",
-      Subdivide.overwrite_subdivide_with_fill(_, fill(~fill_diags=true)),
-    )
-    @> phase_repeat(
-         1,
-         "Subdivide into sites",
-         Subdivide.overwrite_subdivide_with_fill(_, fill),
-       )
-    @> phase("Carve rivers down and touch-up ocean", touchup(_))
-  );
+let phase = m =>
+  Tale.block("Sites", ~f=() => {
+    Subdivide_mut.overwrite_subdivide_with_fill(
+      m,
+      ~fill=fill(~fill_diags=true),
+    );
+    Subdivide_mut.overwrite_subdivide_with_fill(
+      m,
+      ~fill=fill(~fill_diags=false),
+    );
+    touchup(m);
+    m;
+  });

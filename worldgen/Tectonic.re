@@ -54,13 +54,13 @@ let random_direction = () =>
   | _ => W
   };
 
-let generate = () => {
-  let size = 128;
+let generate = target_size => {
+  let size = target_size / 32;
   let next_id = ref(1);
   let continents =
     Point_cloud.init(
       ~side=size,
-      ~spacing=size / 5,
+      ~spacing=25,
       (_, _) => {
         let direction = random_direction();
         let is_ocean = Random.int(100) < 50;
@@ -71,7 +71,7 @@ let generate = () => {
     );
   let edge = {direction: S, is_ocean: true, id: 0};
   let plates =
-    Point_cloud.init(~side=size, ~spacing=size / 14, (x, y) => {
+    Point_cloud.init(~avoid_edges=true, ~side=size, ~spacing=8, (x, y) => {
       Point_cloud.nearest_with_edge(
         continents,
         edge,
@@ -107,10 +107,12 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
   );
 };
 
-let phase =
+let phase = side =>
   Phase_chain.(
-    phase("Generate tectonic plates", generate(_))
-    @> Draw.phase("plates.png", draw_intermediate)
-    @> phase("Convert", convert_intermediate(_))
-    @> phase_repeat(1, "Subdivide tectonic", Subdivide.subdivide)
+    run_all(
+      phase("Generate tectonic plates", () => generate(side))
+      @> Draw.phase("plates.png", draw_intermediate)
+      @> phase("Convert", convert_intermediate(_))
+      @> phase_repeat(1, "Subdivide tectonic", Subdivide.subdivide),
+    )
   );
