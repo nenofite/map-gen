@@ -7,7 +7,8 @@ type with_distances = {
 };
 
 let sea_level = 62;
-let mountain_level = 150;
+let mountain_level = 120;
+let max_slope_level = 100;
 
 let colorize = (tile: int): int => {
   let frac = float_of_int(tile) /. 200.;
@@ -46,23 +47,28 @@ let elevation_of_distances = (~alloc_side, grid: Grid.Mut.t(with_distances)) => 
       let here = Grid.Mut.get(~x, ~z, grid);
       let {tectonic, distance_to_ocean, distance_to_mountain} = here;
       switch (tectonic) {
-      | Ocean => 30 + Random.int(10) /* 30 - 40 */
-      | Mountain => mountain_level + Random.int(10) /* 150 - 160 */
+      | Ocean => 30 + Random.int(10)
+      | Mountain => mountain_level + Random.int(10)
       | Plain =>
-        /* 62 - 140 */
         let distance_to_ocean =
           if (distance_to_ocean != empty_distance) {
             distance_to_ocean;
           } else {
             1;
           };
-        if (distance_to_mountain != empty_distance) {
-          let fraction =
-            float_of_int(distance_to_ocean)
-            /. float_of_int(distance_to_ocean + distance_to_mountain);
-          sea_level + int_of_float(fraction *. 80.);
+        if (distance_to_ocean <= 1) {
+          /* shore lines level with the water */
+          sea_level;
         } else {
-          sea_level + min(distance_to_ocean, 80);
+          let variation = max_slope_level - sea_level;
+          if (distance_to_mountain != empty_distance) {
+            let fraction =
+              float_of_int(distance_to_ocean)
+              /. float_of_int(distance_to_ocean + distance_to_mountain);
+            sea_level + int_of_float(fraction *. Float.of_int(variation));
+          } else {
+            sea_level + min(distance_to_ocean, variation);
+          };
         };
       };
     },
