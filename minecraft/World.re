@@ -23,7 +23,13 @@ let level_dat = (~name, ~spawn, ~mode, ~generator) => {
     >: Compound([
          "Data"
          >: Compound([
-              "allowCommands" >: Byte(1),
+              "allowCommands"
+              >: Byte(
+                   switch (mode) {
+                   | Survival => 0
+                   | Creative => 1
+                   },
+                 ),
               "GameType"
               >: Int(
                    switch (mode) {
