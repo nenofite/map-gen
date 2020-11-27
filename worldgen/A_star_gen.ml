@@ -30,7 +30,7 @@ module Make (Score : Score) (Coord : Comparable.S) = struct
   let pathfind ~neighbors ~heuristic ~start_set ~goal ~max_iters = (
     let rec go ~closed_set ~open_set ~remaining_iters = (
       if remaining_iters <= 0 then (
-        Tale.log "Ran out of iterations";
+        Tale.logf "Exhausted all %d iterations" max_iters;
         None
       ) else (
         match Pq.extract open_set with
@@ -38,6 +38,7 @@ module Make (Score : Score) (Coord : Comparable.S) = struct
           Tale.log "Exhausted open set";
           None
         | (Some open_node), _open_set when goal open_node.coord ->
+          Tale.logf "Found path after %d iters" (max_iters - remaining_iters + 1);
           let closed_set = Coord.Map.add_exn ~key:open_node.coord ~data:open_node closed_set in
           Some (reconstruct_path ~goal_coord:open_node.coord ~closed_set)
         | (Some open_node), open_set ->
