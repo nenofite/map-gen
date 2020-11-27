@@ -60,18 +60,14 @@ let prepare = (side, ()) => {
     layer,
   );
   let grid = Sites.phase(grid);
+  assert(Grid.Mut.side(grid) == side);
   Pvh.update_with_colorize(
     ~title="sites",
     ~colorize=River.colorize,
     grid,
     layer,
   );
-  Draw.draw_griddable(
-    Grid.Mut.intf0(grid),
-    ~f=River.colorize,
-    ~file="grid-river.bmp",
-    grid,
-  );
+  Progress_view.save(~side=Grid.Mut.side(grid), "grid-river");
   Progress_view.remove_layer(layer);
   let grid = River.Tile.Grid.of_mut(grid);
   (grid, extract_canonical(grid));

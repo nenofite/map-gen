@@ -1,8 +1,6 @@
 open Core_kernel;
 
-type tile = int;
-
-type intermediate = {
+type with_distances = {
   tectonic: Tectonic.tile,
   distance_to_ocean: int,
   distance_to_mountain: int,
@@ -11,7 +9,7 @@ type intermediate = {
 let sea_level = 62;
 let mountain_level = 150;
 
-let colorize = (tile: tile): int => {
+let colorize = (tile: int): int => {
   let frac = float_of_int(tile) /. 200.;
   let frac = Float.(max(min(frac, 1.), 0.));
   let black = 0;
@@ -21,7 +19,7 @@ let colorize = (tile: tile): int => {
 
 let empty_distance = Int.max_value - 10;
 
-let convert = (tectonic: Grid.t(Tectonic.tile)) => {
+let empty_distances_of_tectonic = (tectonic: Grid.t(Tectonic.tile)) => {
   Grid.map_to_mut(tectonic, ~f=(~x as _, ~z as _, here) => {
     {
       tectonic: here,
@@ -39,7 +37,7 @@ let convert = (tectonic: Grid.t(Tectonic.tile)) => {
   });
 };
 
-let convert_intermediate = (~alloc_side, grid: Grid.Mut.t(intermediate)) => {
+let elevation_of_distances = (~alloc_side, grid: Grid.Mut.t(with_distances)) => {
   Grid.Mut.init(
     0,
     ~alloc_side,
@@ -204,17 +202,34 @@ let fill_avg = (a, b, c, d) => {
   new_elevation + Random.int(2);
 };
 
+let fill_weighted_avg = (a, b, c, d) => {
+  let elevations = [|a, b, c, d|];
+  Array.sort(~compare=Int.compare, elevations);
+  let lo_i = Random.int(3);
+  let hi_i = lo_i + 1;
+  let between = Random.float(1.0);
+  let new_elevation =
+    elevations[lo_i]
+    + int_of_float(
+        float_of_int(elevations[hi_i] - elevations[lo_i]) *. between,
+      );
+  new_elevation + Random.int(2);
+};
+
 let phase = tectonic =>
   Tale.block("Heightmap", ~f=() => {
-    let intermediate_grid = convert(tectonic);
-    spread_distances(intermediate_grid);
-    let grid =
-      convert_intermediate(
-        ~alloc_side=Grid.Mut.side(intermediate_grid) * 4,
-        intermediate_grid,
+    let distances_grid = empty_distances_of_tectonic(tectonic);
+    spread_distances(distances_grid);
+    let elevation_grid =
+      elevation_of_distances(
+        ~alloc_side=Grid.Mut.side(distances_grid) * 8,
+        distances_grid,
       );
-    for (_i in 1 to 2) {
-      Subdivide_mut.subdivide_with_fill(~fill=fill_avg, grid);
+    for (_i in 1 to 3) {
+      Subdivide_mut.overwrite_subdivide_with_fill(
+        ~fill=fill_avg,
+        elevation_grid,
+      );
     };
-    grid;
+    elevation_grid;
   });
