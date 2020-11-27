@@ -83,36 +83,26 @@ let prepare = (base, ()) => {
       ~min_deposit_size=1,
       ~max_deposit_size=9,
     );
-  let iron_low_density =
-    [40, 60, 80, 100, 120, 140, 160]
-    |> List.map(
-         elev =>
-           make_layer(
-             base,
-             ~ore=Minecraft.Block.Iron_ore,
-             ~min_density=0.03,
-             ~max_density=0.06,
-             ~depth=From_bedrock(elev, elev + 20),
-             ~min_deposit_size=1,
-             ~max_deposit_size=14,
-           ),
-         _,
-       );
-  let iron_high_density =
-    [10, 20, 30]
-    |> List.map(
-         elev =>
-           make_layer(
-             base,
-             ~ore=Minecraft.Block.Iron_ore,
-             ~min_density=0.1,
-             ~max_density=0.2,
-             ~depth=From_bedrock(elev, elev + 10),
-             ~min_deposit_size=1,
-             ~max_deposit_size=14,
-           ),
-         _,
-       );
+  let iron_surface =
+    make_layer(
+      base,
+      ~ore=Iron_ore,
+      ~min_density=0.01,
+      ~max_density=0.025,
+      ~depth=From_surface(0, 1),
+      ~min_deposit_size=2,
+      ~max_deposit_size=6,
+    );
+  let iron_deep =
+    make_layer(
+      base,
+      ~ore=Iron_ore,
+      ~min_density=1.,
+      ~max_density=1.,
+      ~depth=From_bedrock(30, 50),
+      ~min_deposit_size=14,
+      ~max_deposit_size=28,
+    );
   let lapis_lazuli =
     make_layer(
       base,
@@ -196,10 +186,25 @@ let prepare = (base, ()) => {
       ~min_deposit_size=1,
       ~max_deposit_size=33,
     );
-  [emerald, diamond, gold]
-  @ iron_low_density
-  @ iron_high_density
-  @ [lapis_lazuli, redstone, coal, granite, diorite, andesite, gravel, dirt];
+  /*
+   * generate the most rare elements first to reduce the risk of failed
+   * placement
+   */
+  [
+    emerald,
+    diamond,
+    gold,
+    lapis_lazuli,
+    redstone,
+    iron_surface,
+    iron_deep,
+    coal,
+    granite,
+    diorite,
+    andesite,
+    gravel,
+    dirt,
+  ];
 };
 
 let rec remove_i = (i, list) =>
