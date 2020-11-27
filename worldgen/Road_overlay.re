@@ -39,11 +39,12 @@ let colorizer =
   | None => 0
   | Some(_road) => 0xFFFFFF;
 
+/** [a,b,c] => [(a,b),(b,a), (a,c),(c,a), (b,c),(c,b)] */
 let rec all_pairs = (list, result) =>
   switch (list) {
   | [] => result
   | [a, ...list] =>
-    let result = List.map(list, ~f=b => (a, b)) @ result;
+    let result = List.concat_map(list, ~f=b => [(a, b), (b, a)]) @ result;
     all_pairs(list, result);
   };
 
@@ -203,7 +204,7 @@ let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
   /* Use a point cloud to get points of interest */
   Tale.log("Making points of interest");
   let pois = List.map(~f=poi_of_town, towns);
-  /* Run A* to go from each point to each other point */
+  /* Run A* to go from each point to each other point and again in reverse */
   let poi_pairs = all_pairs(pois, []) |> Mg_util.take(1000, _);
 
   Tale.log("Pathfinding roads");
