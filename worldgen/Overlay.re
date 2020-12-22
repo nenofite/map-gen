@@ -100,6 +100,11 @@ module Let_syntax = {
   let return = return;
 };
 
+module Infix = {
+  let ( let* ) = (x, f) => bind(x, ~f);
+  let return = return;
+};
+
 let prepare = (seed, monad) => {
   Caml.Random.init(seed);
   Random.init(seed);
