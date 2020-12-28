@@ -86,7 +86,7 @@ module Let_syntax = struct
 end
 
 module Infix = struct
-  let lhhh x f = bind x ~f
+  let ( let* ) x f = bind x ~f
 
   let return = return
 end
