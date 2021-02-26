@@ -26,8 +26,8 @@ type tile = Tile.t;
 let empty_tile = Tile.{elevation: 0, river: false, ocean: false};
 
 let min_river_length = 30;
-let min_source_elevation = 70;
-let max_source_elevation = 100;
+let min_source_elevation = Heightmap.mountain_level - 5;
+let max_source_elevation = Heightmap.mountain_level + 5;
 
 let colorize = (tile: tile): int => {
   let base = Heightmap.colorize(tile.elevation);

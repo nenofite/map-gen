@@ -40,27 +40,33 @@ let update =
       w: t,
     ) => {
   open Graphics;
-  let tiles_width = w.width * zoom;
-  let tiles_height = w.height * zoom;
-  let wwidth = w.width * w.pixels_per_tile;
-  let wheight = w.height * w.pixels_per_tile;
-  let min_x = center_x - tiles_width / 2;
-  let min_z = center_z - tiles_height / 2;
-  let max_x = min_x + tiles_width;
-  let max_z = min_z + tiles_height;
+  let view =
+    View.calculate(
+      ~zoom,
+      ~center_x,
+      ~center_z,
+      ~width=w.width,
+      ~height=w.height,
+      ~pixels_per_tile=w.pixels_per_tile,
+    );
   set_color(black);
-  fill_rect(0, 0, wwidth, wheight);
+  fill_rect(0, 0, view.wwidth, view.wheight);
 
-  let draw_tile = (x, z, (r, g, b)) => {
-    let wx = (x - min_x) / zoom * w.pixels_per_tile;
-    /* In Minecraft, increasing Z moves south, whereas in Graphics increasing Y
-     * moves up. So we reverse the vertical axis when drawing: */
-    let wy = (max_z - z) / zoom * w.pixels_per_tile;
-    set_color(rgb(r, g, b));
-    fill_rect(wx, wy, w.pixels_per_tile, w.pixels_per_tile);
-  };
+  let draw_tile =
+    View.apply_to_draw(
+      view,
+      ~draw=(~wx, ~wy, ~color as (r, g, b)) => {
+        set_color(rgb(r, g, b));
+        fill_rect(wx, wy, w.pixels_per_tile, w.pixels_per_tile);
+      },
+    );
 
-  draw_tiles(~zoom, ~x=(min_x, max_x), ~z=(min_z, max_z), draw_tile);
+  draw_tiles(
+    ~zoom,
+    ~x=(view.min_x, view.max_x),
+    ~z=(view.min_z, view.max_z),
+    draw_tile,
+  );
   set_window_title(title);
   synchronize();
 };

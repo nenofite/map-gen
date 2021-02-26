@@ -42,6 +42,8 @@ let apply_trees =
   );
 };
 
+let is_opaque_or_water = b => Minecraft.Block.(is_wet(b) || is_opaque(b));
+
 let apply_ground_cover =
     (
       biomes: Grid.t(Biome_overlay.biome),
@@ -53,7 +55,11 @@ let apply_ground_cover =
     region,
     (~x, ~z) => {
       open Minecraft.Region;
-      let y = height_at(region, ~x, ~z);
+      let y =
+        Option.value(
+          highest_such_block(region, ~x, ~z, is_opaque_or_water),
+          ~default=0,
+        );
       let top = get_block(region, ~x, ~y, ~z);
       let biome = Grid_compat.at(biomes, x, z);
       switch (biome, top) {
@@ -272,12 +278,31 @@ let apply_tallgrass =
   );
 };
 
+let apply_sandstone = (args: Minecraft_converter.region_args) => {
+  let region = args.region;
+  Minecraft_converter.iter_blocks(region, (~x, ~z) => {
+    Minecraft.Region.(
+      Range.fold(0, block_per_chunk_vertical - 1, false, (below_is_air, y) => {
+        switch (get_block(~x, ~y, ~z, region)) {
+        | Air => true
+        | Sand when below_is_air =>
+          set_block(~x, ~y, ~z, Sandstone, region);
+          false;
+        | _ => false
+        }
+      })
+      |> ignore
+    )
+  });
+};
+
 let apply_region = (biomes, (), args: Minecraft_converter.region_args) => {
   apply_ground_cover(biomes, args);
   apply_trees(biomes, args);
   apply_flowers(biomes, args);
   apply_cactus(biomes, args);
   apply_tallgrass(biomes, args);
+  apply_sandstone(args);
 };
 
 let overlay = (biomes: Grid_compat.t(Biome_overlay.biome)): Overlay.monad(t) =>

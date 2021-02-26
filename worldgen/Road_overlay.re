@@ -32,16 +32,19 @@ type x = {
 [@deriving bin_io]
 type t = (x, Canonical_overlay.delta);
 
+let town_goal_side = Town_prototype.side;
+
 let colorizer =
   fun
   | None => 0
   | Some(_road) => 0xFFFFFF;
 
+/** [a,b,c] => [(a,b),(b,a), (a,c),(c,a), (b,c),(c,b)] */
 let rec all_pairs = (list, result) =>
   switch (list) {
   | [] => result
   | [a, ...list] =>
-    let result = List.map(list, ~f=b => (a, b)) @ result;
+    let result = List.concat_map(list, ~f=b => [(a, b), (b, a)]) @ result;
     all_pairs(list, result);
   };
 
@@ -176,22 +179,24 @@ let poi_of_town = (town: Town_overlay.town) => {
   Town_prototype.(town.x + side / 2, town.z + side / 2);
 };
 
-let starts_of_poi = ((x, z)) => {
-  open Town_prototype;
-  let min_x = x - side / 2;
-  let min_z = z - side / 2;
-  let max_x = min_x + side - 1;
-  let max_z = min_z + side - 1;
-  Range.map(min_z, max_z, z => Range.map(min_x, max_x, x => (x, z)))
+let starts_of_poi = ((poi_x, poi_z)) => {
+  let min_x = poi_x - town_goal_side / 2;
+  let min_z = poi_z - town_goal_side / 2;
+  let max_x = min_x + town_goal_side - 1;
+  let max_z = min_z + town_goal_side - 1;
+  let g_score_at = (~x, ~z) =>
+    Int.((x - poi_x) ** 2 + (z - poi_z) ** 2) * Bridge_pathing.flat_ground_cost;
+  Range.map(min_z, max_z, z =>
+    Range.map(min_x, max_x, x => (x, z, g_score_at(~x, ~z)))
+  )
   |> List.concat;
 };
 
 let goalf_of_poi = ((poi_x, poi_z)) => {
-  open Town_prototype;
-  let min_x = poi_x - side / 2;
-  let min_z = poi_z - side / 2;
-  let max_x = min_x + side - 1;
-  let max_z = min_z + side - 1;
+  let min_x = poi_x - town_goal_side / 2;
+  let min_z = poi_z - town_goal_side / 2;
+  let max_x = min_x + town_goal_side - 1;
+  let max_z = min_z + town_goal_side - 1;
   (~x, ~z) => min_x <= x && x <= max_x && min_z <= z && z <= max_z;
 };
 
@@ -199,12 +204,24 @@ let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
   /* Use a point cloud to get points of interest */
   Tale.log("Making points of interest");
   let pois = List.map(~f=poi_of_town, towns);
-  /* Run A* to go from each point to each other point */
+  /* Run A* to go from each point to each other point and again in reverse */
   let poi_pairs = all_pairs(pois, []) |> Mg_util.take(1000, _);
 
   Tale.log("Pathfinding roads");
   let get_elevation = (~x, ~z) => Grid.get(x, z, canon.elevation);
   let get_obstacle = (~x, ~z) => Grid.get(x, z, canon.obstacles);
+  let get_obstacle_in_margin = (~margin, ~x, ~z) =>
+    Range.fold(z - margin, z + margin, Canonical_overlay.Clear, (obs, z) =>
+      Range.fold(
+        x - margin,
+        x + margin,
+        obs,
+        (obs, x) => {
+          let here_obs = get_obstacle(~x, ~z);
+          Canonical_overlay.Obstacle.max(obs, here_obs);
+        },
+      )
+    );
   module Cs = Bridge_pathing.Coord.Set;
   let roads =
     List.fold_left(
@@ -215,7 +232,7 @@ let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
         switch (
           Bridge_pathing.pathfind_road(
             ~get_elevation,
-            ~get_obstacle,
+            ~get_obstacle=get_obstacle_in_margin(~margin=3),
             ~has_existing_road,
             ~start_coords=starts_of_poi(start),
             ~goal_pred=goalf_of_poi(goal),

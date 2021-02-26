@@ -129,3 +129,25 @@ let fit = (~title=?, fit) => {
   apply_optionals(None, None, Some(fit), title);
   update_window();
 };
+
+let save = (~side, file) => {
+  open Images;
+  open OImages;
+  let s = unwrap_state();
+  let file = file ++ ".bmp";
+
+  let img = (new rgb24)(side, side);
+  Layer.draw_all_layers(
+    s.stack,
+    ~zoom=1,
+    ~x=(0, side),
+    ~z=(0, side),
+    (x, z, color) => {
+      let (r, g, b) = color;
+      img#set(x, z, {r, g, b});
+    },
+  );
+  img#save(file, Some(Bmp), []);
+  img#destroy;
+  ();
+};

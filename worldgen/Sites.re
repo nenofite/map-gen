@@ -29,7 +29,7 @@ let fill = (~fill_diags, a: tile, b: tile, c: tile, d: tile): tile => {
     | (false, false) =>
       (a.elevation + b.elevation + c.elevation + d.elevation) / 4
     };
-  let ocean = elevation <= Heightmap.sea_level;
+  let ocean = elevation < Heightmap.sea_level;
 
   /* River if opposing sides are river or ocean */
   let ar = a.river || a.ocean;
@@ -66,7 +66,7 @@ let fill = (~fill_diags, a: tile, b: tile, c: tile, d: tile): tile => {
       elevation;
     };
   /* Now that we've updated elevation, reconsider being an ocean */
-  let ocean = elevation <= Heightmap.sea_level;
+  let ocean = elevation < Heightmap.sea_level;
   let river = !ocean && river;
 
   {elevation, ocean, river};

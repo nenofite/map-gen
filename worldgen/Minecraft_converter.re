@@ -1,3 +1,5 @@
+open Core_kernel;
+
 /**
   region_params are the numerous arguments provided when generating a region
  */
@@ -9,6 +11,11 @@ type region_args = {
   gy_offset: int,
   gsize: int,
 };
+
+let region_of_spawn = ((x, _y, z)) => (
+  x / Minecraft.Region.block_per_region_side,
+  z / Minecraft.Region.block_per_region_side,
+);
 
 /**
   segment_grid_by_region divides the grid into squares such that each square
@@ -22,7 +29,7 @@ type region_args = {
   sub is an optional range of regions to limit the export, eg. ((2, 3), (1,
   1)) to export a 1x1 slice of regions starting with region r.2.3
  */
-let segment_grid_by_region = (~side: int, ~sub=?, f): unit => {
+let segment_grid_by_region = (~side: int, ~spawn, ~sub=?, f): unit => {
   let block_per_region = Minecraft.Region.block_per_region_side;
   /* The grid must split evenly into regions */
   if (side mod block_per_region != 0) {
@@ -39,9 +46,23 @@ let segment_grid_by_region = (~side: int, ~sub=?, f): unit => {
   Tale.logf("Grid divided into %dx%d regions", regions_side, regions_side);
   let ((min_rx, min_rz), (len_rx, len_rz)) =
     Option.value(sub, ~default=((0, 0), (regions_side, regions_side)));
+
+  /* List regions and sort by distance to spawn */
+  let (spawn_rx, spawn_rz) = region_of_spawn(spawn);
+  let dist_to_spawn = ((rx, rz)) =>
+    Int.((rx - spawn_rx) ** 2 + (rz - spawn_rz) ** 2);
+  let compare_by_spawn_dist = (a, b) =>
+    Int.compare(dist_to_spawn(a), dist_to_spawn(b));
+  let regions =
+    Range.fold(0, regions_side - 1, [], (acc, rz) =>
+      Range.fold(0, regions_side - 1, acc, (acc, rx) => [(rx, rz), ...acc])
+    )
+    |> List.sort(~compare=compare_by_spawn_dist);
+
   /* Iterate over the grid */
-  for (rx in 0 to pred(regions_side)) {
-    for (rz in 0 to pred(regions_side)) {
+  List.iter(
+    regions,
+    ~f=((rx, rz)) => {
       let in_sub =
         min_rx <= rx
         && rx < min_rx
@@ -59,8 +80,8 @@ let segment_grid_by_region = (~side: int, ~sub=?, f): unit => {
           ~gsize=block_per_region,
         );
       };
-    };
-  };
+    },
+  );
 };
 
 /** fills the region with blocks from the grid */
@@ -70,7 +91,7 @@ let convert_region =
   apply_overlays(args);
 
   Tale.logf("Flowing water");
-  flush(stdout);
+  Out_channel.flush(stdout);
   Minecraft.Water.flow_water(region);
 };
 
@@ -85,6 +106,7 @@ let save =
   Minecraft.World.make("heightmap", ~spawn, builder => {
     segment_grid_by_region(
       ~side,
+      ~spawn,
       /* ~sub=((0, 3), (2, 2)), */
       (~rx, ~rz, ~gx_offset, ~gy_offset, ~gsize) => {
       Minecraft.World.make_region(

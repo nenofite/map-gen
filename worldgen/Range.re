@@ -7,6 +7,11 @@ let rec exists = (min, max, f) =>
     exists(min + 1, max, f);
   };
 
+let for_all = (min, max, f) => {
+  let not_f = n => !f(n);
+  !exists(min, max, not_f);
+};
+
 let rec fold = (min, max, acc, f) =>
   if (min <= max) {
     let acc = f(acc, min);
