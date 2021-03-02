@@ -7,6 +7,7 @@ type t = {
 let make_window = (~pixels_per_tile=2, ~width=400, ~height=400, ()) => {
   let w = {pixels_per_tile, width, height};
   open Graphics;
+  Tale.logf("Opening preview window, this may take a moment...");
   open_graph(
     Printf.sprintf(
       " %dx%d",

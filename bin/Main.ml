@@ -24,7 +24,8 @@ let () =
   let s = "seed-" ^ Int.to_string seed in
   Config.Paths.overlays_base := Filename.concat s "overlays" ;
   Config.Paths.world_level_base :=
-    Filename.concat s (Filename.concat "worlds" s)
+    Filename.concat s (Filename.concat "worlds" s) ;
+  Config.Paths.create_directories ()
 
 let overlays =
   let open Overlay.Infix in

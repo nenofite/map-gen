@@ -23,7 +23,6 @@ let save_cache name writer state =
   let open Out_channel in
   Tale.logf "Saving to cache..." ;
   flush stdout ;
-  Mg_util.mkdir "overlays" ;
   with_file (cache_path name) ~f:(fun f ->
       let buf = Bin_prot.Utils.bin_dump ~header:true writer state in
       output_bytes f (Bigstring.to_bytes buf)) ;
