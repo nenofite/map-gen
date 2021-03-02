@@ -42,7 +42,7 @@ module Biome_grid =
     let (==) = equal_biome;
   });
 
-let colorize =
+let colorize_biome =
   fun
   | Mid(Plain(_)) => 0x86A34D
   | Mid(Forest(_)) => 0x388824
@@ -208,8 +208,7 @@ let prepare =
   let biomes =
     Phase_chain.(
       run_all(
-        phase("Zip biomes", () => zip_biomes(base, ~mid, ~shore, ~high))
-        @> Draw.phase("biome.png", colorize),
+        phase("Zip biomes", () => zip_biomes(base, ~mid, ~shore, ~high)),
       )
     );
   let biome_obstacles =
@@ -217,6 +216,33 @@ let prepare =
   let canond =
     Canonical_overlay.make_delta(~obstacles=`Add(biome_obstacles), ());
   (biomes, canond);
+};
+
+let colorize = ((biome, base)) =>
+  if (base.River.Tile.river || base.River.Tile.ocean) {
+    River.colorize(base);
+  } else {
+    let elev = base.River.Tile.elevation;
+    let frac = float_of_int(elev) /. 200.;
+    let frac = Float.(max(min(frac, 1.), 0.));
+    let black = 0;
+    let biome_col = colorize_biome(biome);
+    Color.blend(black, biome_col, frac);
+  };
+
+let apply_progress_view = (~base, state: t) => {
+  let (biome, _canon) = state;
+  let side = base.Grid.side;
+  let layer = Progress_view.push_layer();
+  let g = Grid_compat.zip(biome, base);
+  Progress_view.update(
+    ~fit=(0, side, 0, side),
+    ~draw_dense=Progress_view_helper.dense(colorize),
+    ~state=g,
+    layer,
+  );
+  Progress_view.save(~side, "biome");
+  ();
 };
 
 /** overwrite_stone_air only sets the block if it is Stone or Air, to avoid overwriting rivers etc. */
@@ -305,6 +331,7 @@ let overlay =
   Overlay.make(
     "biome",
     prepare(canon, base, dirt),
+    ~apply_progress_view=apply_progress_view(~base),
     apply_region(base, dirt),
     bin_reader_t,
     bin_writer_t,
