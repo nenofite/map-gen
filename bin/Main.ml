@@ -16,6 +16,16 @@ let () = Stats.init ()
 
 let side = 4096
 
+let seed = get_seed ()
+
+let () = Tale.logf "Using seed %d" seed
+
+let () =
+  let s = "seed-" ^ Int.to_string seed in
+  Config.Paths.overlays_base := Filename.concat s "overlays" ;
+  Config.Paths.world_level_base :=
+    Filename.concat s (Filename.concat "worlds" s)
+
 let overlays =
   let open Overlay.Infix in
   let* dirt = Dirt_overlay.overlay side in
@@ -38,10 +48,6 @@ let overlays =
   Overlay.return spawn_point
 
 let () = Progress_view.init ()
-
-let seed = get_seed ()
-
-let () = Tale.logf "Using seed %d" seed
 
 let spawn, apply_overlays = Overlay.prepare seed overlays
 

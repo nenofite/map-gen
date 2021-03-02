@@ -355,9 +355,7 @@ let save_region = (memory, region_path, r: Region.t) => {
 let make =
     (name, ~generator=Generator.Flat, ~mode=Creative, ~spawn=(0, 0, 0), fn) => {
   /* Create the directory structure: worlds, level, region */
-  let base_path = Filename.current_dir_name;
-  let worlds_path = Filename.concat(base_path, "worlds");
-  let level_path = Filename.concat(worlds_path, name);
+  let level_path = Config.Paths.world_level();
 
   Mg_util.mkdir(level_path);
 

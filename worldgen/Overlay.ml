@@ -3,7 +3,7 @@ open Core_kernel
 type 'state monad =
   {prepare: unit -> 'state * (Minecraft_converter.region_args -> unit)}
 
-let cache_path name = Filename.concat "overlays" (name ^ ".overlay")
+let cache_path name = Config.Paths.overlay (name ^ ".overlay")
 
 let read_cache reader path =
   match In_channel.read_all path with

@@ -12,6 +12,7 @@ type intermediate = {
 
 type tile =
   | Ocean
+  | Trench
   | Plain
   | Mountain;
 
@@ -94,10 +95,13 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
     grid,
     (x, y, here) => {
       let {direction, is_ocean, _} = here;
-      let (px, py) = xy_of_direction(direction);
-      let toward = Grid_compat.at_w(grid, x + px, y + py);
-      if (!is_ocean && are_opposed(direction, toward.direction)) {
-        Mountain;
+      let collision =
+        List.exists(
+          neigh => {are_opposed(direction, neigh.direction)},
+          Grid_compat.neighbors(grid, x, y),
+        );
+      if (collision) {
+        if (is_ocean) {Trench} else {Mountain};
       } else if (is_ocean) {
         Ocean;
       } else {

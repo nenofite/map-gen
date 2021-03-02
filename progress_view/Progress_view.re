@@ -134,7 +134,7 @@ let save = (~side, file) => {
   open Images;
   open OImages;
   let s = unwrap_state();
-  let file = file ++ ".bmp";
+  let file = Config.Paths.drawing(file ++ ".bmp");
 
   let img = (new rgb24)(side, side);
   Layer.draw_all_layers(

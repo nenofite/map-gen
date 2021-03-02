@@ -26,7 +26,8 @@ let empty_distances_of_tectonic = (tectonic: Grid.t(Tectonic.tile)) => {
       tectonic: here,
       distance_to_ocean:
         switch (here) {
-        | Ocean => 0
+        | Ocean
+        | Trench => 0
         | _ => empty_distance
         },
       distance_to_mountain:
@@ -47,6 +48,7 @@ let elevation_of_distances = (~alloc_side, grid: Grid.Mut.t(with_distances)) => 
       let here = Grid.Mut.get(~x, ~z, grid);
       let {tectonic, distance_to_ocean, distance_to_mountain} = here;
       switch (tectonic) {
+      | Trench => 1 + Random.int(10)
       | Ocean => 30 + Random.int(10)
       | Mountain => mountain_level + Random.int(10)
       | Plain =>

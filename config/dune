@@ -1,0 +1,3 @@
+(library
+ (name Config)
+ (libraries core_kernel))

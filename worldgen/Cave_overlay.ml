@@ -174,9 +174,9 @@ let rec try_make_points ~tries canon start =
       |> add_radii |> remove_overlaps
     in
     if has_no_collisions points canon then Some points
-    else (
-      Tale.logf "Failed cave. Remaining tries: %d" (tries - 1) ;
-      try_make_points ~tries:(tries - 1) canon start )
+    else
+      (* Tale.logf "Failed cave. Remaining tries: %d" (tries - 1) ; *)
+      try_make_points ~tries:(tries - 1) canon start
 
 let prepare (canon : Canonical_overlay.t) () =
   let prepare_cave (start_x, start_z) =

@@ -9,6 +9,8 @@ let draw =
   open Images;
   open OImages;
 
+  let file = Config.Paths.drawing(file);
+
   let img = (new rgb24)(width, height);
   for (y in 0 to pred(height)) {
     for (x in 0 to pred(width)) {
@@ -70,6 +72,8 @@ let draw_points =
     : 'a => {
   open Images;
   open Rgb24;
+
+  let file = Config.Paths.drawing(file);
 
   let img = make(side, side, images_color_of_int(background));
 

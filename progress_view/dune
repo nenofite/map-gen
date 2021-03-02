@@ -1,6 +1,6 @@
 (library
-    (name Progress_view)
-    (inline_tests)
-    (libraries Mg_util camlimages.core graphics)
-    (preprocess (pps ppx_inline_test ppx_expect))
-)
+ (name Progress_view)
+ (inline_tests)
+ (libraries Mg_util Config camlimages.core graphics)
+ (preprocess
+  (pps ppx_inline_test ppx_expect)))
