@@ -129,4 +129,10 @@ let apply_region = (sites, args: Minecraft_converter.region_args): unit => {
 };
 
 let (require, prepare, apply) =
-  Overlay.make("site", prepare, apply_region, bin_reader_t, bin_writer_t);
+  Overlay.make_no_canon(
+    "site",
+    prepare,
+    apply_region,
+    bin_reader_t,
+    bin_writer_t,
+  );

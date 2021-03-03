@@ -93,7 +93,7 @@ let wrap_prepare overlay f () =
   overlay.apply_progress_view state ;
   ()
 
-let make (name : string) ?(apply_progress_view : ('a -> unit) option)
+let make_no_canon (name : string) ?(apply_progress_view : ('a -> unit) option)
     (prepare : unit -> 'a)
     (apply_region : 'a -> Minecraft_converter.region_args -> unit)
     (reader : 'a Bin_prot.Type_class.reader)
@@ -108,6 +108,21 @@ let make (name : string) ?(apply_progress_view : ('a -> unit) option)
       ("Applying " ^ name ^ " overlay")
       (fun () -> apply_region state args)
   in
+  (require, prepare, apply)
+
+let make name ?apply_progress_view prepare apply_region reader writer =
+  let prepare () =
+    let ((_, canond) as result) = prepare () in
+    Canonical_overlay.push_delta canond ;
+    result
+  in
+  let require, prepare, apply =
+    make_no_canon name ?apply_progress_view prepare apply_region reader writer
+  in
+  (* let require () =
+       let state, _canond = require () in
+       state
+     in *)
   (require, prepare, apply)
 
 let%expect_test "consistent random state" =

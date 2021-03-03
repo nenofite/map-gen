@@ -47,26 +47,6 @@ type t =
   ; spawn_points: (int * int * int) list }
 [@@deriving bin_io]
 
-let state = ref None
-
-let init ~side =
-  state :=
-    Some
-      { side
-      ; elevation= Grid.make ~side 0
-      ; obstacles= Grid.make ~side Clear
-      ; spawn_points= [] } ;
-  ()
-
-let require () =
-  match !state with
-  | Some s ->
-      s
-  | None ->
-      failwith "Canonical_overlay.init has not been called"
-
-let restore s = state := Some s
-
 let make_delta ?(elevation = `Unchanged) ?(obstacles = `Unchanged)
     ?(spawn_points = `Unchanged) () =
   {elevation; obstacles; spawn_points}
@@ -104,3 +84,27 @@ let apply_delta (delta : delta) ~(onto : t) =
 let can_build_on = function Clear -> true | Bridgeable | Impassable -> false
 
 let can_build_over = function Clear | Bridgeable -> true | Impassable -> false
+
+let state = ref None
+
+let init ~side =
+  state :=
+    Some
+      { side
+      ; elevation= Grid.make ~side 0
+      ; obstacles= Grid.make ~side Clear
+      ; spawn_points= [] } ;
+  ()
+
+let require () =
+  match !state with
+  | Some s ->
+      s
+  | None ->
+      failwith "Canonical_overlay.init has not been called"
+
+let restore s = state := Some s
+
+let push_delta delta =
+  let s = require () in
+  state := Some (apply_delta delta ~onto:s)

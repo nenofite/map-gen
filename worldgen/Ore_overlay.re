@@ -337,4 +337,10 @@ let apply_region = (state, args): unit => {
 };
 
 let (require, prepare, apply) =
-  Overlay.make("ores", prepare, apply_region, bin_reader_t, bin_writer_t);
+  Overlay.make_no_canon(
+    "ores",
+    prepare,
+    apply_region,
+    bin_reader_t,
+    bin_writer_t,
+  );

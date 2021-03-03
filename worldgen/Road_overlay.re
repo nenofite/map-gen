@@ -210,8 +210,19 @@ let prepare = () => {
   let poi_pairs = all_pairs(pois, []) |> Mg_util.take(1000, _);
 
   Tale.log("Pathfinding roads");
-  let get_elevation = (~x, ~z) => Grid.get(x, z, canon.elevation);
-  let get_obstacle = (~x, ~z) => Grid.get(x, z, canon.obstacles);
+  let is_within = (~x, ~z) => Grid.is_within_side(~x, ~y=z, canon.side);
+  let get_elevation = (~x, ~z) =>
+    if (is_within(~x, ~z)) {
+      Grid.get(x, z, canon.elevation);
+    } else {
+      0;
+    };
+  let get_obstacle = (~x, ~z) =>
+    if (is_within(~x, ~z)) {
+      Grid.get(x, z, canon.obstacles);
+    } else {
+      Impassable;
+    };
   let get_obstacle_in_margin = (~margin, ~x, ~z) =>
     Range.fold(z - margin, z + margin, Canonical_overlay.Clear, (obs, z) =>
       Range.fold(

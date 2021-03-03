@@ -204,4 +204,10 @@ let apply_region = (cavern, args: Minecraft_converter.region_args) => {
 };
 
 let (require, prepare, apply) =
-  Overlay.make("cavern", prepare, apply_region, bin_reader_t, bin_writer_t);
+  Overlay.make_no_canon(
+    "cavern",
+    prepare,
+    apply_region,
+    bin_reader_t,
+    bin_writer_t,
+  );

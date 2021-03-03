@@ -37,7 +37,7 @@ let prepare = () => {
 };
 
 let (require, prepare, apply) =
-  Overlay.make(
+  Overlay.make_no_canon(
     "dirt height",
     prepare,
     (_, _) => (),

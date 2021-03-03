@@ -315,7 +315,7 @@ let apply_region = (state, args: Minecraft_converter.region_args) => {
 };
 
 let (require, prepare, apply) =
-  Overlay.make(
+  Overlay.make_no_canon(
     "biome",
     prepare,
     ~apply_progress_view,

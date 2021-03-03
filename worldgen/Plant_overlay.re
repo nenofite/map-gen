@@ -307,4 +307,10 @@ let apply_region = ((), args: Minecraft_converter.region_args) => {
 };
 
 let (require, prepare, apply) =
-  Overlay.make("plant", prepare, apply_region, bin_reader_t, bin_writer_t);
+  Overlay.make_no_canon(
+    "plant",
+    prepare,
+    apply_region,
+    bin_reader_t,
+    bin_writer_t,
+  );

@@ -108,7 +108,7 @@ let apply_region = (state: t, args: Minecraft_converter.region_args) => {
 };
 
 let (require, prepare, apply) =
-  Overlay.make(
+  Overlay.make_no_canon(
     "base",
     ~apply_progress_view,
     prepare,
