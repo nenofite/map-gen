@@ -76,7 +76,8 @@ let finish_prepare ~state overlay =
   save_cache overlay.name overlay.writer state ;
   ()
 
-let wrap_prepare overlay f () =
+let wrap_prepare overlay f =
+  before_prepare overlay ;
   let state =
     match read_cache overlay.reader (cache_path overlay.name) with
     | Some s ->
@@ -85,13 +86,12 @@ let wrap_prepare overlay f () =
         s
     | None ->
         Tale.blockf "Preparing %s overlay" overlay.name ~f:(fun () ->
-            before_prepare overlay ;
             let state = f () in
             finish_prepare ~state overlay ;
             state)
   in
   overlay.apply_progress_view state ;
-  ()
+  state
 
 let make_no_canon (name : string) ?(apply_progress_view : ('a -> unit) option)
     (prepare : unit -> 'a)
@@ -101,7 +101,7 @@ let make_no_canon (name : string) ?(apply_progress_view : ('a -> unit) option)
   Tale.logf "%s overlay using deprecated [make] function" name ;
   let overlay = make_overlay name ?apply_progress_view reader writer in
   let require () = require_overlay overlay in
-  let prepare = wrap_prepare overlay prepare in
+  let prepare () = ignore (wrap_prepare overlay prepare) in
   let apply args =
     let state = require () in
     Mg_util.print_progress
