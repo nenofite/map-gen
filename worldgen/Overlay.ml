@@ -31,7 +31,7 @@ let require_overlay overlay =
   | Some s ->
       s
   | None ->
-      failwithf "required %s overlay, but it isn't prepared" overlay.name
+      failwithf "required %s overlay, but it isn't prepared" overlay.name ()
 
 let seed overlay = global_state.seed lxor Hash.Builtin.hash_string overlay.name
 
@@ -91,7 +91,7 @@ let wrap_prepare overlay f () =
             state)
   in
   overlay.apply_progress_view state ;
-  state
+  ()
 
 let make (name : string) ?(apply_progress_view : ('a -> unit) option)
     (prepare : unit -> 'a)
