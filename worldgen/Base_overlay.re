@@ -40,10 +40,11 @@ let extract_canonical = (grid: Grid.t(tile)) =>
     spawn_points: [],
   };
 
-let prepare = (side, ()) => {
+let prepare = () => {
   module Pvh = Progress_view_helper.Make(Grid.Mut.Intf);
   let layer = Progress_view.push_layer();
 
+  let side = Canonical_overlay.require().side;
   let grid = Tectonic.phase(side);
   let grid = Heightmap.phase(grid);
   Pvh.update_with_colorize(
@@ -106,11 +107,11 @@ let apply_region = (state: t, args: Minecraft_converter.region_args) => {
   );
 };
 
-let overlay = (side): Overlay.monad(t) =>
+let (require, prepare, apply) =
   Overlay.make(
     "base",
     ~apply_progress_view,
-    prepare(side),
+    prepare,
     apply_region,
     bin_reader_t,
     bin_writer_t,

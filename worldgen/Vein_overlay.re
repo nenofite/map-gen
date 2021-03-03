@@ -129,7 +129,8 @@ let make_layer =
   );
 };
 
-let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
+let prepare = () => {
+  let (base, _) = Base_overlay.require();
   /* Create a point cloud with ore types */
   let iron_cloud =
     Point_cloud.init(~side=base.side, ~spacing=128, (_, _) =>
@@ -158,7 +159,7 @@ let prepare = (base: Grid.t(Base_overlay.tile), ()) => {
   Grid_compat.multizip([iron_layer, diamond_layer]);
 };
 
-let apply_region = (_base, state, args: Minecraft_converter.region_args) => {
+let apply_region = (state, args: Minecraft_converter.region_args) => {
   let region = args.region;
   Minecraft_converter.iter_blocks(
     region,
@@ -190,5 +191,4 @@ let apply_region = (_base, state, args: Minecraft_converter.region_args) => {
   );
 };
 
-let overlay = base =>
-  Overlay.make("ores", prepare(base), apply_region(base));
+// let (require, prepare, apply) = Overlay.make("ores", prepare, apply_region);

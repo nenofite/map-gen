@@ -5,7 +5,8 @@ type options = {
   illuminate: bool,
 };
 
-let prepare = (canon: Canonical_overlay.t, ()) => {
+let prepare = () => {
+  let canon = Canonical_overlay.require();
   Draw.draw_grid(
     Canonical_overlay.(
       fun
@@ -18,7 +19,7 @@ let prepare = (canon: Canonical_overlay.t, ()) => {
   );
 };
 
-let apply_region = (options, (), args: Minecraft_converter.region_args) => {
+let apply = (options, args: Minecraft_converter.region_args) => {
   let {glassify, illuminate} = options;
   Minecraft_converter.iter_blocks(args.region, (~x, ~z) => {
     Minecraft.Region.(
@@ -38,12 +39,3 @@ let apply_region = (options, (), args: Minecraft_converter.region_args) => {
     Torching.illuminate_bounds(~x, ~y, ~z, args.region);
   };
 };
-
-let overlay = (canon, options): Overlay.monad(unit) =>
-  Overlay.make(
-    "debug",
-    prepare(canon),
-    apply_region(options),
-    bin_reader_unit,
-    bin_writer_unit,
-  );

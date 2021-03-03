@@ -296,7 +296,8 @@ let apply_sandstone = (args: Minecraft_converter.region_args) => {
   });
 };
 
-let apply_region = (biomes, (), args: Minecraft_converter.region_args) => {
+let apply_region = ((), args: Minecraft_converter.region_args) => {
+  let (biomes, _) = Biome_overlay.require();
   apply_ground_cover(biomes, args);
   apply_trees(biomes, args);
   apply_flowers(biomes, args);
@@ -305,11 +306,5 @@ let apply_region = (biomes, (), args: Minecraft_converter.region_args) => {
   apply_sandstone(args);
 };
 
-let overlay = (biomes: Grid_compat.t(Biome_overlay.biome)): Overlay.monad(t) =>
-  Overlay.make(
-    "plant",
-    prepare,
-    apply_region(biomes),
-    bin_reader_t,
-    bin_writer_t,
-  );
+let (require, prepare, apply) =
+  Overlay.make("plant", prepare, apply_region, bin_reader_t, bin_writer_t);
