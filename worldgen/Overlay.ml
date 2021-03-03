@@ -1,7 +1,39 @@
 open Core_kernel
 
-type 'state monad =
-  {prepare: unit -> 'state * (Minecraft_converter.region_args -> unit)}
+type global_state = {mutable seed: int}
+
+let global_state = {seed= 0}
+
+type 't overlay_state =
+  { name: string
+  ; reader: 't Bin_prot.Type_class.reader
+  ; writer: 't Bin_prot.Type_class.writer
+  ; apply_progress_view: 't -> unit
+  ; mutable canon_before: Canonical_overlay.t option
+  ; mutable prepared_state: 't option
+        (* ; mutable seed: int option *)
+        (* mutable progress_view_layer : Progress_view.layer *) }
+
+let init seed =
+  global_state.seed <- seed ;
+  ()
+
+let make_overlay name ?(apply_progress_view = fun _ -> ()) reader writer =
+  { name
+  ; reader
+  ; writer
+  ; apply_progress_view
+  ; canon_before= None
+  ; prepared_state= None }
+
+let require_overlay overlay =
+  match overlay.prepared_state with
+  | Some s ->
+      s
+  | None ->
+      failwithf "required %s overlay, but it isn't prepared" overlay.name
+
+let seed overlay = global_state.seed lxor Hash.Builtin.hash_string overlay.name
 
 let cache_path name = Config.Paths.overlay (name ^ ".overlay")
 
@@ -28,93 +60,75 @@ let save_cache name writer state =
       output_bytes f (Bigstring.to_bytes buf)) ;
   Tale.logf "Done"
 
-let make (name : string) ?(apply_progress_view : 'a -> unit = fun _ -> ())
+let before_prepare overlay =
+  let seed = seed overlay in
+  Caml.Random.init seed ;
+  Random.init seed ;
+  ( match overlay.canon_before with
+  | None ->
+      overlay.canon_before <- Some (Canonical_overlay.require ())
+  | Some c ->
+      Canonical_overlay.restore c ) ;
+  ()
+
+let finish_prepare ~state overlay =
+  overlay.prepared_state <- Some state ;
+  save_cache overlay.name overlay.writer state ;
+  ()
+
+let wrap_prepare overlay f () =
+  let state =
+    match read_cache overlay.reader (cache_path overlay.name) with
+    | Some s ->
+        Tale.logf "Read %s overlay from cache" overlay.name ;
+        overlay.prepared_state <- Some s ;
+        s
+    | None ->
+        Tale.blockf "Preparing %s overlay" overlay.name ~f:(fun () ->
+            before_prepare overlay ;
+            let state = f () in
+            finish_prepare ~state overlay ;
+            state)
+  in
+  overlay.apply_progress_view state ;
+  state
+
+let make (name : string) ?(apply_progress_view : ('a -> unit) option)
     (prepare : unit -> 'a)
     (apply_region : 'a -> Minecraft_converter.region_args -> unit)
     (reader : 'a Bin_prot.Type_class.reader)
-    (writer : 'a Bin_prot.Type_class.writer) : 'a monad =
-  let prepare () =
-    let state =
-      match read_cache reader (cache_path name) with
-      | Some state ->
-          Tale.logf "Read %s overlay from cache" name ;
-          state
-      | None ->
-          Mg_util.print_progress
-            ("Preparing " ^ name ^ " overlay")
-            (fun () ->
-              let state = prepare () in
-              save_cache name writer state ;
-              state)
-    in
-    apply_progress_view state ;
-    let apply_region args =
-      Mg_util.print_progress
-        ("Applying " ^ name ^ " overlay")
-        (fun () -> apply_region state args)
-    in
-    (state, apply_region)
+    (writer : 'a Bin_prot.Type_class.writer) =
+  Tale.logf "%s overlay using deprecated [make] function" name ;
+  let overlay = make_overlay name ?apply_progress_view reader writer in
+  let require () = require_overlay overlay in
+  let prepare = wrap_prepare overlay prepare in
+  let apply args =
+    let state = require () in
+    Mg_util.print_progress
+      ("Applying " ^ name ^ " overlay")
+      (fun () -> apply_region state args)
   in
-  {prepare}
-
-let bind m ~f =
-  let prepare () =
-    let next_seed = Random.bits () in
-    let m_state, m_apply_f = m.prepare () in
-    Caml.Random.init next_seed ;
-    Random.init next_seed ;
-    let o_state, o_apply_f = (f m_state).prepare () in
-    let apply_f args =
-      m_apply_f args ;
-      Caml.Random.init next_seed ;
-      Random.init next_seed ;
-      o_apply_f args
-    in
-    (o_state, apply_f)
-  in
-  {prepare}
-
-let return v =
-  let prepare () = (v, fun _ -> ()) in
-  {prepare}
-
-module Let_syntax = struct
-  let bind = bind
-
-  let return = return
-end
-
-module Infix = struct
-  let ( let* ) x f = bind x ~f
-
-  let return = return
-end
-
-let prepare seed monad =
-  Caml.Random.init seed ; Random.init seed ; monad.prepare ()
+  (require, prepare, apply)
 
 let%expect_test "consistent random state" =
-  let overlay_a : unit monad =
-    { prepare=
-        (fun () ->
-          Caml.Random.bits () |> ignore ;
-          Caml.Random.bits () |> ignore ;
-          ((), fun _ -> ())) }
+  let overlay_a =
+    make_overlay "test_a" Bin_prot.Type_class.bin_reader_unit
+      Bin_prot.Type_class.bin_writer_unit
   in
-  let overlay_b : unit monad =
-    { prepare=
-        (fun () ->
-          Caml.Random.bits () |> ignore ;
-          ((), fun _ -> ())) }
+  let overlay_b =
+    make_overlay "test_b" Bin_prot.Type_class.bin_reader_unit
+      Bin_prot.Type_class.bin_writer_unit
   in
-  let spy : unit monad =
-    { prepare=
-        (fun () ->
-          let test = Caml.Random.int 100 in
-          Printf.printf "%d\n" test ;
-          ((), fun _ -> ())) }
-  in
-  prepare 1 (bind overlay_a ~f:(fun _ -> spy)) |> ignore ;
-  [%expect "13"] ;
-  prepare 1 (bind overlay_b ~f:(fun _ -> spy)) |> ignore ;
-  [%expect "13"]
+  init 123 ;
+  before_prepare overlay_a ;
+  let a_rand_1 = Caml.Random.bits () in
+  before_prepare overlay_b ;
+  let b_rand_1 = Caml.Random.bits () in
+  before_prepare overlay_a ;
+  let a_rand_2 = Caml.Random.bits () in
+  before_prepare overlay_b ;
+  let b_rand_2 = Caml.Random.bits () in
+  Printf.printf "overlay a: %d == %d" a_rand_1 a_rand_2 ;
+  [%expect "TODO"] ;
+  Printf.printf "overlay b: %d == %d" b_rand_1 b_rand_2 ;
+  [%expect "TODO"]
