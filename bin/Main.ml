@@ -27,30 +27,38 @@ let () =
     Filename.concat s (Filename.concat "worlds" s) ;
   Config.Paths.create_directories ()
 
-let overlays =
-  let open Overlay.Infix in
-  let* dirt = Dirt_overlay.overlay side in
-  let* base, canon = Base_overlay.overlay side in
-  let* biomes, canond = Biome_overlay.overlay canon base dirt in
-  let canon = Canonical_overlay.apply_delta canond ~onto:canon in
-  let* _ores = Ore_overlay.overlay base in
-  let* _cavern = Cavern_overlay.overlay base in
-  let* _caves, canond = Cave_overlay.overlay canon in
-  let canon = Canonical_overlay.apply_delta canond ~onto:canon in
-  let* towns, canond = Town_overlay.overlay canon base in
-  let canon = Canonical_overlay.apply_delta canond ~onto:canon in
-  let* _roads, canond = Road_overlay.overlay canon towns in
-  let canon = Canonical_overlay.apply_delta canond ~onto:canon in
-  let* _plants = Plant_overlay.overlay biomes in
-  let* _debug =
-    Debug_overlay.overlay canon {glassify= (fun _ -> false); illuminate= false}
-  in
+let () =
+  Progress_view.init () ;
+  Overlay.init seed ;
+  Canonical_overlay.init ~side ;
+  Dirt_overlay.prepare () ;
+  Base_overlay.prepare () ;
+  Biome_overlay.prepare () ;
+  Ore_overlay.prepare () ;
+  Cavern_overlay.prepare () ;
+  Cave_overlay.prepare () ;
+  Town_overlay.prepare () ;
+  Road_overlay.prepare () ;
+  Plant_overlay.prepare () ;
+  Debug_overlay.prepare ()
+
+let apply_overlays args =
+  Dirt_overlay.apply args ;
+  Base_overlay.apply args ;
+  Biome_overlay.apply args ;
+  Ore_overlay.apply args ;
+  Cavern_overlay.apply args ;
+  Cave_overlay.apply args ;
+  Town_overlay.apply args ;
+  Road_overlay.apply args ;
+  Plant_overlay.apply args ;
+  Debug_overlay.apply {glassify= (fun _ -> false); illuminate= false} args ;
+  ()
+
+let spawn =
+  let canon = Canonical_overlay.require () in
   let spawn_point = Mg_util.shuffle canon.spawn_points |> List.hd_exn in
-  Overlay.return spawn_point
-
-let () = Progress_view.init ()
-
-let spawn, apply_overlays = Overlay.prepare seed overlays
+  spawn_point
 
 let () = Minecraft_converter.save ~side ~spawn ~apply_overlays
 
