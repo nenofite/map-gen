@@ -111,18 +111,19 @@ let make_no_canon (name : string) ?(apply_progress_view : ('a -> unit) option)
   (require, prepare, apply)
 
 let make name ?apply_progress_view prepare apply_region reader writer =
+  let overlay = make_overlay name ?apply_progress_view reader writer in
+  let require () = require_overlay overlay in
   let prepare () =
-    let ((_, canond) as result) = prepare () in
+    let _, canond = wrap_prepare overlay prepare in
     Canonical_overlay.push_delta canond ;
-    result
+    ()
   in
-  let require, prepare, apply =
-    make_no_canon name ?apply_progress_view prepare apply_region reader writer
+  let apply args =
+    let state = require () in
+    Mg_util.print_progress
+      ("Applying " ^ name ^ " overlay")
+      (fun () -> apply_region state args)
   in
-  (* let require () =
-       let state, _canond = require () in
-       state
-     in *)
   (require, prepare, apply)
 
 let%expect_test "consistent random state" =
