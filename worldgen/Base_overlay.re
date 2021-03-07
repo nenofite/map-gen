@@ -8,6 +8,8 @@ type t = (Grid.t(tile), Canonical_overlay.t);
 
 type x = Grid.t(tile);
 
+let overlay = Overlay.make_overlay("base", bin_reader_t, bin_writer_t);
+
 let apply_progress_view = (state: t) => {
   let (world, _canon) = state;
   let layer = Progress_view.push_layer();
@@ -109,14 +111,15 @@ let apply_region = (state: t, args: Minecraft_converter.region_args) => {
   );
 };
 
-let overlay = Overlay.make_overlay("base", bin_reader_t, bin_writer_t);
-let require = () => Overlay.require_overlay(overlay);
-let prepare = () => {
-  let (_state, canon) = Overlay.wrap_prepare(overlay, prepare);
+let after_prepare = ((_, canon) as state) => {
+  apply_progress_view(state);
   Canonical_overlay.restore(canon);
 };
 
-let apply = args => {
-  let s = require();
-  apply_region(s, args);
-};
+let (require, prepare, apply) =
+  Overlay.make_lifecycle(
+    ~prepare,
+    ~after_prepare,
+    ~apply=apply_region,
+    overlay,
+  );

@@ -8,22 +8,20 @@ type 't overlay_state =
   { name: string
   ; reader: 't Bin_prot.Type_class.reader
   ; writer: 't Bin_prot.Type_class.writer
-  ; apply_progress_view: 't -> unit
   ; mutable canon_before: Canonical_overlay.t option
-  ; mutable prepared_state: 't option
-        (* ; mutable seed: int option *)
-        (* mutable progress_view_layer : Progress_view.layer *) }
+  ; mutable layer_before: Progress_view.layer option
+  ; mutable prepared_state: 't option }
 
 let init seed =
   global_state.seed <- seed ;
   ()
 
-let make_overlay name ?(apply_progress_view = fun _ -> ()) reader writer =
+let make_overlay name reader writer =
   { name
   ; reader
   ; writer
-  ; apply_progress_view
   ; canon_before= None
+  ; layer_before= None
   ; prepared_state= None }
 
 let require_overlay overlay =
@@ -69,6 +67,11 @@ let before_prepare overlay =
       overlay.canon_before <- Some (Canonical_overlay.require ())
   | Some c ->
       Canonical_overlay.restore c ) ;
+  ( match overlay.layer_before with
+  | None ->
+      overlay.layer_before <- Progress_view.last_layer ()
+  | Some c ->
+      Progress_view.remove_after_layer c ) ;
   ()
 
 let finish_prepare ~state overlay =
@@ -76,10 +79,13 @@ let finish_prepare ~state overlay =
   save_cache overlay.name overlay.writer state ;
   ()
 
-let wrap_prepare overlay f =
+let wrap_prepare ?(force = false) overlay f =
   before_prepare overlay ;
   let state =
-    match read_cache overlay.reader (cache_path overlay.name) with
+    match
+      if force then None
+      else read_cache overlay.reader (cache_path overlay.name)
+    with
     | Some s ->
         Tale.logf "Read %s overlay from cache" overlay.name ;
         overlay.prepared_state <- Some s ;
@@ -90,40 +96,50 @@ let wrap_prepare overlay f =
             finish_prepare ~state overlay ;
             state)
   in
-  overlay.apply_progress_view state ;
   state
 
-let make_no_canon (name : string) ?(apply_progress_view : ('a -> unit) option)
-    (prepare : unit -> 'a)
+let make_lifecycle ?(before_prepare : unit -> unit = fun () -> ())
+    ~(prepare : unit -> 'a) ?(after_prepare : 'a -> unit = fun _ -> ())
+    ~(apply : 'a -> Minecraft_converter.region_args -> unit)
+    (overlay : 'a overlay_state) =
+  let require () = require_overlay overlay in
+  let prepare ?force () =
+    before_prepare () ;
+    let state = wrap_prepare ?force overlay prepare in
+    after_prepare state
+  in
+  let apply args =
+    let state = require () in
+    Tale.blockf "Applying %s overlay" overlay.name ~f:(fun () ->
+        apply state args) ;
+    ()
+  in
+  (require, prepare, apply)
+
+let canon_helper (_, canond) =
+  Canonical_overlay.push_delta canond ;
+  ()
+
+let make_no_canon (name : string)
+    ?(apply_progress_view : 'a -> unit = fun _ -> ()) (prepare : unit -> 'a)
     (apply_region : 'a -> Minecraft_converter.region_args -> unit)
     (reader : 'a Bin_prot.Type_class.reader)
     (writer : 'a Bin_prot.Type_class.writer) =
-  Tale.logf "%s overlay using deprecated [make] function" name ;
-  let overlay = make_overlay name ?apply_progress_view reader writer in
-  let require () = require_overlay overlay in
-  let prepare () = ignore (wrap_prepare overlay prepare) in
-  let apply args =
-    let state = require () in
-    Mg_util.print_progress
-      ("Applying " ^ name ^ " overlay")
-      (fun () -> apply_region state args)
-  in
-  (require, prepare, apply)
+  Tale.logf "%s overlay using deprecated [make_no_canon] function" name ;
+  let overlay = make_overlay name reader writer in
+  make_lifecycle ~prepare ~after_prepare:apply_progress_view ~apply:apply_region
+    overlay
 
-let make name ?apply_progress_view prepare apply_region reader writer =
-  let prepare () =
-    let ((_, canond) as result) = prepare () in
+let make name ?(apply_progress_view = fun _ -> ()) prepare apply_region reader
+    writer =
+  Tale.logf "%s overlay using deprecated [make] function" name ;
+  let overlay = make_overlay name reader writer in
+  let after_prepare ((_, canond) as state) =
     Canonical_overlay.push_delta canond ;
-    result
+    apply_progress_view state ;
+    ()
   in
-  let require, prepare, apply =
-    make_no_canon name ?apply_progress_view prepare apply_region reader writer
-  in
-  (* let require () =
-       let state, _canond = require () in
-       state
-     in *)
-  (require, prepare, apply)
+  make_lifecycle ~prepare ~after_prepare ~apply:apply_region overlay
 
 let%expect_test "consistent random state" =
   let overlay_a =

@@ -13,6 +13,8 @@ type state = {
   mutable title: string,
 };
 
+type layer = Layer.layer;
+
 let global_state = ref(None);
 
 let init = () =>
@@ -101,6 +103,16 @@ let push_layer = () => {
 let remove_layer = layer => {
   let s = unwrap_state();
   Layer.remove_layer(layer, s.stack);
+};
+
+let last_layer = () => {
+  let s = unwrap_state();
+  Layer.last_layer(s.stack);
+};
+
+let remove_after_layer = layer => {
+  let s = unwrap_state();
+  Layer.remove_after_layer(layer, s.stack);
 };
 
 let update =
