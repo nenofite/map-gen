@@ -22,10 +22,10 @@ let prepare_all () =
   Cavern_overlay.prepare () ;
   Cave_overlay.prepare () ;
   Site_overlay.prepare () ;
-  Town_overlay.prepare () ;
-  Road_overlay.prepare () ;
-  Plant_overlay.prepare () ;
-  Debug_overlay.prepare () ;
+  (* Town_overlay.prepare () ;
+     Road_overlay.prepare () ;
+     Plant_overlay.prepare () ;
+     Debug_overlay.prepare () ; *)
   ()
 
 let apply_all args =
@@ -36,10 +36,10 @@ let apply_all args =
   Cavern_overlay.apply args ;
   Cave_overlay.apply args ;
   Site_overlay.apply args ;
-  Town_overlay.apply args ;
-  Road_overlay.apply args ;
-  Plant_overlay.apply args ;
-  Debug_overlay.apply {glassify= (fun _ -> false); illuminate= false} args ;
+  (* Town_overlay.apply args ;
+     Road_overlay.apply args ;
+     Plant_overlay.apply args ;
+     Debug_overlay.apply {glassify= (fun _ -> false); illuminate= false} args ; *)
   ()
 
 let save () =

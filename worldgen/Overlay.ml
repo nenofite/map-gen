@@ -107,6 +107,10 @@ let make_lifecycle ?(before_prepare : unit -> unit = fun () -> ())
   in
   (require, prepare, apply)
 
+let canon_helper (_, canond) =
+  Canonical_overlay.push_delta canond ;
+  ()
+
 let make_no_canon (name : string)
     ?(apply_progress_view : 'a -> unit = fun _ -> ()) (prepare : unit -> 'a)
     (apply_region : 'a -> Minecraft_converter.region_args -> unit)

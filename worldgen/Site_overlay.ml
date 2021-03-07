@@ -4,6 +4,8 @@ type site = Cavern_entrance of int [@@deriving bin_io]
 
 type t = site option Point_cloud.t [@@deriving bin_io]
 
+let overlay = Overlay.make_overlay "site" bin_reader_t bin_writer_t
+
 let prepare () =
   let canon = Canonical_overlay.require () in
   let cavern = Cavern_overlay.require () in
@@ -25,6 +27,21 @@ let prepare () =
         | _ ->
             None
       else None)
+
+let apply_progress_view sites =
+  let l = Progress_view.push_layer () in
+  Progress_view.update ~title:"Sites!"
+    ~draw_sparse:(fun () d ->
+      let color = (255, 0, 0) in
+      Sparse_grid.iter sites.Point_cloud.points
+        (fun _ Point_cloud.{px= x; py= z; value= _site} ->
+          let x = int_of_float x in
+          let z = int_of_float z in
+          d ~size:1 x z color ; ()))
+    ~state:() l ;
+  ()
+
+let after_prepare sites = apply_progress_view sites
 
 let apply_standard args ~x ~z template =
   Building.apply_template args ~x ~z template
@@ -81,4 +98,4 @@ let apply_region sites (args : Minecraft_converter.region_args) : unit =
             ())
 
 let require, prepare, apply =
-  Overlay.make_no_canon "site" prepare apply_region bin_reader_t bin_writer_t
+  Overlay.make_lifecycle ~prepare ~after_prepare ~apply:apply_region overlay
