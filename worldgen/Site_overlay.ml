@@ -6,6 +6,13 @@ type t = site option Point_cloud.t [@@deriving bin_io]
 
 let overlay = Overlay.make_overlay "site" bin_reader_t bin_writer_t
 
+let cavern_entrance_fits_within_region ~canon_side ~x ~z =
+  let top = Site_templates.cavern_entrance in
+  let minx, maxx = top.bounds_x in
+  let minz, maxz = top.bounds_z in
+  Minecraft_converter.within_region_boundaries ~canon_side ~min_x:(minx + x)
+    ~max_x:(maxx + x) ~min_z:(minz + z) ~max_z:(maxz + z)
+
 let prepare () =
   let canon = Canonical_overlay.require () in
   let cavern = Cavern_overlay.require () in
@@ -13,10 +20,8 @@ let prepare () =
       let x = int_of_float xf in
       let y = int_of_float yf in
       if
-        not
-          ( Grid.is_within x y canon.obstacles
-          && not (Canonical_overlay.can_build_on (Grid.get x y canon.obstacles))
-          )
+        cavern_entrance_fits_within_region ~canon_side:canon.side ~x ~z:y
+        && Canonical_overlay.can_build_on (Grid.get x y canon.obstacles)
       then
         match Grid_compat.at cavern x y with
         | {floor_elev; ceiling_elev}
@@ -34,10 +39,14 @@ let apply_progress_view sites =
     ~draw_sparse:(fun () d ->
       let color = (255, 0, 0) in
       Sparse_grid.iter sites.Point_cloud.points
-        (fun _ Point_cloud.{px= x; py= z; value= _site} ->
-          let x = int_of_float x in
-          let z = int_of_float z in
-          d ~size:1 x z color ; ()))
+        (fun _ Point_cloud.{px= x; py= z; value= site} ->
+          match site with
+          | Some _ ->
+              let x = int_of_float x in
+              let z = int_of_float z in
+              d ~size:1 x z color ; ()
+          | None ->
+              ()))
     ~state:() l ;
   ()
 
