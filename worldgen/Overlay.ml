@@ -9,16 +9,20 @@ type 't overlay_state =
   ; reader: 't Bin_prot.Type_class.reader
   ; writer: 't Bin_prot.Type_class.writer
   ; mutable canon_before: Canonical_overlay.t option
-  ; mutable prepared_state: 't option
-        (* ; mutable seed: int option *)
-        (* mutable progress_view_layer : Progress_view.layer *) }
+  ; mutable layer_before: Progress_view.layer option
+  ; mutable prepared_state: 't option }
 
 let init seed =
   global_state.seed <- seed ;
   ()
 
 let make_overlay name reader writer =
-  {name; reader; writer; canon_before= None; prepared_state= None}
+  { name
+  ; reader
+  ; writer
+  ; canon_before= None
+  ; layer_before= None
+  ; prepared_state= None }
 
 let require_overlay overlay =
   match overlay.prepared_state with
@@ -63,6 +67,11 @@ let before_prepare overlay =
       overlay.canon_before <- Some (Canonical_overlay.require ())
   | Some c ->
       Canonical_overlay.restore c ) ;
+  ( match overlay.layer_before with
+  | None ->
+      overlay.layer_before <- Progress_view.last_layer ()
+  | Some c ->
+      Progress_view.remove_after_layer c ) ;
   ()
 
 let finish_prepare ~state overlay =
