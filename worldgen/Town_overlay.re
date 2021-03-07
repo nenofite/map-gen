@@ -276,7 +276,9 @@ let prepare_town =
   (town, updated_obstacles, spawn_point);
 };
 
-let prepare = (canon: Canonical_overlay.t, base: Base_overlay.x, ()): t => {
+let prepare = (): t => {
+  let canon = Canonical_overlay.require();
+  let (base, _) = Base_overlay.require();
   /* Shuffle a list of all river tiles */
   Tale.log("Finding river coords");
   let river_coords =
@@ -664,12 +666,11 @@ let apply_region =
   );
 };
 
-let overlay =
-    (canon: Canonical_overlay.t, base: Base_overlay.x): Overlay.monad(t) =>
+let (require, prepare, apply) =
   Overlay.make(
     "towns",
     ~apply_progress_view,
-    prepare(canon, base),
+    prepare,
     apply_region,
     bin_reader_t,
     bin_writer_t,

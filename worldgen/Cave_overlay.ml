@@ -178,7 +178,8 @@ let rec try_make_points ~tries canon start =
       (* Tale.logf "Failed cave. Remaining tries: %d" (tries - 1) ; *)
       try_make_points ~tries:(tries - 1) canon start
 
-let prepare (canon : Canonical_overlay.t) () =
+let prepare () =
+  let canon = Canonical_overlay.require () in
   let prepare_cave (start_x, start_z) =
     if Random.int 100 >= cave_prob then None
     else
@@ -224,5 +225,5 @@ let apply_region (caves, _) (args : Minecraft_converter.region_args) =
                    | Some _ ->
                        R.set_block_opt Air ~x ~y ~z args.region)))
 
-let overlay (canon : Canonical_overlay.t) : t Overlay.monad =
-  Overlay.make "cave" (prepare canon) apply_region bin_reader_t bin_writer_t
+let require, prepare, apply =
+  Overlay.make "cave" prepare apply_region bin_reader_t bin_writer_t

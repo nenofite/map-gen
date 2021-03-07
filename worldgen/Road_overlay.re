@@ -200,7 +200,9 @@ let goalf_of_poi = ((poi_x, poi_z)) => {
   (~x, ~z) => min_x <= x && x <= max_x && min_z <= z && z <= max_z;
 };
 
-let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
+let prepare = () => {
+  let canon = Canonical_overlay.require();
+  let (towns, _) = Town_overlay.require();
   /* Use a point cloud to get points of interest */
   Tale.log("Making points of interest");
   let pois = List.map(~f=poi_of_town, towns);
@@ -208,8 +210,19 @@ let prepare = (canon: Canonical_overlay.t, towns: Town_overlay.x, ()) => {
   let poi_pairs = all_pairs(pois, []) |> Mg_util.take(1000, _);
 
   Tale.log("Pathfinding roads");
-  let get_elevation = (~x, ~z) => Grid.get(x, z, canon.elevation);
-  let get_obstacle = (~x, ~z) => Grid.get(x, z, canon.obstacles);
+  let is_within = (~x, ~z) => Grid.is_within_side(~x, ~y=z, canon.side);
+  let get_elevation = (~x, ~z) =>
+    if (is_within(~x, ~z)) {
+      Grid.get(x, z, canon.elevation);
+    } else {
+      0;
+    };
+  let get_obstacle = (~x, ~z) =>
+    if (is_within(~x, ~z)) {
+      Grid.get(x, z, canon.obstacles);
+    } else {
+      Impassable;
+    };
   let get_obstacle_in_margin = (~margin, ~x, ~z) =>
     Range.fold(z - margin, z + margin, Canonical_overlay.Clear, (obs, z) =>
       Range.fold(
@@ -321,11 +334,5 @@ let apply_region = ((state, _canon), args: Minecraft_converter.region_args) => {
   );
 };
 
-let overlay = (canon, towns): Overlay.monad(t) =>
-  Overlay.make(
-    "roads",
-    prepare(canon, towns),
-    apply_region,
-    bin_reader_t,
-    bin_writer_t,
-  );
+let (require, prepare, apply) =
+  Overlay.make("roads", prepare, apply_region, bin_reader_t, bin_writer_t);

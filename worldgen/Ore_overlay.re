@@ -52,7 +52,8 @@ let make_layer =
   {ore, densities, depth, min_deposit_size, max_deposit_size};
 };
 
-let prepare = (base, ()) => {
+let prepare = () => {
+  let (base, _) = Base_overlay.require();
   let emerald =
     make_layer(
       base,
@@ -331,15 +332,15 @@ let apply_layer = (layer, args) => {
   );
 };
 
-let apply_region = (_base: Grid.t(Base_overlay.tile), state, args): unit => {
+let apply_region = (state, args): unit => {
   List.iter(layer => apply_layer(layer, args), state);
 };
 
-let overlay = base =>
-  Overlay.make(
+let (require, prepare, apply) =
+  Overlay.make_no_canon(
     "ores",
-    prepare(base),
-    apply_region(base),
+    prepare,
+    apply_region,
     bin_reader_t,
     bin_writer_t,
   );

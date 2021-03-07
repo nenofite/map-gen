@@ -195,13 +195,10 @@ let get_obstacle = (dirt, biome) => {
   };
 };
 
-let prepare =
-    (
-      _canon: Canonical_overlay.t,
-      base: Grid_compat.t(Base_overlay.tile),
-      dirt,
-      (),
-    ) => {
+let prepare = () => {
+  let (base, _) = Base_overlay.require();
+  let dirt = Dirt_overlay.require();
+
   let mid = prepare_mid(base.side);
   let shore = prepare_shore(base.side);
   let high = prepare_high(base.side);
@@ -230,7 +227,8 @@ let colorize = ((biome, base)) =>
     Color.blend(black, biome_col, frac);
   };
 
-let apply_progress_view = (~base, state: t) => {
+let apply_progress_view = (state: t) => {
+  let (base, _) = Base_overlay.require();
   let (biome, _canon) = state;
   let side = base.Grid.side;
   let layer = Progress_view.push_layer();
@@ -311,28 +309,17 @@ let apply_dirt =
   );
 };
 
-let apply_region =
-    (
-      _base: Grid_compat.t(River.tile),
-      dirt,
-      state,
-      args: Minecraft_converter.region_args,
-    ) => {
+let apply_region = (state, args: Minecraft_converter.region_args) => {
+  let dirt = Dirt_overlay.require();
   apply_dirt(dirt, state, args);
 };
 
-let overlay =
-    (
-      canon: Canonical_overlay.t,
-      base: Grid_compat.t(River.tile),
-      dirt: Grid_compat.t(int),
-    )
-    : Overlay.monad(t) =>
-  Overlay.make(
+let (require, prepare, apply) =
+  Overlay.make_no_canon(
     "biome",
-    prepare(canon, base, dirt),
-    ~apply_progress_view=apply_progress_view(~base),
-    apply_region(base, dirt),
+    prepare,
+    ~apply_progress_view,
+    apply_region,
     bin_reader_t,
     bin_writer_t,
   );

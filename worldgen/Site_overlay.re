@@ -7,7 +7,9 @@ type site =
 [@deriving bin_io]
 type t = Point_cloud.t(option(site));
 
-let prepare = (canon: Canonical_overlay.t, cavern: Cavern_overlay.t, ()) => {
+let prepare = () => {
+  let canon = Canonical_overlay.require();
+  let cavern = Cavern_overlay.require();
   Point_cloud.init_f(
     ~side=canon.side,
     ~spacing=128,
@@ -109,7 +111,7 @@ let apply_cavern_entrance = (args, ~tube_depth, ~x, ~z): unit => {
   );
 };
 
-let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit => {
+let apply_region = (sites, args: Minecraft_converter.region_args): unit => {
   Sparse_grid.iter(
     sites.Point_cloud.points,
     (_, Point_cloud.{px: x, py: z, value: site}) => {
@@ -126,11 +128,11 @@ let apply_region = (_base, sites, args: Minecraft_converter.region_args): unit =
   );
 };
 
-let overlay = (base, cavern) =>
-  Overlay.make(
+let (require, prepare, apply) =
+  Overlay.make_no_canon(
     "site",
-    prepare(base, cavern),
-    apply_region(base),
+    prepare,
+    apply_region,
     bin_reader_t,
     bin_writer_t,
   );

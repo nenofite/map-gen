@@ -40,10 +40,11 @@ let extract_canonical = (grid: Grid.t(tile)) =>
     spawn_points: [],
   };
 
-let prepare = (side, ()) => {
+let prepare = () => {
   module Pvh = Progress_view_helper.Make(Grid.Mut.Intf);
   let layer = Progress_view.push_layer();
 
+  let side = Canonical_overlay.require().side;
   let grid = Tectonic.phase(side);
   let grid = Heightmap.phase(grid);
   Pvh.update_with_colorize(
@@ -70,7 +71,9 @@ let prepare = (side, ()) => {
   Progress_view.save(~side=Grid.Mut.side(grid), "grid-river");
   Progress_view.remove_layer(layer);
   let grid = River.Tile.Grid.of_mut(grid);
-  (grid, extract_canonical(grid));
+  let canon = extract_canonical(grid);
+  Canonical_overlay.restore(canon);
+  (grid, canon);
 };
 
 let apply_region = (state: t, args: Minecraft_converter.region_args) => {
@@ -106,12 +109,14 @@ let apply_region = (state: t, args: Minecraft_converter.region_args) => {
   );
 };
 
-let overlay = (side): Overlay.monad(t) =>
-  Overlay.make(
-    "base",
-    ~apply_progress_view,
-    prepare(side),
-    apply_region,
-    bin_reader_t,
-    bin_writer_t,
-  );
+let overlay = Overlay.make_overlay("base", bin_reader_t, bin_writer_t);
+let require = () => Overlay.require_overlay(overlay);
+let prepare = () => {
+  let (_state, canon) = Overlay.wrap_prepare(overlay, prepare);
+  Canonical_overlay.restore(canon);
+};
+
+let apply = args => {
+  let s = require();
+  apply_region(s, args);
+};

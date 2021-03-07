@@ -68,7 +68,8 @@ let add_ceiling_pillars = (pillar_cloud: Point_cloud.t(bool), ceiling) => {
   );
 };
 
-let prepare = (world: Grid_compat.t(Base_overlay.tile), ()) => {
+let prepare = () => {
+  let (world, _) = Base_overlay.require();
   let r = 32;
   let start_side = world.side / r;
   let floor_cloud =
@@ -174,12 +175,8 @@ let prepare = (world: Grid_compat.t(Base_overlay.tile), ()) => {
   );
 };
 
-let apply_region =
-    (
-      world: Grid_compat.t(Base_overlay.tile),
-      cavern,
-      args: Minecraft_converter.region_args,
-    ) => {
+let apply_region = (cavern, args: Minecraft_converter.region_args) => {
+  let (world, _) = Base_overlay.require();
   let region = args.region;
   Minecraft_converter.iter_blocks(
     region,
@@ -206,11 +203,11 @@ let apply_region =
   );
 };
 
-let overlay = world =>
-  Overlay.make(
+let (require, prepare, apply) =
+  Overlay.make_no_canon(
     "cavern",
-    prepare(world),
-    apply_region(world),
+    prepare,
+    apply_region,
     bin_reader_t,
     bin_writer_t,
   );
