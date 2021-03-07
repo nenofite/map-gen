@@ -21,8 +21,7 @@ let prepare () =
           when ceiling_elev > floor_elev
                && floor_elev > Cavern_overlay.magma_sea_elev ->
             Tale.logf "cavern entrance at %d, %d" x y ;
-            Some (Cavern_entrance floor_elev [@explicit_arity])
-            [@explicit_arity]
+            Some (Cavern_entrance floor_elev)
         | _ ->
             None
       else None)
@@ -76,8 +75,7 @@ let apply_region sites (args : Minecraft_converter.region_args) : unit =
       let z = int_of_float z in
       if Minecraft.Region.is_within ~x ~y:0 ~z args.region then
         match site with
-        | ((Some ((Cavern_entrance tube_depth)[@explicit_arity]))[@explicit_arity
-                                                                   ]) ->
+        | Some (Cavern_entrance tube_depth) ->
             apply_cavern_entrance args ~tube_depth ~x ~z
         | None ->
             ())
