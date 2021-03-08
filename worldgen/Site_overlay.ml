@@ -13,25 +13,50 @@ let cavern_entrance_fits_within_region ~canon_side ~x ~z =
   Minecraft_converter.within_region_boundaries ~canon_side ~min_x:(minx + x)
     ~max_x:(maxx + x) ~min_z:(minz + z) ~max_z:(maxz + z)
 
+let can_build_cavern_entrance canon ~x ~z =
+  let top = Site_templates.cavern_entrance in
+  let minx, maxx = top.bounds_x in
+  let minz, maxz = top.bounds_z in
+  (* TODO add padding for stairs *)
+  Range.for_all (z + minz) (z + maxz) (fun z ->
+      Range.for_all (x + minx) (x + maxx) (fun x ->
+          Canonical_overlay.can_build_on
+            (Grid.get x z canon.Canonical_overlay.obstacles)))
+
+let add_cavern_entrance_obstacles obs ~x ~z =
+  (* TODO use this function *)
+  let top = Site_templates.cavern_entrance in
+  let minx, maxx = top.bounds_x in
+  let minz, maxz = top.bounds_z in
+  (* TODO add padding for stairs *)
+  Range.fold (z + minz) (z + maxz) obs (fun obs z ->
+      Range.fold (x + minx) (x + maxx) obs (fun obs x ->
+          Canonical_overlay.Obstacles.set x z
+            Canonical_overlay.Obstacle.Impassable obs))
+
 let prepare () =
   let canon = Canonical_overlay.require () in
   let cavern = Cavern_overlay.require () in
-  Point_cloud.init_f ~side:canon.side ~spacing:128 (fun ~xf ~yf ~xi:_ ~yi:_ ->
-      let x = int_of_float xf in
-      let y = int_of_float yf in
-      if
-        cavern_entrance_fits_within_region ~canon_side:canon.side ~x ~z:y
-        && Canonical_overlay.can_build_on (Grid.get x y canon.obstacles)
-      then
-        match Grid_compat.at cavern x y with
-        | {floor_elev; ceiling_elev}
-          when ceiling_elev > floor_elev
-               && floor_elev > Cavern_overlay.magma_sea_elev ->
-            Tale.logf "cavern entrance at %d, %d" x y ;
-            Some (Cavern_entrance floor_elev)
-        | _ ->
-            None
-      else None)
+  let sites =
+    Point_cloud.init_f ~side:canon.side ~spacing:128 (fun ~xf ~yf ~xi:_ ~yi:_ ->
+        let x = int_of_float xf in
+        let y = int_of_float yf in
+        if
+          cavern_entrance_fits_within_region ~canon_side:canon.side ~x ~z:y
+          && can_build_cavern_entrance canon ~x ~z:y
+          && Random.int 100 < 5
+        then
+          match Grid_compat.at cavern x y with
+          | {floor_elev; ceiling_elev}
+            when ceiling_elev > floor_elev
+                 && floor_elev > Cavern_overlay.magma_sea_elev ->
+              Tale.logf "cavern entrance at %d, %d" x y ;
+              Some (Cavern_entrance floor_elev)
+          | _ ->
+              None
+        else None)
+  in
+  sites
 
 let apply_progress_view sites =
   let l = Progress_view.push_layer () in
