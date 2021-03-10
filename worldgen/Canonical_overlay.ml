@@ -108,3 +108,18 @@ let restore s = state := Some s
 let push_delta delta =
   let s = require () in
   state := Some (apply_delta delta ~onto:s)
+
+let draw_obstacles () =
+  let s = require () in
+  let l = Progress_view.push_layer () in
+  Progress_view.update
+    ~draw_dense:(fun () x z ->
+      if Grid.is_within x z s.obstacles then
+        match Grid.get x z s.obstacles with
+        | Impassable ->
+            Some (255, 0, 0)
+        | Bridgeable | Clear ->
+            None
+      else None)
+    ~state:() l ;
+  l

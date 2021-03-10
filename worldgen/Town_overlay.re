@@ -65,21 +65,13 @@ let apply_progress_view = ((towns, _)) => {
 };
 
 let within_region_boundaries = (~canon_side, min_x, min_z) => {
-  open Core_kernel;
-  let max_x = min_x + Town_prototype.side;
-  let max_z = min_z + Town_prototype.side;
-  let within_world =
-    0 <= min_x && max_x < canon_side && 0 <= min_z && max_z < canon_side;
-  let within_region =
-    Minecraft.Region.(
-      min_x
-      mod block_per_region_side < block_per_region_side
-      - Town_prototype.side
-      && min_z
-      mod block_per_region_side < block_per_region_side
-      - Town_prototype.side
-    );
-  within_world && within_region;
+  Minecraft_converter.within_region_boundaries(
+    ~canon_side,
+    ~min_x,
+    ~max_x=min_x + Town_prototype.side,
+    ~min_z,
+    ~max_z=min_z + Town_prototype.side,
+  );
 };
 
 let obstacle_at = (~x, ~z, obstacles) =>
