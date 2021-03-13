@@ -21,3 +21,16 @@ let blend = (a, b, fraction) => {
   let b = ~~(~.ab *. (1. -. fraction) +. ~.bb *. fraction);
   unsplit_rgb(r, g, b);
 };
+
+let blend_split = (a, b, fraction) => {
+  open Mg_util.Floats;
+
+  let (ar, ag, ab) = a;
+  let (br, bg, bb) = b;
+  let fraction = min(1., max(0., fraction));
+
+  let r = ~~(~.ar *. (1. -. fraction) +. ~.br *. fraction);
+  let g = ~~(~.ag *. (1. -. fraction) +. ~.bg *. fraction);
+  let b = ~~(~.ab *. (1. -. fraction) +. ~.bb *. fraction);
+  (r, g, b);
+};
