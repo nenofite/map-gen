@@ -142,24 +142,24 @@ let fit = (~title=?, fit) => {
   update_window();
 };
 
-let save = (~side, file) => {
+let save = (~side, ~format=Images.Png, file) => {
   open Images;
   open OImages;
   let s = unwrap_state();
-  let file = Config.Paths.drawing(file ++ ".bmp");
+  let file = Config.Paths.drawing(file ++ Images.extension(format));
 
   let img = (new rgb24)(side, side);
   Layer.draw_all_layers(
     s.stack,
     ~zoom=1,
-    ~x=(0, side),
-    ~z=(0, side),
+    ~x=(0, side - 1),
+    ~z=(0, side - 1),
     (x, z, color) => {
       let (r, g, b) = color;
       img#set(x, z, {r, g, b});
     },
   );
-  img#save(file, Some(Bmp), []);
+  img#save(file, Some(format), []);
   img#destroy;
   ();
 };

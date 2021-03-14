@@ -23,6 +23,15 @@ module Biome_grid = Grid.Make0 (struct
   let ( = ) = equal_biome
 end)
 
+type low_mid_high = {shore: shore_biome; mid: mid_biome; high: high_biome}
+[@@deriving eq, bin_io]
+
+module Low_mid_high_grid = Grid.Make0 (struct
+  type t = low_mid_high
+
+  let ( = ) = equal_low_mid_high
+end)
+
 let colorize_biome = function
   | Mid (Plain _) ->
       0x86A34D
@@ -77,96 +86,86 @@ let random_flower () =
 
 let random_cactus () = {percentage= Random.int_incl 10 100}
 
-let prepare_mid side =
-  Tale.block "Prepare mid biomes" ~f:(fun () ->
-      (* Start with a point cloud then subdivide a couple times *)
-      let r = 16 in
-      let cloud =
-        Point_cloud.init ~side:(side / r) ~spacing:32 (fun _x _y ->
-            match Random.int 10 with
-            | 0 | 1 | 2 | 3 | 4 ->
-                Plain (random_flower ())
-            | 5 | 6 | 7 ->
-                Forest (random_flower ())
-            | 8 | _ ->
-                Desert (random_cactus ()))
-      in
-      Tale.log "Init" ;
-      let empty_val = Plain {block= Minecraft.Block.Air; percentage= 0} in
-      let grid =
-        Grid.Mut.init ~side:(side / r) ~alloc_side:side empty_val
-          ~f:(fun ~x ~z ->
-            Point_cloud.nearest cloud (float_of_int x) (float_of_int z))
-      in
-      let fill =
-        let open Fill in
-        line () **> random
-      in
-      for i = 1 to 4 do
-        Tale.logf "Subdivide %d" i ;
-        Subdivide_mut.subdivide_with_fill grid ~fill
-      done ;
-      grid)
+let random_mid () =
+  match Random.int 10 with
+  | 0 | 1 | 2 | 3 | 4 ->
+      Plain (random_flower ())
+  | 5 | 6 | 7 ->
+      Forest (random_flower ())
+  | 8 | _ ->
+      Desert (random_cactus ())
 
-let prepare_shore side =
-  Tale.block "Prepare shore biomes" ~f:(fun () ->
-      (* Start with a point cloud then subdivide a couple times *)
-      let r = 16 in
-      let cloud =
-        Point_cloud.init ~side:(side / r) ~spacing:32 (fun _x _y ->
-            match Random.int 3 with 0 -> Sand | 1 -> Gravel | _ -> Clay)
-      in
-      Tale.log "Init" ;
-      let grid =
-        Grid.Mut.init ~side:(side / r) ~alloc_side:side Sand ~f:(fun ~x ~z ->
-            Point_cloud.nearest cloud (float_of_int x) (float_of_int z))
-      in
-      let fill =
-        let open Fill in
-        line () **> random
-      in
-      for i = 1 to 4 do
-        Tale.logf "Subdivide %d" i ;
-        Subdivide_mut.subdivide_with_fill grid ~fill
-      done ;
-      assert (Grid.Mut.side grid = side) ;
-      grid)
+let random_shore () =
+  match Random.int 3 with 0 -> Sand | 1 -> Gravel | _ -> Clay
 
-let prepare_high side =
-  Tale.block "Init high biomes" ~f:(fun () ->
-      (* Start with a point cloud then subdivide a couple times *)
-      let r = 16 in
-      let cloud =
-        Point_cloud.init ~side:(side / r) ~spacing:32 (fun _x _y ->
-            match Random.int 3 with 0 -> Pine_forest | 1 -> Barren | _ -> Snow)
-      in
-      let grid =
-        Grid.Mut.init ~side:(side / r) ~alloc_side:side Pine_forest
-          ~f:(fun ~x ~z ->
-            Point_cloud.nearest cloud (float_of_int x) (float_of_int z))
-      in
-      let fill =
-        let open Fill in
-        line () **> random
-      in
-      for i = 1 to 4 do
-        Tale.logf "Subdivide %d" i ;
-        Subdivide_mut.subdivide_with_fill grid ~fill
-      done ;
-      grid)
+let random_high () =
+  match Random.int 3 with 0 -> Pine_forest | 1 -> Barren | _ -> Snow
 
-let zip_biomes (base : Base_overlay.tile Grid.t) ~mid ~shore ~high =
+let select_elevation ~(base : Base_overlay.tile Grid.t)
+    (lmh : low_mid_high option Grid.Mut.t) =
   Biome_grid.init ~side:base.Grid.side (fun (x, z) ->
       let here_base = Grid.get x z base in
       let elevation = here_base.elevation in
+      let {shore; mid; high} =
+        Option.value_exn ~message:"grid coordinate has no biome"
+          (Grid.Mut.get ~x ~z lmh)
+      in
       if
         here_base.river || here_base.ocean
         || elevation <= Heightmap.sea_level + 2
-      then Shore (Grid.Mut.get ~x ~z shore)
+      then Shore shore
       else if elevation >= Heightmap.mountain_level - 20 then
         (* TODO use some sort of interp for mid-high cutoff, instead of flat line *)
-        High (Grid.Mut.get ~x ~z high)
-      else Mid (Grid.Mut.get ~x ~z mid))
+        High high
+      else Mid mid)
+
+let prepare_voronoi () =
+  let high_cost = 10 in
+  let canon = Canonical_overlay.require () in
+  let base, _ = Base_overlay.require () in
+  let high_cost_spots =
+    Grid.Poly.map base ~f:(fun (t : Base_overlay.tile) ->
+        t.elevation >= Heightmap.mountain_level - 20 || t.ocean)
+  in
+  let random_lmh () =
+    {shore= random_shore (); mid= random_mid (); high= random_high ()}
+  in
+  let points =
+    Point_cloud.init ~side:canon.side ~spacing:512 (fun _x _z -> random_lmh ())
+  in
+  let lmh = Grid.Mut.create ~side:canon.side None in
+  let initial_live_set =
+    Sparse_grid.fold points.points
+      (fun _ point ls ->
+        let value = point.value in
+        let x = Int.of_float point.px in
+        let z = Int.of_float point.py in
+        (x, z, value) :: ls)
+      []
+  in
+  let spread_into ~x ~z ~level lmh_val live_set =
+    if Grid.is_within x z high_cost_spots then
+      let cost = if Grid.get x z high_cost_spots then high_cost else 1 in
+      let occupied = Option.is_some (Grid.Mut.get ~x ~z lmh) in
+      if occupied then live_set else (level + cost, (x, z, lmh_val)) :: live_set
+    else live_set
+  in
+  Grid_flood.flood_gen ~init:() ~live:[(0, initial_live_set)]
+    ~spread:(fun () ~level (x, z, lmh_val) ->
+      let occupied = Option.is_some (Grid.Mut.get ~x ~z lmh) in
+      if occupied then ((), [])
+      else (
+        Grid.Mut.set ~x ~z (Some lmh_val) lmh ;
+        let next_live_set =
+          []
+          |> spread_into ~x ~z:(z - 1) ~level lmh_val
+          |> spread_into ~x:(x + 1) ~z ~level lmh_val
+          |> spread_into ~x ~z:(z + 1) ~level lmh_val
+          |> spread_into ~x:(x - 1) ~z ~level lmh_val
+        in
+        ((), next_live_set) )) ;
+  let biomes = select_elevation ~base lmh in
+  biomes
 
 let get_obstacle dirt biome =
   match biome with
@@ -176,15 +175,8 @@ let get_obstacle dirt biome =
       Clear
 
 let prepare () =
-  let base, _ = Base_overlay.require () in
   let dirt = Dirt_overlay.require () in
-  let mid = prepare_mid base.side in
-  let shore = prepare_shore base.side in
-  let high = prepare_high base.side in
-  let biomes =
-    let open Phase_chain in
-    run_all (phase "Zip biomes" (fun () -> zip_biomes base ~mid ~shore ~high))
-  in
+  let biomes = prepare_voronoi () in
   let biome_obstacles =
     Canonical_overlay.Obstacles.zip_map dirt biomes ~f:get_obstacle
   in
@@ -215,7 +207,7 @@ let apply_progress_view (state : t) =
   Progress_view.update ~fit:(0, side, 0, side)
     ~draw_dense:(Progress_view_helper.dense colorize)
     ~state:g layer ;
-  Progress_view.save ~side "biome" ;
+  Progress_view.save ~side ~format:Images.Png "biome" ;
   ()
 
 (** overwrite_stone_air only sets the block if it is Stone or Air, to avoid overwriting rivers etc. *)
