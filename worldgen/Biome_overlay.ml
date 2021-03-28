@@ -120,20 +120,30 @@ let select_elevation ~(base : Base_overlay.tile Grid.t)
       else Mid mid)
 
 let prepare_voronoi () =
+  let voronoi_frac = 4 in
   let high_cost = 10 in
   let canon = Canonical_overlay.require () in
   let base, _ = Base_overlay.require () in
+  let voronoi_side = canon.side / voronoi_frac in
   let high_cost_spots =
-    Grid.Poly.map base ~f:(fun (t : Base_overlay.tile) ->
-        t.elevation >= Heightmap.mountain_level - 20 || t.ocean)
+    Grid.Poly.init ~side:voronoi_side (fun (x, z) ->
+        Range.exists z
+          (z + voronoi_frac - 1)
+          (fun z ->
+            Range.exists x
+              (x + voronoi_frac - 1)
+              (fun x ->
+                let t = Grid.get x z base in
+                t.elevation >= Heightmap.mountain_level - 20 || t.ocean)))
   in
   let random_lmh () =
     {shore= random_shore (); mid= random_mid (); high= random_high ()}
   in
   let points =
-    Point_cloud.init ~side:canon.side ~spacing:512 (fun _x _z -> random_lmh ())
+    Point_cloud.init ~side:voronoi_side ~spacing:(512 / voronoi_frac)
+      (fun _x _z -> random_lmh ())
   in
-  let lmh = Grid.Mut.create ~side:canon.side None in
+  let lmh = Grid.Mut.create ~side:voronoi_side ~alloc_side:canon.side None in
   let initial_live_set =
     Sparse_grid.fold points.points
       (fun _ point ls ->
@@ -164,6 +174,9 @@ let prepare_voronoi () =
           |> spread_into ~x:(x - 1) ~z ~level lmh_val
         in
         ((), next_live_set) )) ;
+  (* TODO base on voronoi_frac *)
+  Subdivide_mut.subdivide lmh ;
+  Subdivide_mut.subdivide lmh ;
   let biomes = select_elevation ~base lmh in
   biomes
 
