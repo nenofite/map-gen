@@ -146,7 +146,7 @@ let save = (~side, ~format=Images.Png, file) => {
   open Images;
   open OImages;
   let s = unwrap_state();
-  let file = Config.Paths.drawing(file ++ Images.extension(format));
+  let file = Config.Paths.drawing(file ++ "." ++ Images.extension(format));
 
   let img = (new rgb24)(side, side);
   Layer.draw_all_layers(
