@@ -14,10 +14,13 @@ let make_window ?(pixels_per_tile = 2) ?(width = 400) ?(height = 400) () =
   Sdl.init Sdl.Init.video |> ok_or_sdl ;
   Sys.(set_signal sigint Signal_default) ;
   let window, renderer =
-    Sdl.create_window_and_renderer ~w:width ~h:height Sdl.Window.opengl
+    Sdl.create_window_and_renderer ~w:(width * pixels_per_tile)
+      ~h:(height * pixels_per_tile) Sdl.Window.opengl
     |> ok_or_sdl
   in
   Sdl.set_window_title window "Progress View" ;
+  Sdl.pump_events () ;
+  Sdl.flush_events Sdl.Event.first_event Sdl.Event.last_event ;
   let w = {pixels_per_tile; width; height; renderer; window} in
   w
 
@@ -49,7 +52,9 @@ let update ~(zoom : int) ~(center_x : int) ~(center_z : int) (title : string)
   draw_tiles ~zoom ~x:(view.min_x, view.max_x) ~z:(view.min_z, view.max_z)
     draw_tile ;
   Sdl.set_window_title window title ;
-  Sdl.render_present renderer
+  Sdl.render_present renderer ;
+  Sdl.pump_events () ;
+  Sdl.flush_events Sdl.Event.first_event Sdl.Event.last_event
 
 let manual_test () =
   let w = make_window () in
