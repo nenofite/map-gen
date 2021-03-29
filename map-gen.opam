@@ -15,7 +15,6 @@ depends: [
     "base"
     "bitstring"
     "camlimages"
-    "graphics"
     "core_kernel"
     "ppx_sexp_conv"
     "ppx_deriving"
