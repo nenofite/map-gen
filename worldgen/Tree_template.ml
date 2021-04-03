@@ -33,7 +33,7 @@ let wide_leaves ~height =
         Range.fold (-2) 2 ls (fun ls x ->
             ( if x = 0 && z = 0 then (x, y, z, Oak_log Y)
             else (x, y, z, Oak_leaves) )
-            :: ls))
+            :: ls ) )
   in
   let blocks = Range.fold 0 (height - 1) [] layer in
   Minecraft_template.of_blocks blocks
@@ -61,7 +61,7 @@ let top =
     ; (0, 0, 1, l)
     ; (1, 0, 1, l) ]
 
-let tree ?(with_bees = false) ~trunk_height ~wide_leaves_height =
+let tree ~with_bees ~trunk_height ~wide_leaves_height =
   (Minecraft_template.stack (trunk ~with_bees ~height:trunk_height))
     (Minecraft_template.stack (wide_leaves ~height:wide_leaves_height) top)
 
