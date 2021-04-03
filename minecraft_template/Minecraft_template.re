@@ -1,3 +1,5 @@
+open! Core_kernel;
+
 /**
   t is a templated structure, tree, etc. that can be pasted into the block
   tree
@@ -10,6 +12,16 @@ type t = {
   footprint: list((int, int)),
 };
 
+type mark = (int, int) => int;
+type x_mark =
+  | X(mark);
+type y_mark =
+  | Y(mark);
+type z_mark =
+  | Z(mark);
+
+let center = (a, b) => (a + b) / 2;
+
 let height = template => {
   let (miny, maxy) = template.bounds_y;
   maxy - miny + 1;
@@ -21,7 +33,7 @@ let combine_bounds = ((amin: int, amax: int), (bmin: int, bmax: int)) => (
 );
 
 let combine_footprints = (afootprint, bfootprint) =>
-  List.sort_uniq(compare, afootprint @ bfootprint);
+  Caml.List.sort_uniq(Poly.compare, afootprint @ bfootprint);
 
 let translate = (base, x, y, z) => {
   let {
@@ -33,18 +45,18 @@ let translate = (base, x, y, z) => {
   } = base;
   let blocks =
     List.map(
-      ((dx, dy, dz, material)) => (x + dx, y + dy, z + dz, material),
+      ~f=((dx, dy, dz, material)) => (x + dx, y + dy, z + dz, material),
       blocks,
     );
   let bounds_x = (minx + x, maxx + x);
   let bounds_y = (miny + y, maxy + y);
   let bounds_z = (minz + z, maxz + z);
-  let footprint = List.map(((dx, dz)) => (x + dx, z + dz), footprint);
+  let footprint = List.map(~f=((dx, dz)) => (x + dx, z + dz), footprint);
   {blocks, bounds_x, bounds_y, bounds_z, footprint};
 };
 
 /**
-  combine puts addition into base. addition has the given offset from base.
+  combine puts addition into base.
 
   No collision checking is performed. If two blocks have the same coords,
   addition will overwrite base.
@@ -74,18 +86,19 @@ let stack = (base, addition) => {
  */
 let check_collision = (template, ~x, ~y, ~z, r) => {
   List.exists(
-    ((dx, dy, dz, block)) =>
-      if (block != Minecraft.Block.Air) {
-        switch (
-          Minecraft.Region.get_block_opt(~x=x + dx, ~y=y + dy, ~z=z + dz, r)
-        ) {
-        | Some(Air) => false
-        | None => true
-        | Some(_not_air) => true
-        };
-      } else {
-        false;
-      },
+    ~f=
+      ((dx, dy, dz, block)) =>
+        if (!Minecraft.Block.(equal_material(block, Air))) {
+          switch (
+            Minecraft.Region.get_block_opt(~x=x + dx, ~y=y + dy, ~z=z + dz, r)
+          ) {
+          | Some(Air) => false
+          | None => true
+          | Some(_not_air) => true
+          };
+        } else {
+          false;
+        },
     template.blocks,
   );
 };
@@ -96,9 +109,16 @@ let check_collision = (template, ~x, ~y, ~z, r) => {
  */
 let place_overwrite = (template, ~x, ~y, ~z, r) => {
   List.iter(
-    ((dx, dy, dz, material)) => {
-      Minecraft.Region.set_block(~x=dx + x, ~y=dy + y, ~z=dz + z, material, r)
-    },
+    ~f=
+      ((dx, dy, dz, material)) => {
+        Minecraft.Region.set_block(
+          ~x=dx + x,
+          ~y=dy + y,
+          ~z=dz + z,
+          material,
+          r,
+        )
+      },
     template.blocks,
   );
 };
@@ -120,22 +140,38 @@ let place = (template, ~x, ~y, ~z, r) =>
   least one block, regardless of its y. Ignores Air blocks in the template.
   */
 let calc_footprint = blocks => {
-  List.fold_left(
-    (footprint, (x, _y, z, block: Minecraft.Block.material)) => {
-      switch (block) {
-      | Air => footprint
-      | _ =>
-        let coord = (x, z);
-        if (!List.mem(coord, footprint)) {
-          [coord, ...footprint];
-        } else {
-          footprint;
-        };
-      }
-    },
-    [],
+  List.fold(
     blocks,
+    ~f=
+      (footprint, (x, _y, z, block: Minecraft.Block.material)) => {
+        switch (block) {
+        | Air => footprint
+        | _ =>
+          let coord = (x, z);
+          if (!List.mem(footprint, coord, ~equal=Poly.equal)) {
+            [coord, ...footprint];
+          } else {
+            footprint;
+          };
+        }
+      },
+    ~init=[],
   );
+};
+
+let calc_mark = (t, ~on) => {
+  let (X(fx), Y(fy), Z(fz)) = t;
+  let apply_f = (f, (min, max)) => f(min, max);
+  let x = apply_f(fx, on.bounds_x);
+  let y = apply_f(fy, on.bounds_y);
+  let z = apply_f(fz, on.bounds_z);
+  (x, y, z);
+};
+
+let align_with = (a, b, ~my, ~their) => {
+  let (ax, ay, az) = calc_mark(my, ~on=a);
+  let (bx, by, bz) = calc_mark(their, ~on=b);
+  translate(a, bx - ax, by - ay, bz - az);
 };
 
 let%expect_test "calc_footprint" = {
@@ -147,7 +183,7 @@ let%expect_test "calc_footprint" = {
       (1, 1, 1, Oak_log(Y)),
     ];
   calc_footprint(blocks)
-  |> List.iter(((x, z)) => Printf.printf("%d, %d\n", x, z), _);
+  |> List.iter(~f=((x, z)) => Printf.printf("%d, %d\n", x, z));
   %expect
   {|
     1, 1
@@ -157,36 +193,39 @@ let%expect_test "calc_footprint" = {
 
 let of_blocks = (blocks: _): t => {
   /* Get starter values */
-  let (sx, sy, sz, _) = List.hd(blocks);
+  let (sx, sy, sz, _) = List.hd_exn(blocks);
   let bounds_x =
-    List.fold_left(
-      ((amin, amax), (x, _y, _z, _b)) => {
-        let amin = min(amin, x);
-        let amax = max(amax, x);
-        (amin, amax);
-      },
-      (sx, sx),
+    List.fold(
       blocks,
+      ~f=
+        ((amin, amax), (x, _y, _z, _b)) => {
+          let amin = min(amin, x);
+          let amax = max(amax, x);
+          (amin, amax);
+        },
+      ~init=(sx, sx),
     );
   let bounds_y =
-    List.fold_left(
-      ((amin, amax), (_x, y, _z, _b)) => {
-        let amin = min(amin, y);
-        let amax = max(amax, y);
-        (amin, amax);
-      },
-      (sy, sy),
+    List.fold(
       blocks,
+      ~f=
+        ((amin, amax), (_x, y, _z, _b)) => {
+          let amin = min(amin, y);
+          let amax = max(amax, y);
+          (amin, amax);
+        },
+      ~init=(sy, sy),
     );
   let bounds_z =
     List.fold_left(
-      ((amin, amax), (_x, _y, z, _b)) => {
-        let amin = min(amin, z);
-        let amax = max(amax, z);
-        (amin, amax);
-      },
-      (sz, sz),
       blocks,
+      ~f=
+        ((amin, amax), (_x, _y, z, _b)) => {
+          let amin = min(amin, z);
+          let amax = max(amax, z);
+          (amin, amax);
+        },
+      ~init=(sz, sz),
     );
   let footprint = calc_footprint(blocks);
   {blocks, bounds_x, bounds_y, bounds_z, footprint};
@@ -195,9 +234,8 @@ let of_blocks = (blocks: _): t => {
 let flip_y = template => {
   let (_, max_y) = template.bounds_y;
   let blocks =
-    List.map(
-      ((x, y, z, block)) => (x, max_y - y, z, block),
-      template.blocks,
+    List.map(template.blocks, ~f=((x, y, z, block)) =>
+      (x, max_y - y, z, block)
     );
   {...template, blocks};
 };
