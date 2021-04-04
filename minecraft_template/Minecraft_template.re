@@ -21,6 +21,7 @@ type z_mark =
   | Z(mark);
 
 let center = (a, b) => (a + b) / 2;
+let zero = (_, _) => 0;
 
 let height = template => {
   let (miny, maxy) = template.bounds_y;
@@ -69,15 +70,6 @@ let combine = (base, addition) => {
   let bounds_z = combine_bounds(base.bounds_z, addition.bounds_z);
   let footprint = combine_footprints(base.footprint, addition.footprint);
   {blocks, bounds_x, bounds_y, bounds_z, footprint};
-};
-
-/**
-  stack is a convenience over combine. It finds the highest block in base,
-  then puts addition one above that.
- */
-let stack = (base, addition) => {
-  let (_, highest_y) = base.bounds_y;
-  translate(addition, 0, highest_y + 1, 0) |> combine(base, _);
 };
 
 /**
@@ -159,21 +151,6 @@ let calc_footprint = blocks => {
   );
 };
 
-let calc_mark = (t, ~on) => {
-  let (X(fx), Y(fy), Z(fz)) = t;
-  let apply_f = (f, (min, max)) => f(min, max);
-  let x = apply_f(fx, on.bounds_x);
-  let y = apply_f(fy, on.bounds_y);
-  let z = apply_f(fz, on.bounds_z);
-  (x, y, z);
-};
-
-let align_with = (a, b, ~my, ~their) => {
-  let (ax, ay, az) = calc_mark(my, ~on=a);
-  let (bx, by, bz) = calc_mark(their, ~on=b);
-  translate(a, bx - ax, by - ay, bz - az);
-};
-
 let%expect_test "calc_footprint" = {
   let blocks =
     Minecraft.Block.[
@@ -189,6 +166,30 @@ let%expect_test "calc_footprint" = {
     1, 1
     0, 0
   |};
+};
+
+/**
+  stack is a convenience over combine. It finds the highest block in base,
+  then puts addition one above that.
+ */
+let stack = (base, addition) => {
+  let (_, highest_y) = base.bounds_y;
+  translate(addition, 0, highest_y + 1, 0) |> combine(base, _);
+};
+
+let calc_mark = (t, ~on) => {
+  let (X(fx), Y(fy), Z(fz)) = t;
+  let apply_f = (f, (min, max)) => f(min, max + 1);
+  let x = apply_f(fx, on.bounds_x);
+  let y = apply_f(fy, on.bounds_y);
+  let z = apply_f(fz, on.bounds_z);
+  (x, y, z);
+};
+
+let align_with = (a, b, ~my, ~their) => {
+  let (ax, ay, az) = calc_mark(my, ~on=a);
+  let (bx, by, bz) = calc_mark(their, ~on=b);
+  translate(a, bx - ax, by - ay, bz - az);
 };
 
 let of_blocks = (blocks: _): t => {
@@ -238,4 +239,16 @@ let flip_y = template => {
       (x, max_y - y, z, block)
     );
   {...template, blocks};
+};
+
+let rect = (material, ~xs, ~ys, ~zs) => {
+  let blocks =
+    Mg_util.Range.(
+      map(0, zs - 1, z =>
+        map(0, xs - 1, x => map(0, ys - 1, y => (x, y, z, material)))
+      )
+    )
+    |> List.concat
+    |> List.concat;
+  of_blocks(blocks);
 };
