@@ -28,6 +28,14 @@ let height = template => {
   maxy - miny + 1;
 };
 
+let compare_coord_block = ((ax, ay, az, _), (bx, by, bz, _)) =>
+  switch (Int.(compare(ax, bx), compare(ay, by), compare(az, bz))) {
+  | (0, 0, 0) => 0
+  | (0, 0, n) => n
+  | (0, n, _) => n
+  | (n, _, _) => n
+  };
+
 let combine_bounds = ((amin: int, amax: int), (bmin: int, bmax: int)) => (
   min(amin, bmin),
   max(amax, bmax),
@@ -63,8 +71,11 @@ let translate = (base, x, y, z) => {
   addition will overwrite base.
  */
 let combine = (base, addition) => {
-  let blocks = base.blocks @ addition.blocks;
-  /* Then concat the lists */
+  let blocks =
+    List.dedup_and_sort(
+      base.blocks @ addition.blocks,
+      ~compare=compare_coord_block,
+    );
   let bounds_x = combine_bounds(base.bounds_x, addition.bounds_x);
   let bounds_y = combine_bounds(base.bounds_y, addition.bounds_y);
   let bounds_z = combine_bounds(base.bounds_z, addition.bounds_z);
@@ -186,7 +197,7 @@ let calc_mark = (t, ~on) => {
   (x, y, z);
 };
 
-let align_with = (a, b, ~my, ~their) => {
+let align_with = (a, ~other as b, ~my, ~their) => {
   let (ax, ay, az) = calc_mark(my, ~on=a);
   let (bx, by, bz) = calc_mark(their, ~on=b);
   translate(a, bx - ax, by - ay, bz - az);
