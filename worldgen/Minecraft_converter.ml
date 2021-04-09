@@ -51,7 +51,7 @@ let segment_grid_by_region ~(side : int) ~spawn ?sub f : unit =
   in
   let regions =
     Range.fold 0 (regions_side - 1) [] (fun acc rz ->
-        Range.fold 0 (regions_side - 1) acc (fun acc rx -> (rx, rz) :: acc))
+        Range.fold 0 (regions_side - 1) acc (fun acc rx -> (rx, rz) :: acc) )
     |> List.sort ~compare:compare_by_spawn_dist
   in
   (* Iterate over the grid *)
@@ -67,7 +67,7 @@ let segment_grid_by_region ~(side : int) ~spawn ?sub f : unit =
           ~gx_offset:
             (rx * block_per_region)
             (* TODO can probably get rid of these, since it's always 1:1 *)
-          ~gy_offset:(rz * block_per_region) ~gsize:block_per_region)
+          ~gy_offset:(rz * block_per_region) ~gsize:block_per_region )
 
 (** fills the region with blocks from the grid *)
 let convert_region ~region ~apply_overlays ~rx ~rz ~gx_offset ~gy_offset ~gsize
@@ -94,7 +94,7 @@ let save ~(side : int) ~(spawn : int * int * int)
                 , min_z
                 , min_z + block_per_region_side )) ;
               convert_region ~region ~apply_overlays ~rx ~rz ~gx_offset
-                ~gy_offset ~gsize))) ;
+                ~gy_offset ~gsize ) ) ) ;
   ()
 
 let iter_blocks (r : Minecraft.Region.t) fn : unit =
@@ -123,3 +123,9 @@ let within_region_boundaries ~canon_side ~min_x ~max_x ~min_z ~max_z =
       && min_z mod block_per_region_side < block_per_region_side - z_side)
   in
   within_world && within_region
+
+let template_within_region_boundaries t ~canon_side =
+  let open Minecraft_template in
+  let min_x, max_x = t.bounds_x in
+  let min_z, max_z = t.bounds_z in
+  within_region_boundaries ~canon_side ~min_x ~max_x ~min_z ~max_z

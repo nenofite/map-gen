@@ -23,7 +23,7 @@ type z_mark =
 let center = (a, b) => (a + b) / 2;
 let zero = (_, _) => 0;
 
-let height = template => {
+let height_of = template => {
   let (miny, maxy) = template.bounds_y;
   maxy - miny + 1;
 };
@@ -64,6 +64,24 @@ let translate = (base, x, y, z) => {
   {blocks, bounds_x, bounds_y, bounds_z, footprint};
 };
 
+let combine_all = pieces => {
+  let blocks =
+    List.dedup_and_sort(
+      List.concat_map(pieces, ~f=t => t.blocks),
+      ~compare=compare_coord_block,
+    );
+  let bounds_x =
+    List.map(pieces, ~f=t => t.bounds_x) |> List.reduce_exn(~f=combine_bounds);
+  let bounds_y =
+    List.map(pieces, ~f=t => t.bounds_y) |> List.reduce_exn(~f=combine_bounds);
+  let bounds_z =
+    List.map(pieces, ~f=t => t.bounds_z) |> List.reduce_exn(~f=combine_bounds);
+  let footprint =
+    List.map(pieces, ~f=t => t.footprint)
+    |> List.reduce_exn(~f=combine_footprints);
+  {blocks, bounds_x, bounds_y, bounds_z, footprint};
+};
+
 /**
   combine puts addition into base.
 
@@ -71,16 +89,7 @@ let translate = (base, x, y, z) => {
   addition will overwrite base.
  */
 let combine = (base, addition) => {
-  let blocks =
-    List.dedup_and_sort(
-      base.blocks @ addition.blocks,
-      ~compare=compare_coord_block,
-    );
-  let bounds_x = combine_bounds(base.bounds_x, addition.bounds_x);
-  let bounds_y = combine_bounds(base.bounds_y, addition.bounds_y);
-  let bounds_z = combine_bounds(base.bounds_z, addition.bounds_z);
-  let footprint = combine_footprints(base.footprint, addition.footprint);
-  {blocks, bounds_x, bounds_y, bounds_z, footprint};
+  combine_all([base, addition]);
 };
 
 /**
@@ -203,6 +212,11 @@ let align_with = (a, ~other as b, ~my, ~their) => {
   translate(a, bx - ax, by - ay, bz - az);
 };
 
+let align_with_origin = (a, ~my) => {
+  let (ax, ay, az) = calc_mark(my, ~on=a);
+  translate(a, 0 - ax, 0 - ay, 0 - az);
+};
+
 let of_blocks = (blocks: _): t => {
   /* Get starter values */
   let (sx, sy, sz, _) = List.hd_exn(blocks);
@@ -251,6 +265,18 @@ let flip_y = template => {
     );
   {...template, blocks};
 };
+
+let rotate_90_cw_once = template => {
+  let map_coord = ((x, y, z, m)) => (- z, y, x, m);
+  of_blocks(List.map(template.blocks, ~f=map_coord));
+};
+
+let rec rotate_90_cw = (template, ~times) =>
+  if (times > 0) {
+    rotate_90_cw(rotate_90_cw_once(template), ~times=times - 1);
+  } else {
+    template;
+  };
 
 let rect = (material, ~xs, ~ys, ~zs) => {
   let blocks =
