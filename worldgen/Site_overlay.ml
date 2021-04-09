@@ -11,9 +11,6 @@ module type Site = sig
     t -> x:int -> z:int -> args:Minecraft_converter.region_args -> unit
 end
 
-(* type site = Cavern_entrance of Entrance_site.t | Gate of Gate_site.t
-[@@deriving bin_io] *)
-
 type 'a site_list = ('a * int * int) list [@@deriving bin_io]
 
 type t = {entrances: Entrance_site.t site_list; gates: Gate_site.t site_list}
@@ -29,7 +26,7 @@ let prepare () =
   in
   let target_entrance_count = 3 in
   let entrances = Bag.create () in
-  let target_gate_count = 100 in
+  let target_gate_count = 10_000 in
   let gates = Bag.create () in
   let rec filter_and_grab_until_full list ~unwanted ~bag ~target ~f =
     let count = Bag.length bag in
@@ -82,16 +79,6 @@ let apply_region sites (args : Minecraft_converter.region_args) : unit =
   in
   List.iter entrances ~f:(apply_if_within Entrance_site.apply) ;
   List.iter gates ~f:(apply_if_within Gate_site.apply)
-(* Sparse_grid.iter sites.Point_cloud.points
-   (fun _ Point_cloud.{px= x; py= z; value= site} ->
-     let x = int_of_float x in
-     let z = int_of_float z in
-     if Minecraft.Region.is_within ~x ~y:0 ~z args.region then
-       match site with
-       | Some (Cavern_entrance tube_depth) ->
-           apply_cavern_entrance args ~tube_depth ~x ~z
-       | None ->
-           () ) *)
 
 let require, prepare, apply =
   Overlay.make_lifecycle ~prepare ~after_prepare ~apply:apply_region overlay

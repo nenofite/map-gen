@@ -196,35 +196,3 @@ let cavern_entrance_base =
 . . . . . . . . .
 |},
   );
-
-let gate = (~thickness, ~width, ~height, ~rotation) => {
-  open Minecraft_template;
-  let mat = Minecraft.Block.Obsidian;
-  let base =
-    rect(mat, ~xs=width, ~ys=thickness, ~zs=thickness)
-    |> align_with_origin(~my=(X(min), Y(max), Z(min)));
-  let post = rect(mat, ~xs=thickness, ~ys=height, ~zs=thickness);
-  let left_post =
-    post
-    |> align_with(
-         ~other=base,
-         ~my=(X(min), Y(min), Z(min)),
-         ~their=(X(min), Y(max), Z(min)),
-       );
-  let right_post =
-    post
-    |> align_with(
-         ~other=base,
-         ~my=(X(max), Y(min), Z(min)),
-         ~their=(X(max), Y(max), Z(min)),
-       );
-  let top =
-    rect(mat, ~xs=width, ~ys=thickness, ~zs=thickness)
-    |> align_with(
-         ~other=left_post,
-         ~my=(X(min), Y(min), Z(min)),
-         ~their=(X(min), Y(max), Z(min)),
-       );
-  let whole = combine_all([base, left_post, right_post, top]);
-  rotate_90_cw(whole, ~times=rotation);
-};

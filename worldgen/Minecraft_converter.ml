@@ -124,8 +124,9 @@ let within_region_boundaries ~canon_side ~min_x ~max_x ~min_z ~max_z =
   in
   within_world && within_region
 
-let template_within_region_boundaries t ~canon_side =
+let template_within_region_boundaries t ~x ~z ~canon_side =
   let open Minecraft_template in
   let min_x, max_x = t.bounds_x in
   let min_z, max_z = t.bounds_z in
-  within_region_boundaries ~canon_side ~min_x ~max_x ~min_z ~max_z
+  within_region_boundaries ~canon_side ~min_x:(min_x + x) ~max_x:(max_x + x)
+    ~min_z:(min_z + z) ~max_z:(max_z + z)
