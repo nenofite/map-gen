@@ -47,6 +47,10 @@ let prepare ~x ~z =
         None
   else None
 
+let put_obstacles t ~x ~z ~put =
+  ignore (t, x, z, put) ;
+  ()
+
 let max_height_within (args : Minecraft_converter.region_args) ~minx ~maxx ?y
     ~minz ~maxz () : int =
   let m = ref 0 in

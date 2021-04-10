@@ -30,6 +30,14 @@ let template_of_t t =
   let whole = combine_all [base; left_post; right_post; top] in
   rotate_90_cw whole ~times:rotation
 
+let can_build_template template ~x ~z =
+  let canon = Canonical_overlay.require () in
+  let minx, maxx = template.Minecraft_template.bounds_x in
+  let minz, maxz = template.bounds_z in
+  Range.for_all (z + minz) (z + maxz) (fun z ->
+      Range.for_all (x + minx) (x + maxx) (fun x ->
+          Canonical_overlay.can_build_on (Grid.get x z canon.obstacles) ) )
+
 let prepare ~x ~z =
   let canon = Canonical_overlay.require () in
   let width = Random.int_incl 4 8 in
@@ -41,8 +49,15 @@ let prepare ~x ~z =
   if
     Minecraft_converter.template_within_region_boundaries template ~x ~z
       ~canon_side:canon.side
+    && can_build_template template ~x ~z
   then Some (t, x, z)
   else None
+
+let put_obstacles t ~x ~z ~put =
+  let template = template_of_t t in
+  List.iter template.footprint ~f:(fun (fx, fz) ->
+      put Canonical_overlay.Obstacle.Impassable ~x:(x + fx) ~z:(z + fz) ) ;
+  ()
 
 let apply t ~x ~z ~args =
   let template = template_of_t t in
