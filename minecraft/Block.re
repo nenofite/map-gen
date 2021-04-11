@@ -625,7 +625,7 @@ type material =
   | Quartz_bricks
   | Quartz_pillar
   | Quartz_slab
-  | Quartz_stairs
+  | Quartz_stairs(stair_dir)
   | Rail
   | Red_banner
   | Red_bed
@@ -1415,7 +1415,7 @@ let namespace =
   | Quartz_bricks => "minecraft:quartz_bricks"
   | Quartz_pillar => "minecraft:quartz_pillar"
   | Quartz_slab => "minecraft:quartz_slab"
-  | Quartz_stairs => "minecraft:quartz_stairs"
+  | Quartz_stairs(_) => "minecraft:quartz_stairs"
   | Rail => "minecraft:rail"
   | Red_banner => "minecraft:red_banner"
   | Red_bed => "minecraft:red_bed"
@@ -1674,7 +1674,8 @@ let data = block => {
     | Snow => ["layers" >: String("1")]
     | Cobblestone_stairs(dir)
     | Stone_brick_stairs(dir)
-    | Stone_stairs(dir) => [
+    | Stone_stairs(dir)
+    | Quartz_stairs(dir) => [
         "facing"
         >: String(
              switch (dir) {

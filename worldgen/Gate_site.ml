@@ -1,12 +1,11 @@
 open! Core_kernel
 
-type t = Minecraft_template.t [@@deriving bin_io]
+type t = {rotation: int; template: Minecraft_template.t} [@@deriving bin_io]
 
-let random_gate () =
+let random_gate ~rotation =
   let width = Random.int_incl 4 8 in
   let height = Random.int_incl 5 10 in
   let thickness = Random.int_incl 1 2 in
-  let rotation = Random.int_incl 0 3 in
   let open Minecraft_template in
   let mat = Minecraft.Block.Obsidian in
   let beam =
@@ -45,22 +44,35 @@ let can_build_template template ~x ~z =
 
 let prepare ~x ~z =
   let canon = Canonical_overlay.require () in
-  let t = random_gate () in
+  let rotation = Random.int_incl 0 3 in
+  let template = random_gate ~rotation in
   if
-    Minecraft_converter.template_within_region_boundaries t ~x ~z
+    Minecraft_converter.template_within_region_boundaries template ~x ~z
       ~canon_side:canon.side
-    && can_build_template t ~x ~z
-  then Some (t, x, z)
+    && can_build_template template ~x ~z
+  then Some ({rotation; template}, x, z)
   else None
 
 let put_obstacles (t : t) ~x ~z ~put =
-  List.iter t.footprint ~f:(fun (fx, fz) ->
+  List.iter t.template.footprint ~f:(fun (fx, fz) ->
       put Canonical_overlay.Obstacle.Impassable ~x:(x + fx) ~z:(z + fz) ) ;
   ()
 
-let apply t ~x ~z ~args =
+let stair_dirs ~rotation =
+  if rotation mod 2 = 0 then (true, false, true, false)
+  else (false, true, false, true)
+
+let apply (t : t) ~x ~z ~args =
+  let {rotation; template} = t in
+  let minx, maxx = template.bounds_x in
+  let minz, maxz = template.bounds_z in
   let y =
-    1 + Minecraft.Region.height_at ~x ~z args.Minecraft_converter.region
+    3 + Minecraft.Region.height_at ~x ~z args.Minecraft_converter.region
   in
-  Minecraft_template.place_overwrite t ~x ~y ~z args.region ;
+  let n, e, s, w = stair_dirs ~rotation in
+  Building.stair_foundation ~rectangle_material:Minecraft.Block.Smooth_quartz
+    ~stair_material:(fun d -> Minecraft.Block.Quartz_stairs d)
+    ~n ~e ~s ~w ~minx:(minx + x) ~maxx:(maxx + x) ~y:(y - 1) ~minz:(minz + z)
+    ~maxz:(maxz + z) args ;
+  Minecraft_template.place_overwrite template ~x ~y ~z args.region ;
   ()

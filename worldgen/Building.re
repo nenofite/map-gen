@@ -268,13 +268,31 @@ let rectangle_foundation =
 };
 
 let rec lay_stairs =
-        (args: Minecraft_converter.region_args, ~x, ~y, ~z, block, ~dx, ~dz)
+        (
+          args: Minecraft_converter.region_args,
+          ~x,
+          ~y,
+          ~z,
+          ~stair,
+          ~under,
+          ~dx,
+          ~dz,
+        )
         : unit => {
   switch (Minecraft.Region.get_block_opt(~x, ~y, ~z, args.region)) {
   | Some(Air) =>
-    Minecraft.Region.set_block(~x, ~y, ~z, block, args.region);
-    column_down(args, ~x, ~y=y - 1, ~z, Minecraft.Block.Cobblestone);
-    lay_stairs(args, ~x=x + dx, ~y=y - 1, ~z=z + dz, block, ~dx, ~dz);
+    Minecraft.Region.set_block(~x, ~y, ~z, stair, args.region);
+    column_down(args, ~x, ~y=y - 1, ~z, under);
+    lay_stairs(
+      args,
+      ~x=x + dx,
+      ~y=y - 1,
+      ~z=z + dz,
+      ~stair,
+      ~under,
+      ~dx,
+      ~dz,
+    );
   | Some(_)
   | None => ()
   };
@@ -303,8 +321,12 @@ let rec would_stairs_fit = (elevation, ~x, ~y, ~z, ~dx, ~dz, ~max_distance) =>
 
 let stair_foundation =
     (
-      ~rectangle_material=?,
+      ~rectangle_material=Minecraft.Block.Cobblestone,
       ~stair_material=d => Minecraft.Block.Cobblestone_stairs(d),
+      ~n=false,
+      ~e=false,
+      ~s=false,
+      ~w=false,
       args,
       ~minx,
       ~maxx,
@@ -315,7 +337,7 @@ let stair_foundation =
     : unit => {
   /* Fill the base rectangle */
   rectangle_foundation(
-    ~material=?rectangle_material,
+    ~material=rectangle_material,
     args,
     ~minx,
     ~maxx,
@@ -326,15 +348,59 @@ let stair_foundation =
   /* Lay each side of stairs */
   for (x in minx to maxx) {
     /* N stairs */
-    lay_stairs(args, ~x, ~y, ~z=minz - 1, stair_material(S), ~dx=0, ~dz=-1);
+    if (n) {
+      lay_stairs(
+        args,
+        ~x,
+        ~y,
+        ~z=minz - 1,
+        ~stair=stair_material(S),
+        ~under=rectangle_material,
+        ~dx=0,
+        ~dz=-1,
+      );
+    };
     /* S stairs */
-    lay_stairs(args, ~x, ~y, ~z=maxz + 1, stair_material(N), ~dx=0, ~dz=1);
+    if (s) {
+      lay_stairs(
+        args,
+        ~x,
+        ~y,
+        ~z=maxz + 1,
+        ~stair=stair_material(N),
+        ~under=rectangle_material,
+        ~dx=0,
+        ~dz=1,
+      );
+    };
   };
   for (z in minz to maxz) {
     /* E stairs */
-    lay_stairs(args, ~x=maxx + 1, ~y, ~z, stair_material(W), ~dx=1, ~dz=0);
+    if (e) {
+      lay_stairs(
+        args,
+        ~x=maxx + 1,
+        ~y,
+        ~z,
+        ~stair=stair_material(W),
+        ~under=rectangle_material,
+        ~dx=1,
+        ~dz=0,
+      );
+    };
     /* W stairs */
-    lay_stairs(args, ~x=minx - 1, ~y, ~z, stair_material(E), ~dx=-1, ~dz=0);
+    if (w) {
+      lay_stairs(
+        args,
+        ~x=minx - 1,
+        ~y,
+        ~z,
+        ~stair=stair_material(E),
+        ~under=rectangle_material,
+        ~dx=-1,
+        ~dz=0,
+      );
+    };
   };
 };
 
