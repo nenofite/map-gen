@@ -25,9 +25,8 @@ let eat (t : Core.t) ~(blocks : int) =
   in
   Core.of_blocks remaining_blocks
 
-let eat_frac t ~(frac : float) =
+let eat_frac (t : Core.t) ~(frac : float) =
   let blocks =
-    Int.of_float
-      (Float.round_up (Float.of_int (List.length t.Core.blocks) *. frac))
+    Int.of_float (Float.round_up (Float.of_int (List.length t.blocks) *. frac))
   in
   eat t ~blocks

@@ -1,10 +1,12 @@
 open! Core_kernel
 
-type t = {width: int; height: int; thickness: int; rotation: int}
-[@@deriving bin_io]
+type t = Minecraft_template.t [@@deriving bin_io]
 
-let template_of_t t =
-  let {width; height; thickness; rotation} = t in
+let random_gate () =
+  let width = Random.int_incl 4 8 in
+  let height = Random.int_incl 5 10 in
+  let thickness = Random.int_incl 1 2 in
+  let rotation = Random.int_incl 0 3 in
   let open Minecraft_template in
   let mat = Minecraft.Block.Obsidian in
   let beam =
@@ -27,8 +29,11 @@ let template_of_t t =
     |> align_with ~other:left_post ~my:(X min, Y min, Z min)
          ~their:(X min, Y max, Z min)
   in
-  let whole = combine_all [base; left_post; right_post; top] in
-  rotate_90_cw whole ~times:rotation
+  combine_all [base; left_post; right_post; top]
+  |> rotate_90_cw ~times:rotation
+  |> Minecraft_template.Effects.(
+       if thickness = 1 then eat ~blocks:(Random.int_incl 0 1)
+       else eat_frac ~frac:(Random.float 0.25))
 
 let can_build_template template ~x ~z =
   let canon = Canonical_overlay.require () in
@@ -40,29 +45,22 @@ let can_build_template template ~x ~z =
 
 let prepare ~x ~z =
   let canon = Canonical_overlay.require () in
-  let width = Random.int_incl 4 8 in
-  let height = Random.int_incl 5 10 in
-  let thickness = Random.int_incl 2 5 in
-  let rotation = Random.int_incl 0 3 in
-  let t = {width; height; thickness; rotation} in
-  let template = template_of_t t in
+  let t = random_gate () in
   if
-    Minecraft_converter.template_within_region_boundaries template ~x ~z
+    Minecraft_converter.template_within_region_boundaries t ~x ~z
       ~canon_side:canon.side
-    && can_build_template template ~x ~z
+    && can_build_template t ~x ~z
   then Some (t, x, z)
   else None
 
-let put_obstacles t ~x ~z ~put =
-  let template = template_of_t t in
-  List.iter template.footprint ~f:(fun (fx, fz) ->
+let put_obstacles (t : t) ~x ~z ~put =
+  List.iter t.footprint ~f:(fun (fx, fz) ->
       put Canonical_overlay.Obstacle.Impassable ~x:(x + fx) ~z:(z + fz) ) ;
   ()
 
 let apply t ~x ~z ~args =
-  let template = template_of_t t in
   let y =
     1 + Minecraft.Region.height_at ~x ~z args.Minecraft_converter.region
   in
-  Minecraft_template.place_overwrite template ~x ~y ~z args.region ;
+  Minecraft_template.place_overwrite t ~x ~y ~z args.region ;
   ()

@@ -4,6 +4,7 @@ open! Core_kernel;
   t is a templated structure, tree, etc. that can be pasted into the block
   tree
  */
+[@deriving (eq, bin_io)]
 type t = {
   blocks: list((int, int, int, Minecraft.Block.material)),
   bounds_x: (int, int),
