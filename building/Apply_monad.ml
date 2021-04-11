@@ -40,3 +40,12 @@ let height_at ~x ~z : int t =
  fun pos region ->
   let x, _, z = Shared.apply_pos pos ~x ~y:0 ~z in
   Minecraft.Region.height_at ~x ~z region
+
+let place_template (t : Minecraft_template.t) ~x ~y ~z : unit t =
+ fun pos region ->
+  let x, y, z = Shared.apply_pos pos ~x ~y ~z in
+  let t =
+    Minecraft_template.rotate_90_cw t ~times:(Shared.get_cw_rotations pos)
+  in
+  Minecraft_template.place_overwrite t ~x ~y ~z region ;
+  ()

@@ -39,3 +39,8 @@ let height_at ~x ~z : int t =
   parallel
     ~prepare:(Prepare_monad.of_shared (Shared.get_elevation ~x ~z))
     ~apply:(Apply_monad.height_at ~x ~z)
+
+let place_template (t : Minecraft_template.t) ~x ~y ~z : unit t =
+  parallel
+    ~prepare:(Prepare_monad.place_template t ~x ~y ~z)
+    ~apply:(Apply_monad.place_template t ~x ~y ~z)

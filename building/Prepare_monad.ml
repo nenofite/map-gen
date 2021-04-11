@@ -38,6 +38,8 @@ let nop = return ()
 let of_shared (shared : 'a Shared.t) : 'a t =
  fun state pos -> return (shared pos) state pos
 
+let get_pos : Shared.pos t = fun state pos -> Ok (pos, state)
+
 let prepare (t : 'a t) ~pos =
   let state = {obstacles= []} in
   t state pos
@@ -57,3 +59,14 @@ let collide_obstacle ~x ~z state pos =
     let state = add_obstacle state ~x ~z in
     Ok ((), state)
   else Failed
+
+let place_template (t : Minecraft_template.t) ~x ~y ~z : unit t =
+  let open Let_syntax in
+  let%bind pos = get_pos in
+  let x, _y, z = Shared.apply_pos pos ~x ~y ~z in
+  let t =
+    Minecraft_template.rotate_90_cw t ~times:(Shared.get_cw_rotations pos)
+  in
+  List.fold t.footprint ~init:nop ~f:(fun m (fx, fz) ->
+      let%bind () = m in
+      collide_obstacle ~x:(x + fx) ~z:(z + fz) )

@@ -2,6 +2,8 @@ open! Core_kernel
 
 type pos = {origin: int * int * int; rotation: int}
 
+let get_cw_rotations pos = pos.rotation mod 4
+
 let apply_pos pos ~x ~y ~z =
   let {origin= ox, oy, oz; rotation} = pos in
   (* TODO also handle block rotation (eg. stairs) *)
