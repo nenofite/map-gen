@@ -1735,6 +1735,11 @@ let block_entity = block => {
   );
 };
 
+let is_air =
+  fun
+  | Air => true
+  | _ => false;
+
 /** whether you can stand on this block and it'll stop you falling */
 let is_solid =
   fun
