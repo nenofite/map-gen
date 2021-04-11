@@ -19,4 +19,5 @@
    ppx_deriving.eq
    ppx_deriving.ord
    ppx_hash
+   ppx_let
    ppx_bin_prot)))
