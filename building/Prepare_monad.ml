@@ -33,6 +33,8 @@ end
 include T
 include Monad.Make (T)
 
+let nop = return ()
+
 let of_shared (shared : 'a Shared.t) : 'a t =
  fun state pos -> return (shared pos) state pos
 
