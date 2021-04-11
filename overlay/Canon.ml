@@ -1,4 +1,4 @@
-open Core_kernel
+open! Core_kernel
 
 (**
    This is not a true overlay, but rather this defines the canonical data which
@@ -135,7 +135,7 @@ let require () =
   | Some s ->
       s
   | None ->
-      failwith "Canonical_overlay.init has not been called"
+      failwith "Canon.init has not been called"
 
 let restore s = state := Some s
 

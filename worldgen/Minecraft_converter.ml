@@ -1,13 +1,7 @@
 open Core_kernel
 
 (** region_args are the numerous arguments provided when generating a region *)
-type region_args =
-  { region: Minecraft.Region.t
-  ; rx: int
-  ; rz: int
-  ; gx_offset: int
-  ; gy_offset: int
-  ; gsize: int }
+type region_args = {region: Minecraft.Region.t}
 
 let region_of_spawn (x, _y, z) =
   ( x / Minecraft.Region.block_per_region_side

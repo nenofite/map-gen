@@ -5,7 +5,7 @@ type metaball = {center: Geometry.Vec3i.t; radii: Geometry.Vec3i.t}
 
 type x = metaball list list [@@deriving bin_io]
 
-type t = x * Canonical_overlay.delta [@@deriving bin_io]
+type t = x * Overlay.Canon.delta [@@deriving bin_io]
 
 (** Average blocks between cave entrances, before probability is applied *)
 let cave_spacing = 100
@@ -119,24 +119,24 @@ let ball_bounds ball =
   @@ fun acc x ->
   fold (cy - ry - extra) (cy + ry + extra) acc @@ fun acc y -> (x, y, z) :: acc
 
-let obstacles_of_balls balls (canon : Canonical_overlay.t) =
+let obstacles_of_balls balls (canon : Overlay.Canon.t) =
   List.fold balls ~init:(Sparse_grid.make canon.side) ~f:(fun obs ball ->
       ball_bounds ball
       |> List.filter ~f:(fun (x, y, z) ->
              Grid.is_within x z canon.elevation
-             && y = Grid_compat.at canon.elevation x z)
+             && y = Grid_compat.at canon.elevation x z )
       |> List.fold ~init:obs ~f:(fun obs (x, _y, z) ->
-             Sparse_grid.put obs x z ()))
+             Sparse_grid.put obs x z () ) )
 
-let update_canon caves (canon : Canonical_overlay.t) =
-  let open Canonical_overlay in
+let update_canon caves (canon : Overlay.Canon.t) =
+  let open Overlay.Canon in
   let obstacles =
     List.fold caves ~init:(Grid.make ~side:canon.side Clear) ~f:(fun obs cave ->
         Sparse_grid.map (obstacles_of_balls cave canon) (fun _ () -> Impassable)
         |> Sparse_grid.to_grid ~default:Clear
-        |> add_obstacles ~onto:obs)
+        |> add_obstacles ~onto:obs )
   in
-  Canonical_overlay.make_delta ~obstacles:(`Add obstacles) ()
+  Overlay.Canon.make_delta ~obstacles:(`Add obstacles) ()
 
 let transform_and_wiggle start joints =
   let module Vi = Geometry.Vec3i in
@@ -146,12 +146,13 @@ let transform_and_wiggle start joints =
       []
   | _fst :: rest ->
       start
-      :: List.map rest ~f:(fun point ->
-             let wiggled = Vf.(of_int point + random_wiggle ()) in
-             let spaced =
-               Vf.(wiggled *. Float.of_int joint_spacing) |> Vi.of_float
-             in
-             Vi.(spaced + start))
+      ::
+      List.map rest ~f:(fun point ->
+          let wiggled = Vf.(of_int point + random_wiggle ()) in
+          let spaced =
+            Vf.(wiggled *. Float.of_int joint_spacing) |> Vi.of_float
+          in
+          Vi.(spaced + start) )
 
 let has_no_collisions cave canon =
   Sparse_grid.for_all (obstacles_of_balls cave canon) (fun (x, z) () ->
@@ -159,9 +160,9 @@ let has_no_collisions cave canon =
       | Clear ->
           true
       | Bridgeable | Impassable ->
-          false)
+          false )
 
-(* let intersection = Canonical_overlay.Obstacles.zip_map
+(* let intersection = Overlay.Canon.Obstacles.zip_map
     (obstacles_of_balls cave canon) canon.obstacles ~f:(&&)
    in
    Grid.Leafwise.exists (Grid.Leafwise.T intersection) ~f:(fun (b, _) -> b) *)
@@ -179,7 +180,7 @@ let rec try_make_points ~tries canon start =
       try_make_points ~tries:(tries - 1) canon start
 
 let prepare () =
-  let canon = Canonical_overlay.require () in
+  let canon = Overlay.Canon.require () in
   let prepare_cave (start_x, start_z) =
     if Random.int 100 >= cave_prob then None
     else
@@ -223,7 +224,7 @@ let apply_region (caves, _) (args : Minecraft_converter.region_args) =
                    | None | Some (Air | Water | Flowing_water _) ->
                        ()
                    | Some _ ->
-                       R.set_block_opt Air ~x ~y ~z args.region)))
+                       R.set_block_opt Air ~x ~y ~z args.region ) ) )
 
 let require, prepare, apply =
   Overlay.make "cave" prepare apply_region bin_reader_t bin_writer_t

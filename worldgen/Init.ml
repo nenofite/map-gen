@@ -11,7 +11,7 @@ let init ~seed () =
   Config.Paths.create_directories () ;
   Progress_view.init () ;
   Overlay.init seed ;
-  Canonical_overlay.init ~side ;
+  Overlay.Canon.init ~side ;
   ()
 
 let prepare_all () =
@@ -43,7 +43,7 @@ let apply_all args =
   ()
 
 let save () =
-  let canon = Canonical_overlay.require () in
+  let canon = Overlay.Canon.require () in
   let spawn =
     match Mg_util.shuffle canon.spawn_points with
     | s :: _ ->

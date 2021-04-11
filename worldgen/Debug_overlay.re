@@ -6,9 +6,9 @@ type options = {
 };
 
 let prepare = () => {
-  let canon = Canonical_overlay.require();
+  let canon = Overlay.Canon.require();
   Draw.draw_grid(
-    Canonical_overlay.(
+    Overlay.Canon.(
       fun
       | Clear => 0
       | Bridgeable => 0x0000FF

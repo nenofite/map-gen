@@ -24,7 +24,7 @@ let cavern_entrance_fits_within_region ~canon_side ~x ~z =
   Minecraft_converter.within_region_boundaries ~canon_side ~min_x:(minx + x)
     ~max_x:(maxx + x) ~min_z:(minz + z) ~max_z:(maxz + z)
 
-let can_build_cavern_entrance (canon : Canonical_overlay.t) ~x ~z =
+let can_build_cavern_entrance (canon : Overlay.Canon.t) ~x ~z =
   let top = Site_templates.cavern_entrance in
   let minx, maxx = top.bounds_x in
   let minz, maxz = top.bounds_z in
@@ -43,11 +43,11 @@ let can_build_cavern_entrance (canon : Canonical_overlay.t) ~x ~z =
          Range.for_all
            (x + minx - max_stair_distance)
            (x + maxx + max_stair_distance)
-           (fun x ->
-             Canonical_overlay.can_build_on (Grid.get x z canon.obstacles) ) )
+           (fun x -> Overlay.Canon.can_build_on (Grid.get x z canon.obstacles))
+         )
 
 let prepare ~x ~z =
-  let canon = Canonical_overlay.require () in
+  let canon = Overlay.Canon.require () in
   let cavern = Cavern_overlay.require () in
   if
     cavern_entrance_fits_within_region ~canon_side:canon.side ~x ~z
@@ -70,7 +70,7 @@ let put_obstacles t ~x ~z ~put =
   let minz, maxz = top.bounds_z in
   for z = z + minz - max_stair_distance to z + maxz + max_stair_distance do
     for x = x + minx - max_stair_distance to x + maxx + max_stair_distance do
-      put Canonical_overlay.Obstacle.Impassable ~x ~z
+      put Overlay.Canon.Obstacle.Impassable ~x ~z
     done
   done
 

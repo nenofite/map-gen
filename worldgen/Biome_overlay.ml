@@ -15,7 +15,7 @@ type high_biome = Pine_forest | Barren | Snow [@@deriving eq, bin_io]
 type biome = Mid of mid_biome | Shore of shore_biome | High of high_biome
 [@@deriving eq, bin_io]
 
-type t = biome Grid.t * Canonical_overlay.delta [@@deriving bin_io]
+type t = biome Grid.t * Overlay.Canon.delta [@@deriving bin_io]
 
 module Biome_grid = Grid.Make0 (struct
   type t = biome
@@ -117,12 +117,12 @@ let select_elevation ~(base : Base_overlay.tile Grid.t)
       else if elevation >= Heightmap.mountain_level - 20 then
         (* TODO use some sort of interp for mid-high cutoff, instead of flat line *)
         High high
-      else Mid mid)
+      else Mid mid )
 
 let prepare_voronoi () =
   let voronoi_frac = 4 in
   let high_cost = 10 in
-  let canon = Canonical_overlay.require () in
+  let canon = Overlay.Canon.require () in
   let base, _ = Base_overlay.require () in
   let voronoi_side = canon.side / voronoi_frac in
   let high_cost_spots =
@@ -134,7 +134,7 @@ let prepare_voronoi () =
               (x + voronoi_frac - 1)
               (fun x ->
                 let t = Grid.get x z base in
-                t.elevation >= Heightmap.mountain_level - 20 || t.ocean)))
+                t.elevation >= Heightmap.mountain_level - 20 || t.ocean ) ) )
   in
   let random_lmh () =
     {shore= random_shore (); mid= random_mid (); high= random_high ()}
@@ -150,7 +150,7 @@ let prepare_voronoi () =
         let value = point.value in
         let x = Int.of_float point.px in
         let z = Int.of_float point.py in
-        (x, z, value) :: ls)
+        (x, z, value) :: ls )
       []
   in
   let spread_into ~x ~z ~level lmh_val live_set =
@@ -173,7 +173,7 @@ let prepare_voronoi () =
           |> spread_into ~x ~z:(z + 1) ~level lmh_val
           |> spread_into ~x:(x - 1) ~z ~level lmh_val
         in
-        ((), next_live_set) )) ;
+        ((), next_live_set) ) ) ;
   (* TODO base on voronoi_frac *)
   Subdivide_mut.subdivide lmh ;
   Subdivide_mut.subdivide lmh ;
@@ -183,7 +183,7 @@ let prepare_voronoi () =
 let get_obstacle dirt biome =
   match biome with
   | Mid (Desert _) -> (
-    match dirt = 0 with true -> Canonical_overlay.Impassable | false -> Clear )
+    match dirt = 0 with true -> Overlay.Canon.Impassable | false -> Clear )
   | _ ->
       Clear
 
@@ -191,11 +191,9 @@ let prepare () =
   let dirt = Dirt_overlay.require () in
   let biomes = prepare_voronoi () in
   let biome_obstacles =
-    Canonical_overlay.Obstacles.zip_map dirt biomes ~f:get_obstacle
+    Overlay.Canon.Obstacles.zip_map dirt biomes ~f:get_obstacle
   in
-  let canond =
-    Canonical_overlay.make_delta ~obstacles:(`Add biome_obstacles) ()
-  in
+  let canond = Overlay.Canon.make_delta ~obstacles:(`Add biome_obstacles) () in
   (biomes, canond)
 
 let colorize (biome, base) =
@@ -280,7 +278,7 @@ let apply_dirt (dirt : int Grid_compat.t) (state, _canon)
           in
           for y = elev - dirt_depth + 1 to elev do
             overwrite_stone_air region x y z material
-          done)
+          done )
 
 let apply_region state (args : Minecraft_converter.region_args) =
   let dirt = Dirt_overlay.require () in

@@ -97,14 +97,14 @@ let pathfind_road ~get_elevation ~get_obstacle ~has_existing_road ~start_coords
         let nx = x + dx in
         let nz = z + dz in
         match get_obstacle ~x:nx ~z:nz with
-        | Canonical_overlay.Impassable ->
+        | Overlay.Canon.Impassable ->
             acc
         | Bridgeable ->
             let ny = get_elevation ~x:nx ~z:nz in
             add_bridge_start_neighbor ~y ~ny ~x ~z ~nx ~nz acc
         | Clear ->
             let ny = get_elevation ~x:nx ~z:nz in
-            add_ground_neighbor ~y ~ny ~nx ~nz acc)
+            add_ground_neighbor ~y ~ny ~nx ~nz acc )
   in
   let add_bridge_continue_neighbor bridge ~y ~ny ~nx ~nz list =
     if ny <= y then ({x= nx; y; z= nz; bridge}, bridge_cost) :: list else list
@@ -122,7 +122,7 @@ let pathfind_road ~get_elevation ~get_obstacle ~has_existing_road ~start_coords
         let nx = x + dx in
         let nz = z + dz in
         match get_obstacle ~x:nx ~z:nz with
-        | Canonical_overlay.Impassable ->
+        | Overlay.Canon.Impassable ->
             acc
         | Bridgeable ->
             let ny = get_elevation ~x:nx ~z:nz in
@@ -130,7 +130,7 @@ let pathfind_road ~get_elevation ~get_obstacle ~has_existing_road ~start_coords
         | Clear ->
             let ny = get_elevation ~x:nx ~z:nz in
             add_bridge_continue_neighbor bridge ~y ~ny ~nx ~nz
-            @@ add_bridge_end_neighbor bridge ~y ~ny ~nx ~nz acc)
+            @@ add_bridge_end_neighbor bridge ~y ~ny ~nx ~nz acc )
   in
   let neighbors {x; y; z; bridge} =
     let n =
@@ -147,7 +147,7 @@ let pathfind_road ~get_elevation ~get_obstacle ~has_existing_road ~start_coords
   in
   let start_set =
     List.map start_coords ~f:(fun (x, z, g) ->
-        ({x; y= get_elevation ~x ~z; z; bridge= No_bridge}, g))
+        ({x; y= get_elevation ~x ~z; z; bridge= No_bridge}, g) )
   in
   A_star.pathfind ~neighbors ~heuristic ~start_set ~goal:wrapped_goal_pred
     ~max_iters:1_000_000
@@ -155,7 +155,7 @@ let pathfind_road ~get_elevation ~get_obstacle ~has_existing_road ~start_coords
 let%test_module "tests" =
   ( module struct
     let palette =
-      [(".", Canonical_overlay.Clear); ("X", Impassable); ("O", Bridgeable)]
+      [(".", Overlay.Canon.Clear); ("X", Impassable); ("O", Bridgeable)]
 
     let print_path grid road =
       let side = Grid.Mut.side grid in
@@ -176,7 +176,7 @@ let%test_module "tests" =
                   ">" )
             | None -> (
               match Grid.Mut.get ~x ~z grid with
-              | Canonical_overlay.Clear ->
+              | Overlay.Canon.Clear ->
                   "."
               | Impassable ->
                   "X"
@@ -219,7 +219,7 @@ let%test_module "tests" =
           (pathfind_road ~get_elevation ~get_obstacle ~has_existing_road
              ~start_coords:[start]
              ~goal_pred:(fun ~x ~z -> x = 13 && z = 13)
-             ~goal_coord:goal)
+             ~goal_coord:goal )
       in
       print_path grid road ;
       [%expect
@@ -272,7 +272,7 @@ let%test_module "tests" =
           (pathfind_road ~get_elevation ~get_obstacle ~has_existing_road
              ~start_coords:[start]
              ~goal_pred:(fun ~x ~z -> x = 13 && z = 13)
-             ~goal_coord:goal)
+             ~goal_coord:goal )
       in
       print_path grid road ;
       [%expect
@@ -325,7 +325,7 @@ let%test_module "tests" =
           (pathfind_road ~get_elevation ~get_obstacle ~has_existing_road
              ~start_coords:[start]
              ~goal_pred:(fun ~x ~z -> x = 13 && z = 1)
-             ~goal_coord:goal)
+             ~goal_coord:goal )
       in
       print_path grid road ;
       [%expect

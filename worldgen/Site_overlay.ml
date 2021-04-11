@@ -5,12 +5,12 @@ module type Site = sig
 
   val prepare : x:int -> z:int -> (t * int * int) option
 
-  (* val canon_delta : t -> x:int -> z:int -> Canonical_overlay.delta *)
+  (* val canon_delta : t -> x:int -> z:int -> Overlay.Canon.delta *)
   val put_obstacles :
        t
     -> x:int
     -> z:int
-    -> put:(Canonical_overlay.obstacle -> x:int -> z:int -> unit)
+    -> put:(Overlay.Canon.obstacle -> x:int -> z:int -> unit)
     -> unit
 
   val apply :
@@ -22,7 +22,7 @@ type 'a site_list = ('a * int * int) list [@@deriving bin_io]
 type t = {entrances: Entrance_site.t site_list; gates: Gate_site.t site_list}
 [@@deriving bin_io]
 
-type t_with_canon = t * Canonical_overlay.delta [@@deriving bin_io]
+type t_with_canon = t * Overlay.Canon.delta [@@deriving bin_io]
 
 let overlay =
   Overlay.make_overlay "site" bin_reader_t_with_canon bin_writer_t_with_canon
@@ -45,7 +45,7 @@ let filter_and_grab_until_full list ~bag ~target ~f =
   go list ~unwanted:[]
 
 let prepare () =
-  let canon = Canonical_overlay.require () in
+  let canon = Overlay.Canon.require () in
   let available_sites =
     Point_cloud.make_int_list ~side:canon.side ~spacing:128 ()
     |> Mg_util.shuffle
@@ -60,10 +60,10 @@ let prepare () =
   |> filter_and_grab_until_full ~bag:gates ~target:target_gate_count
        ~f:(fun (x, z) -> Gate_site.prepare ~x ~z)
   |> ignore ;
-  let obs = Grid.Mut.create ~side:canon.side Canonical_overlay.Obstacle.Clear in
+  let obs = Grid.Mut.create ~side:canon.side Overlay.Canon.Obstacle.Clear in
   let put_obs level ~x ~z =
     Grid.Mut.update_opt obs ~x ~z ~f:(fun old_level ->
-        Canonical_overlay.Obstacle.max level old_level )
+        Overlay.Canon.Obstacle.max level old_level )
     |> ignore
   in
   Bag.iter entrances ~f:(fun (t, x, z) ->
@@ -71,8 +71,8 @@ let prepare () =
   Bag.iter gates ~f:(fun (t, x, z) ->
       Gate_site.put_obstacles t ~x ~z ~put:put_obs ) ;
   let canond =
-    Canonical_overlay.make_delta
-      ~obstacles:(`Add (Canonical_overlay.Obstacles.of_mut obs))
+    Overlay.Canon.make_delta
+      ~obstacles:(`Add (Overlay.Canon.Obstacles.of_mut obs))
       ()
   in
   ({entrances= Bag.to_list entrances; gates= Bag.to_list gates}, canond)
@@ -90,7 +90,7 @@ let apply_progress_view sites =
   ()
 
 let after_prepare (sites, canond) =
-  Canonical_overlay.push_delta canond ;
+  Overlay.Canon.push_delta canond ;
   apply_progress_view sites ;
   ()
 

@@ -35,15 +35,15 @@ let random_gate ~rotation =
        else eat_frac ~frac:(Random.float 0.25))
 
 let can_build_template template ~x ~z =
-  let canon = Canonical_overlay.require () in
+  let canon = Overlay.Canon.require () in
   let minx, maxx = template.Minecraft_template.bounds_x in
   let minz, maxz = template.bounds_z in
   Range.for_all (z + minz) (z + maxz) (fun z ->
       Range.for_all (x + minx) (x + maxx) (fun x ->
-          Canonical_overlay.can_build_on (Grid.get x z canon.obstacles) ) )
+          Overlay.Canon.can_build_on (Grid.get x z canon.obstacles) ) )
 
 let prepare ~x ~z =
-  let canon = Canonical_overlay.require () in
+  let canon = Overlay.Canon.require () in
   let rotation = Random.int_incl 0 3 in
   let template = random_gate ~rotation in
   if
@@ -55,7 +55,7 @@ let prepare ~x ~z =
 
 let put_obstacles (t : t) ~x ~z ~put =
   List.iter t.template.footprint ~f:(fun (fx, fz) ->
-      put Canonical_overlay.Obstacle.Impassable ~x:(x + fx) ~z:(z + fz) ) ;
+      put Overlay.Canon.Obstacle.Impassable ~x:(x + fx) ~z:(z + fz) ) ;
   ()
 
 let stair_dirs ~rotation =

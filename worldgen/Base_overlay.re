@@ -4,7 +4,7 @@ open Core_kernel;
 type tile = River.tile;
 
 [@deriving bin_io]
-type t = (Grid.t(tile), Canonical_overlay.t);
+type t = (Grid.t(tile), Overlay.Canon.t);
 
 type x = Grid.t(tile);
 
@@ -23,7 +23,7 @@ let apply_progress_view = (state: t) => {
 };
 
 let obstacle_of_tile = tile => {
-  Canonical_overlay.(
+  Overlay.Canon.(
     if (tile.River.Tile.ocean) {
       Impassable;
     } else if (tile.river) {
@@ -35,7 +35,7 @@ let obstacle_of_tile = tile => {
 };
 
 let extract_canonical = (grid: Grid.t(tile)) =>
-  Canonical_overlay.{
+  Overlay.Canon.{
     side: grid.side,
     elevation: Grid_compat.map(grid, (_x, _y, tile) => tile.elevation),
     obstacles: Obstacles.map(grid, ~f=obstacle_of_tile),
@@ -46,7 +46,7 @@ let prepare = () => {
   module Pvh = Progress_view_helper.Make(Grid.Mut.Intf);
   let layer = Progress_view.push_layer();
 
-  let side = Canonical_overlay.require().side;
+  let side = Overlay.Canon.require().side;
   let grid = Tectonic.phase(side);
   let grid = Heightmap.phase(grid);
   Pvh.update_with_colorize(
@@ -74,7 +74,7 @@ let prepare = () => {
   Progress_view.remove_layer(layer);
   let grid = River.Tile.Grid.of_mut(grid);
   let canon = extract_canonical(grid);
-  Canonical_overlay.restore(canon);
+  Overlay.Canon.restore(canon);
   (grid, canon);
 };
 
@@ -113,7 +113,7 @@ let apply_region = (state: t, args: Minecraft_converter.region_args) => {
 
 let after_prepare = ((_, canon) as state) => {
   apply_progress_view(state);
-  Canonical_overlay.restore(canon);
+  Overlay.Canon.restore(canon);
 };
 
 let (require, prepare, apply) =

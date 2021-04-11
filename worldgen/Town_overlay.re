@@ -8,7 +8,7 @@ type town = {
 };
 
 [@deriving bin_io]
-type t = (list(town), Canonical_overlay.delta);
+type t = (list(town), Overlay.Canon.delta);
 
 type x = list(town);
 
@@ -19,7 +19,7 @@ let min_dist_between_towns = 500;
 let potential_sites_limit = 100;
 let wall_height = 4;
 
-let draw_towns = (canon: Canonical_overlay.t, towns) => {
+let draw_towns = (canon: Overlay.Canon.t, towns) => {
   let sg =
     Sparse_grid.(
       List.fold_left(
@@ -75,7 +75,7 @@ let within_region_boundaries = (~canon_side, min_x, min_z) => {
 };
 
 let obstacle_at = (~x, ~z, obstacles) =>
-  !Canonical_overlay.can_build_on(Grid.get(x, z, obstacles));
+  !Overlay.Canon.can_build_on(Grid.get(x, z, obstacles));
 
 let has_obstacle = (obstacles, x, z) =>
   Range.exists(z, z + Town_prototype.side - 1, z =>
@@ -107,7 +107,7 @@ let acceptable_elevations = (elevations, x, z) => {
   emax - emin <= Town_prototype.elevation_range;
 };
 
-let town_area_clear = (canon: Canonical_overlay.t, x, z) =>
+let town_area_clear = (canon: Overlay.Canon.t, x, z) =>
   if (!within_region_boundaries(~canon_side=canon.side, x, z)) {
     Tale.log("region boundaries");
     false;
@@ -174,7 +174,7 @@ let add_block_to_obstacles = (block, obstacles) => {
   let Town_prototype.{min_x, max_x, min_z, max_z, elevation: _} = block;
   Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
     Range.fold(min_x, max_x, obstacles, (obstacles, x) =>
-      Canonical_overlay.Obstacles.set(x, z, Impassable, obstacles)
+      Overlay.Canon.Obstacles.set(x, z, Impassable, obstacles)
     )
   );
 };
@@ -189,8 +189,8 @@ let spawn_point_of_block = block => {
 
 let prepare_town =
     (
-      canon: Canonical_overlay.t,
-      canon_obstacles: Canonical_overlay.obstacles,
+      canon: Overlay.Canon.t,
+      canon_obstacles: Overlay.Canon.obstacles,
       town_min_x,
       town_min_z,
     ) => {
@@ -213,7 +213,7 @@ let prepare_town =
       Grid.With_coords.T(canon.obstacles),
       ~init=Sparse_grid.make(Town_prototype.side),
       ~f=(town_obstacles, (x, z, obs)) =>
-      if (!Canonical_overlay.can_build_on(obs)
+      if (!Overlay.Canon.can_build_on(obs)
           && town_min_x <= x
           && x <= town_max_x
           && town_min_z <= z
@@ -269,7 +269,7 @@ let prepare_town =
 };
 
 let prepare = (): t => {
-  let canon = Canonical_overlay.require();
+  let canon = Overlay.Canon.require();
   let (base, _) = Base_overlay.require();
   /* Shuffle a list of all river tiles */
   Tale.log("Finding river coords");
@@ -295,12 +295,12 @@ let prepare = (): t => {
         let (town, obs, spawn_point) = prepare_town(canon, obs, x, z);
         ([town, ...towns], obs, [spawn_point, ...spawn_points]);
       },
-      ([], Grid.make(~side=canon.side, Canonical_overlay.Clear), []),
+      ([], Grid.make(~side=canon.side, Overlay.Canon.Clear), []),
       towns,
     );
   (
     towns,
-    Canonical_overlay.make_delta(
+    Overlay.Canon.make_delta(
       ~obstacles=`Add(obs),
       ~spawn_points=`Add(spawn_points),
       (),

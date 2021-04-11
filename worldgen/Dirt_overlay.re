@@ -10,7 +10,7 @@ type t = Grid.t(int);
 let prepare = () => {
   Tale.block("Making dirt heights", ~f=() => {
     Tale.log("Init");
-    let side = Canonical_overlay.require().side;
+    let side = Overlay.Canon.require().side;
     let m =
       Grid.Mut.init(
         ~side=side / 32, ~alloc_side=side, 0, ~f=(~x as _, ~z as _) => {

@@ -1,5 +1,5 @@
 (library
- (name Worldgen)
+ (name Overlay)
  (inline_tests)
  (libraries
   core_kernel
@@ -8,12 +8,8 @@
   Grid
   Config
   Progress_view
-  ANSITerminal
   Minecraft
   Minecraft_template
-  Overlay
-  camlimages.core
-  camlimages.png
   bin_prot)
  (preprocess
   (pps
