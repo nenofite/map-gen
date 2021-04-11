@@ -126,6 +126,15 @@ module Range = {
     };
 
   let map = (min, max, f) => fold(min, max, [], (ls, n) => [f(n), ...ls]);
+
+  let rec iter_m = (min, max, ~bind, expr) => {
+    let s = expr(min);
+    if (min < max) {
+      bind(s, ~f=() => iter_m(min + 1, max, ~bind, expr));
+    } else {
+      s;
+    };
+  };
 };
 
 /** is the same as Random.int, but handles zero nicely */
