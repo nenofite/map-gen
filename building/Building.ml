@@ -12,7 +12,7 @@ module Shared = struct
   type 'a t = pos -> 'a
 
   let get_elevation ~x ~z pos =
-    let canon = todo in
+    let canon = Overlay.Canon.require () in
     let x, _, z = apply_pos pos ~x ~y:0 ~z in
     Grid.get x z canon.elevation
 end
@@ -65,12 +65,12 @@ module Prepare_monad = struct
     Ok ((), state)
 
   let collide_obstacle ~x ~z state pos =
-    let canon = todo in
+    let canon = Overlay.Canon.require () in
     let x, _, z = apply_pos pos ~x ~y:0 ~z in
-    if Grid.get x z canon.obstacles then Collision
-    else
+    if Overlay.Canon.can_build_on (Grid.get x z canon.obstacles) then
       let state = add_obstacle state ~x ~z in
       Ok ((), state)
+    else Collision
 end
 
 module Apply_monad = struct

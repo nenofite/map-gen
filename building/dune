@@ -9,6 +9,7 @@
   Config
   Minecraft
   Minecraft_template
+  Overlay
   bin_prot)
  (preprocess
   (pps
