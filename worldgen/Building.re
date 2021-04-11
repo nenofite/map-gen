@@ -247,12 +247,22 @@ let rec column_down =
   };
 };
 
-let rectangle_foundation = (args, ~minx, ~maxx, ~y, ~minz, ~maxz): unit => {
+let rectangle_foundation =
+    (
+      ~material=Minecraft.Block.Cobblestone,
+      args,
+      ~minx,
+      ~maxx,
+      ~y,
+      ~minz,
+      ~maxz,
+    )
+    : unit => {
   for (z in minz to maxz) {
     for (x in minx to maxx) {
-      column_down(args, ~x, ~y, ~z, Cobblestone);
+      column_down(args, ~x, ~y, ~z, material);
       /* Also do the level below in case a building is here */
-      column_down(args, ~x, ~y=y - 1, ~z, Cobblestone);
+      column_down(args, ~x, ~y=y - 1, ~z, material);
     };
   };
 };
@@ -270,52 +280,114 @@ let rec lay_stairs =
   };
 };
 
-let stair_foundation = (args, ~minx, ~maxx, ~y, ~minz, ~maxz): unit => {
+/** checks whether a call to {!lay_stairs} would terminate within [max_distance] */
+let rec would_stairs_fit = (elevation, ~x, ~y, ~z, ~dx, ~dz, ~max_distance) =>
+  if (max_distance <= 0) {
+    false;
+  } else {
+    let here_elev = Grid.get(x, z, elevation);
+    if (y <= here_elev) {
+      true;
+    } else {
+      would_stairs_fit(
+        elevation,
+        ~x=x + dx,
+        ~y=y - 1,
+        ~z=z + dz,
+        ~dx,
+        ~dz,
+        ~max_distance=max_distance - 1,
+      );
+    };
+  };
+
+let stair_foundation =
+    (
+      ~rectangle_material=?,
+      ~stair_material=d => Minecraft.Block.Cobblestone_stairs(d),
+      args,
+      ~minx,
+      ~maxx,
+      ~y,
+      ~minz,
+      ~maxz,
+    )
+    : unit => {
   /* Fill the base rectangle */
-  rectangle_foundation(args, ~minx, ~maxx, ~y, ~minz, ~maxz);
+  rectangle_foundation(
+    ~material=?rectangle_material,
+    args,
+    ~minx,
+    ~maxx,
+    ~y,
+    ~minz,
+    ~maxz,
+  );
   /* Lay each side of stairs */
   for (x in minx to maxx) {
     /* N stairs */
-    lay_stairs(
-      args,
-      ~x,
-      ~y,
-      ~z=minz - 1,
-      Minecraft.Block.Cobblestone_stairs(S),
-      ~dx=0,
-      ~dz=-1,
-    );
+    lay_stairs(args, ~x, ~y, ~z=minz - 1, stair_material(S), ~dx=0, ~dz=-1);
     /* S stairs */
-    lay_stairs(
-      args,
-      ~x,
-      ~y,
-      ~z=maxz + 1,
-      Minecraft.Block.Cobblestone_stairs(N),
-      ~dx=0,
-      ~dz=1,
-    );
+    lay_stairs(args, ~x, ~y, ~z=maxz + 1, stair_material(N), ~dx=0, ~dz=1);
   };
   for (z in minz to maxz) {
     /* E stairs */
-    lay_stairs(
-      args,
-      ~x=maxx + 1,
-      ~y,
-      ~z,
-      Minecraft.Block.Cobblestone_stairs(W),
-      ~dx=1,
-      ~dz=0,
-    );
+    lay_stairs(args, ~x=maxx + 1, ~y, ~z, stair_material(W), ~dx=1, ~dz=0);
     /* W stairs */
-    lay_stairs(
-      args,
-      ~x=minx - 1,
-      ~y,
-      ~z,
-      Minecraft.Block.Cobblestone_stairs(E),
-      ~dx=-1,
-      ~dz=0,
-    );
+    lay_stairs(args, ~x=minx - 1, ~y, ~z, stair_material(E), ~dx=-1, ~dz=0);
   };
+};
+
+/** checks whether a call to {!stair_foundation} would terminate within [max_distance] on each side */
+let would_stair_foundation_fit =
+    (elevation, ~minx, ~maxx, ~y, ~minz, ~maxz, ~max_distance): bool => {
+  let r =
+    Range.for_all(minx, maxx, x => {
+      /* N stairs */
+      would_stairs_fit(
+        elevation,
+        ~x,
+        ~y,
+        ~z=minz - 1,
+        ~dx=0,
+        ~dz=-1,
+        ~max_distance,
+      )
+      /* S stairs */
+      && would_stairs_fit(
+           elevation,
+           ~x,
+           ~y,
+           ~z=maxz + 1,
+           ~dx=0,
+           ~dz=1,
+           ~max_distance,
+         )
+    })
+    && Range.for_all(minz, maxz, z => {
+         /* E stairs */
+         would_stairs_fit(
+           elevation,
+           ~x=maxx + 1,
+           ~y,
+           ~z,
+           ~dx=1,
+           ~dz=0,
+           ~max_distance,
+         )
+         /* W stairs */
+         && would_stairs_fit(
+              elevation,
+              ~x=minx - 1,
+              ~y,
+              ~z,
+              ~dx=-1,
+              ~dz=0,
+              ~max_distance,
+            )
+       });
+  if (!r) {
+    Tale.log("stair foundation didn't fit");
+  };
+  r;
 };
