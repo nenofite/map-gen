@@ -8,6 +8,15 @@ let apply_pos pos ~x ~y ~z =
   ignore rotation ;
   (x + ox, y + oy, z + oz)
 
+module Shared = struct
+  type 'a t = pos -> 'a
+
+  let get_elevation ~x ~z pos =
+    let canon = todo in
+    let x, _, z = apply_pos pos ~x ~y:0 ~z in
+    Grid.get x z canon.elevation
+end
+
 module Prepare_monad = struct
   type state = {obstacles: (int * int) list}
 
@@ -42,6 +51,8 @@ module Prepare_monad = struct
   include T
   include Monad.Make (T)
 
+  let of_shared shared : 'a t = fun state pos -> return (shared pos) state pos
+
   let prepare (t : 'a t) ~x ~y ~z ~rotation =
     let state = {obstacles= []} in
     let pos = {origin= (x, y, z); rotation} in
@@ -59,12 +70,6 @@ module Prepare_monad = struct
     else
       let state = add_obstacle state ~x ~z in
       Ok ((), state)
-
-  let get_elevation ~x ~z : int t =
-   fun state pos ->
-    let canon = todo in
-    let x, _, z = apply_pos pos ~x ~y:0 ~z in
-    Grid.get x z canon.elevation
 end
 
 module Apply_monad = struct
@@ -85,6 +90,10 @@ module Apply_monad = struct
   include T
   include Monad.Make (T)
 
+  let nop = return ()
+
+  let of_shared shared : 'a t = fun pos args -> return (shared pos) pos args
+
   let apply (t : 'a t) ~x ~y ~z ~rotation args =
     let pos = {origin= (x, y, z); rotation} in
     t pos args
@@ -99,7 +108,7 @@ module Apply_monad = struct
     let x, y, z = apply_pos pos ~x ~y ~z in
     Minecraft.Region.get_block ~x ~y ~z args
 
-  let get_elevation ~x ~z : int t =
+  let height_at ~x ~z : int t =
    fun pos args ->
     let x, _, z = apply_pos pos ~x ~y:0 ~z in
     Minecraft.Region.height_at ~x ~z args
@@ -123,36 +132,20 @@ module Building_monad = struct
 
   let parallel ~prepare ~apply : 'a t = (prepare, apply)
 
+  let of_shared shared : 'a t =
+    parallel
+      ~prepare:(Prepare_monad.of_shared shared)
+      ~apply:(Apply_monad.of_shared shared)
+
   let set_block mat ~x ~y ~z : unit t =
     parallel
       ~prepare:(Prepare_monad.collide_obstacle ~x ~z)
       ~apply:(Apply_monad.set_block mat ~x ~y ~z)
 
-  let get_elevation ~x ~z : int t =
+  let elevation_at ~x ~z : int t = of_shared (Shared.get_elevation ~x ~z)
+
+  let height_at ~x ~z : int t =
     parallel
-      ~prepare:(Prepare_monad.get_elevation ~x ~z)
-      ~apply:(Apply_monad.get_elevation ~x ~z)
+      ~prepare:(Prepare_monad.of_shared (Shared.get_elevation ~x ~z))
+      ~apply:(Apply_monad.height_at ~x ~z)
 end
-
-(* module Building_monad = struct
-  type ('p, 'a) exec = Prepare of 'p | Apply of 'a
-
-  type input_exec =
-    (Prepare_monad.state * pos, pos * Apply_monad.region_args) exec
-
-  module T = struct
-    type 'a t = input_exec -> ('a Prepare_monad.t, 'a Apply_monad.t) exec
-
-    let bind (t : 'a t) ~f : 'a t =
-     fun exec ->
-      match t exec with
-      | Prepare m ->
-          Prepare
-            (Prepare_monad.map m ~f:(fun a -> f a exec) |> Prepare_monad.join)
-      | Apply (pos, args) ->
-          todo
-  end
-
-  let set_block mat ~x ~y ~z : unit t =
-    Prepare_monad.collide_obstacle ~x ~z + Apply_monad.set_block mat ~x ~y ~z
-end *)
