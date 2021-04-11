@@ -95,26 +95,27 @@ module Apply_monad = struct
 end
 
 module Building_monad = struct
-  type ('p, 'a) exec = Prepare of 'p | Apply of 'a
-
-  type input_exec =
-    (Prepare_monad.state * pos, pos * Apply_monad.region_args) exec
-
   module T = struct
-    type 'a t = input_exec -> ('a Prepare_monad.t, 'a Apply_monad.t) exec
+    type 'a t = 'a Prepare_monad.t * 'a Apply_monad.t
 
-    let bind (t : 'a t) ~f : 'a t =
-     fun exec ->
-      match t exec with
-      | Prepare m ->
-          Prepare
-            (Prepare_monad.map m ~f:(fun a -> f a exec) |> Prepare_monad.join)
-      | Apply (pos, args) ->
-          todo
+    let bind ((p, a) : 'a t) ~f : 'b t =
+      ( Prepare_monad.(p >>= fun n -> fst (f n))
+      , Apply_monad.(a >>= fun n -> snd (f n)) )
+
+    let return n : 'a t = (Prepare_monad.return n, Apply_monad.return n)
+
+    let map = `Define_using_bind
   end
 
+  include T
+  include Monad.Make (T)
+
+  let parallel ~prepare ~apply : 'a t = (prepare, apply)
+
   let set_block mat ~x ~y ~z : unit t =
-    Prepare_monad.collide_obstacle ~x ~z + Apply_monad.set_block mat ~x ~y ~z
+    parallel
+      ~prepare:(Prepare_monad.collide_obstacle ~x ~z)
+      ~apply:(Apply_monad.set_block mat ~x ~y ~z)
 end
 
 (* module Building_monad = struct
