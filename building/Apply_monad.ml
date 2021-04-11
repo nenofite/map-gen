@@ -27,12 +27,14 @@ let apply (t : 'a t) ~pos region = t pos region
 let set_block mat ~x ~y ~z : unit t =
  fun pos region ->
   let x, y, z = Shared.apply_pos pos ~x ~y ~z in
+  let mat = Shared.apply_rotation_to_block mat ~pos in
   Minecraft.Region.set_block mat ~x ~y ~z region
 
 let get_block ~x ~y ~z : Minecraft.Block.material t =
  fun pos region ->
   let x, y, z = Shared.apply_pos pos ~x ~y ~z in
   Minecraft.Region.get_block ~x ~y ~z region
+  |> Shared.negate_rotation_of_block ~pos
 
 let height_at ~x ~z : int t =
  fun pos region ->
