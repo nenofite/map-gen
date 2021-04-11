@@ -42,6 +42,11 @@ module Prepare_monad = struct
   include T
   include Monad.Make (T)
 
+  let prepare (t : 'a t) ~x ~y ~z ~rotation =
+    let state = {obstacles= []} in
+    let pos = {origin= (x, y, z); rotation} in
+    t state pos
+
   let put_obstacle ~x ~z state pos =
     let x, _, z = apply_pos pos ~x ~y:0 ~z in
     let state = add_obstacle state ~x ~z in
@@ -55,10 +60,11 @@ module Prepare_monad = struct
       let state = add_obstacle state ~x ~z in
       Ok ((), state)
 
-  let prepare (t : 'a t) ~x ~y ~z ~rotation =
-    let state = {obstacles= []} in
-    let pos = {origin= (x, y, z); rotation} in
-    t state pos
+  let get_elevation ~x ~z : int t =
+   fun state pos ->
+    let canon = todo in
+    let x, _, z = apply_pos pos ~x ~y:0 ~z in
+    Grid.get x z canon.elevation
 end
 
 module Apply_monad = struct
@@ -79,6 +85,10 @@ module Apply_monad = struct
   include T
   include Monad.Make (T)
 
+  let apply (t : 'a t) ~x ~y ~z ~rotation args =
+    let pos = {origin= (x, y, z); rotation} in
+    t pos args
+
   let set_block mat ~x ~y ~z : unit t =
    fun pos args ->
     let x, y, z = apply_pos pos ~x ~y ~z in
@@ -89,9 +99,10 @@ module Apply_monad = struct
     let x, y, z = apply_pos pos ~x ~y ~z in
     Minecraft.Region.get_block ~x ~y ~z args
 
-  let apply (t : 'a t) ~x ~y ~z ~rotation args =
-    let pos = {origin= (x, y, z); rotation} in
-    t pos args
+  let get_elevation ~x ~z : int t =
+   fun pos args ->
+    let x, _, z = apply_pos pos ~x ~y:0 ~z in
+    Minecraft.Region.height_at ~x ~z args
 end
 
 module Building_monad = struct
@@ -116,6 +127,11 @@ module Building_monad = struct
     parallel
       ~prepare:(Prepare_monad.collide_obstacle ~x ~z)
       ~apply:(Apply_monad.set_block mat ~x ~y ~z)
+
+  let get_elevation ~x ~z : int t =
+    parallel
+      ~prepare:(Prepare_monad.get_elevation ~x ~z)
+      ~apply:(Apply_monad.get_elevation ~x ~z)
 end
 
 (* module Building_monad = struct
