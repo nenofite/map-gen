@@ -21,6 +21,8 @@ let only_prepare prepare : unit t = (prepare, Apply_monad.nop)
 
 let only_apply apply : unit t = (Prepare_monad.nop, apply)
 
+let nop : unit t = parallel ~prepare:Prepare_monad.nop ~apply:Apply_monad.nop
+
 let of_shared (shared : 'a Shared.t) : 'a t =
   parallel
     ~prepare:(Prepare_monad.of_shared shared)
