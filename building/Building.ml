@@ -79,11 +79,12 @@ module Apply_monad = struct
   module T = struct
     type 'a t = pos -> region_args -> 'a
 
-    let bind (t : 'a t) ~f : 'b t = fun pos args -> f (t pos args) pos args
+    let bind (t : 'a t) ~f : 'b t =
+     fun pos region -> f (t pos region) pos region
 
     let return a : 'a t = fun _pos _args -> a
 
-    let map (t : 'a t) ~f : 'b t = fun pos args -> f (t pos args)
+    let map (t : 'a t) ~f : 'b t = fun pos region -> f (t pos region)
 
     let map = `Custom map
   end
@@ -94,26 +95,26 @@ module Apply_monad = struct
   let nop = return ()
 
   let of_shared (shared : 'a Shared.t) : 'a t =
-   fun pos args -> return (shared pos) pos args
+   fun pos region -> return (shared pos) pos region
 
-  let apply (t : 'a t) ~x ~y ~z ~rotation args =
+  let apply (t : 'a t) ~x ~y ~z ~rotation region =
     let pos = {origin= (x, y, z); rotation} in
-    t pos args
+    t pos region
 
   let set_block mat ~x ~y ~z : unit t =
-   fun pos args ->
+   fun pos region ->
     let x, y, z = apply_pos pos ~x ~y ~z in
-    Minecraft.Region.set_block mat ~x ~y ~z args
+    Minecraft.Region.set_block mat ~x ~y ~z region
 
   let get_block ~x ~y ~z : Minecraft.Block.material t =
-   fun pos args ->
+   fun pos region ->
     let x, y, z = apply_pos pos ~x ~y ~z in
-    Minecraft.Region.get_block ~x ~y ~z args
+    Minecraft.Region.get_block ~x ~y ~z region
 
   let height_at ~x ~z : int t =
-   fun pos args ->
+   fun pos region ->
     let x, _, z = apply_pos pos ~x ~y:0 ~z in
-    Minecraft.Region.height_at ~x ~z args
+    Minecraft.Region.height_at ~x ~z region
 end
 
 module Building_monad = struct

@@ -78,9 +78,8 @@ let prepare = () => {
   (grid, canon);
 };
 
-let apply_region = (state: t, args: Minecraft_converter.region_args) => {
+let apply_region = (state: t, region: Minecraft.Region.t) => {
   let (world, _canon) = state;
-  let region = args.region;
   Minecraft_converter.iter_blocks(
     region,
     (~x, ~z) => {

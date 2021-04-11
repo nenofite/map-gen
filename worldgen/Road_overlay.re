@@ -317,8 +317,8 @@ let place_step_block = (region, x, y, z) => {
   fill_beneath_road(region, x, y - 1, z);
 };
 
-let apply_region = ((state, _canon), args: Minecraft_converter.region_args) => {
-  let region = args.region;
+let apply_region = ((state, _canon), region: Minecraft.Region.t) => {
+  let region = region;
   Sparse_grid.iter(state.roads, ((x, z), road) =>
     if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
       let {road: {elevation: y, niceness}, step_down} = road;

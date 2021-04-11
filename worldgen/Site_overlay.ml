@@ -13,8 +13,7 @@ module type Site = sig
     -> put:(Overlay.Canon.obstacle -> x:int -> z:int -> unit)
     -> unit
 
-  val apply :
-    t -> x:int -> z:int -> args:Minecraft_converter.region_args -> unit
+  val apply : t -> x:int -> z:int -> region:Minecraft.Region.t -> unit
 end
 
 type 'a site_list = ('a * int * int) list [@@deriving bin_io]
@@ -94,14 +93,13 @@ let after_prepare (sites, canond) =
   apply_progress_view sites ;
   ()
 
-let apply_standard args ~x ~z template =
-  Building.apply_template args ~x ~z template
+let apply_standard region ~x ~z template =
+  Building.apply_template region ~x ~z template
 
-let apply_region (sites, _) (args : Minecraft_converter.region_args) : unit =
+let apply_region (sites, _) (region : Minecraft.Region.t) : unit =
   let {entrances; gates} = sites in
   let apply_if_within apply (t, x, z) =
-    if Minecraft.Region.is_within ~x ~y:0 ~z args.region then
-      apply t ~x ~z ~args
+    if Minecraft.Region.is_within ~x ~y:0 ~z region then apply t ~x ~z ~region
   in
   List.iter entrances ~f:(apply_if_within Entrance_site.apply) ;
   List.iter gates ~f:(apply_if_within Gate_site.apply)

@@ -233,8 +233,8 @@ let overwrite_stone_air region x y z block =
      overwriting rivers etc. "]
 
 let apply_dirt (dirt : int Grid_compat.t) (state, _canon)
-    (args : Minecraft_converter.region_args) =
-  let region = args.region in
+    (region : Minecraft.Region.t) =
+  let region = region in
   Minecraft_converter.iter_blocks region (fun ~x ~z ->
       let open Minecraft.Region in
       let elev = height_at ~x ~z region in
@@ -280,9 +280,9 @@ let apply_dirt (dirt : int Grid_compat.t) (state, _canon)
             overwrite_stone_air region x y z material
           done )
 
-let apply_region state (args : Minecraft_converter.region_args) =
+let apply_region state (region : Minecraft.Region.t) =
   let dirt = Dirt_overlay.require () in
-  apply_dirt dirt state args
+  apply_dirt dirt state region
 
 let require, prepare, apply =
   Overlay.make_no_canon "biome" prepare ~apply_progress_view apply_region

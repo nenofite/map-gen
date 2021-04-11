@@ -74,7 +74,7 @@ let put_obstacles t ~x ~z ~put =
     done
   done
 
-let apply t ~x ~z ~(args : Minecraft_converter.region_args) : unit =
+let apply t ~x ~z ~(region : Minecraft.Region.t) : unit =
   let {floor_elev= tube_depth} = t in
   let top = Site_templates.cavern_entrance in
   let tube = Site_templates.cavern_entrance_tube in
@@ -83,22 +83,22 @@ let apply t ~x ~z ~(args : Minecraft_converter.region_args) : unit =
   let minz, maxz = top.bounds_z in
   let y =
     y_of_top_piece_at
-      (fun ~x ~z -> Minecraft.Region.height_at ~x ~z args.region)
+      (fun ~x ~z -> Minecraft.Region.height_at ~x ~z region)
       ~minx:(minx + x) ~maxx:(maxx + x) ~minz:(minz + z) ~maxz:(maxz + z)
   in
-  Building.stair_foundation args ~minx:(minx + x) ~maxx:(maxx + x) ~y
+  Building.stair_foundation region ~minx:(minx + x) ~maxx:(maxx + x) ~y
     ~minz:(minz + z) ~maxz:(maxz + z) ;
-  Minecraft_template.place_overwrite top args.region ~x ~y ~z ;
+  Minecraft_template.place_overwrite top region ~x ~y ~z ;
   let tube_height = Minecraft_template.height_of tube in
   let base_height = Minecraft_template.height_of base in
   let tube_sections = (y - tube_depth - base_height) / tube_height in
   for i = 1 to tube_sections do
     let y = y - (i * tube_height) in
-    Minecraft_template.place_overwrite tube args.region ~x ~y ~z
+    Minecraft_template.place_overwrite tube region ~x ~y ~z
   done ;
   let y = y - (tube_sections * tube_height) - base_height in
-  Minecraft_template.place_overwrite base args.region ~x ~y ~z ;
+  Minecraft_template.place_overwrite base region ~x ~y ~z ;
   let minx, maxx = base.bounds_x in
   let minz, maxz = base.bounds_z in
-  Building.stair_foundation args ~minx:(minx + x) ~maxx:(maxx + x) ~y
+  Building.stair_foundation region ~minx:(minx + x) ~maxx:(maxx + x) ~y
     ~minz:(minz + z) ~maxz:(maxz + z)

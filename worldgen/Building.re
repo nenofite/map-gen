@@ -32,12 +32,11 @@ exception Building_failure(string);
 
 let piece_side = 10;
 
-let sum_elevation_in_piece =
-    (args: Minecraft_converter.region_args, x, z): int => {
+let sum_elevation_in_piece = (region: Minecraft.Region.t, x, z): int => {
   let sum = ref(0);
   for (z in z to z + piece_side - 1) {
     for (x in x to x + piece_side - 1) {
-      sum := sum^ + Minecraft.Region.height_at(~x, ~z, args.region);
+      sum := sum^ + Minecraft.Region.height_at(~x, ~z, region);
     };
   };
   sum^;
@@ -45,7 +44,7 @@ let sum_elevation_in_piece =
 
 /** gets the mean ground elevation in the area covered by this assembly */
 let average_elevation_in_assembly =
-    (args: Minecraft_converter.region_args, assembly): int => {
+    (region: Minecraft.Region.t, assembly): int => {
   let {center_piece: (x, z), pieces} = assembly;
   let (sum, div) =
     List.fold_left(
@@ -53,7 +52,7 @@ let average_elevation_in_assembly =
         let sum =
           sum
           + sum_elevation_in_piece(
-              args,
+              region,
               x + dx * piece_side,
               z + dz * piece_side,
             );
@@ -66,53 +65,51 @@ let average_elevation_in_assembly =
   sum / div;
 };
 
-let raise_lower_elev = (args: Minecraft_converter.region_args, x, z, elev) => {
-  let current_elev = Minecraft.Region.height_at(~x, ~z, args.region);
+let raise_lower_elev = (region: Minecraft.Region.t, x, z, elev) => {
+  let current_elev = Minecraft.Region.height_at(~x, ~z, region);
   if (elev <= current_elev) {
     /* Dig down then finish with Cobblestone */
     for (y in elev + 1 to current_elev) {
-      Minecraft.Region.set_block(~x, ~y, ~z, Air, args.region);
+      Minecraft.Region.set_block(~x, ~y, ~z, Air, region);
     };
-    Minecraft.Region.set_block(~x, ~y=elev, ~z, Cobblestone, args.region);
+    Minecraft.Region.set_block(~x, ~y=elev, ~z, Cobblestone, region);
   } else if (elev > current_elev) {
     /* Build up with Cobblestone */
     for (y in current_elev + 1 to elev) {
-      Minecraft.Region.set_block(~x, ~y, ~z, Cobblestone, args.region);
+      Minecraft.Region.set_block(~x, ~y, ~z, Cobblestone, region);
     };
   };
 };
 
-let raise_lower_elev_match =
-    (args: Minecraft_converter.region_args, x, z, elev) => {
-  let current_elev = Minecraft.Region.height_at(~x, ~z, args.region);
+let raise_lower_elev_match = (region: Minecraft.Region.t, x, z, elev) => {
+  let current_elev = Minecraft.Region.height_at(~x, ~z, region);
   let current_mat =
-    Minecraft.Region.get_block(~x, ~y=current_elev, ~z, args.region);
+    Minecraft.Region.get_block(~x, ~y=current_elev, ~z, region);
   if (elev <= current_elev) {
     /* Dig down */
     for (y in elev + 1 to current_elev) {
-      Minecraft.Region.set_block(~x, ~y, ~z, Air, args.region);
+      Minecraft.Region.set_block(~x, ~y, ~z, Air, region);
     };
-    Minecraft.Region.set_block(~x, ~y=elev, ~z, current_mat, args.region);
+    Minecraft.Region.set_block(~x, ~y=elev, ~z, current_mat, region);
   } else if (elev > current_elev) {
     /* Build up with matching material */
     for (y in current_elev + 1 to elev) {
-      Minecraft.Region.set_block(~x, ~y, ~z, current_mat, args.region);
+      Minecraft.Region.set_block(~x, ~y, ~z, current_mat, region);
     };
   };
 };
 
 /** creates a flat base on which to build the assembly, and returns the assembly elevation */
-let flatten_assembly_base =
-    (args: Minecraft_converter.region_args, assembly): int => {
+let flatten_assembly_base = (region: Minecraft.Region.t, assembly): int => {
   let {center_piece: (x, z), pieces} = assembly;
-  let elev = average_elevation_in_assembly(args, assembly);
+  let elev = average_elevation_in_assembly(region, assembly);
   List.iter(
     (((dx, dz), _piece)) => {
       let x = x + dx * piece_side;
       let z = z + dz * piece_side;
       for (z in z to z + piece_side - 1) {
         for (x in x to x + piece_side - 1) {
-          raise_lower_elev(args, x, z, elev);
+          raise_lower_elev(region, x, z, elev);
         };
       };
     },
@@ -121,15 +118,14 @@ let flatten_assembly_base =
   elev + 1;
 };
 
-let flatten_footprint =
-    (args: Minecraft_converter.region_args, ~x, ~z, footprint): int => {
+let flatten_footprint = (region: Minecraft.Region.t, ~x, ~z, footprint): int => {
   /* Get ground height at each coord */
   let with_heights =
     List.map(
       ((dx, dz)) => {
         let x = dx + x;
         let z = dz + z;
-        let y = Minecraft.Region.height_at(~x, ~z, args.region);
+        let y = Minecraft.Region.height_at(~x, ~z, region);
         (x, y, z);
       },
       footprint,
@@ -145,19 +141,19 @@ let flatten_footprint =
       if (foundation_elev <= y) {
         /* Dig down then finish with Cobblestone */
         for (y in foundation_elev + 1 to y) {
-          Minecraft.Region.set_block(~x, ~y, ~z, Air, args.region);
+          Minecraft.Region.set_block(~x, ~y, ~z, Air, region);
         };
         Minecraft.Region.set_block(
           ~x,
           ~y=foundation_elev,
           ~z,
           Cobblestone,
-          args.region,
+          region,
         );
       } else if (foundation_elev > y) {
         /* Build up with Cobblestone */
         for (y in y + 1 to foundation_elev) {
-          Minecraft.Region.set_block(~x, ~y, ~z, Cobblestone, args.region);
+          Minecraft.Region.set_block(~x, ~y, ~z, Cobblestone, region);
         };
       },
     with_heights,
@@ -166,48 +162,40 @@ let flatten_footprint =
 };
 
 let apply_piece =
-    (args: Minecraft_converter.region_args, ~x, ~y, ~z, ~dx, ~dz, piece): unit => {
+    (region: Minecraft.Region.t, ~x, ~y, ~z, ~dx, ~dz, piece): unit => {
   let x = x + dx * piece_side;
   let z = z + dz * piece_side;
-  let success =
-    Minecraft_template.place(piece.template, args.region, ~x, ~y, ~z);
+  let success = Minecraft_template.place(piece.template, region, ~x, ~y, ~z);
   if (!success) {
     raise(Building_failure("collision while placing piece"));
   };
 };
 
 /** levels the ground and places an assemly */
-let apply_assembly = (args: Minecraft_converter.region_args, assembly): unit => {
+let apply_assembly = (region: Minecraft.Region.t, assembly): unit => {
   let {center_piece: (x, z), pieces} = assembly;
-  let y = flatten_assembly_base(args, assembly);
+  let y = flatten_assembly_base(region, assembly);
   List.iter(
-    (((dx, dz), piece)) => apply_piece(args, ~x, ~y, ~z, ~dx, ~dz, piece),
+    (((dx, dz), piece)) =>
+      apply_piece(region, ~x, ~y, ~z, ~dx, ~dz, piece),
     pieces,
   );
 };
 
 let apply_template_y =
-    (
-      args: Minecraft_converter.region_args,
-      ~x,
-      ~z,
-      template: Minecraft_template.t,
-    )
-    : int => {
+    (region: Minecraft.Region.t, ~x, ~z, template: Minecraft_template.t): int => {
   /* Flatten the footprint and get an elevation */
-  let y = flatten_footprint(args, ~x, ~z, template.footprint);
+  let y = flatten_footprint(region, ~x, ~z, template.footprint);
   /* Apply at the given elevation */
-  let success = Minecraft_template.place(template, args.region, ~x, ~y, ~z);
+  let success = Minecraft_template.place(template, region, ~x, ~y, ~z);
   if (!success) {
     raise(Building_failure("collision while applying template"));
   };
   y;
 };
 /** levels the ground and places a single template */
-let apply_template =
-    (args: Minecraft_converter.region_args, ~x, ~z, template): unit =>
-  apply_template_y(args: Minecraft_converter.region_args, ~x, ~z, template)
-  |> ignore;
+let apply_template = (region: Minecraft.Region.t, ~x, ~z, template): unit =>
+  apply_template_y(region: Minecraft.Region.t, ~x, ~z, template) |> ignore;
 
 let add_piece = (piece, ~dx, ~dz, assembly) => {
   if (List.mem_assoc((dx, dz), assembly.pieces)) {
@@ -236,12 +224,11 @@ let is_assembly_closed = assembly => {
   );
 };
 
-let rec column_down =
-        (args: Minecraft_converter.region_args, ~x, ~y, ~z, block): unit => {
-  switch (Minecraft.Region.get_block_opt(~x, ~y, ~z, args.region)) {
+let rec column_down = (region: Minecraft.Region.t, ~x, ~y, ~z, block): unit => {
+  switch (Minecraft.Region.get_block_opt(~x, ~y, ~z, region)) {
   | Some(Air) =>
-    Minecraft.Region.set_block(~x, ~y, ~z, block, args.region);
-    column_down(args, ~x, ~y=y - 1, ~z, block);
+    Minecraft.Region.set_block(~x, ~y, ~z, block, region);
+    column_down(region, ~x, ~y=y - 1, ~z, block);
   | Some(_)
   | None => ()
   };
@@ -250,7 +237,7 @@ let rec column_down =
 let rectangle_foundation =
     (
       ~material=Minecraft.Block.Cobblestone,
-      args,
+      region,
       ~minx,
       ~maxx,
       ~y,
@@ -260,31 +247,22 @@ let rectangle_foundation =
     : unit => {
   for (z in minz to maxz) {
     for (x in minx to maxx) {
-      column_down(args, ~x, ~y, ~z, material);
+      column_down(region, ~x, ~y, ~z, material);
       /* Also do the level below in case a building is here */
-      column_down(args, ~x, ~y=y - 1, ~z, material);
+      column_down(region, ~x, ~y=y - 1, ~z, material);
     };
   };
 };
 
 let rec lay_stairs =
-        (
-          args: Minecraft_converter.region_args,
-          ~x,
-          ~y,
-          ~z,
-          ~stair,
-          ~under,
-          ~dx,
-          ~dz,
-        )
+        (region: Minecraft.Region.t, ~x, ~y, ~z, ~stair, ~under, ~dx, ~dz)
         : unit => {
-  switch (Minecraft.Region.get_block_opt(~x, ~y, ~z, args.region)) {
+  switch (Minecraft.Region.get_block_opt(~x, ~y, ~z, region)) {
   | Some(Air) =>
-    Minecraft.Region.set_block(~x, ~y, ~z, stair, args.region);
-    column_down(args, ~x, ~y=y - 1, ~z, under);
+    Minecraft.Region.set_block(~x, ~y, ~z, stair, region);
+    column_down(region, ~x, ~y=y - 1, ~z, under);
     lay_stairs(
-      args,
+      region,
       ~x=x + dx,
       ~y=y - 1,
       ~z=z + dz,
@@ -327,7 +305,7 @@ let stair_foundation =
       ~e=false,
       ~s=false,
       ~w=false,
-      args,
+      region,
       ~minx,
       ~maxx,
       ~y,
@@ -338,7 +316,7 @@ let stair_foundation =
   /* Fill the base rectangle */
   rectangle_foundation(
     ~material=rectangle_material,
-    args,
+    region,
     ~minx,
     ~maxx,
     ~y,
@@ -350,7 +328,7 @@ let stair_foundation =
     /* N stairs */
     if (n) {
       lay_stairs(
-        args,
+        region,
         ~x,
         ~y,
         ~z=minz - 1,
@@ -363,7 +341,7 @@ let stair_foundation =
     /* S stairs */
     if (s) {
       lay_stairs(
-        args,
+        region,
         ~x,
         ~y,
         ~z=maxz + 1,
@@ -378,7 +356,7 @@ let stair_foundation =
     /* E stairs */
     if (e) {
       lay_stairs(
-        args,
+        region,
         ~x=maxx + 1,
         ~y,
         ~z,
@@ -391,7 +369,7 @@ let stair_foundation =
     /* W stairs */
     if (w) {
       lay_stairs(
-        args,
+        region,
         ~x=minx - 1,
         ~y,
         ~z,

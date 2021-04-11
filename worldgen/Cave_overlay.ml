@@ -209,22 +209,21 @@ let before_and_after ~half ls =
   in
   go [] ls [] |> List.rev
 
-let apply_region (caves, _) (args : Minecraft_converter.region_args) =
+let apply_region (caves, _) (region : Minecraft.Region.t) =
   let module R = Minecraft.Region in
   List.iter caves ~f:(fun all_balls ->
       before_and_after ~half:5 all_balls
       |> List.iter ~f:(fun (ball, nearby_balls) ->
              List.iter (ball_bounds ball) ~f:(fun (x, y, z) ->
                  if
-                   R.is_within ~x ~y ~z args.region
-                   && within_ball nearby_balls x y z
+                   R.is_within ~x ~y ~z region && within_ball nearby_balls x y z
                  then
-                   match R.get_block_opt ~x ~y ~z args.region with
+                   match R.get_block_opt ~x ~y ~z region with
                    (* Do not overwrite water in case we hit the ocean from above *)
                    | None | Some (Air | Water | Flowing_water _) ->
                        ()
                    | Some _ ->
-                       R.set_block_opt Air ~x ~y ~z args.region ) ) )
+                       R.set_block_opt Air ~x ~y ~z region ) ) )
 
 let require, prepare, apply =
   Overlay.make "cave" prepare apply_region bin_reader_t bin_writer_t

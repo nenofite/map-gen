@@ -159,8 +159,8 @@ let prepare = () => {
   Grid_compat.multizip([iron_layer, diamond_layer]);
 };
 
-let apply_region = (state, args: Minecraft_converter.region_args) => {
-  let region = args.region;
+let apply_region = (state, region: Minecraft.Region.t) => {
+  let region = region;
   Minecraft_converter.iter_blocks(
     region,
     (~x, ~z) => {

@@ -107,10 +107,10 @@ let make_lifecycle ?(before_prepare : unit -> unit = fun () -> ())
     let state = wrap_prepare ?force overlay prepare in
     after_prepare state
   in
-  let apply args =
+  let apply region =
     let state = require () in
     Tale.blockf "Applying %s overlay" overlay.name ~f:(fun () ->
-        apply state args ) ;
+        apply state region ) ;
     ()
   in
   (require, prepare, apply)

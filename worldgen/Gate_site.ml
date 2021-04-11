@@ -62,17 +62,15 @@ let stair_dirs ~rotation =
   if rotation mod 2 = 0 then (true, false, true, false)
   else (false, true, false, true)
 
-let apply (t : t) ~x ~z ~args =
+let apply (t : t) ~x ~z ~region =
   let {rotation; template} = t in
   let minx, maxx = template.bounds_x in
   let minz, maxz = template.bounds_z in
-  let y =
-    3 + Minecraft.Region.height_at ~x ~z args.Minecraft_converter.region
-  in
+  let y = 3 + Minecraft.Region.height_at ~x ~z region in
   let n, e, s, w = stair_dirs ~rotation in
   Building.stair_foundation ~rectangle_material:Minecraft.Block.Smooth_quartz
     ~stair_material:(fun d -> Minecraft.Block.Quartz_stairs d)
     ~n ~e ~s ~w ~minx:(minx + x) ~maxx:(maxx + x) ~y:(y - 1) ~minz:(minz + z)
-    ~maxz:(maxz + z) args ;
-  Minecraft_template.place_overwrite template ~x ~y ~z args.region ;
+    ~maxz:(maxz + z) region ;
+  Minecraft_template.place_overwrite template ~x ~y ~z region ;
   ()
