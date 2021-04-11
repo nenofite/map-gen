@@ -51,7 +51,8 @@ module Prepare_monad = struct
   include T
   include Monad.Make (T)
 
-  let of_shared shared : 'a t = fun state pos -> return (shared pos) state pos
+  let of_shared (shared : 'a Shared.t) : 'a t =
+   fun state pos -> return (shared pos) state pos
 
   let prepare (t : 'a t) ~x ~y ~z ~rotation =
     let state = {obstacles= []} in
@@ -92,7 +93,8 @@ module Apply_monad = struct
 
   let nop = return ()
 
-  let of_shared shared : 'a t = fun pos args -> return (shared pos) pos args
+  let of_shared (shared : 'a Shared.t) : 'a t =
+   fun pos args -> return (shared pos) pos args
 
   let apply (t : 'a t) ~x ~y ~z ~rotation args =
     let pos = {origin= (x, y, z); rotation} in
@@ -132,7 +134,7 @@ module Building_monad = struct
 
   let parallel ~prepare ~apply : 'a t = (prepare, apply)
 
-  let of_shared shared : 'a t =
+  let of_shared (shared : 'a Shared.t) : 'a t =
     parallel
       ~prepare:(Prepare_monad.of_shared shared)
       ~apply:(Apply_monad.of_shared shared)
