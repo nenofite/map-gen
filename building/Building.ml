@@ -85,8 +85,6 @@ module Apply_monad = struct
   include T
   include Monad.Make (T)
 
-  let nop = return ()
-
   let apply (t : 'a t) ~x ~y ~z ~rotation args =
     let pos = {origin= (x, y, z); rotation} in
     t pos args
@@ -109,15 +107,13 @@ end
 
 module Building_monad = struct
   module T = struct
-    type 'a t = ('a * unit Apply_monad.t) Prepare_monad.t
+    type 'a t = 'a Prepare_monad.t * 'a Apply_monad.t
 
-    let bind (t : 'a t) ~f : 'b t =
-      Prepare_monad.(
-        t
-        >>= fun (n, a) ->
-        f n >>| fun (n2, a2) -> (n2, Apply_monad.(a >>= fun () -> a2)))
+    let bind ((p, a) : 'a t) ~f : 'b t =
+      ( Prepare_monad.(p >>= fun n -> fst (f n))
+      , Apply_monad.(a >>= fun n -> snd (f n)) )
 
-    let return n : 'a t = Prepare_monad.return (n, Apply_monad.nop)
+    let return n : 'a t = (Prepare_monad.return n, Apply_monad.return n)
 
     let map = `Define_using_bind
   end
@@ -125,8 +121,7 @@ module Building_monad = struct
   include T
   include Monad.Make (T)
 
-  let parallel ~prepare:p ~apply : 'a t =
-    Prepare_monad.(p >>| fun n -> (n, apply))
+  let parallel ~prepare ~apply : 'a t = (prepare, apply)
 
   let set_block mat ~x ~y ~z : unit t =
     parallel
@@ -134,5 +129,30 @@ module Building_monad = struct
       ~apply:(Apply_monad.set_block mat ~x ~y ~z)
 
   let get_elevation ~x ~z : int t =
-    parallel ~prepare:(Prepare_monad.get_elevation ~x ~z) ~apply:Apply_monad.nop
+    parallel
+      ~prepare:(Prepare_monad.get_elevation ~x ~z)
+      ~apply:(Apply_monad.get_elevation ~x ~z)
 end
+
+(* module Building_monad = struct
+  type ('p, 'a) exec = Prepare of 'p | Apply of 'a
+
+  type input_exec =
+    (Prepare_monad.state * pos, pos * Apply_monad.region_args) exec
+
+  module T = struct
+    type 'a t = input_exec -> ('a Prepare_monad.t, 'a Apply_monad.t) exec
+
+    let bind (t : 'a t) ~f : 'a t =
+     fun exec ->
+      match t exec with
+      | Prepare m ->
+          Prepare
+            (Prepare_monad.map m ~f:(fun a -> f a exec) |> Prepare_monad.join)
+      | Apply (pos, args) ->
+          todo
+  end
+
+  let set_block mat ~x ~y ~z : unit t =
+    Prepare_monad.collide_obstacle ~x ~z + Apply_monad.set_block mat ~x ~y ~z
+end *)
