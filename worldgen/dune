@@ -12,6 +12,7 @@
   Minecraft
   Minecraft_template
   Overlay
+  Building
   camlimages.core
   camlimages.png
   bin_prot)
@@ -23,4 +24,5 @@
    ppx_deriving.eq
    ppx_deriving.ord
    ppx_hash
+   ppx_let
    ppx_bin_prot)))

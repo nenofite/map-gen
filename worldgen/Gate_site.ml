@@ -2,6 +2,8 @@ open! Core_kernel
 
 type t = {rotation: int; template: Minecraft_template.t} [@@deriving bin_io]
 
+let max_stair_distance = 5
+
 let random_gate () =
   let width = Random.int_incl 4 8 in
   let height = Random.int_incl 5 10 in
@@ -43,7 +45,8 @@ let building template =
     Building.Foundation.lay_stair_foundation
       ~foundation:Minecraft.Block.Smooth_quartz
       ~stair:(fun d -> Minecraft.Block.Quartz_stairs d)
-      ~e:false ~w:false ~minx ~maxx ~y ~minz ~maxz
+      ~e:false ~w:false ~minx ~maxx ~y ~minz ~maxz ~max_stair:max_stair_distance
+      ()
   in
   Building.Building_monad.place_template ~x:0 ~y ~z:0 template
 
@@ -58,7 +61,7 @@ let can_build_template template ~x ~z =
 let prepare ~x ~z =
   let canon = Overlay.Canon.require () in
   let rotation = Random.int_incl 0 3 in
-  let template = random_gate ~rotation in
+  let template = random_gate () in
   if
     Minecraft_converter.template_within_region_boundaries template ~x ~z
       ~canon_side:canon.side
