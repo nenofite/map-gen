@@ -33,7 +33,9 @@ let rec lay_stairs stair ~under ~x ~y ~z ~dx ~dz ~max =
   let%bind here_height = Building_monad.height_at ~x ~z in
   if here_height < y then
     let%bind () =
-      Building_monad.only_prepare (Prepare_monad.fail_if (max <= 0))
+      Building_monad.only_prepare
+        (Prepare_monad.fail_if (max <= 0)
+           ~msg:(lazy "exceeded max stair distance") )
     in
     let%bind () = Building_monad.set_block stair ~x ~y ~z in
     let%bind () = column_down under ~x ~y:(y - 1) ~z in

@@ -59,19 +59,19 @@ let prepare () =
   |> filter_and_grab_until_full ~bag:gates ~target:target_gate_count
        ~f:(fun (x, z) -> Gate_site.prepare ~x ~z)
   |> ignore ;
-  let obs = Grid.Mut.create ~side:canon.side Overlay.Canon.Obstacle.Clear in
-  let put_obs level ~x ~z =
-    Grid.Mut.update_opt obs ~x ~z ~f:(fun old_level ->
-        Overlay.Canon.Obstacle.max level old_level )
-    |> ignore
-  in
-  Bag.iter entrances ~f:(fun (t, x, z) ->
-      Entrance_site.put_obstacles t ~x ~z ~put:put_obs ) ;
-  Bag.iter gates ~f:(fun (t, x, z) ->
-      Gate_site.put_obstacles t ~x ~z ~put:put_obs ) ;
+  (* let obs = Grid.Mut.create ~side:canon.side Overlay.Canon.Obstacle.Clear in
+     let put_obs level ~x ~z =
+       Grid.Mut.update_opt obs ~x ~z ~f:(fun old_level ->
+           Overlay.Canon.Obstacle.max level old_level )
+       |> ignore
+     in *)
+  (* Bag.iter entrances ~f:(fun (t, x, z) ->
+         Entrance_site.put_obstacles t ~x ~z ~put:put_obs ) ;
+     Bag.iter gates ~f:(fun (t, x, z) ->
+         Gate_site.put_obstacles t ~x ~z ~put:put_obs ) ; *)
   let canond =
     Overlay.Canon.make_delta
-      ~obstacles:(`Add (Overlay.Canon.Obstacles.of_mut obs))
+      (* ~obstacles:(`Add (Overlay.Canon.Obstacles.of_mut obs)) *)
       ()
   in
   ({entrances= Bag.to_list entrances; gates= Bag.to_list gates}, canond)

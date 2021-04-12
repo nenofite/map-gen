@@ -2,6 +2,8 @@ open! Core_kernel
 
 type pos = {origin: int * int * int; rotation: int}
 
+let at ~x ~y ~z ~rotation_cw = {origin= (x, y, z); rotation= rotation_cw mod 4}
+
 let get_cw_rotations pos = pos.rotation mod 4
 
 let apply_pos pos ~x ~y ~z =

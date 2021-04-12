@@ -23,6 +23,10 @@ let only_apply apply : unit t = (Prepare_monad.nop, apply)
 
 let nop : unit t = parallel ~prepare:Prepare_monad.nop ~apply:Apply_monad.nop
 
+let run_prepare (p, _) ~pos = Prepare_monad.run p ~pos
+
+let run_apply (_, a) ~region ~pos = Apply_monad.run a ~pos ~region
+
 let of_shared (shared : 'a Shared.t) : 'a t =
   parallel
     ~prepare:(Prepare_monad.of_shared shared)

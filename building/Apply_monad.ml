@@ -22,7 +22,7 @@ let nop = return ()
 let of_shared (shared : 'a Shared.t) : 'a t =
  fun pos region -> return (shared pos) pos region
 
-let apply (t : 'a t) ~pos region = t pos region
+let run (t : 'a t) ~pos ~region = t pos region
 
 let set_block mat ~x ~y ~z : unit t =
  fun pos region ->

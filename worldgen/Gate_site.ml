@@ -1,8 +1,8 @@
 open! Core_kernel
 
-type t = {rotation: int; template: Minecraft_template.t} [@@deriving bin_io]
+type t = {rotation_cw: int; template: Minecraft_template.t} [@@deriving bin_io]
 
-let max_stair_distance = 5
+let max_stair_distance = 20
 
 let random_gate () =
   let width = Random.int_incl 4 8 in
@@ -41,14 +41,14 @@ let building template =
   let minz, maxz = template.Minecraft_template.bounds_z in
   let%bind y = Building.Building_monad.height_at ~x:0 ~z:0 in
   let y = y + 3 in
-  let%bind () =
-    Building.Foundation.lay_stair_foundation
-      ~foundation:Minecraft.Block.Smooth_quartz
-      ~stair:(fun d -> Minecraft.Block.Quartz_stairs d)
-      ~e:false ~w:false ~minx ~maxx ~y ~minz ~maxz ~max_stair:max_stair_distance
-      ()
-  in
-  Building.Building_monad.place_template ~x:0 ~y ~z:0 template
+  (* let%bind () = *)
+  Building.Foundation.lay_stair_foundation
+    ~foundation:Minecraft.Block.Smooth_quartz
+    ~stair:(fun d -> Minecraft.Block.Quartz_stairs d)
+    ~e:false ~w:false ~minx ~maxx ~y ~minz ~maxz ~max_stair:max_stair_distance
+    ()
+(* in
+   Building.Building_monad.place_template ~x:0 ~y ~z:0 template *)
 
 let can_build_template template ~x ~z =
   let canon = Overlay.Canon.require () in
@@ -59,15 +59,21 @@ let can_build_template template ~x ~z =
           Overlay.Canon.can_build_on (Grid.get x z canon.obstacles) ) )
 
 let prepare ~x ~z =
-  let canon = Overlay.Canon.require () in
-  let rotation = Random.int_incl 0 3 in
+  let rotation_cw = Random.int_incl 0 3 in
   let template = random_gate () in
-  if
-    Minecraft_converter.template_within_region_boundaries template ~x ~z
-      ~canon_side:canon.side
-    && can_build_template template ~x ~z
-  then Some ({rotation; template}, x, z)
-  else None
+  match
+    Building.Building_monad.run_prepare (building template)
+      ~pos:(Building.Shared.at ~x ~y:0 ~z ~rotation_cw)
+  with
+  | Ok ((), canond) ->
+      (* TODO *)
+      ignore canond ;
+      Tale.logf "Placed gate at %d,%d" x z ;
+      Some ({rotation_cw; template}, x, z)
+  | Error _s ->
+      (* let s = Lazy.force s in
+         Tale.logf "Couldn't place gate: %s" s ; *)
+      None
 
 let put_obstacles (t : t) ~x ~z ~put =
   List.iter t.template.footprint ~f:(fun (fx, fz) ->
@@ -79,14 +85,6 @@ let stair_dirs ~rotation =
   else (false, true, false, true)
 
 let apply (t : t) ~x ~z ~region =
-  let {rotation; template} = t in
-  let minx, maxx = template.bounds_x in
-  let minz, maxz = template.bounds_z in
-  let y = 3 + Minecraft.Region.height_at ~x ~z region in
-  let n, e, s, w = stair_dirs ~rotation in
-  Building.stair_foundation ~rectangle_material:Minecraft.Block.Smooth_quartz
-    ~stair_material:(fun d -> Minecraft.Block.Quartz_stairs d)
-    ~n ~e ~s ~w ~minx:(minx + x) ~maxx:(maxx + x) ~y:(y - 1) ~minz:(minz + z)
-    ~maxz:(maxz + z) region ;
-  Minecraft_template.place_overwrite template ~x ~y ~z region ;
-  ()
+  let {rotation_cw; template} = t in
+  Building.Building_monad.run_apply (building template) ~region
+    ~pos:(Building.Shared.at ~x ~y:0 ~z ~rotation_cw)

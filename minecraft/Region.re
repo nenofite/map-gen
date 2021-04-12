@@ -96,6 +96,14 @@ let assert_within = (~x, ~y, ~z, r) =>
     raise(Invalid_argument(msg));
   };
 
+/** calculates the rx, rz coordinates of the region which contains these global coordinates */
+let region_containing = (~x, ~z) => {
+  (
+    x / block_per_region_side - (x < 0 ? 1 : 0),
+    z / block_per_region_side - (z < 0 ? 1 : 0),
+  );
+};
+
 /** converts a local coord to an index of a section within sections */
 let section_i = (~lx, ~ly, ~lz) => {
   let cx = lx / block_per_chunk_side;
