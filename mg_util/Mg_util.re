@@ -112,6 +112,11 @@ module Range = {
       exists(min + 1, max, f);
     };
 
+  let for_all = (min, max, f) => {
+    let not_f = n => !f(n);
+    !exists(min, max, not_f);
+  };
+
   let rec fold = (min, max, acc, f) =>
     if (min <= max) {
       let acc = f(acc, min);
@@ -121,6 +126,15 @@ module Range = {
     };
 
   let map = (min, max, f) => fold(min, max, [], (ls, n) => [f(n), ...ls]);
+
+  let rec iter_m = (min, max, ~bind, expr) => {
+    let s = expr(min);
+    if (min < max) {
+      bind(s, ~f=() => iter_m(min + 1, max, ~bind, expr));
+    } else {
+      s;
+    };
+  };
 };
 
 /** is the same as Random.int, but handles zero nicely */

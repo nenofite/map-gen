@@ -6,20 +6,18 @@ type t = unit;
 let prepare = () => ();
 
 let apply_trees =
-    (
-      biomes: Grid.t(Biome_overlay.biome),
-      args: Minecraft_converter.region_args,
-    ) => {
-  let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
+    (biomes: Grid.t(Biome_overlay.biome), region: Minecraft.Region.t) => {
   let trees =
-    Point_cloud.init(~side=gsize, ~spacing=8, (_, _) =>
+    Point_cloud.init(
+      ~side=Minecraft.Region.block_per_region_side, ~spacing=8, (_, _) =>
       Random.int(100) < 67
     );
+  let (rx, rz) = Minecraft.Region.region_offset(region);
   /* Try placing them where it's forest && solid ground */
   Sparse_grid.iter(trees.points, (_, Point_cloud.{px: x, py: z, value}) =>
     if (value) {
-      let x = int_of_float(x) + gx_offset;
-      let z = int_of_float(z) + gy_offset;
+      let x = int_of_float(x) + rx;
+      let z = int_of_float(z) + rz;
       switch (Grid_compat.at(biomes, x, z)) {
       | Mid(Forest(_)) =>
         let y = Minecraft.Region.height_at(region, ~x, ~z);
@@ -45,11 +43,8 @@ let apply_trees =
 let is_opaque_or_water = b => Minecraft.Block.(is_wet(b) || is_opaque(b));
 
 let apply_ground_cover =
-    (
-      biomes: Grid.t(Biome_overlay.biome),
-      args: Minecraft_converter.region_args,
-    ) => {
-  let region = args.region;
+    (biomes: Grid.t(Biome_overlay.biome), region: Minecraft.Region.t) => {
+  let region = region;
   /* Change dirt => grass and add snow */
   Minecraft_converter.iter_blocks(
     region,
@@ -140,12 +135,9 @@ let place_flower = (~x, ~z, flower_block, region) => {
 };
 
 let apply_flowers =
-    (
-      biomes: Grid.t(Biome_overlay.biome),
-      args: Minecraft_converter.region_args,
-    ) => {
+    (biomes: Grid.t(Biome_overlay.biome), region: Minecraft.Region.t) => {
   open Core_kernel;
-  let region = args.region;
+  let region = region;
   let cluster_centers =
     make_clusters(
       ~spacing=15,
@@ -208,12 +200,9 @@ let place_cactus = (~x, ~z, region) => {
 };
 
 let apply_cactus =
-    (
-      biomes: Grid.t(Biome_overlay.biome),
-      args: Minecraft_converter.region_args,
-    ) => {
+    (biomes: Grid.t(Biome_overlay.biome), region: Minecraft.Region.t) => {
   open Core_kernel;
-  let region = args.region;
+  let region = region;
   let cluster_centers =
     make_clusters(
       ~spacing=100,
@@ -241,19 +230,17 @@ let apply_cactus =
 };
 
 let apply_tallgrass =
-    (
-      biomes: Grid.t(Biome_overlay.biome),
-      args: Minecraft_converter.region_args,
-    ) => {
-  let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
+    (biomes: Grid.t(Biome_overlay.biome), region: Minecraft.Region.t) => {
   let tallgrass =
-    Point_cloud.init(~side=gsize, ~spacing=2, (_, _) =>
+    Point_cloud.init(
+      ~side=Minecraft.Region.block_per_region_side, ~spacing=2, (_, _) =>
       Random.int(100) < 67
     );
+  let (rx, rz) = Minecraft.Region.region_offset(region);
   Sparse_grid.iter(tallgrass.points, (_, Point_cloud.{px: x, py: z, value}) =>
     if (value) {
-      let x = int_of_float(x) + gx_offset;
-      let z = int_of_float(z) + gy_offset;
+      let x = int_of_float(x) + rx;
+      let z = int_of_float(z) + rz;
       switch (Grid_compat.at(biomes, x, z)) {
       | Mid(Forest(_) | Plain(_)) =>
         /* TODO should pine forests have tallgrass? */
@@ -278,8 +265,8 @@ let apply_tallgrass =
   );
 };
 
-let apply_sandstone = (args: Minecraft_converter.region_args) => {
-  let region = args.region;
+let apply_sandstone = (region: Minecraft.Region.t) => {
+  let region = region;
   Minecraft_converter.iter_blocks(region, (~x, ~z) => {
     Minecraft.Region.(
       Range.fold(0, block_per_chunk_vertical - 1, false, (below_is_air, y) => {
@@ -296,14 +283,14 @@ let apply_sandstone = (args: Minecraft_converter.region_args) => {
   });
 };
 
-let apply_region = ((), args: Minecraft_converter.region_args) => {
+let apply_region = ((), region: Minecraft.Region.t) => {
   let (biomes, _) = Biome_overlay.require();
-  apply_ground_cover(biomes, args);
-  apply_trees(biomes, args);
-  apply_flowers(biomes, args);
-  apply_cactus(biomes, args);
-  apply_tallgrass(biomes, args);
-  apply_sandstone(args);
+  apply_ground_cover(biomes, region);
+  apply_trees(biomes, region);
+  apply_flowers(biomes, region);
+  apply_cactus(biomes, region);
+  apply_tallgrass(biomes, region);
+  apply_sandstone(region);
 };
 
 let (require, prepare, apply) =

@@ -1,135 +1,105 @@
 open Core_kernel
 
-type site = Cavern_entrance of int [@@deriving bin_io]
+module type Site = sig
+  type t
 
-type t = site option Point_cloud.t [@@deriving bin_io]
+  val prepare : x:int -> z:int -> (t * int * int) option
 
-let overlay = Overlay.make_overlay "site" bin_reader_t bin_writer_t
+  (* val canon_delta : t -> x:int -> z:int -> Overlay.Canon.delta *)
+  val put_obstacles :
+       t
+    -> x:int
+    -> z:int
+    -> put:(Overlay.Canon.obstacle -> x:int -> z:int -> unit)
+    -> unit
 
-let cavern_entrance_fits_within_region ~canon_side ~x ~z =
-  let top = Site_templates.cavern_entrance in
-  let minx, maxx = top.bounds_x in
-  let minz, maxz = top.bounds_z in
-  Minecraft_converter.within_region_boundaries ~canon_side ~min_x:(minx + x)
-    ~max_x:(maxx + x) ~min_z:(minz + z) ~max_z:(maxz + z)
+  val apply : t -> x:int -> z:int -> region:Minecraft.Region.t -> unit
+end
 
-let can_build_cavern_entrance canon ~x ~z =
-  let top = Site_templates.cavern_entrance in
-  let minx, maxx = top.bounds_x in
-  let minz, maxz = top.bounds_z in
-  (* TODO add padding for stairs *)
-  Range.for_all (z + minz) (z + maxz) (fun z ->
-      Range.for_all (x + minx) (x + maxx) (fun x ->
-          Canonical_overlay.can_build_on
-            (Grid.get x z canon.Canonical_overlay.obstacles)))
+type 'a site_list = ('a * int * int) list [@@deriving bin_io]
 
-let add_cavern_entrance_obstacles obs ~x ~z =
-  (* TODO use this function *)
-  let top = Site_templates.cavern_entrance in
-  let minx, maxx = top.bounds_x in
-  let minz, maxz = top.bounds_z in
-  (* TODO add padding for stairs *)
-  Range.fold (z + minz) (z + maxz) obs (fun obs z ->
-      Range.fold (x + minx) (x + maxx) obs (fun obs x ->
-          Canonical_overlay.Obstacles.set x z
-            Canonical_overlay.Obstacle.Impassable obs))
+type t = {entrances: Entrance_site.t site_list; gates: Gate_site.t site_list}
+[@@deriving bin_io]
+
+type t_with_canon = t * Overlay.Canon.delta [@@deriving bin_io]
+
+let overlay =
+  Overlay.make_overlay "site" bin_reader_t_with_canon bin_writer_t_with_canon
+
+let filter_and_grab_until_full list ~bag ~target ~f =
+  let rec go list ~unwanted =
+    let count = Bag.length bag in
+    if count >= target then List.rev_append unwanted list
+    else
+      match list with
+      | [] ->
+          List.rev_append unwanted list
+      | elem :: rest -> (
+        match f elem with
+        | Some a ->
+            Bag.add_unit bag a ; go rest ~unwanted
+        | None ->
+            go rest ~unwanted:(elem :: unwanted) )
+  in
+  go list ~unwanted:[]
 
 let prepare () =
-  let canon = Canonical_overlay.require () in
-  let cavern = Cavern_overlay.require () in
-  let sites =
-    Point_cloud.init_f ~side:canon.side ~spacing:128 (fun ~xf ~yf ~xi:_ ~yi:_ ->
-        let x = int_of_float xf in
-        let y = int_of_float yf in
-        if
-          cavern_entrance_fits_within_region ~canon_side:canon.side ~x ~z:y
-          && can_build_cavern_entrance canon ~x ~z:y
-          && Random.int 100 < 5
-        then
-          match Grid_compat.at cavern x y with
-          | {floor_elev; ceiling_elev}
-            when ceiling_elev > floor_elev
-                 && floor_elev > Cavern_overlay.magma_sea_elev ->
-              Tale.logf "cavern entrance at %d, %d" x y ;
-              Some (Cavern_entrance floor_elev)
-          | _ ->
-              None
-        else None)
+  let canon = Overlay.Canon.require () in
+  let available_sites =
+    Point_cloud.make_int_list ~side:canon.side ~spacing:128 ()
+    |> Mg_util.shuffle
   in
-  sites
+  let target_entrance_count = 3 in
+  let entrances = Bag.create () in
+  let target_gate_count = 10_000 in
+  let gates = Bag.create () in
+  available_sites
+  |> filter_and_grab_until_full ~bag:entrances ~target:target_entrance_count
+       ~f:(fun (x, z) -> Entrance_site.prepare ~x ~z)
+  |> filter_and_grab_until_full ~bag:gates ~target:target_gate_count
+       ~f:(fun (x, z) -> Gate_site.prepare ~x ~z)
+  |> ignore ;
+  (* let obs = Grid.Mut.create ~side:canon.side Overlay.Canon.Obstacle.Clear in
+     let put_obs level ~x ~z =
+       Grid.Mut.update_opt obs ~x ~z ~f:(fun old_level ->
+           Overlay.Canon.Obstacle.max level old_level )
+       |> ignore
+     in *)
+  (* Bag.iter entrances ~f:(fun (t, x, z) ->
+         Entrance_site.put_obstacles t ~x ~z ~put:put_obs ) ;
+     Bag.iter gates ~f:(fun (t, x, z) ->
+         Gate_site.put_obstacles t ~x ~z ~put:put_obs ) ; *)
+  let canond =
+    Overlay.Canon.make_delta
+      (* ~obstacles:(`Add (Overlay.Canon.Obstacles.of_mut obs)) *)
+      ()
+  in
+  ({entrances= Bag.to_list entrances; gates= Bag.to_list gates}, canond)
 
 let apply_progress_view sites =
   let l = Progress_view.push_layer () in
   Progress_view.update ~title:"Sites!"
     ~draw_sparse:(fun () d ->
-      let color = (255, 0, 0) in
-      Sparse_grid.iter sites.Point_cloud.points
-        (fun _ Point_cloud.{px= x; py= z; value= site} ->
-          match site with
-          | Some _ ->
-              let x = int_of_float x in
-              let z = int_of_float z in
-              d ~size:1 x z color ; ()
-          | None ->
-              ()))
+      let {entrances; gates} = sites in
+      let red = (255, 0, 0) in
+      List.iter entrances ~f:(fun (_, x, z) -> d ~size:1 x z red) ;
+      let black = (0, 0, 0) in
+      List.iter gates ~f:(fun (_, x, z) -> d ~size:1 x z black) )
     ~state:() l ;
   ()
 
-let after_prepare sites = apply_progress_view sites
+let after_prepare (sites, canond) =
+  Overlay.Canon.push_delta canond ;
+  apply_progress_view sites ;
+  ()
 
-let apply_standard args ~x ~z template =
-  Building.apply_template args ~x ~z template
-
-let max_height_within (args : Minecraft_converter.region_args) ~minx ~maxx ?y
-    ~minz ~maxz () : int =
-  let m = ref 0 in
-  for z = minz to maxz do
-    for x = minx to maxx do
-      let here = Minecraft.Region.height_at args.region ~x ?y ~z in
-      m := max !m here
-    done
-  done ;
-  !m
-
-let apply_cavern_entrance args ~tube_depth ~x ~z : unit =
-  let top = Site_templates.cavern_entrance in
-  let tube = Site_templates.cavern_entrance_tube in
-  let base = Site_templates.cavern_entrance_base in
-  let minx, maxx = top.bounds_x in
-  let minz, maxz = top.bounds_z in
-  let y =
-    max_height_within args ~minx:(minx + x) ~maxx:(maxx + x) ~minz:(minz + z)
-      ~maxz:(maxz + z) ()
-    + 3
+let apply_region (sites, _) (region : Minecraft.Region.t) : unit =
+  let {entrances; gates} = sites in
+  let apply_if_within apply (t, x, z) =
+    if Minecraft.Region.is_within ~x ~y:0 ~z region then apply t ~x ~z ~region
   in
-  Building.stair_foundation args ~minx:(minx + x) ~maxx:(maxx + x) ~y
-    ~minz:(minz + z) ~maxz:(maxz + z) ;
-  Minecraft_template.place_overwrite top args.region ~x ~y ~z ;
-  let tube_height = Minecraft_template.height tube in
-  let base_height = Minecraft_template.height base in
-  let tube_sections = (y - tube_depth - base_height) / tube_height in
-  for i = 1 to tube_sections do
-    let y = y - (i * tube_height) in
-    Minecraft_template.place_overwrite tube args.region ~x ~y ~z
-  done ;
-  let y = y - (tube_sections * tube_height) - base_height in
-  Minecraft_template.place_overwrite base args.region ~x ~y ~z ;
-  let minx, maxx = base.bounds_x in
-  let minz, maxz = base.bounds_z in
-  Building.stair_foundation args ~minx:(minx + x) ~maxx:(maxx + x) ~y
-    ~minz:(minz + z) ~maxz:(maxz + z)
-
-let apply_region sites (args : Minecraft_converter.region_args) : unit =
-  Sparse_grid.iter sites.Point_cloud.points
-    (fun _ Point_cloud.{px= x; py= z; value= site} ->
-      let x = int_of_float x in
-      let z = int_of_float z in
-      if Minecraft.Region.is_within ~x ~y:0 ~z args.region then
-        match site with
-        | Some (Cavern_entrance tube_depth) ->
-            apply_cavern_entrance args ~tube_depth ~x ~z
-        | None ->
-            ())
+  List.iter entrances ~f:(apply_if_within Entrance_site.apply) ;
+  List.iter gates ~f:(apply_if_within Gate_site.apply)
 
 let require, prepare, apply =
   Overlay.make_lifecycle ~prepare ~after_prepare ~apply:apply_region overlay

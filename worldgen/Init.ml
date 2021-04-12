@@ -11,7 +11,7 @@ let init ~seed () =
   Config.Paths.create_directories () ;
   Progress_view.init () ;
   Overlay.init seed ;
-  Canonical_overlay.init ~side ;
+  Overlay.Canon.init ~side ;
   ()
 
 let prepare_all () =
@@ -28,22 +28,22 @@ let prepare_all () =
   Debug_overlay.prepare () ;
   ()
 
-let apply_all args =
-  Dirt_overlay.apply args ;
-  Base_overlay.apply args ;
-  Biome_overlay.apply args ;
-  Ore_overlay.apply args ;
-  Cavern_overlay.apply args ;
-  Cave_overlay.apply args ;
-  Site_overlay.apply args ;
-  Town_overlay.apply args ;
-  Road_overlay.apply args ;
-  Plant_overlay.apply args ;
-  Debug_overlay.apply {glassify= (fun _ -> false); illuminate= false} args ;
+let apply_all region =
+  Dirt_overlay.apply region ;
+  Base_overlay.apply region ;
+  Biome_overlay.apply region ;
+  Ore_overlay.apply region ;
+  Cavern_overlay.apply region ;
+  Cave_overlay.apply region ;
+  Site_overlay.apply region ;
+  Town_overlay.apply region ;
+  Road_overlay.apply region ;
+  Plant_overlay.apply region ;
+  Debug_overlay.apply {glassify= (fun _ -> false); illuminate= false} region ;
   ()
 
 let save () =
-  let canon = Canonical_overlay.require () in
+  let canon = Overlay.Canon.require () in
   let spawn =
     match Mg_util.shuffle canon.spawn_points with
     | s :: _ ->

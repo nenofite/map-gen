@@ -1,4 +1,4 @@
-open Core_kernel
+open! Core_kernel
 
 (**
    This is not a true overlay, but rather this defines the canonical data which
@@ -51,6 +51,8 @@ let make_delta ?(elevation = `Unchanged) ?(obstacles = `Unchanged)
     ?(spawn_points = `Unchanged) () =
   {elevation; obstacles; spawn_points}
 
+let empty_delta = make_delta ()
+
 (** wherever there is an obstacle in a, it will be added to onto *)
 let add_obstacles (a : obstacles) ~(onto : obstacles) =
   let f a onto = if compare_obstacle a onto > 0 then a else onto in
@@ -80,6 +82,38 @@ let apply_delta (delta : delta) ~(onto : t) =
       | `Add sp ->
           sp @ onto.spawn_points ) }
 
+let stack_delta (lower : delta) ~(upper : delta) =
+  { elevation=
+      ( match upper.elevation with
+      | `Unchanged ->
+          lower.elevation
+      | `Replace _ as r ->
+          r )
+  ; obstacles=
+      ( match upper.obstacles with
+      | `Unchanged ->
+          lower.obstacles
+      | `Add upper_additions as a -> (
+        match lower.obstacles with
+        | `Unchanged ->
+            a
+        | `Add lower_additions ->
+            `Add (add_obstacles upper_additions ~onto:lower_additions)
+        | `Replace lower_replace ->
+            `Replace (add_obstacles upper_additions ~onto:lower_replace) )
+      | `Replace _ as r ->
+          r )
+  ; spawn_points=
+      ( match upper.spawn_points with
+      | `Unchanged ->
+          lower.spawn_points
+      | `Add upper_sp as a -> (
+        match lower.spawn_points with
+        | `Unchanged ->
+            a
+        | `Add lower_sp ->
+            `Add (upper_sp @ lower_sp) ) ) }
+
 (* Obstacle helpers *)
 let can_build_on = function Clear -> true | Bridgeable | Impassable -> false
 
@@ -101,7 +135,7 @@ let require () =
   | Some s ->
       s
   | None ->
-      failwith "Canonical_overlay.init has not been called"
+      failwith "Canon.init has not been called"
 
 let restore s = state := Some s
 
@@ -120,6 +154,6 @@ let draw_obstacles () =
             Some (255, 0, 0)
         | Bridgeable | Clear ->
             None
-      else None)
+      else None )
     ~state:() l ;
   l

@@ -175,9 +175,9 @@ let prepare = () => {
   );
 };
 
-let apply_region = (cavern, args: Minecraft_converter.region_args) => {
+let apply_region = (cavern, region: Minecraft.Region.t) => {
   let (world, _) = Base_overlay.require();
-  let region = args.region;
+  let region = region;
   Minecraft_converter.iter_blocks(
     region,
     (~x, ~z) => {

@@ -1,4 +1,4 @@
-open Core_kernel
+open! Core_kernel
 
 type global_state = {mutable seed: int}
 
@@ -8,7 +8,7 @@ type 't overlay_state =
   { name: string
   ; reader: 't Bin_prot.Type_class.reader
   ; writer: 't Bin_prot.Type_class.writer
-  ; mutable canon_before: Canonical_overlay.t option
+  ; mutable canon_before: Canon.t option
   ; mutable layer_before: Progress_view.layer option
   ; mutable prepared_state: 't option }
 
@@ -55,7 +55,7 @@ let save_cache name writer state =
   flush stdout ;
   with_file (cache_path name) ~f:(fun f ->
       let buf = Bin_prot.Utils.bin_dump ~header:true writer state in
-      output_bytes f (Bigstring.to_bytes buf)) ;
+      output_bytes f (Bigstring.to_bytes buf) ) ;
   Tale.logf "Done"
 
 let before_prepare overlay =
@@ -64,9 +64,9 @@ let before_prepare overlay =
   Random.init seed ;
   ( match overlay.canon_before with
   | None ->
-      overlay.canon_before <- Some (Canonical_overlay.require ())
+      overlay.canon_before <- Some (Canon.require ())
   | Some c ->
-      Canonical_overlay.restore c ) ;
+      Canon.restore c ) ;
   ( match overlay.layer_before with
   | None ->
       overlay.layer_before <- Progress_view.last_layer ()
@@ -94,35 +94,32 @@ let wrap_prepare ?(force = false) overlay f =
         Tale.blockf "Preparing %s overlay" overlay.name ~f:(fun () ->
             let state = f () in
             finish_prepare ~state overlay ;
-            state)
+            state )
   in
   state
 
 let make_lifecycle ?(before_prepare : unit -> unit = fun () -> ())
     ~(prepare : unit -> 'a) ?(after_prepare : 'a -> unit = fun _ -> ())
-    ~(apply : 'a -> Minecraft_converter.region_args -> unit)
-    (overlay : 'a overlay_state) =
+    ~(apply : 'a -> Minecraft.Region.t -> unit) (overlay : 'a overlay_state) =
   let require () = require_overlay overlay in
   let prepare ?force () =
     before_prepare () ;
     let state = wrap_prepare ?force overlay prepare in
     after_prepare state
   in
-  let apply args =
+  let apply region =
     let state = require () in
     Tale.blockf "Applying %s overlay" overlay.name ~f:(fun () ->
-        apply state args) ;
+        apply state region ) ;
     ()
   in
   (require, prepare, apply)
 
-let canon_helper (_, canond) =
-  Canonical_overlay.push_delta canond ;
-  ()
+let canon_helper (_, canond) = Canon.push_delta canond ; ()
 
 let make_no_canon (name : string)
     ?(apply_progress_view : 'a -> unit = fun _ -> ()) (prepare : unit -> 'a)
-    (apply_region : 'a -> Minecraft_converter.region_args -> unit)
+    (apply_region : 'a -> Minecraft.Region.t -> unit)
     (reader : 'a Bin_prot.Type_class.reader)
     (writer : 'a Bin_prot.Type_class.writer) =
   Tale.logf "%s overlay using deprecated [make_no_canon] function" name ;
@@ -135,9 +132,7 @@ let make name ?(apply_progress_view = fun _ -> ()) prepare apply_region reader
   Tale.logf "%s overlay using deprecated [make] function" name ;
   let overlay = make_overlay name reader writer in
   let after_prepare ((_, canond) as state) =
-    Canonical_overlay.push_delta canond ;
-    apply_progress_view state ;
-    ()
+    Canon.push_delta canond ; apply_progress_view state ; ()
   in
   make_lifecycle ~prepare ~after_prepare ~apply:apply_region overlay
 

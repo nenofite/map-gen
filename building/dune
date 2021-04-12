@@ -1,5 +1,5 @@
 (library
- (name Worldgen)
+ (name Building)
  (inline_tests)
  (libraries
   core_kernel
@@ -7,14 +7,9 @@
   Tale
   Grid
   Config
-  Progress_view
-  ANSITerminal
   Minecraft
   Minecraft_template
   Overlay
-  Building
-  camlimages.core
-  camlimages.png
   bin_prot)
  (preprocess
   (pps

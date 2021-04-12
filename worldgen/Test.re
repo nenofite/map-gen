@@ -1,17 +1,8 @@
 /* Make a world and level, put some dirt in the center, and save */
 
 let test_stairs = region => {
-  let args =
-    Minecraft_converter.{
-      region,
-      rx: 0,
-      rz: 0,
-      gx_offset: 0,
-      gy_offset: 0,
-      gsize: 0,
-    };
-  Building.stair_foundation(
-    args,
+  Building_old.stair_foundation(
+    region,
     ~minx=14,
     ~maxx=15,
     ~y=10,

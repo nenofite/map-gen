@@ -73,7 +73,7 @@ type bigstring =
  */
 type nbt_printer_memory = {
   buffer: Buffer.t,
-  window: De.window,
+  window: De.Lz77.window,
   queue: De.Queue.t,
   input_bs: bigstring,
   output_bs: bigstring,
@@ -82,7 +82,7 @@ type nbt_printer_memory = {
 let buffer_size = 128 * 1024;
 let create_memory = () => {
   buffer: Buffer.create(buffer_size),
-  window: De.make_window(~bits=15),
+  window: De.Lz77.make_window(~bits=15),
   queue: De.Queue.create(4096),
   input_bs: De.bigstring_create(buffer_size),
   output_bs: De.bigstring_create(buffer_size),
@@ -133,22 +133,22 @@ let print_nbt = (~memory=create_memory(), ~gzip=true, node: Node.t): Buffer.t =>
       ~level=0,
       ~w=window,
       ~q=queue,
-      ~i=input_bs,
-      ~o=output_bs,
       ~refill,
       ~flush,
       (),
       config,
+      input_bs,
+      output_bs,
     );
   } else {
     Zl.Higher.compress(
       ~level=0,
       ~w=window,
       ~q=queue,
-      ~i=input_bs,
-      ~o=output_bs,
       ~refill,
       ~flush,
+      input_bs,
+      output_bs,
     );
   };
 

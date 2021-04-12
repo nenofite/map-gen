@@ -8,7 +8,7 @@ let dry_fence = Minecraft.Block.Oak_fence Dry
 let waterlogged_fence = Minecraft.Block.Oak_fence Waterlogged
 
 (* Helpers *)
-let is_air = function Minecraft.Block.Air -> true | _ -> false
+let is_air = Minecraft.Block.is_air
 
 let is_air_opt = function Some block -> is_air block | _ -> false
 
@@ -58,7 +58,7 @@ module Preference = struct
     else if
       Range.for_all (z - 1) (z + 1) (fun z ->
           Range.for_all (x - 1) (x + 1) (fun x ->
-              is_air_opt (get_block_opt ~x ~y ~z region)))
+              is_air_opt (get_block_opt ~x ~y ~z region) ) )
     then Torch_with_space (*
     =
     X
@@ -160,7 +160,7 @@ let mark_torch_light ~x ~y ~z light_levels region =
         |> (*d*)
         spread_light_into ~x ~y:(y - 1) ~z ~level:next_level light_levels region
       in
-      ((), next_live))
+      ((), next_live) )
 
 let iter_with_progress ?every arr ~f =
   let total = Array.length arr in
@@ -171,7 +171,7 @@ let iter_with_progress ?every arr ~f =
   in
   Array.iteri arr ~f:(fun i n ->
       if Int.(i % every = 0) then prog i total ;
-      f n) ;
+      f n ) ;
   prog total total ;
   Out_channel.newline stdout
 
@@ -203,7 +203,7 @@ let illuminate ?(min_brightness = 8) ~volume region =
       (* TODO tune initial size *)
       let light_levels = Vi.Table.create ~size:(List.length surfaces) () in
       List.iter torches ~f:(fun (x, y, z) ->
-          mark_torch_light ~x ~y ~z light_levels region) ;
+          mark_torch_light ~x ~y ~z light_levels region ) ;
       Tale.log "Sorting" ;
       let compare_by_first (a, _) (b, _) = Priority.compare a b in
       let sorted_surfaces = Array.of_list surfaces in
@@ -219,7 +219,7 @@ let illuminate ?(min_brightness = 8) ~volume region =
             | Some (x, y, z) ->
                 mark_torch_light ~x ~y ~z light_levels region
             | None ->
-                ()))
+                () ) )
 
 let illuminate_bounds ?min_brightness ~x ~y ~z region =
   let xmin, xmax = x in
@@ -229,6 +229,6 @@ let illuminate_bounds ?min_brightness ~x ~y ~z region =
     let open Mg_util.Range in
     fold zmin zmax init (fun acc z ->
         fold xmin xmax acc (fun acc x ->
-            fold ymin ymax acc (fun acc y -> f acc (x, y, z))))
+            fold ymin ymax acc (fun acc y -> f acc (x, y, z)) ) )
   in
   illuminate ?min_brightness ~volume region

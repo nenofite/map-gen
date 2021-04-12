@@ -1,5 +1,6 @@
 (executables
-  (names Main Test Town)
-  (public_names Main Test Town)
-  (preprocess (pps ppx_let))
-  (libraries Worldgen Stats))
+ (names Main Test Town Splat)
+ (public_names Main Test Town Splat)
+ (preprocess
+  (pps ppx_let))
+ (libraries Worldgen Stats Proc))

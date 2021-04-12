@@ -280,8 +280,7 @@ let place_deposit = (~region, ~ore, ~deposit_size, x, y, z): unit => {
   );
 };
 
-let find_depth = (depth, args, x, z) => {
-  let Minecraft_converter.{region, _} = args;
+let find_depth = (depth, region, x, z) => {
   switch (depth) {
   | From_surface(min_depth, max_depth) =>
     switch (
@@ -299,16 +298,16 @@ let find_depth = (depth, args, x, z) => {
   };
 };
 
-let apply_layer = (layer, args) => {
-  let Minecraft_converter.{region, rx: _, rz: _, gx_offset, gy_offset, gsize} = args;
+let apply_layer = (layer, region) => {
   let {ore, densities, depth, min_deposit_size, max_deposit_size} = layer;
+  let (rx, rz) = Minecraft.Region.region_offset(region);
   let deposits =
     Point_cloud.init(
-      ~side=gsize,
+      ~side=Minecraft.Region.block_per_region_side,
       ~spacing=8,
       (x, z) => {
-        let x = x + gx_offset;
-        let z = z + gy_offset;
+        let x = x + rx;
+        let z = z + rz;
         let prob =
           Point_cloud.interpolate(
             densities,
@@ -322,9 +321,9 @@ let apply_layer = (layer, args) => {
     if (value) {
       let deposit_size =
         min_deposit_size + Random.int(max_deposit_size - min_deposit_size);
-      let x = int_of_float(x) + gx_offset;
-      let z = int_of_float(z) + gy_offset;
-      switch (find_depth(depth, args, x, z)) {
+      let x = int_of_float(x) + rx;
+      let z = int_of_float(z) + rz;
+      switch (find_depth(depth, region, x, z)) {
       | Some(y) => place_deposit(~region, ~ore, ~deposit_size, x, y, z)
       | None => ()
       };
@@ -332,8 +331,8 @@ let apply_layer = (layer, args) => {
   );
 };
 
-let apply_region = (state, args): unit => {
-  List.iter(layer => apply_layer(layer, args), state);
+let apply_region = (state, region): unit => {
+  List.iter(layer => apply_layer(layer, region), state);
 };
 
 let (require, prepare, apply) =

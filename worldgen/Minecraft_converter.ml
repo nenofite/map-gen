@@ -1,14 +1,5 @@
 open Core_kernel
 
-(** region_args are the numerous arguments provided when generating a region *)
-type region_args =
-  { region: Minecraft.Region.t
-  ; rx: int
-  ; rz: int
-  ; gx_offset: int
-  ; gy_offset: int
-  ; gsize: int }
-
 let region_of_spawn (x, _y, z) =
   ( x / Minecraft.Region.block_per_region_side
   , z / Minecraft.Region.block_per_region_side )
@@ -16,7 +7,7 @@ let region_of_spawn (x, _y, z) =
 (**
   segment_grid_by_region divides the grid into squares such that each square
   becomes one Minecraft Anvil region. Then it calls f with the region
-  coordinates, grid offset, and grid size.
+  coordinates.
 
   If the grid does not divide evenly into regions, then this raises
   Invalid_argument. To avoid this, the each grid dimension must divide evenly
@@ -51,7 +42,7 @@ let segment_grid_by_region ~(side : int) ~spawn ?sub f : unit =
   in
   let regions =
     Range.fold 0 (regions_side - 1) [] (fun acc rz ->
-        Range.fold 0 (regions_side - 1) acc (fun acc rx -> (rx, rz) :: acc))
+        Range.fold 0 (regions_side - 1) acc (fun acc rx -> (rx, rz) :: acc) )
     |> List.sort ~compare:compare_by_spawn_dist
   in
   (* Iterate over the grid *)
@@ -62,28 +53,20 @@ let segment_grid_by_region ~(side : int) ~spawn ?sub f : unit =
         && min_rz <= rz
         && rz < min_rz + len_rz
       in
-      if in_sub then
-        f ~rx ~rz
-          ~gx_offset:
-            (rx * block_per_region)
-            (* TODO can probably get rid of these, since it's always 1:1 *)
-          ~gy_offset:(rz * block_per_region) ~gsize:block_per_region)
+      if in_sub then f ~rx ~rz )
 
 (** fills the region with blocks from the grid *)
-let convert_region ~region ~apply_overlays ~rx ~rz ~gx_offset ~gy_offset ~gsize
-    =
-  let args = {region; rx; rz; gx_offset; gy_offset; gsize} in
-  apply_overlays args ;
+let convert_region ~region ~apply_overlays =
+  apply_overlays region ;
   Tale.logf "Flowing water" ;
   Out_channel.flush stdout ;
   Minecraft.Water.flow_water region
 
 (** save creates a Minecraft world with the given heightmap *)
 let save ~(side : int) ~(spawn : int * int * int)
-    ~(apply_overlays : region_args -> unit) : unit =
+    ~(apply_overlays : Minecraft.Region.t -> unit) : unit =
   Minecraft.World.make "heightmap" ~spawn (fun builder ->
-      segment_grid_by_region ~side ~spawn
-        (fun ~rx ~rz ~gx_offset ~gy_offset ~gsize ->
+      segment_grid_by_region ~side ~spawn (fun ~rx ~rz ->
           Minecraft.World.make_region ~rx ~rz builder (fun region ->
               let min_x, min_z = Minecraft.Region.region_offset region in
               Progress_view.fit
@@ -93,8 +76,7 @@ let save ~(side : int) ~(spawn : int * int * int)
                 , min_x + block_per_region_side
                 , min_z
                 , min_z + block_per_region_side )) ;
-              convert_region ~region ~apply_overlays ~rx ~rz ~gx_offset
-                ~gy_offset ~gsize))) ;
+              convert_region ~region ~apply_overlays ) ) ) ;
   ()
 
 let iter_blocks (r : Minecraft.Region.t) fn : unit =
@@ -123,3 +105,10 @@ let within_region_boundaries ~canon_side ~min_x ~max_x ~min_z ~max_z =
       && min_z mod block_per_region_side < block_per_region_side - z_side)
   in
   within_world && within_region
+
+let template_within_region_boundaries t ~x ~z ~canon_side =
+  let open Minecraft_template in
+  let min_x, max_x = t.bounds_x in
+  let min_z, max_z = t.bounds_z in
+  within_region_boundaries ~canon_side ~min_x:(min_x + x) ~max_x:(max_x + x)
+    ~min_z:(min_z + z) ~max_z:(max_z + z)

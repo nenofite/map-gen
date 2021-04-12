@@ -43,12 +43,10 @@ let calculate =
 };
 
 let apply_to_draw = (~draw, view) => {
-  let {min_x, max_z, zoom, pixels_per_tile, _} = view;
+  let {min_x, min_z, zoom, pixels_per_tile, _} = view;
   let draw_tile = (x, z, color) => {
     let wx = (x - min_x) / zoom * pixels_per_tile;
-    /* In Minecraft, increasing Z moves south, whereas in Graphics increasing Y
-     * moves up. So we reverse the vertical axis when drawing: */
-    let wy = (max_z - z) / zoom * pixels_per_tile;
+    let wy = (z - min_z) / zoom * pixels_per_tile;
     draw(~wx, ~wy, ~color);
   };
   draw_tile;

@@ -15,7 +15,6 @@ depends: [
     "base"
     "bitstring"
     "camlimages"
-    "graphics"
     "core_kernel"
     "ppx_sexp_conv"
     "ppx_deriving"
@@ -25,6 +24,7 @@ depends: [
     "ppx_inline_test"
     "ppx_let"
     "decompress" {>= "1.2.0"}
+    "tsdl"
     "merlin" {dev}
     "odoc" {dev}
     "utop" {dev}

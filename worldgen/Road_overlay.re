@@ -30,7 +30,7 @@ type x = {
 };
 
 [@deriving bin_io]
-type t = (x, Canonical_overlay.delta);
+type t = (x, Overlay.Canon.delta);
 
 let town_goal_side = Town_prototype.side;
 
@@ -48,18 +48,17 @@ let rec all_pairs = (list, result) =>
     all_pairs(list, result);
   };
 
-let heuristic = (canon: Canonical_overlay.t, (ax, ay), (bx, by)) => {
+let heuristic = (canon: Overlay.Canon.t, (ax, ay), (bx, by)) => {
   let a_elev = Grid_compat.at(canon.elevation, ax, ay);
   let b_elev = Grid_compat.at(canon.elevation, bx, by);
   A_star.distance_3d((ax, ay, a_elev), (bx, by, b_elev));
 };
 
-let edge_cost = (canon: Canonical_overlay.t, (ax, ay), (bx, by)) => {
+let edge_cost = (canon: Overlay.Canon.t, (ax, ay), (bx, by)) => {
   let a_elev = Grid_compat.at(canon.elevation, ax, ay);
   let b_elev = Grid_compat.at(canon.elevation, bx, by);
   let elev_diff = abs(a_elev - b_elev);
-  let b_obs =
-    !Canonical_overlay.can_build_on(Grid.get(bx, by, canon.obstacles));
+  let b_obs = !Overlay.Canon.can_build_on(Grid.get(bx, by, canon.obstacles));
   if (!b_obs && elev_diff <= 1) {
     Some(Mg_util.Floats.(~.elev_diff +. 1.));
   } else {
@@ -83,7 +82,7 @@ let heighten_road =
   | Some(_) => roads
   | None =>
     switch (get_obstacle(~x, ~z=y)) {
-    | Canonical_overlay.Impassable
+    | Overlay.Canon.Impassable
     | Bridgeable => roads
     | Clear =>
       Sparse_grid.put(
@@ -158,8 +157,7 @@ let rec add_road_to_grid = (roads: Sparse_grid.t(road), path) =>
     add_road_to_grid(roads, path);
   };
 
-let place_road =
-    (_canon: Canonical_overlay.t, roads: Sparse_grid.t(road), path) => {
+let place_road = (_canon: Overlay.Canon.t, roads: Sparse_grid.t(road), path) => {
   /* Add elevations */
   let path =
     List.filter_map(path, ~f=(Bridge_pathing.{x, y, z, bridge}) => {
@@ -201,7 +199,7 @@ let goalf_of_poi = ((poi_x, poi_z)) => {
 };
 
 let prepare = () => {
-  let canon = Canonical_overlay.require();
+  let canon = Overlay.Canon.require();
   let (towns, _) = Town_overlay.require();
   /* Use a point cloud to get points of interest */
   Tale.log("Making points of interest");
@@ -224,14 +222,14 @@ let prepare = () => {
       Impassable;
     };
   let get_obstacle_in_margin = (~margin, ~x, ~z) =>
-    Range.fold(z - margin, z + margin, Canonical_overlay.Clear, (obs, z) =>
+    Range.fold(z - margin, z + margin, Overlay.Canon.Clear, (obs, z) =>
       Range.fold(
         x - margin,
         x + margin,
         obs,
         (obs, x) => {
           let here_obs = get_obstacle(~x, ~z);
-          Canonical_overlay.Obstacle.max(obs, here_obs);
+          Overlay.Canon.Obstacle.max(obs, here_obs);
         },
       )
     );
@@ -270,12 +268,12 @@ let prepare = () => {
   Draw.draw_sparse_grid(colorizer, "roads.png", roads);
   let obstacles =
     Sparse_grid.(
-      map(roads, (_, _) => Canonical_overlay.Impassable)
-      |> to_grid(~default=Canonical_overlay.Clear)
+      map(roads, (_, _) => Overlay.Canon.Impassable)
+      |> to_grid(~default=Overlay.Canon.Clear)
     );
   (
     {pois, roads},
-    Canonical_overlay.make_delta(~obstacles=`Add(obstacles), ()),
+    Overlay.Canon.make_delta(~obstacles=`Add(obstacles), ()),
   );
 };
 
@@ -319,8 +317,8 @@ let place_step_block = (region, x, y, z) => {
   fill_beneath_road(region, x, y - 1, z);
 };
 
-let apply_region = ((state, _canon), args: Minecraft_converter.region_args) => {
-  let region = args.region;
+let apply_region = ((state, _canon), region: Minecraft.Region.t) => {
+  let region = region;
   Sparse_grid.iter(state.roads, ((x, z), road) =>
     if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
       let {road: {elevation: y, niceness}, step_down} = road;
