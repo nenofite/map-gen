@@ -44,12 +44,12 @@ let rec lay_stairs stair ~under ~x ~y ~z ~dx ~dz ~max =
   else return ()
 
 let lay_stair_foundation ?(foundation = Minecraft.Block.Cobblestone)
-    ?(stair = fun d -> Minecraft.Block.Cobblestone_stairs d) ?(n = true)
-    ?(e = true) ?(s = true) ?(w = true) ~minx ~maxx ~y ~minz ~maxz ~max_stair ()
-    =
+    ?(stair = Minecraft.Block.Cobblestone_stairs) ?(n = true) ?(e = true)
+    ?(s = true) ?(w = true) ~minx ~maxx ~y ~minz ~maxz ~max_stair () =
   let open Building_monad.Let_syntax in
   let%bind () = lay_foundation foundation ~minx ~maxx ~y ~minz ~maxz in
   let for_m = Mg_util.Range.iter_m ~bind:Building_monad.bind in
+  let stair d = Minecraft.Block.Stairs (stair, d) in
   let%bind () =
     for_m minx maxx (fun x ->
         let%bind () =
