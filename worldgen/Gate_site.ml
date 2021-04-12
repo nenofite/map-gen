@@ -2,7 +2,7 @@ open! Core_kernel
 
 type t = {rotation: int; template: Minecraft_template.t} [@@deriving bin_io]
 
-let random_gate ~rotation =
+let random_gate () =
   let width = Random.int_incl 4 8 in
   let height = Random.int_incl 5 10 in
   let thickness = Random.int_incl 1 2 in
@@ -29,10 +29,23 @@ let random_gate ~rotation =
          ~their:(X min, Y max, Z min)
   in
   combine_all [base; left_post; right_post; top]
-  |> rotate_90_cw ~times:rotation
   |> Minecraft_template.Effects.(
        if thickness = 1 then eat ~blocks:(Random.int_incl 0 1)
        else eat_frac ~frac:(Random.float 0.25))
+
+let building template =
+  let open Building.Building_monad.Let_syntax in
+  let minx, maxx = template.Minecraft_template.bounds_x in
+  let minz, maxz = template.Minecraft_template.bounds_z in
+  let%bind y = Building.Building_monad.height_at ~x:0 ~z:0 in
+  let y = y + 3 in
+  let%bind () =
+    Building.Foundation.lay_stair_foundation
+      ~foundation:Minecraft.Block.Smooth_quartz
+      ~stair:(fun d -> Minecraft.Block.Quartz_stairs d)
+      ~e:false ~w:false ~minx ~maxx ~y ~minz ~maxz
+  in
+  Building.Building_monad.place_template ~x:0 ~y ~z:0 template
 
 let can_build_template template ~x ~z =
   let canon = Overlay.Canon.require () in

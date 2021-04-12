@@ -317,7 +317,7 @@ let create_bell = (bell: Town_prototype.block, region: Minecraft.Region.t) => {
   /* Foundation */
   for (x in min_x to max_x) {
     for (z in min_z to max_z) {
-      Building.raise_lower_elev_match(region, x, z, bell.elevation);
+      Building_old.raise_lower_elev_match(region, x, z, bell.elevation);
       set_block(~x, ~y=bell.elevation, ~z, base_material, region);
     };
   };
@@ -360,7 +360,7 @@ let create_house = (house: Town_prototype.house, region: Minecraft.Region.t) => 
   /* Foundation and floor */
   for (x in min_x to max_x) {
     for (z in min_z to max_z) {
-      Building.raise_lower_elev_match(region, x, z, elevation);
+      Building_old.raise_lower_elev_match(region, x, z, elevation);
       set_block(~x, ~y=elevation, ~z, floor_material, region);
     };
   };
@@ -495,7 +495,7 @@ let create_house = (house: Town_prototype.house, region: Minecraft.Region.t) => 
   /* 2x3 empty space in front of door */
   for (z in door_z - 2 to door_z - 1) {
     for (x in door_x - 1 to door_x + 1) {
-      Building.raise_lower_elev_match(region, x, z, elevation);
+      Building_old.raise_lower_elev_match(region, x, z, elevation);
     };
   };
 
@@ -564,7 +564,7 @@ let create_farm = (farm: Town_prototype.block, region: Minecraft.Region.t) => {
   /* Foundation */
   for (x in min_x to max_x) {
     for (z in min_z to max_z) {
-      Building.raise_lower_elev_match(region, x, z, elevation);
+      Building_old.raise_lower_elev_match(region, x, z, elevation);
     };
   };
 

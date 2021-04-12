@@ -33,7 +33,7 @@ let can_build_cavern_entrance (canon : Overlay.Canon.t) ~x ~z =
       (fun ~x ~z -> Grid.get x z canon.elevation)
       ~minx:(minx + x) ~maxx:(maxx + x) ~minz:(minz + z) ~maxz:(maxz + z)
   in
-  Building.would_stair_foundation_fit canon.elevation ~minx:(minx + x)
+  Building_old.would_stair_foundation_fit canon.elevation ~minx:(minx + x)
     ~maxx:(maxx + x) ~y ~minz:(minz + z) ~maxz:(maxz + z)
     ~max_distance:max_stair_distance
   && Range.for_all
@@ -86,7 +86,7 @@ let apply t ~x ~z ~(region : Minecraft.Region.t) : unit =
       (fun ~x ~z -> Minecraft.Region.height_at ~x ~z region)
       ~minx:(minx + x) ~maxx:(maxx + x) ~minz:(minz + z) ~maxz:(maxz + z)
   in
-  Building.stair_foundation region ~minx:(minx + x) ~maxx:(maxx + x) ~y
+  Building_old.stair_foundation region ~minx:(minx + x) ~maxx:(maxx + x) ~y
     ~minz:(minz + z) ~maxz:(maxz + z) ;
   Minecraft_template.place_overwrite top region ~x ~y ~z ;
   let tube_height = Minecraft_template.height_of tube in
@@ -100,5 +100,5 @@ let apply t ~x ~z ~(region : Minecraft.Region.t) : unit =
   Minecraft_template.place_overwrite base region ~x ~y ~z ;
   let minx, maxx = base.bounds_x in
   let minz, maxz = base.bounds_z in
-  Building.stair_foundation region ~minx:(minx + x) ~maxx:(maxx + x) ~y
+  Building_old.stair_foundation region ~minx:(minx + x) ~maxx:(maxx + x) ~y
     ~minz:(minz + z) ~maxz:(maxz + z)

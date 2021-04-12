@@ -93,9 +93,6 @@ let after_prepare (sites, canond) =
   apply_progress_view sites ;
   ()
 
-let apply_standard region ~x ~z template =
-  Building.apply_template region ~x ~z template
-
 let apply_region (sites, _) (region : Minecraft.Region.t) : unit =
   let {entrances; gates} = sites in
   let apply_if_within apply (t, x, z) =
