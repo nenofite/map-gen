@@ -1,7 +1,7 @@
 /* Make a world and level, put some dirt in the center, and save */
 
 let test_stairs = region => {
-  Building.stair_foundation(
+  Building_old.stair_foundation(
     region,
     ~minx=14,
     ~maxx=15,
