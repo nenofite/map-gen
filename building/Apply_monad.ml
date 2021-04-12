@@ -42,10 +42,7 @@ let height_at ~x ~z : int t =
   Minecraft.Region.height_at ~x ~z region
 
 let place_template (t : Minecraft_template.t) ~x ~y ~z : unit t =
- fun pos region ->
-  let x, y, z = Shared.apply_pos pos ~x ~y ~z in
-  let t =
-    Minecraft_template.rotate_90_cw t ~times:(Shared.get_cw_rotations pos)
-  in
-  Minecraft_template.place_overwrite t ~x ~y ~z region ;
-  ()
+  let open Let_syntax in
+  List.fold t.blocks ~init:nop ~f:(fun m (dx, dy, dz, mat) ->
+      let%bind () = m in
+      set_block mat ~x:(x + dx) ~y:(y + dy) ~z:(z + dz) )
