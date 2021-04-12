@@ -8,8 +8,10 @@ let get_cw_rotations pos = pos.rotation mod 4
 
 let apply_pos pos ~x ~y ~z =
   let {origin= ox, oy, oz; rotation} = pos in
-  (* TODO also handle block rotation (eg. stairs) *)
-  ignore rotation ;
+  let rec rotate times ~x ~y ~z =
+    if times <= 0 then (x, y, z) else rotate (times - 1) ~x:(-z) ~y ~z:x
+  in
+  let x, y, z = rotate rotation ~x ~y ~z in
   (x + ox, y + oy, z + oz)
 
 let apply_rotation_to_block mat ~pos =
