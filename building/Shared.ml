@@ -15,12 +15,10 @@ let apply_pos pos ~x ~y ~z =
   (x + ox, y + oy, z + oz)
 
 let apply_rotation_to_block mat ~pos =
-  (* TODO *)
-  ignore pos ; mat
+  Minecraft.Block.rotate_cw mat ~times:pos.rotation
 
 let negate_rotation_of_block mat ~pos =
-  (* TODO *)
-  ignore pos ; mat
+  Minecraft.Block.rotate_cw mat ~times:(4 - pos.rotation)
 
 type 'a t = pos -> 'a
 

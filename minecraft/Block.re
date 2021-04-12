@@ -1608,6 +1608,17 @@ let namespace =
   | Zombie_head => "minecraft:zombie_head"
   | Zombie_wall_head => "minecraft:zombie_wall_head";
 
+let rotate_stair_dir_cw: stair_dir => stair_dir =
+  fun
+  | E => S
+  | W => N
+  | S => W
+  | N => E
+  | Ed => Sd
+  | Wd => Nd
+  | Sd => Wd
+  | Nd => Ed;
+
 let string_of_dir =
   fun
   | N => "north"
@@ -1615,11 +1626,41 @@ let string_of_dir =
   | S => "south"
   | W => "west";
 
+let rotate_dir_cw: dir => dir =
+  fun
+  | N => E
+  | E => S
+  | S => W
+  | W => N;
+
 let string_of_axis =
   fun
   | X => "x"
   | Y => "y"
   | Z => "z";
+
+let rotate_axis_cw =
+  fun
+  | X => Z
+  | Y => Y
+  | Z => X;
+
+let rotate_cw = (mat, ~times) => {
+  let rep = f => Mg_util.times(f, times);
+  switch (mat) {
+  | Oak_door(dir, part) => Oak_door(rep(rotate_dir_cw, dir), part)
+  | Oak_log(axis) => Oak_log(rep(rotate_axis_cw, axis))
+  | Orange_bed(dir, part) => Orange_bed(rep(rotate_dir_cw, dir), part)
+  | Cobblestone_stairs(dir) =>
+    Cobblestone_stairs(rep(rotate_stair_dir_cw, dir))
+  | Stone_brick_stairs(dir) =>
+    Stone_brick_stairs(rep(rotate_stair_dir_cw, dir))
+  | Stone_stairs(dir) => Stone_stairs(rep(rotate_stair_dir_cw, dir))
+  | Quartz_stairs(dir) => Quartz_stairs(rep(rotate_stair_dir_cw, dir))
+  | Wall_torch(dir) => Wall_torch(rep(rotate_dir_cw, dir))
+  | other => other
+  };
+};
 
 let data_of_waterlogged = w =>
   Nbt.Node.(
