@@ -47,6 +47,45 @@ type axis =
   | Y
   | Z;
 
+[@deriving (eq, bin_io)]
+type stair_material =
+  | Acacia_stairs
+  | Andesite_stairs
+  | Birch_stairs
+  | Blackstone_stairs
+  | Brick_stairs
+  | Cobblestone_stairs
+  | Crimson_stairs
+  | Dark_oak_stairs
+  | Dark_prismarine_stairs
+  | Diorite_stairs
+  | End_stone_brick_stairs
+  | Granite_stairs
+  | Jungle_stairs
+  | Mossy_cobblestone_stairs
+  | Mossy_stone_brick_stairs
+  | Nether_brick_stairs
+  | Oak_stairs
+  | Polished_andesite_stairs
+  | Polished_blackstone_brick_stairs
+  | Polished_blackstone_stairs
+  | Polished_diorite_stairs
+  | Polished_granite_stairs
+  | Prismarine_brick_stairs
+  | Prismarine_stairs
+  | Purpur_stairs
+  | Quartz_stairs
+  | Red_nether_brick_stairs
+  | Red_sandstone_stairs
+  | Sandstone_stairs
+  | Smooth_quartz_stairs
+  | Smooth_red_sandstone_stairs
+  | Smooth_sandstone_stairs
+  | Spruce_stairs
+  | Stone_brick_stairs
+  | Stone_stairs
+  | Warped_stairs;
+
 /* Materials list taken from https://minecraft.gamepedia.com/Java_Edition_data_value */
 [@deriving (eq, bin_io)]
 type material =
@@ -66,7 +105,6 @@ type material =
   | Acacia_sapling
   | Acacia_sign
   | Acacia_slab
-  | Acacia_stairs
   | Acacia_trapdoor
   | Acacia_wall_sign
   | Acacia_wood
@@ -75,7 +113,6 @@ type material =
   | Ancient_debris
   | Andesite
   | Andesite_slab
-  | Andesite_stairs
   | Andesite_wall
   | Anvil
   | Attached_melon_stem
@@ -103,7 +140,6 @@ type material =
   | Birch_sapling
   | Birch_sign
   | Birch_slab
-  | Birch_stairs
   | Birch_trapdoor
   | Birch_wall_sign
   | Birch_wood
@@ -121,7 +157,6 @@ type material =
   | Black_wool
   | Blackstone
   | Blackstone_slab
-  | Blackstone_stairs
   | Blackstone_wall
   | Blast_furnace
   | Blue_banner
@@ -146,7 +181,6 @@ type material =
   | Brain_coral_wall_fan
   | Brewing_stand
   | Brick_slab
-  | Brick_stairs
   | Brick_wall
   | Bricks
   | Brown_banner
@@ -194,7 +228,6 @@ type material =
   | Coarse_dirt
   | Cobblestone
   | Cobblestone_slab
-  | Cobblestone_stairs(stair_dir)
   | Cobblestone_wall
   | Cobweb
   | Cocoa
@@ -221,7 +254,6 @@ type material =
   | Crimson_roots
   | Crimson_sign
   | Crimson_slab
-  | Crimson_stairs
   | Crimson_stem
   | Crimson_trapdoor
   | Crimson_wall_sign
@@ -255,13 +287,11 @@ type material =
   | Dark_oak_sapling
   | Dark_oak_sign
   | Dark_oak_slab
-  | Dark_oak_stairs
   | Dark_oak_trapdoor
   | Dark_oak_wall_sign
   | Dark_oak_wood
   | Dark_prismarine
   | Dark_prismarine_slab
-  | Dark_prismarine_stairs
   | Daylight_detector
   | Dead_brain_coral
   | Dead_brain_coral_block
@@ -289,7 +319,6 @@ type material =
   | Diamond_ore
   | Diorite
   | Diorite_slab
-  | Diorite_stairs
   | Diorite_wall
   | Dirt
   | Dispenser
@@ -307,7 +336,6 @@ type material =
   | End_rod
   | End_stone
   | End_stone_brick_slab
-  | End_stone_brick_stairs
   | End_stone_brick_wall
   | End_stone_bricks
   | Ender_chest
@@ -330,7 +358,6 @@ type material =
   | Gold_ore
   | Granite
   | Granite_slab
-  | Granite_stairs
   | Granite_wall
   | Grass_block
   | Grass_path
@@ -396,7 +423,6 @@ type material =
   | Jungle_sapling
   | Jungle_sign
   | Jungle_slab
-  | Jungle_stairs
   | Jungle_trapdoor
   | Jungle_wall_sign
   | Jungle_wood
@@ -469,10 +495,8 @@ type material =
   | Melon_stem
   | Mossy_cobblestone
   | Mossy_cobblestone_slab
-  | Mossy_cobblestone_stairs
   | Mossy_cobblestone_wall
   | Mossy_stone_brick_slab
-  | Mossy_stone_brick_stairs
   | Mossy_stone_brick_wall
   | Mossy_stone_bricks
   | Moving_piston
@@ -480,7 +504,6 @@ type material =
   | Mycelium
   | Nether_brick_fence
   | Nether_brick_slab
-  | Nether_brick_stairs
   | Nether_brick_wall
   | Nether_bricks
   | Nether_gold_ore
@@ -503,7 +526,6 @@ type material =
   | Oak_sapling
   | Oak_sign
   | Oak_slab
-  | Oak_stairs
   | Oak_trapdoor
   | Oak_wall_sign
   | Oak_wood
@@ -546,24 +568,19 @@ type material =
   | Podzol
   | Polished_andesite
   | Polished_andesite_slab
-  | Polished_andesite_stairs
   | Polished_basalt
   | Polished_blackstone
   | Polished_blackstone_brick_slab
-  | Polished_blackstone_brick_stairs
   | Polished_blackstone_brick_wall
   | Polished_blackstone_bricks
   | Polished_blackstone_button
   | Polished_blackstone_pressure_plate
   | Polished_blackstone_slab
-  | Polished_blackstone_stairs
   | Polished_blackstone_wall
   | Polished_diorite
   | Polished_diorite_slab
-  | Polished_diorite_stairs
   | Polished_granite
   | Polished_granite_slab
-  | Polished_granite_stairs
   | Poppy
   | Potatoes
   | Potted_acacia_sapling
@@ -598,10 +615,8 @@ type material =
   | Powered_rail
   | Prismarine
   | Prismarine_brick_slab
-  | Prismarine_brick_stairs
   | Prismarine_bricks
   | Prismarine_slab
-  | Prismarine_stairs
   | Prismarine_wall
   | Pumpkin
   | Pumpkin_stem
@@ -620,12 +635,10 @@ type material =
   | Purpur_block
   | Purpur_pillar
   | Purpur_slab
-  | Purpur_stairs
   | Quartz_block
   | Quartz_bricks
   | Quartz_pillar
   | Quartz_slab
-  | Quartz_stairs(stair_dir)
   | Rail
   | Red_banner
   | Red_bed
@@ -636,13 +649,11 @@ type material =
   | Red_mushroom_block
   | Red_mushroom
   | Red_nether_brick_slab
-  | Red_nether_brick_stairs
   | Red_nether_brick_wall
   | Red_nether_bricks
   | Red_sand
   | Red_sandstone
   | Red_sandstone_slab
-  | Red_sandstone_stairs
   | Red_sandstone_wall
   | Red_shulker_box
   | Red_stained_glass
@@ -664,7 +675,6 @@ type material =
   | Sand
   | Sandstone
   | Sandstone_slab
-  | Sandstone_stairs
   | Sandstone_wall
   | Scaffolding
   | Sea_lantern
@@ -679,13 +689,10 @@ type material =
   | Smoker
   | Smooth_quartz
   | Smooth_quartz_slab
-  | Smooth_quartz_stairs
   | Smooth_red_sandstone
   | Smooth_red_sandstone_slab
-  | Smooth_red_sandstone_stairs
   | Smooth_sandstone
   | Smooth_sandstone_slab
-  | Smooth_sandstone_stairs
   | Smooth_stone
   | Smooth_stone_slab(slab_type)
   | Snow_block
@@ -710,20 +717,18 @@ type material =
   | Spruce_sapling
   | Spruce_sign
   | Spruce_slab
-  | Spruce_stairs
   | Spruce_trapdoor
   | Spruce_wall_sign
   | Spruce_wood
+  | Stairs(stair_material, stair_dir)
   | Sticky_piston
   | Stone
   | Stone_brick_slab
-  | Stone_brick_stairs(stair_dir)
   | Stone_brick_wall
   | Stone_bricks
   | Stone_button
   | Stone_pressure_plate
   | Stone_slab
-  | Stone_stairs(stair_dir)
   | Stonecutter
   | Stripped_acacia_log
   | Stripped_acacia_wood
@@ -777,7 +782,6 @@ type material =
   | Warped_roots
   | Warped_sign
   | Warped_slab
-  | Warped_stairs
   | Warped_stem
   | Warped_trapdoor
   | Warped_wall_sign
@@ -856,7 +860,7 @@ let namespace =
   | Acacia_sapling => "minecraft:acacia_sapling"
   | Acacia_sign => "minecraft:acacia_sign"
   | Acacia_slab => "minecraft:acacia_slab"
-  | Acacia_stairs => "minecraft:acacia_stairs"
+  | Stairs(Acacia_stairs, _) => "minecraft:acacia_stairs"
   | Acacia_trapdoor => "minecraft:acacia_trapdoor"
   | Acacia_wall_sign => "minecraft:acacia_wall_sign"
   | Acacia_wood => "minecraft:acacia_wood"
@@ -865,7 +869,7 @@ let namespace =
   | Ancient_debris => "minecraft:ancient_debris"
   | Andesite => "minecraft:andesite"
   | Andesite_slab => "minecraft:andesite_slab"
-  | Andesite_stairs => "minecraft:andesite_stairs"
+  | Stairs(Andesite_stairs, _) => "minecraft:andesite_stairs"
   | Andesite_wall => "minecraft:andesite_wall"
   | Anvil => "minecraft:anvil"
   | Attached_melon_stem => "minecraft:attached_melon_stem"
@@ -893,7 +897,7 @@ let namespace =
   | Birch_sapling => "minecraft:birch_sapling"
   | Birch_sign => "minecraft:birch_sign"
   | Birch_slab => "minecraft:birch_slab"
-  | Birch_stairs => "minecraft:birch_stairs"
+  | Stairs(Birch_stairs, _) => "minecraft:birch_stairs"
   | Birch_trapdoor => "minecraft:birch_trapdoor"
   | Birch_wall_sign => "minecraft:birch_wall_sign"
   | Birch_wood => "minecraft:birch_wood"
@@ -911,7 +915,7 @@ let namespace =
   | Black_wool => "minecraft:black_wool"
   | Blackstone => "minecraft:blackstone"
   | Blackstone_slab => "minecraft:blackstone_slab"
-  | Blackstone_stairs => "minecraft:blackstone_stairs"
+  | Stairs(Blackstone_stairs, _) => "minecraft:blackstone_stairs"
   | Blackstone_wall => "minecraft:blackstone_wall"
   | Blast_furnace => "minecraft:blast_furnace"
   | Blue_banner => "minecraft:blue_banner"
@@ -936,7 +940,7 @@ let namespace =
   | Brain_coral_wall_fan => "minecraft:brain_coral_wall_fan"
   | Brewing_stand => "minecraft:brewing_stand"
   | Brick_slab => "minecraft:brick_slab"
-  | Brick_stairs => "minecraft:brick_stairs"
+  | Stairs(Brick_stairs, _) => "minecraft:brick_stairs"
   | Brick_wall => "minecraft:brick_wall"
   | Bricks => "minecraft:bricks"
   | Brown_banner => "minecraft:brown_banner"
@@ -984,7 +988,7 @@ let namespace =
   | Coarse_dirt => "minecraft:coarse_dirt"
   | Cobblestone => "minecraft:cobblestone"
   | Cobblestone_slab => "minecraft:cobblestone_slab"
-  | Cobblestone_stairs(_) => "minecraft:cobblestone_stairs"
+  | Stairs(Cobblestone_stairs, _) => "minecraft:cobblestone_stairs"
   | Cobblestone_wall => "minecraft:cobblestone_wall"
   | Cobweb => "minecraft:cobweb"
   | Cocoa => "minecraft:cocoa"
@@ -1011,7 +1015,7 @@ let namespace =
   | Crimson_roots => "minecraft:crimson_roots"
   | Crimson_sign => "minecraft:crimson_sign"
   | Crimson_slab => "minecraft:crimson_slab"
-  | Crimson_stairs => "minecraft:crimson_stairs"
+  | Stairs(Crimson_stairs, _) => "minecraft:crimson_stairs"
   | Crimson_stem => "minecraft:crimson_stem"
   | Crimson_trapdoor => "minecraft:crimson_trapdoor"
   | Crimson_wall_sign => "minecraft:crimson_wall_sign"
@@ -1045,13 +1049,13 @@ let namespace =
   | Dark_oak_sapling => "minecraft:dark_oak_sapling"
   | Dark_oak_sign => "minecraft:dark_oak_sign"
   | Dark_oak_slab => "minecraft:dark_oak_slab"
-  | Dark_oak_stairs => "minecraft:dark_oak_stairs"
+  | Stairs(Dark_oak_stairs, _) => "minecraft:dark_oak_stairs"
   | Dark_oak_trapdoor => "minecraft:dark_oak_trapdoor"
   | Dark_oak_wall_sign => "minecraft:dark_oak_wall_sign"
   | Dark_oak_wood => "minecraft:dark_oak_wood"
   | Dark_prismarine => "minecraft:dark_prismarine"
   | Dark_prismarine_slab => "minecraft:dark_prismarine_slab"
-  | Dark_prismarine_stairs => "minecraft:dark_prismarine_stairs"
+  | Stairs(Dark_prismarine_stairs, _) => "minecraft:dark_prismarine_stairs"
   | Daylight_detector => "minecraft:daylight_detector"
   | Dead_brain_coral => "minecraft:dead_brain_coral"
   | Dead_brain_coral_block => "minecraft:dead_brain_coral_block"
@@ -1079,7 +1083,7 @@ let namespace =
   | Diamond_ore => "minecraft:diamond_ore"
   | Diorite => "minecraft:diorite"
   | Diorite_slab => "minecraft:diorite_slab"
-  | Diorite_stairs => "minecraft:diorite_stairs"
+  | Stairs(Diorite_stairs, _) => "minecraft:diorite_stairs"
   | Diorite_wall => "minecraft:diorite_wall"
   | Dirt => "minecraft:dirt"
   | Dispenser => "minecraft:dispenser"
@@ -1097,7 +1101,7 @@ let namespace =
   | End_rod => "minecraft:end_rod"
   | End_stone => "minecraft:end_stone"
   | End_stone_brick_slab => "minecraft:end_stone_brick_slab"
-  | End_stone_brick_stairs => "minecraft:end_stone_brick_stairs"
+  | Stairs(End_stone_brick_stairs, _) => "minecraft:end_stone_brick_stairs"
   | End_stone_brick_wall => "minecraft:end_stone_brick_wall"
   | End_stone_bricks => "minecraft:end_stone_bricks"
   | Ender_chest => "minecraft:ender_chest"
@@ -1120,7 +1124,7 @@ let namespace =
   | Gold_ore => "minecraft:gold_ore"
   | Granite => "minecraft:granite"
   | Granite_slab => "minecraft:granite_slab"
-  | Granite_stairs => "minecraft:granite_stairs"
+  | Stairs(Granite_stairs, _) => "minecraft:granite_stairs"
   | Granite_wall => "minecraft:granite_wall"
   | Grass_block => "minecraft:grass_block"
   | Grass_path => "minecraft:grass_path"
@@ -1186,7 +1190,7 @@ let namespace =
   | Jungle_sapling => "minecraft:jungle_sapling"
   | Jungle_sign => "minecraft:jungle_sign"
   | Jungle_slab => "minecraft:jungle_slab"
-  | Jungle_stairs => "minecraft:jungle_stairs"
+  | Stairs(Jungle_stairs, _) => "minecraft:jungle_stairs"
   | Jungle_trapdoor => "minecraft:jungle_trapdoor"
   | Jungle_wall_sign => "minecraft:jungle_wall_sign"
   | Jungle_wood => "minecraft:jungle_wood"
@@ -1259,10 +1263,10 @@ let namespace =
   | Melon_stem => "minecraft:melon_stem"
   | Mossy_cobblestone => "minecraft:mossy_cobblestone"
   | Mossy_cobblestone_slab => "minecraft:mossy_cobblestone_slab"
-  | Mossy_cobblestone_stairs => "minecraft:mossy_cobblestone_stairs"
+  | Stairs(Mossy_cobblestone_stairs, _) => "minecraft:mossy_cobblestone_stairs"
   | Mossy_cobblestone_wall => "minecraft:mossy_cobblestone_wall"
   | Mossy_stone_brick_slab => "minecraft:mossy_stone_brick_slab"
-  | Mossy_stone_brick_stairs => "minecraft:mossy_stone_brick_stairs"
+  | Stairs(Mossy_stone_brick_stairs, _) => "minecraft:mossy_stone_brick_stairs"
   | Mossy_stone_brick_wall => "minecraft:mossy_stone_brick_wall"
   | Mossy_stone_bricks => "minecraft:mossy_stone_bricks"
   | Moving_piston => "minecraft:moving_piston"
@@ -1270,7 +1274,7 @@ let namespace =
   | Mycelium => "minecraft:mycelium"
   | Nether_brick_fence => "minecraft:nether_brick_fence"
   | Nether_brick_slab => "minecraft:nether_brick_slab"
-  | Nether_brick_stairs => "minecraft:nether_brick_stairs"
+  | Stairs(Nether_brick_stairs, _) => "minecraft:nether_brick_stairs"
   | Nether_brick_wall => "minecraft:nether_brick_wall"
   | Nether_bricks => "minecraft:nether_bricks"
   | Nether_gold_ore => "minecraft:nether_gold_ore"
@@ -1293,7 +1297,7 @@ let namespace =
   | Oak_sapling => "minecraft:oak_sapling"
   | Oak_sign => "minecraft:oak_sign"
   | Oak_slab => "minecraft:oak_slab"
-  | Oak_stairs => "minecraft:oak_stairs"
+  | Stairs(Oak_stairs, _) => "minecraft:oak_stairs"
   | Oak_trapdoor => "minecraft:oak_trapdoor"
   | Oak_wall_sign => "minecraft:oak_wall_sign"
   | Oak_wood => "minecraft:oak_wood"
@@ -1336,24 +1340,24 @@ let namespace =
   | Podzol => "minecraft:podzol"
   | Polished_andesite => "minecraft:polished_andesite"
   | Polished_andesite_slab => "minecraft:polished_andesite_slab"
-  | Polished_andesite_stairs => "minecraft:polished_andesite_stairs"
+  | Stairs(Polished_andesite_stairs, _) => "minecraft:polished_andesite_stairs"
   | Polished_basalt => "minecraft:polished_basalt"
   | Polished_blackstone => "minecraft:polished_blackstone"
   | Polished_blackstone_brick_slab => "minecraft:polished_blackstone_brick_slab"
-  | Polished_blackstone_brick_stairs => "minecraft:polished_blackstone_brick_stairs"
+  | Stairs(Polished_blackstone_brick_stairs, _) => "minecraft:polished_blackstone_brick_stairs"
   | Polished_blackstone_brick_wall => "minecraft:polished_blackstone_brick_wall"
   | Polished_blackstone_bricks => "minecraft:polished_blackstone_bricks"
   | Polished_blackstone_button => "minecraft:polished_blackstone_button"
   | Polished_blackstone_pressure_plate => "minecraft:polished_blackstone_pressure_plate"
   | Polished_blackstone_slab => "minecraft:polished_blackstone_slab"
-  | Polished_blackstone_stairs => "minecraft:polished_blackstone_stairs"
+  | Stairs(Polished_blackstone_stairs, _) => "minecraft:polished_blackstone_stairs"
   | Polished_blackstone_wall => "minecraft:polished_blackstone_wall"
   | Polished_diorite => "minecraft:polished_diorite"
   | Polished_diorite_slab => "minecraft:polished_diorite_slab"
-  | Polished_diorite_stairs => "minecraft:polished_diorite_stairs"
+  | Stairs(Polished_diorite_stairs, _) => "minecraft:polished_diorite_stairs"
   | Polished_granite => "minecraft:polished_granite"
   | Polished_granite_slab => "minecraft:polished_granite_slab"
-  | Polished_granite_stairs => "minecraft:polished_granite_stairs"
+  | Stairs(Polished_granite_stairs, _) => "minecraft:polished_granite_stairs"
   | Poppy => "minecraft:poppy"
   | Potatoes => "minecraft:potatoes"
   | Potted_acacia_sapling => "minecraft:potted_acacia_sapling"
@@ -1388,10 +1392,10 @@ let namespace =
   | Powered_rail => "minecraft:powered_rail"
   | Prismarine => "minecraft:prismarine"
   | Prismarine_brick_slab => "minecraft:prismarine_brick_slab"
-  | Prismarine_brick_stairs => "minecraft:prismarine_brick_stairs"
+  | Stairs(Prismarine_brick_stairs, _) => "minecraft:prismarine_brick_stairs"
   | Prismarine_bricks => "minecraft:prismarine_bricks"
   | Prismarine_slab => "minecraft:prismarine_slab"
-  | Prismarine_stairs => "minecraft:prismarine_stairs"
+  | Stairs(Prismarine_stairs, _) => "minecraft:prismarine_stairs"
   | Prismarine_wall => "minecraft:prismarine_wall"
   | Pumpkin => "minecraft:pumpkin"
   | Pumpkin_stem => "minecraft:pumpkin_stem"
@@ -1410,12 +1414,12 @@ let namespace =
   | Purpur_block => "minecraft:purpur_block"
   | Purpur_pillar => "minecraft:purpur_pillar"
   | Purpur_slab => "minecraft:purpur_slab"
-  | Purpur_stairs => "minecraft:purpur_stairs"
+  | Stairs(Purpur_stairs, _) => "minecraft:purpur_stairs"
   | Quartz_block => "minecraft:quartz_block"
   | Quartz_bricks => "minecraft:quartz_bricks"
   | Quartz_pillar => "minecraft:quartz_pillar"
   | Quartz_slab => "minecraft:quartz_slab"
-  | Quartz_stairs(_) => "minecraft:quartz_stairs"
+  | Stairs(Quartz_stairs, _) => "minecraft:quartz_stairs"
   | Rail => "minecraft:rail"
   | Red_banner => "minecraft:red_banner"
   | Red_bed => "minecraft:red_bed"
@@ -1426,13 +1430,13 @@ let namespace =
   | Red_mushroom_block => "minecraft:red_mushroom_block"
   | Red_mushroom => "minecraft:red_mushroom"
   | Red_nether_brick_slab => "minecraft:red_nether_brick_slab"
-  | Red_nether_brick_stairs => "minecraft:red_nether_brick_stairs"
+  | Stairs(Red_nether_brick_stairs, _) => "minecraft:red_nether_brick_stairs"
   | Red_nether_brick_wall => "minecraft:red_nether_brick_wall"
   | Red_nether_bricks => "minecraft:red_nether_bricks"
   | Red_sand => "minecraft:red_sand"
   | Red_sandstone => "minecraft:red_sandstone"
   | Red_sandstone_slab => "minecraft:red_sandstone_slab"
-  | Red_sandstone_stairs => "minecraft:red_sandstone_stairs"
+  | Stairs(Red_sandstone_stairs, _) => "minecraft:red_sandstone_stairs"
   | Red_sandstone_wall => "minecraft:red_sandstone_wall"
   | Red_shulker_box => "minecraft:red_shulker_box"
   | Red_stained_glass => "minecraft:red_stained_glass"
@@ -1454,7 +1458,7 @@ let namespace =
   | Sand => "minecraft:sand"
   | Sandstone => "minecraft:sandstone"
   | Sandstone_slab => "minecraft:sandstone_slab"
-  | Sandstone_stairs => "minecraft:sandstone_stairs"
+  | Stairs(Sandstone_stairs, _) => "minecraft:sandstone_stairs"
   | Sandstone_wall => "minecraft:sandstone_wall"
   | Scaffolding => "minecraft:scaffolding"
   | Sea_lantern => "minecraft:sea_lantern"
@@ -1469,13 +1473,13 @@ let namespace =
   | Smoker => "minecraft:smoker"
   | Smooth_quartz => "minecraft:smooth_quartz"
   | Smooth_quartz_slab => "minecraft:smooth_quartz_slab"
-  | Smooth_quartz_stairs => "minecraft:smooth_quartz_stairs"
+  | Stairs(Smooth_quartz_stairs, _) => "minecraft:smooth_quartz_stairs"
   | Smooth_red_sandstone => "minecraft:smooth_red_sandstone"
   | Smooth_red_sandstone_slab => "minecraft:smooth_red_sandstone_slab"
-  | Smooth_red_sandstone_stairs => "minecraft:smooth_red_sandstone_stairs"
+  | Stairs(Smooth_red_sandstone_stairs, _) => "minecraft:smooth_red_sandstone_stairs"
   | Smooth_sandstone => "minecraft:smooth_sandstone"
   | Smooth_sandstone_slab => "minecraft:smooth_sandstone_slab"
-  | Smooth_sandstone_stairs => "minecraft:smooth_sandstone_stairs"
+  | Stairs(Smooth_sandstone_stairs, _) => "minecraft:smooth_sandstone_stairs"
   | Smooth_stone => "minecraft:smooth_stone"
   | Smooth_stone_slab(_) => "minecraft:smooth_stone_slab"
   | Snow_block => "minecraft:snow_block"
@@ -1500,20 +1504,20 @@ let namespace =
   | Spruce_sapling => "minecraft:spruce_sapling"
   | Spruce_sign => "minecraft:spruce_sign"
   | Spruce_slab => "minecraft:spruce_slab"
-  | Spruce_stairs => "minecraft:spruce_stairs"
+  | Stairs(Spruce_stairs, _) => "minecraft:spruce_stairs"
   | Spruce_trapdoor => "minecraft:spruce_trapdoor"
   | Spruce_wall_sign => "minecraft:spruce_wall_sign"
   | Spruce_wood => "minecraft:spruce_wood"
   | Sticky_piston => "minecraft:sticky_piston"
   | Stone => "minecraft:stone"
   | Stone_brick_slab => "minecraft:stone_brick_slab"
-  | Stone_brick_stairs(_) => "minecraft:stone_brick_stairs"
+  | Stairs(Stone_brick_stairs, _) => "minecraft:stone_brick_stairs"
   | Stone_brick_wall => "minecraft:stone_brick_wall"
   | Stone_bricks => "minecraft:stone_bricks"
   | Stone_button => "minecraft:stone_button"
   | Stone_pressure_plate => "minecraft:stone_pressure_plate"
   | Stone_slab => "minecraft:stone_slab"
-  | Stone_stairs(_) => "minecraft:stone_stairs"
+  | Stairs(Stone_stairs, _) => "minecraft:stone_stairs"
   | Stonecutter => "minecraft:stonecutter"
   | Stripped_acacia_log => "minecraft:stripped_acacia_log"
   | Stripped_acacia_wood => "minecraft:stripped_acacia_wood"
@@ -1567,7 +1571,7 @@ let namespace =
   | Warped_roots => "minecraft:warped_roots"
   | Warped_sign => "minecraft:warped_sign"
   | Warped_slab => "minecraft:warped_slab"
-  | Warped_stairs => "minecraft:warped_stairs"
+  | Stairs(Warped_stairs, _) => "minecraft:warped_stairs"
   | Warped_stem => "minecraft:warped_stem"
   | Warped_trapdoor => "minecraft:warped_trapdoor"
   | Warped_wall_sign => "minecraft:warped_wall_sign"
@@ -1651,12 +1655,7 @@ let rotate_cw = (mat, ~times) => {
   | Oak_door(dir, part) => Oak_door(rep(rotate_dir_cw, dir), part)
   | Oak_log(axis) => Oak_log(rep(rotate_axis_cw, axis))
   | Orange_bed(dir, part) => Orange_bed(rep(rotate_dir_cw, dir), part)
-  | Cobblestone_stairs(dir) =>
-    Cobblestone_stairs(rep(rotate_stair_dir_cw, dir))
-  | Stone_brick_stairs(dir) =>
-    Stone_brick_stairs(rep(rotate_stair_dir_cw, dir))
-  | Stone_stairs(dir) => Stone_stairs(rep(rotate_stair_dir_cw, dir))
-  | Quartz_stairs(dir) => Quartz_stairs(rep(rotate_stair_dir_cw, dir))
+  | Stairs(mat, dir) => Stairs(mat, rep(rotate_stair_dir_cw, dir))
   | Wall_torch(dir) => Wall_torch(rep(rotate_dir_cw, dir))
   | other => other
   };
@@ -1713,10 +1712,7 @@ let data = block => {
         "waterlogged" >: String("false"),
       ]
     | Snow => ["layers" >: String("1")]
-    | Cobblestone_stairs(dir)
-    | Stone_brick_stairs(dir)
-    | Stone_stairs(dir)
-    | Quartz_stairs(dir) => [
+    | Stairs(_mat, dir) => [
         "facing"
         >: String(
              switch (dir) {
