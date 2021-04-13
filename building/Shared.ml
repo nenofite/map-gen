@@ -19,10 +19,3 @@ let apply_rotation_to_block mat ~pos =
 
 let negate_rotation_of_block mat ~pos =
   Minecraft.Block.rotate_cw mat ~times:(4 - pos.rotation)
-
-type 'a t = pos -> 'a
-
-let get_elevation ~x ~z pos =
-  let canon = Overlay.Canon.require () in
-  let x, _, z = apply_pos pos ~x ~y:0 ~z in
-  Grid.get x z canon.elevation

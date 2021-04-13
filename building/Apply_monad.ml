@@ -19,8 +19,10 @@ include Monad.Make (T)
 
 let nop = return ()
 
-let of_shared (shared : 'a Shared.t) : 'a t =
- fun pos region -> return (shared pos) pos region
+let with_pos_applied ~x ~y ~z f : 'a t =
+ fun pos _region ->
+  let x, y, z = Shared.apply_pos pos ~x ~y ~z in
+  f ~x ~y ~z
 
 let run (t : 'a t) ~pos ~region = t pos region
 
