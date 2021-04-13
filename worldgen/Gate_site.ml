@@ -62,7 +62,7 @@ let prepare ~x ~z =
   let template = random_gate () in
   match
     Building.Building_monad.run_prepare (building template)
-      ~pos:(Building.Shared.at ~x ~y:0 ~z ~rotation_cw)
+      ~pos:(Building.Pos.at ~x ~y:0 ~z ~rotation_cw)
   with
   | Ok ((), canond) ->
       (* TODO *)
@@ -86,4 +86,4 @@ let stair_dirs ~rotation =
 let apply (t : t) ~x ~z ~region =
   let {rotation_cw; template} = t in
   Building.Building_monad.run_apply (building template) ~region
-    ~pos:(Building.Shared.at ~x ~y:0 ~z ~rotation_cw)
+    ~pos:(Building.Pos.at ~x ~y:0 ~z ~rotation_cw)

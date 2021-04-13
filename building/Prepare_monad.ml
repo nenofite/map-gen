@@ -13,7 +13,7 @@ let put_obstacle_into_state state ~x ~z =
 type 'a result = Ok of 'a * state | Failed of string Lazy.t
 
 module T = struct
-  type 'a t = state -> Shared.pos -> 'a result
+  type 'a t = state -> Pos.t -> 'a result
 
   let bind (t : 'a t) ~f state pos =
     match t state pos with
@@ -43,7 +43,7 @@ let nop = return ()
 
 let apply_pos ~x ~y ~z : (int * int * int) t =
  fun state pos ->
-  let ((x, _y, z) as xyz) = Shared.apply_pos pos ~x ~y ~z in
+  let ((x, _y, z) as xyz) = Pos.apply pos ~x ~y ~z in
   let rx, rz = Minecraft.Region.region_containing ~x ~z in
   match state.region with
   | Some (srx, srz) ->
