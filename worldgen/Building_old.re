@@ -300,11 +300,11 @@ let rec would_stairs_fit = (elevation, ~x, ~y, ~z, ~dx, ~dz, ~max_distance) =>
 let stair_foundation =
     (
       ~rectangle_material=Minecraft.Block.Cobblestone,
-      ~stair_material=d => Minecraft.Block.Cobblestone_stairs(d),
-      ~n=false,
-      ~e=false,
-      ~s=false,
-      ~w=false,
+      ~stair_material=Minecraft.Block.Cobblestone_stairs,
+      ~n=true,
+      ~e=true,
+      ~s=true,
+      ~w=true,
       region,
       ~minx,
       ~maxx,
@@ -313,6 +313,7 @@ let stair_foundation =
       ~maxz,
     )
     : unit => {
+  let stair_material = d => Minecraft.Block.Stairs(stair_material, d);
   /* Fill the base rectangle */
   rectangle_foundation(
     ~material=rectangle_material,

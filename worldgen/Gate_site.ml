@@ -44,9 +44,8 @@ let building template =
   let%bind () =
     Building.Foundation.lay_stair_foundation
       ~foundation:Minecraft.Block.Smooth_quartz
-      ~stair:(fun d -> Minecraft.Block.Quartz_stairs d)
-      ~e:false ~w:false ~minx ~maxx ~y:(y - 1) ~minz ~maxz
-      ~max_stair:max_stair_distance ()
+      ~stair:Minecraft.Block.Quartz_stairs ~e:false ~w:false ~minx ~maxx
+      ~y:(y - 1) ~minz ~maxz ~max_stair:max_stair_distance ()
   in
   Building.Building_monad.place_template ~x:0 ~y ~z:0 template
 
@@ -63,12 +62,12 @@ let prepare ~x ~z =
   let template = random_gate () in
   match
     Building.Building_monad.run_prepare (building template)
-      ~pos:(Building.Shared.at ~x ~y:0 ~z ~rotation_cw)
+      ~pos:(Building.Pos.at ~x ~y:0 ~z ~rotation_cw)
   with
   | Ok ((), canond) ->
       (* TODO *)
       ignore canond ;
-      Tale.logf "Placed gate at %d,%d" x z ;
+      (* Tale.logf "Placed gate at %d,%d" x z ; *)
       Some ({rotation_cw; template}, x, z)
   | Error _s ->
       (* let s = Lazy.force s in
@@ -87,4 +86,4 @@ let stair_dirs ~rotation =
 let apply (t : t) ~x ~z ~region =
   let {rotation_cw; template} = t in
   Building.Building_monad.run_apply (building template) ~region
-    ~pos:(Building.Shared.at ~x ~y:0 ~z ~rotation_cw)
+    ~pos:(Building.Pos.at ~x ~y:0 ~z ~rotation_cw)

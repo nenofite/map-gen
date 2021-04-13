@@ -3,7 +3,7 @@ open! Core_kernel
 type region_args = Minecraft.Region.t
 
 module T = struct
-  type 'a t = Shared.pos -> region_args -> 'a
+  type 'a t = Pos.t -> region_args -> 'a
 
   let bind (t : 'a t) ~f : 'b t = fun pos region -> f (t pos region) pos region
 
@@ -19,26 +19,28 @@ include Monad.Make (T)
 
 let nop = return ()
 
-let of_shared (shared : 'a Shared.t) : 'a t =
- fun pos region -> return (shared pos) pos region
+let with_pos_applied ~x ~y ~z f : 'a t =
+ fun pos _region ->
+  let x, y, z = Pos.apply pos ~x ~y ~z in
+  f ~x ~y ~z
 
 let run (t : 'a t) ~pos ~region = t pos region
 
 let set_block mat ~x ~y ~z : unit t =
  fun pos region ->
-  let x, y, z = Shared.apply_pos pos ~x ~y ~z in
-  let mat = Shared.apply_rotation_to_block mat ~pos in
+  let x, y, z = Pos.apply pos ~x ~y ~z in
+  let mat = Pos.apply_rotation_to_block mat ~pos in
   Minecraft.Region.set_block mat ~x ~y ~z region
 
 let get_block ~x ~y ~z : Minecraft.Block.material t =
  fun pos region ->
-  let x, y, z = Shared.apply_pos pos ~x ~y ~z in
+  let x, y, z = Pos.apply pos ~x ~y ~z in
   Minecraft.Region.get_block ~x ~y ~z region
-  |> Shared.negate_rotation_of_block ~pos
+  |> Pos.negate_rotation_of_block ~pos
 
 let height_at ~x ~z : int t =
  fun pos region ->
-  let x, _, z = Shared.apply_pos pos ~x ~y:0 ~z in
+  let x, _, z = Pos.apply pos ~x ~y:0 ~z in
   Minecraft.Region.height_at ~x ~z region
 
 let place_template (t : Minecraft_template.t) ~x ~y ~z : unit t =
