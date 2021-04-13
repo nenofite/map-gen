@@ -67,7 +67,7 @@ let prepare ~x ~z =
   | Ok ((), canond) ->
       (* TODO *)
       ignore canond ;
-      Tale.logf "Placed gate at %d,%d" x z ;
+      (* Tale.logf "Placed gate at %d,%d" x z ; *)
       Some ({rotation_cw; template}, x, z)
   | Error _s ->
       (* let s = Lazy.force s in
