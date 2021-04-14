@@ -51,7 +51,7 @@ let prepare () =
   in
   let target_entrance_count = 3 in
   let entrances = Bag.create () in
-  let target_gate_count = 10_000 in
+  let target_gate_count = 3 in
   let gates = Bag.create () in
   available_sites
   |> filter_and_grab_until_full ~bag:entrances ~target:target_entrance_count
