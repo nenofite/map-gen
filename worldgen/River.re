@@ -33,6 +33,16 @@ let min_source_elevation = Heightmap.mountain_level - 5;
 let max_source_elevation = Heightmap.mountain_level + 5;
 
 let colorize = (tile: tile): int => {
+  let base = Heightmap.colorize(tile.elevation * Heightmap.precision_coef);
+  let blue = 0x0000FF;
+  if (has_water(tile)) {
+    Color.blend(base, blue, 0.5);
+  } else {
+    base;
+  };
+};
+
+let colorize_hiprec = (tile: tile): int => {
   let base = Heightmap.colorize(tile.elevation);
   let blue = 0x0000FF;
   if (has_water(tile)) {
@@ -49,7 +59,7 @@ let convert = (~alloc_side: int, old_grid: Grid.Mut.t(int)) => {
     empty_tile,
     ~f=(~x, ~z) => {
       let elevation = Grid.Mut.get(~x, ~z, old_grid);
-      let ocean = elevation <= Heightmap.sea_level;
+      let ocean = elevation <= Heightmap.sea_level * Heightmap.precision_coef;
       Tile.{elevation, ocean, river: false};
     },
   );
@@ -119,8 +129,10 @@ let river_sources = (grid: Grid.Mut.t(tile)) => {
   let coords =
     Grid.Mut.fold(grid, ~init=[], ~f=(~x, ~z, acc, here) =>
       if (!has_ocean(here)
-          && min_source_elevation <= here.elevation
-          && here.elevation <= max_source_elevation) {
+          && min_source_elevation
+          * Heightmap.precision_coef <= here.elevation
+          && here.elevation <= max_source_elevation
+          * Heightmap.precision_coef) {
         let neighbors = Grid.Mut.neighbors_coords(grid, ~x, ~z);
         if (Option.is_some(fall_to(here, neighbors))) {
           [(x, z, Random.bits()), ...acc];

@@ -10,8 +10,10 @@ let sea_level = 62;
 let mountain_level = 120;
 let max_slope_level = 100;
 
+let precision_coef = 100;
+
 let colorize = (tile: int): int => {
-  let frac = float_of_int(tile) /. 200.;
+  let frac = float_of_int(tile / precision_coef) /. 200.;
   let frac = Float.(max(min(frac, 1.), 0.));
   let black = 0;
   let white = 0xFFFFFF;
@@ -45,12 +47,13 @@ let elevation_of_distances = (~alloc_side, grid: Grid.Mut.t(with_distances)) => 
     ~alloc_side,
     ~side=Grid.Mut.side(grid),
     ~f=(~x, ~z) => {
+      let e = precision_coef;
       let here = Grid.Mut.get(~x, ~z, grid);
       let {tectonic, distance_to_ocean, distance_to_mountain} = here;
       switch (tectonic) {
-      | Trench => 1 + Random.int(10)
-      | Ocean => 30 + Random.int(10)
-      | Mountain => mountain_level + Random.int(10)
+      | Trench => 1 * e + Random.int(10 * e)
+      | Ocean => 30 * e + Random.int(10 * e)
+      | Mountain => mountain_level * e + Random.int(10 * e)
       | Plain =>
         let distance_to_ocean =
           if (distance_to_ocean != empty_distance) {
@@ -60,16 +63,18 @@ let elevation_of_distances = (~alloc_side, grid: Grid.Mut.t(with_distances)) => 
           };
         if (distance_to_ocean <= 1) {
           /* shore lines level with the water */
-          sea_level;
+          sea_level * e;
         } else {
           let variation = max_slope_level - sea_level;
           if (distance_to_mountain != empty_distance) {
             let fraction =
               float_of_int(distance_to_ocean)
               /. float_of_int(distance_to_ocean + distance_to_mountain);
-            sea_level + int_of_float(fraction *. Float.of_int(variation));
+            sea_level
+            * e
+            + int_of_float(fraction *. Float.of_int(variation * e));
           } else {
-            sea_level + min(distance_to_ocean, variation);
+            sea_level * e + min(distance_to_ocean, variation) * e;
           };
         };
       };

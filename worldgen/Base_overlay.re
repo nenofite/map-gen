@@ -55,14 +55,19 @@ let prepare = () => {
     grid,
     layer,
   );
-  let grid = River.phase(grid, ~alloc_side=Grid.Mut.side(grid) * 4);
+  let grid = River.convert(grid, ~alloc_side=Grid.Mut.side(grid) * 4);
+  let grid = Sites.phase(grid);
+  let grid = River.add_rivers(grid, 100);
   Pvh.update_with_colorize(
     ~title="river",
-    ~colorize=River.colorize,
+    ~colorize=River.colorize_hiprec,
     grid,
     layer,
   );
-  let grid = Sites.phase(grid);
+  let grid =
+    Grid.Mut.map(grid, ~f=(~x as _, ~z as _, r: River.tile) =>
+      River.Tile.{...r, elevation: r.elevation / Heightmap.precision_coef}
+    );
   assert(Grid.Mut.side(grid) == side);
   Pvh.update_with_colorize(
     ~title="sites",
