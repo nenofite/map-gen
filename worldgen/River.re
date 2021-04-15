@@ -22,6 +22,9 @@ module Tile = {
 
 [@deriving bin_io]
 type tile = Tile.t;
+let has_river = (t: tile) => t.river;
+let has_ocean = (t: tile) => t.ocean;
+let has_water = (t: tile) => has_river(t) || has_ocean(t);
 
 let empty_tile = Tile.{elevation: 0, river: false, ocean: false};
 
@@ -32,7 +35,7 @@ let max_source_elevation = Heightmap.mountain_level + 5;
 let colorize = (tile: tile): int => {
   let base = Heightmap.colorize(tile.elevation);
   let blue = 0x0000FF;
-  if (tile.ocean || tile.river) {
+  if (has_water(tile)) {
     Color.blend(base, blue, 0.5);
   } else {
     base;
@@ -115,7 +118,7 @@ let fall_to_with_flat_dir = (here, neighbors, flat_dir) => {
 let river_sources = (grid: Grid.Mut.t(tile)) => {
   let coords =
     Grid.Mut.fold(grid, ~init=[], ~f=(~x, ~z, acc, here) =>
-      if (!here.Tile.ocean
+      if (!has_ocean(here)
           && min_source_elevation <= here.elevation
           && here.elevation <= max_source_elevation) {
         let neighbors = Grid.Mut.neighbors_coords(grid, ~x, ~z);
@@ -175,7 +178,7 @@ let current_flow_direction = (path, x, y) => {
  */
 let rec flow_river = (grid, path, x, z) => {
   let here = Grid.Mut.get(~x, ~z, grid);
-  if (!here.Tile.ocean && !here.river) {
+  if (!has_water(here)) {
     let next_path = [(x, z), ...path];
     let neighbors = Grid.Mut.neighbors_offsets(grid, ~x, ~z);
     let flat_dir = current_flow_direction(path, x, z);

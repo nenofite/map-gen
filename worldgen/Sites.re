@@ -32,13 +32,17 @@ let fill = (~fill_diags, a: tile, b: tile, c: tile, d: tile): tile => {
   let ocean = elevation < Heightmap.sea_level;
 
   /* River if opposing sides are river or ocean */
-  let ar = a.river || a.ocean;
-  let br = b.river || b.ocean;
-  let cr = c.river || c.ocean;
-  let dr = d.river || d.ocean;
+  let ar = River.has_water(a);
+  let br = River.has_water(b);
+  let cr = River.has_water(c);
+  let dr = River.has_water(d);
 
   /* At least one needs to be an actual river, not ocean */
-  let one_river = a.river || b.river || c.river || d.river;
+  let one_river =
+    River.has_river(a)
+    || River.has_river(b)
+    || River.has_river(c)
+    || River.has_river(d);
 
   let river =
     !ocean

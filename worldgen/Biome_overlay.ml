@@ -110,10 +110,8 @@ let select_elevation ~(base : Base_overlay.tile Grid.t)
         Option.value_exn ~message:"grid coordinate has no biome"
           (Grid.Mut.get ~x ~z lmh)
       in
-      if
-        here_base.river || here_base.ocean
-        || elevation <= Heightmap.sea_level + 2
-      then Shore shore
+      if River.has_water here_base || elevation <= Heightmap.sea_level + 2 then
+        Shore shore
       else if elevation >= Heightmap.mountain_level - 20 then
         (* TODO use some sort of interp for mid-high cutoff, instead of flat line *)
         High high
@@ -134,7 +132,8 @@ let prepare_voronoi () =
               (x + voronoi_frac - 1)
               (fun x ->
                 let t = Grid.get x z base in
-                t.elevation >= Heightmap.mountain_level - 20 || t.ocean ) ) )
+                t.elevation >= Heightmap.mountain_level - 20
+                || River.has_ocean t ) ) )
   in
   let random_lmh () =
     {shore= random_shore (); mid= random_mid (); high= random_high ()}
@@ -197,7 +196,7 @@ let prepare () =
   (biomes, canond)
 
 let colorize (biome, base) =
-  if base.River.Tile.river || base.River.Tile.ocean then River.colorize base
+  if River.has_water base then River.colorize base
   else
     let elev = base.River.Tile.elevation in
     let frac = float_of_int elev /. 200. in

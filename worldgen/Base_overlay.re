@@ -24,9 +24,9 @@ let apply_progress_view = (state: t) => {
 
 let obstacle_of_tile = tile => {
   Overlay.Canon.(
-    if (tile.River.Tile.ocean) {
+    if (River.has_ocean(tile)) {
       Impassable;
-    } else if (tile.river) {
+    } else if (River.has_river(tile)) {
       Bridgeable;
     } else {
       Clear;
@@ -93,11 +93,11 @@ let apply_region = (state: t, region: Minecraft.Region.t) => {
       for (y in 1 to elevation) {
         set_block(~x, ~y, ~z, Stone, region);
       };
-      if (here.ocean) {
+      if (River.has_ocean(here)) {
         for (y in elevation + 1 to Heightmap.sea_level) {
           set_block(~x, ~y, ~z, Minecraft.Block.Water, region);
         };
-      } else if (here.river) {
+      } else if (River.has_river(here)) {
         set_block(
           ~x,
           ~y=elevation,
