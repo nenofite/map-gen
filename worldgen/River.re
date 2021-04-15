@@ -233,23 +233,22 @@ let river = (grid: Grid.Mut.t(tile), _id: int, source_x: int, source_y: int) => 
   };
 };
 
-let add_rivers = (grid, amount): Grid.Mut.t(tile) => {
-  let sources = river_sources(grid) |> Mg_util.take(amount, _);
-  let amount = min(amount, List.length(sources));
+let add_rivers = (grid, target_amount): Grid.Mut.t(tile) => {
+  let sources = river_sources(grid);
+  let target_amount = min(target_amount, List.length(sources));
 
-  let (grid, succeeded) =
-    List.fold(
-      ~f=
-        ((grid, next_id), (x, y)) => {
-          switch (river(grid, next_id, x, y)) {
-          | Some(grid) => (grid, next_id + 1)
-          | None => (grid, next_id)
-          }
-        },
-      ~init=(grid, 0),
-      sources,
-    );
-  Tale.logf("Successfully placed %d of %d rivers", succeeded, amount);
+  let rec go = (amount, sources) =>
+    switch (sources) {
+    | [] => amount
+    | _ when amount >= target_amount => amount
+    | [(x, z), ...sources] =>
+      switch (river(grid, amount, x, z)) {
+      | Some(_grid) => go(amount + 1, sources)
+      | None => go(amount, sources)
+      }
+    };
+  let succeeded = go(0, sources);
+  Tale.logf("Successfully placed %d of %d rivers", succeeded, target_amount);
   grid;
 };
 
