@@ -151,14 +151,31 @@ let river_sources = (grid: Grid.Mut.t(tile)) => {
   place_river_tile modifies the given tile to have a river on it. If there's
   already a river there, it raises [Invalid_argument]
  */
-let place_river_tile = (grid, x, z) => {
-  Grid.Mut.update(grid, ~x, ~z, ~f=here =>
-    switch (here) {
-    | Tile.{river: true, _} =>
-      raise(Invalid_argument("Tile already has river"))
-    | Tile.{river: false, _} as here => {...here, river: true}
-    }
-  );
+let place_river_tile = (grid, ~x, ~z, ~elev) => {
+  let river = Tile.{elevation: elev, river: true, ocean: false};
+  let radius = 2;
+  Mg_util.Range.fold(z - radius, z + radius, grid, (grid, z) => {
+    Mg_util.Range.fold(
+      x - radius,
+      x + radius,
+      grid,
+      (grid, x) => {
+        Grid.Mut.set(~x, ~z, river, grid);
+        grid;
+      },
+    )
+  });
+};
+
+let place_river = (path, ~grid) => {
+  let path_with_elev =
+    List.map(path, ~f=((x, z)) =>
+      (x, z, Grid.Mut.get(~x, ~z, grid).Tile.elevation)
+    );
+  List.iter(path_with_elev, ~f=((x, z, elev)) => {
+    place_river_tile(grid, ~x, ~z, ~elev) |> ignore
+  });
+  grid;
 };
 
 /**
@@ -186,7 +203,7 @@ let current_flow_direction = (path, x, y) => {
   or a local minimum. If the river reaches a local minimum before reaching
   the ocean, it deposits sediment there and tries again from the previous
   tile. If the river reaches an ocean or another river, it succeeds and
-  returns the path it took.
+  returns the path it took. The returned path goes from ocean to source.
  */
 let rec flow_river = (grid, path, x, z) => {
   let here = Grid.Mut.get(~x, ~z, grid);
@@ -222,7 +239,9 @@ let rec flow_river = (grid, path, x, z) => {
     };
   } else if (List.length(path) > min_river_length) {
     /* We've made a river! Only accept if it's long enough */
-    Some(path);
+    Some(
+      List.rev(path),
+    );
   } else {
     None;
         /* Too short */
@@ -237,18 +256,15 @@ let rec flow_river = (grid, path, x, z) => {
 let river = (grid: Grid.Mut.t(tile), _id: int, source_x: int, source_y: int) => {
   switch (flow_river(grid, [], source_x, source_y)) {
   | Some(path) =>
-    Some(
-      List.fold(
-        ~f=(grid, (x, y)) => place_river_tile(grid, x, y),
-        ~init=grid,
-        path,
-      ),
-    )
+    Tale.block("Found river, placing...", ~f=() => {
+      Some(place_river(path, ~grid))
+    })
   | None => None
   };
 };
 
 let add_rivers = (grid, target_amount): Grid.Mut.t(tile) => {
+  Tale.log("Adding rivers...");
   let sources = river_sources(grid);
   let target_amount = min(target_amount, List.length(sources));
 
@@ -258,7 +274,9 @@ let add_rivers = (grid, target_amount): Grid.Mut.t(tile) => {
     | _ when amount >= target_amount => amount
     | [(x, z), ...sources] =>
       switch (river(grid, amount, x, z)) {
-      | Some(_grid) => go(amount + 1, sources)
+      | Some(_grid) =>
+        Tale.logf("Placed river %d of %d", amount, target_amount);
+        go(amount + 1, sources);
       | None => go(amount, sources)
       }
     };
