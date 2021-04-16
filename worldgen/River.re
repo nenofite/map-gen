@@ -32,6 +32,8 @@ let min_river_length = 30;
 let min_source_elevation = Heightmap.mountain_level - 5;
 let max_source_elevation = Heightmap.mountain_level + 5;
 
+let increase_width_every = 100;
+
 let colorize = (tile: tile): int => {
   let base = Heightmap.colorize(tile.elevation * Heightmap.precision_coef);
   let blue = 0x0000FF;
@@ -151,29 +153,44 @@ let river_sources = (grid: Grid.Mut.t(tile)) => {
   place_river_tile modifies the given tile to have a river on it. If there's
   already a river there, it raises [Invalid_argument]
  */
-let place_river_tile = (grid, ~x, ~z, ~elev) => {
+let place_river_tile = (grid, ~x, ~z, ~elev, ~radius) => {
   let river = Tile.{elevation: elev, river: true, ocean: false};
-  let radius = 2;
-  Mg_util.Range.fold(z - radius, z + radius, grid, (grid, z) => {
-    Mg_util.Range.fold(
-      x - radius,
-      x + radius,
-      grid,
-      (grid, x) => {
-        Grid.Mut.set(~x, ~z, river, grid);
-        grid;
-      },
-    )
-  });
+  let bank = Tile.{elevation: elev, river: false, ocean: false};
+  let rd = radius / 2;
+  let ru = (radius + 1) / 2;
+  for (z in z - rd - 1 to z + ru + 1) {
+    for (x in x - rd - 1 to x + ru + 1) {
+      let here: tile = Grid.Mut.get(~x, ~z, grid);
+      if (here.elevation < elev && !has_water(here)) {
+        Grid.Mut.set(~x, ~z, bank, grid);
+      };
+    };
+  };
+  for (z in z - rd to z + ru) {
+    for (x in x - rd to x + ru) {
+      Grid.Mut.set(~x, ~z, river, grid);
+    };
+  };
 };
 
 let place_river = (path, ~grid) => {
-  let path_with_elev =
-    List.map(path, ~f=((x, z)) =>
-      (x, z, Grid.Mut.get(~x, ~z, grid).Tile.elevation)
-    );
-  List.iter(path_with_elev, ~f=((x, z, elev)) => {
-    place_river_tile(grid, ~x, ~z, ~elev) |> ignore
+  let rec add_params = (rest, ls, ~elapsed, ~radius) =>
+    switch (rest) {
+    | [] => ls
+    | [(x, z), ...rest] =>
+      let (elapsed, radius) =
+        if (elapsed >= increase_width_every) {
+          (0, radius + 1);
+        } else {
+          (elapsed + 1, radius);
+        };
+      let elev = Grid.Mut.get(~x, ~z, grid).Tile.elevation;
+      add_params(rest, [(x, z, elev, radius), ...ls], ~elapsed, ~radius);
+    };
+  let path_with_params =
+    add_params(path, [], ~elapsed=0, ~radius=1) |> List.rev;
+  List.iter(path_with_params, ~f=((x, z, elev, radius)) => {
+    place_river_tile(grid, ~x, ~z, ~elev, ~radius)
   });
   grid;
 };
@@ -238,13 +255,13 @@ let rec flow_river = (grid, path, x, z) => {
       };
     };
   } else if (List.length(path) > min_river_length) {
+    Stats.record(`River_length, List.length(path));
     /* We've made a river! Only accept if it's long enough */
-    Some(
-      List.rev(path),
-    );
+    Some(List.rev(path));
   } else {
+    Stats.record(`Failed_river_length, List.length(path));
     None;
-        /* Too short */
+    /* Too short */
   };
 };
 

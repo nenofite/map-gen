@@ -15,5 +15,6 @@ let () =
   Stats.init () ;
   Init.init ~seed:(get_seed ()) () ;
   Init.prepare_all () ;
+  Stats.flush () ;
   Init.save () ;
   Stats.finalize ()

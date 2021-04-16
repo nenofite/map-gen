@@ -1,4 +1,12 @@
-type stat = [ | `In_buffer | `Out_buffer | `Region_time | `Palette_size];
+type stat = [
+  | `In_buffer
+  | `Out_buffer
+  | `Region_time
+  | `Palette_size
+  | `Failed_river_length
+  | `River_length
+  | `C(string)
+];
 
 let file: ref(option(out_channel)) = ref(None);
 
@@ -18,6 +26,11 @@ let unwrap_file = () => {
   };
 };
 
+let flush = (): unit => {
+  let f = unwrap_file();
+  flush(f);
+};
+
 let finalize = (): unit => {
   let f = unwrap_file();
   close_out(f);
@@ -29,7 +42,10 @@ let name: stat => string =
   | `In_buffer => "in buffer (B)"
   | `Out_buffer => "out buffer (B)"
   | `Region_time => "region elapsed time (s)"
-  | `Palette_size => "palette size";
+  | `Palette_size => "palette size"
+  | `Failed_river_length => "failed river length"
+  | `River_length => "river length"
+  | `C(s) => s;
 
 let record = (stat: stat, value: int): unit => {
   switch (file^) {
