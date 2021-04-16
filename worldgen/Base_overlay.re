@@ -57,7 +57,7 @@ let prepare = () => {
   );
   let grid = River.convert(grid, ~alloc_side=Grid.Mut.side(grid) * 4);
   let grid = Sites.phase(grid);
-  let grid = River.add_rivers(grid, 100);
+  let grid = River.add_rivers(grid, 10);
   Pvh.update_with_colorize(
     ~title="river",
     ~colorize=River.colorize_hiprec,
