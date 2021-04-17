@@ -169,9 +169,7 @@ let raise_elevation_to = (elevation, ~x, ~z, ~grid) => {
   returns the path it took. The returned path goes from ocean to source.
  */
 let flow_river = (grid, start_x, start_z) => {
-  let start_elev = Grid.Mut.get(~x=start_x, ~z=start_z, grid).Tile.elevation;
-  let rec go = (x, z, prev_elev, path, ~length_so_far, ~tries) => {
-    ignore(prev_elev);
+  let rec go = (x, z, path, ~length_so_far, ~tries) => {
     let here = Grid.Mut.get(~x, ~z, grid);
     if (!has_water(here)) {
       let next_path = [(x, z), ...path];
@@ -182,7 +180,6 @@ let flow_river = (grid, start_x, start_z) => {
         go(
           next_x,
           next_z,
-          here.elevation,
           next_path,
           ~length_so_far=length_so_far + 1,
           ~tries,
@@ -190,57 +187,60 @@ let flow_river = (grid, start_x, start_z) => {
       | Error(lowest_elev) =>
         raise_elevation_to(lowest_elev + 1, ~x, ~z, ~grid);
         if (tries <= max(10, length_so_far)) {
-          go(
-            start_x,
-            start_z,
-            start_elev,
-            [],
-            ~length_so_far=0,
-            ~tries=tries + 1,
-          );
+          go(start_x, start_z, [], ~length_so_far=0, ~tries=tries + 1);
         } else {
-          Stats.record(`Failed_river_length, List.length(path));
-          Stats.record(`C("tries before failing"), tries);
           None;
         };
       };
     } else if (List.length(path) > min_river_length) {
-      Stats.record_custom(
-        "river length x tries",
-        (f, ()) => Printf.fprintf(f, "%d,%d", List.length(path), tries),
-        (),
-      );
-      Stats.record(`C("tries before succeeding"), tries);
       /* We've made a river! Only accept if it's long enough */
-      Some(List.rev(path));
+      Some(
+        List.rev(path),
+      );
     } else {
-      Stats.record(`Failed_river_length, List.length(path));
-      Stats.record(`C("tries before failing"), tries);
       None;
-      /* Too short */
+          /* Too short */
     };
   };
-  go(start_x, start_z, start_elev, [], ~length_so_far=0, ~tries=0);
+  go(start_x, start_z, [], ~length_so_far=0, ~tries=0);
 };
 
+let rec remove_first = (ls, ~f) =>
+  switch (ls) {
+  | [] => []
+  | [a, ...rest] when f(a) => rest
+  | [a, ...rest] => [a, ...remove_first(rest, ~f)]
+  };
+
 let try_and_place_longest_river = (sources, ~amount_to_try, ~grid) => {
-  let rec try_rivers = (rivers, amount, sources) =>
+  let rec try_rivers = (rivers, amount, good_sources, sources) =>
     switch (sources) {
-    | [] => (rivers, sources)
-    | _ when amount >= amount_to_try => (rivers, sources)
-    | [(x, z), ...sources] =>
+    | [] => (rivers, good_sources, sources)
+    | _ when amount >= amount_to_try => (rivers, good_sources, sources)
+    | [(x, z) as source, ...rest_sources] =>
       switch (flow_river(grid, x, z)) {
       | Some(r) =>
         Tale.logf("Flowed river %d of %d", amount, amount_to_try);
-        try_rivers([(r, List.length(r)), ...rivers], amount + 1, sources);
-      | None => try_rivers(rivers, amount, sources)
+        try_rivers(
+          [(r, List.length(r), source), ...rivers],
+          amount + 1,
+          [source, ...good_sources],
+          rest_sources,
+        );
+      | None => try_rivers(rivers, amount, good_sources, rest_sources)
       }
     };
-  let (tries, sources) = try_rivers([], 0, sources);
-  tries
-  |> List.max_elt(~compare=((_, al), (_, bl)) => Int.compare(bl, al))
-  |> Option.iter(~f=((r, _l)) => place_river(r, ~grid));
-  sources;
+  let (tries, good_sources, rest_sources) = try_rivers([], 0, [], sources);
+  let best =
+    List.max_elt(tries, ~compare=((_, al, _), (_, bl, _)) =>
+      Int.compare(bl, al)
+    );
+  switch (best) {
+  | None => rest_sources
+  | Some((r, _l, source)) =>
+    place_river(r, ~grid);
+    remove_first(good_sources, ~f=s => Poly.equal(s, source)) @ rest_sources;
+  };
 };
 
 let add_rivers =
