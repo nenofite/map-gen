@@ -142,7 +142,7 @@ let fit = (~title=?, fit) => {
   update_window();
 };
 
-let save = (~side, ~img_side=512, ~format=Images.Png, file) => {
+let save = (~side, ~img_side=1024, ~format=Images.Png, file) => {
   open Images;
   open OImages;
   let s = unwrap_state();

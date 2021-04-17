@@ -28,7 +28,7 @@ let has_water = (t: tile) => has_river(t) || has_ocean(t);
 
 let empty_tile = Tile.{elevation: 0, river: false, ocean: false};
 
-let min_river_length = 200;
+let min_river_length = 100;
 let min_source_elevation = Heightmap.mountain_level - 5;
 let max_source_elevation = Heightmap.mountain_level + 5;
 
@@ -151,7 +151,6 @@ let place_river = (path, ~grid) => {
   List.iter(path_with_params, ~f=((x, z, elev, radius)) => {
     place_river_tile(grid, ~x, ~z, ~elev, ~radius)
   });
-  grid;
 };
 
 let raise_elevation_to = (elevation, ~x, ~z, ~grid) => {
@@ -202,46 +201,46 @@ let flow_river = (grid, start_x, start_z) => {
   go(start_x, start_z, start_elev, [], ~tries=100);
 };
 
-/**
-  river finds a non-ocean tile with an elevation between plains and
-  mountains, then creates a river with the given id there. The river is only
-  kept if it can reach the ocean.
- */
-let river = (grid: Grid.Mut.t(tile), _id: int, source_x: int, source_y: int) => {
-  switch (flow_river(grid, source_x, source_y)) {
-  | Some(path) =>
-    Tale.block("Found river, placing...", ~f=() => {
-      Some(place_river(path, ~grid))
-    })
-  | None => None
-  };
-};
-
-let add_rivers = (grid, target_amount): Grid.Mut.t(tile) => {
-  Tale.log("Adding rivers...");
-  let sources = river_sources(grid);
-  let target_amount = min(target_amount, List.length(sources));
-
-  let rec go = (amount, sources) =>
+let try_and_place_longest_river = (sources, ~amount_to_try, ~grid) => {
+  let rec try_rivers = (rivers, amount, sources) =>
     switch (sources) {
-    | [] => amount
-    | _ when amount >= target_amount => amount
+    | [] => (rivers, sources)
+    | _ when amount >= amount_to_try => (rivers, sources)
     | [(x, z), ...sources] =>
-      switch (river(grid, amount, x, z)) {
-      | Some(_grid) =>
-        Tale.logf("Placed river %d of %d", amount, target_amount);
-        go(amount + 1, sources);
-      | None => go(amount, sources)
+      switch (flow_river(grid, x, z)) {
+      | Some(r) =>
+        Tale.logf("Flowed river %d of %d", amount, amount_to_try);
+        try_rivers([(r, List.length(r)), ...rivers], amount + 1, sources);
+      | None => try_rivers(rivers, amount, sources)
       }
     };
-  let succeeded = go(0, sources);
-  Tale.logf("Successfully placed %d of %d rivers", succeeded, target_amount);
+  let (tries, sources) = try_rivers([], 0, sources);
+  tries
+  |> List.max_elt(~compare=((_, al), (_, bl)) => Int.compare(bl, al))
+  |> Option.iter(~f=((r, _l)) => place_river(r, ~grid));
+  sources;
+};
+
+let add_rivers =
+    (grid, ~amount_to_try_each, ~amount_to_keep): Grid.Mut.t(tile) => {
+  Tale.log("Adding rivers...");
+  let sources = river_sources(grid);
+  Mg_util.Range.fold(1, amount_to_keep, sources, (sources, i) => {
+    Tale.blockf("Placing river %d of %d", i, amount_to_keep, ~f=() => {
+      try_and_place_longest_river(
+        sources,
+        ~amount_to_try=amount_to_try_each,
+        ~grid,
+      )
+    })
+  })
+  |> ignore;
   grid;
 };
 
 let phase = (~alloc_side, input) => {
   Tale.block("Flow rivers", ~f=() => {
     let m = convert(~alloc_side, input);
-    add_rivers(m, 100);
+    add_rivers(m, ~amount_to_try_each=10, ~amount_to_keep=10);
   });
 };
