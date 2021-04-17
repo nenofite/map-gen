@@ -54,6 +54,13 @@ let record = (stat: stat, value: int): unit => {
   };
 };
 
+let record_custom = (stat, p, v): unit => {
+  switch (file^) {
+  | Some(f) => Printf.fprintf(f, "\"%s\",%a\n", stat, p, v)
+  | None => ()
+  };
+};
+
 let recordf = (stat: stat, value: float): unit => {
   switch (file^) {
   | Some(f) => Printf.fprintf(f, "\"%s\",%f\n", name(stat), value)

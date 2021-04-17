@@ -76,12 +76,12 @@ let compare_elevations = (a, b) => {
 /** fall_to determines which neighbor the river will flow to */
 let fall_to = (here, neighbors) => {
   let neighbors = List.sort(~compare=compare_elevations, neighbors);
-  let (_, lx, ly) as l = List.hd_exn(neighbors);
+  let (lowest, lx, ly) as l = List.hd_exn(neighbors);
   let cmp = compare_elevations(l, (here, 0, 0));
   if (cmp < 0) {
-    Some((lx, ly));
+    Ok((lx, ly));
   } else {
-    None;
+    Error(lowest.elevation);
   };
 };
 
@@ -95,7 +95,7 @@ let river_sources = (grid: Grid.Mut.t(tile)) => {
           && here.elevation <= max_source_elevation
           * Heightmap.precision_coef) {
         let neighbors = Grid.Mut.neighbors_coords(grid, ~x, ~z);
-        if (Option.is_some(fall_to(here, neighbors))) {
+        if (Result.is_ok(fall_to(here, neighbors))) {
           [(x, z, Random.bits()), ...acc];
         } else {
           acc;
@@ -170,35 +170,57 @@ let raise_elevation_to = (elevation, ~x, ~z, ~grid) => {
  */
 let flow_river = (grid, start_x, start_z) => {
   let start_elev = Grid.Mut.get(~x=start_x, ~z=start_z, grid).Tile.elevation;
-  let rec go = (x, z, prev_elev, path, ~tries) => {
+  let rec go = (x, z, prev_elev, path, ~length_so_far, ~tries) => {
+    ignore(prev_elev);
     let here = Grid.Mut.get(~x, ~z, grid);
     if (!has_water(here)) {
       let next_path = [(x, z), ...path];
       let neighbors = Grid.Mut.neighbors_coords(grid, ~x, ~z);
       switch (fall_to(here, neighbors)) {
-      | Some((next_x, next_z)) =>
+      | Ok((next_x, next_z)) =>
         assert(next_x != x || next_z != z);
-        go(next_x, next_z, here.elevation, next_path, ~tries);
-      | None =>
-        raise_elevation_to(prev_elev, ~x, ~z, ~grid);
-        if (tries > 0) {
-          go(start_x, start_z, start_elev, [], ~tries=tries - 1);
+        go(
+          next_x,
+          next_z,
+          here.elevation,
+          next_path,
+          ~length_so_far=length_so_far + 1,
+          ~tries,
+        );
+      | Error(lowest_elev) =>
+        raise_elevation_to(lowest_elev + 1, ~x, ~z, ~grid);
+        if (tries <= max(10, length_so_far)) {
+          go(
+            start_x,
+            start_z,
+            start_elev,
+            [],
+            ~length_so_far=0,
+            ~tries=tries + 1,
+          );
         } else {
           Stats.record(`Failed_river_length, List.length(path));
+          Stats.record(`C("tries before failing"), tries);
           None;
         };
       };
     } else if (List.length(path) > min_river_length) {
-      Stats.record(`River_length, List.length(path));
+      Stats.record_custom(
+        "river length x tries",
+        (f, ()) => Printf.fprintf(f, "%d,%d", List.length(path), tries),
+        (),
+      );
+      Stats.record(`C("tries before succeeding"), tries);
       /* We've made a river! Only accept if it's long enough */
       Some(List.rev(path));
     } else {
       Stats.record(`Failed_river_length, List.length(path));
+      Stats.record(`C("tries before failing"), tries);
       None;
       /* Too short */
     };
   };
-  go(start_x, start_z, start_elev, [], ~tries=100);
+  go(start_x, start_z, start_elev, [], ~length_so_far=0, ~tries=0);
 };
 
 let try_and_place_longest_river = (sources, ~amount_to_try, ~grid) => {
