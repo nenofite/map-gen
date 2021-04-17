@@ -28,7 +28,7 @@ let has_water = (t: tile) => has_river(t) || has_ocean(t);
 
 let empty_tile = Tile.{elevation: 0, river: false, ocean: false};
 
-let min_river_length = 30;
+let min_river_length = 200;
 let min_source_elevation = Heightmap.mountain_level - 5;
 let max_source_elevation = Heightmap.mountain_level + 5;
 
@@ -82,47 +82,6 @@ let fall_to = (here, neighbors) => {
     Some((lx, ly));
   } else {
     None;
-  };
-};
-
-let rec array_find = (f, array, i) =>
-  if (i < Array.length(array)) {
-    if (f(array[i])) {
-      Some(array[i]);
-    } else {
-      array_find(f, array, i + 1);
-    };
-  } else {
-    None;
-  };
-
-/**
-  fall_to_with_flat_dir determines which neighbor the river will flow to:
-
-  1. If there is lower land, move in that direction.
-  2. Otherwise, if [flat_dir] is level with us, move in that direction.
-  3. Otherwise, pick a random flat direction.
- */
-let fall_to_with_flat_dir = (here, neighbors, flat_dir) => {
-  let (flat_dir_x, flat_dir_y) = flat_dir;
-  assert(flat_dir_x != 0 || flat_dir_y != 0);
-  let flat_dir_n =
-    List.find_exn(
-      ~f=((_, x, y)) => x == flat_dir_x && y == flat_dir_y,
-      neighbors,
-    );
-
-  let neighbors = List.sort(~compare=compare_elevations, neighbors);
-  let (_, lowest_x, lowest_y) as lowest = List.hd_exn(neighbors);
-
-  if (compare_elevations(lowest, (here, 0, 0)) < 0) {
-    Some((lowest_x, lowest_y));
-  } else if (compare_elevations(flat_dir_n, (here, 0, 0)) <= 0) {
-    Some(flat_dir);
-  } else {
-    Mg_util.shuffle(neighbors)
-    |> List.find(~f=x => compare_elevations(x, (here, 0, 0)) <= 0)
-    |> Option.map(~f=((_, x, y)) => (x, y));
   };
 };
 
@@ -188,31 +147,16 @@ let place_river = (path, ~grid) => {
       add_params(rest, [(x, z, elev, radius), ...ls], ~elapsed, ~radius);
     };
   let path_with_params =
-    add_params(path, [], ~elapsed=0, ~radius=1) |> List.rev;
+    add_params(path, [], ~elapsed=0, ~radius=2) |> List.rev;
   List.iter(path_with_params, ~f=((x, z, elev, radius)) => {
     place_river_tile(grid, ~x, ~z, ~elev, ~radius)
   });
   grid;
 };
 
-/**
-  deposit_sediment increases the elevation by 1 at the given coordinate.
- */
-let deposit_sediment = (grid, x, z) => {
-  Grid.Mut.update(grid, ~x, ~z, ~f=here =>
-    Tile.{...here, elevation: here.elevation + 1}
-  );
-};
-
-/**
-  current_flow_direction gets the river's current direction given path and
-  current coordinate. If the path is empty, this defaults to south.
- */
-let current_flow_direction = (path, x, y) => {
-  switch (path) {
-  | [(px, py), ..._] => (x - px, y - py)
-  | [] => (0, 1)
-  };
+let raise_elevation_to = (elevation, ~x, ~z, ~grid) => {
+  Grid.Mut.update(grid, ~x, ~z, ~f=here => Tile.{...here, elevation})
+  |> ignore;
 };
 
 /**
@@ -222,47 +166,40 @@ let current_flow_direction = (path, x, y) => {
   tile. If the river reaches an ocean or another river, it succeeds and
   returns the path it took. The returned path goes from ocean to source.
  */
-let rec flow_river = (grid, path, x, z) => {
-  let here = Grid.Mut.get(~x, ~z, grid);
-  if (!has_water(here)) {
-    let next_path = [(x, z), ...path];
-    let neighbors = Grid.Mut.neighbors_offsets(grid, ~x, ~z);
-    let flat_dir = current_flow_direction(path, x, z);
-    switch (fall_to_with_flat_dir(here, neighbors, flat_dir)) {
-    | Some((dx, dz)) =>
-      let side = Grid.Mut.side(grid);
-      let next_x = (x + dx) % side;
-      let next_z = (z + dz) % side;
-      assert(next_x != x || next_z != z);
-      if (!List.exists(~f=((lx, lz)) => lx == next_x && lz == next_z, path)) {
-        flow_river(grid, next_path, next_x, next_z);
-      } else {
-        /* We formed a loop. Deposit sediment and backtrack. */
-        let grid = deposit_sediment(grid, x, z);
-        switch (path) {
-        | [(previous_x, previous_y), ...previous_path] =>
-          flow_river(grid, previous_path, previous_x, previous_y)
-        | [] => flow_river(grid, [], x, z)
+let flow_river = (grid, start_x, start_z) => {
+  let start_elev = Grid.Mut.get(~x=start_x, ~z=start_z, grid).Tile.elevation;
+  let side = Grid.Mut.side(grid);
+  let rec go = (x, z, prev_elev, path, ~tries) => {
+    let here = Grid.Mut.get(~x, ~z, grid);
+    if (!has_water(here)) {
+      let next_path = [(x, z), ...path];
+      let neighbors = Grid.Mut.neighbors_offsets(grid, ~x, ~z);
+      switch (fall_to(here, neighbors)) {
+      | Some((dx, dz)) =>
+        let next_x = (x + dx) % side;
+        let next_z = (z + dz) % side;
+        assert(next_x != x || next_z != z);
+        go(next_x, next_z, here.elevation, next_path, ~tries);
+      | None =>
+        raise_elevation_to(prev_elev, ~x, ~z, ~grid);
+        if (tries > 0) {
+          go(start_x, start_z, start_elev, [], ~tries=tries - 1);
+        } else {
+          Stats.record(`Failed_river_length, List.length(path));
+          None;
         };
       };
-    | None =>
-      /* We're stuck in a ditch. Deposit sediment and backtrack. */
-      let grid = deposit_sediment(grid, x, z);
-      switch (path) {
-      | [(previous_x, previous_y), ...previous_path] =>
-        flow_river(grid, previous_path, previous_x, previous_y)
-      | [] => flow_river(grid, [], x, z)
-      };
+    } else if (List.length(path) > min_river_length) {
+      Stats.record(`River_length, List.length(path));
+      /* We've made a river! Only accept if it's long enough */
+      Some(List.rev(path));
+    } else {
+      Stats.record(`Failed_river_length, List.length(path));
+      None;
+      /* Too short */
     };
-  } else if (List.length(path) > min_river_length) {
-    Stats.record(`River_length, List.length(path));
-    /* We've made a river! Only accept if it's long enough */
-    Some(List.rev(path));
-  } else {
-    Stats.record(`Failed_river_length, List.length(path));
-    None;
-    /* Too short */
   };
+  go(start_x, start_z, start_elev, [], ~tries=100);
 };
 
 /**
@@ -271,7 +208,7 @@ let rec flow_river = (grid, path, x, z) => {
   kept if it can reach the ocean.
  */
 let river = (grid: Grid.Mut.t(tile), _id: int, source_x: int, source_y: int) => {
-  switch (flow_river(grid, [], source_x, source_y)) {
+  switch (flow_river(grid, source_x, source_y)) {
   | Some(path) =>
     Tale.block("Found river, placing...", ~f=() => {
       Some(place_river(path, ~grid))
