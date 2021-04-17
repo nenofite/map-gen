@@ -127,7 +127,10 @@ let place_river_tile = (grid, ~x, ~z, ~elev, ~radius) => {
   };
   for (z in z - rd to z + ru) {
     for (x in x - rd to x + ru) {
-      Grid.Mut.set(~x, ~z, river, grid);
+      let here: tile = Grid.Mut.get(~x, ~z, grid);
+      if (!has_ocean(here)) {
+        Grid.Mut.set(~x, ~z, river, grid);
+      };
     };
   };
 };
@@ -147,7 +150,7 @@ let place_river = (path, ~grid) => {
       add_params(rest, [(x, z, elev, radius), ...ls], ~elapsed, ~radius);
     };
   let path_with_params =
-    add_params(path, [], ~elapsed=0, ~radius=2) |> List.rev;
+    add_params(path, [], ~elapsed=0, ~radius=1) |> List.rev;
   List.iter(path_with_params, ~f=((x, z, elev, radius)) => {
     place_river_tile(grid, ~x, ~z, ~elev, ~radius)
   });
@@ -167,16 +170,13 @@ let raise_elevation_to = (elevation, ~x, ~z, ~grid) => {
  */
 let flow_river = (grid, start_x, start_z) => {
   let start_elev = Grid.Mut.get(~x=start_x, ~z=start_z, grid).Tile.elevation;
-  let side = Grid.Mut.side(grid);
   let rec go = (x, z, prev_elev, path, ~tries) => {
     let here = Grid.Mut.get(~x, ~z, grid);
     if (!has_water(here)) {
       let next_path = [(x, z), ...path];
-      let neighbors = Grid.Mut.neighbors_offsets(grid, ~x, ~z);
+      let neighbors = Grid.Mut.neighbors_coords(grid, ~x, ~z);
       switch (fall_to(here, neighbors)) {
-      | Some((dx, dz)) =>
-        let next_x = (x + dx) % side;
-        let next_z = (z + dz) % side;
+      | Some((next_x, next_z)) =>
         assert(next_x != x || next_z != z);
         go(next_x, next_z, here.elevation, next_path, ~tries);
       | None =>
