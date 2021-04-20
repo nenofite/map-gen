@@ -5,14 +5,15 @@ module Coord = struct
     type direction = Ns | Ew [@@deriving eq, ord, sexp, bin_io]
 
     type bridge = No_bridge | Ns_bridge | Ew_bridge
-    [@@deriving eq, ord, sexp, bin_io]
+    [@@deriving eq, ord, hash, sexp, bin_io]
 
     type t = {x: int; y: int; z: int; bridge: bridge}
-    [@@deriving eq, ord, sexp, bin_io]
+    [@@deriving eq, ord, hash, sexp, bin_io]
   end
 
   include T
   include Comparable.Make (T)
+  include Hashable.Make (T)
 end
 
 include Coord.T
@@ -48,34 +49,7 @@ let make_direction_exn x1 z1 x2 z2 =
   else if x1 <> x2 && z1 = z2 then Ew
   else invalid_argf "cannot make direction: (%d, %d) (%d, %d)" x1 z1 x2 z2 ()
 
-let pathfind_road ~get_elevation ~get_obstacle ~has_existing_road ~start_coords
-    ~goal_pred ~goal_coord =
-  let goal_x, goal_z = goal_coord in
-  let goal_y = get_elevation ~x:goal_x ~z:goal_z in
-  let wrapped_goal_pred {x; y= _; z; bridge} =
-    match bridge with No_bridge -> goal_pred ~x ~z | _ -> false
-  in
-  let rec reuse_existing_roads_opt neighbors =
-    match neighbors with
-    | ((coord, _cost) as old_here) :: rest -> (
-        if has_existing_road coord then
-          let n =
-            (coord, existing_road_cost)
-            :: Option.value (reuse_existing_roads_opt rest) ~default:rest
-          in
-          Some n
-        else
-          match reuse_existing_roads_opt rest with
-          | None ->
-              None
-          | Some new_rest ->
-              Some (old_here :: new_rest) )
-    | [] ->
-        None
-  in
-  let reuse_existing_roads neighbors =
-    Option.value (reuse_existing_roads_opt neighbors) ~default:neighbors
-  in
+let neighbors {x; y; z; bridge} ~get_obstacle ~get_elevation =
   let add_ground_neighbor ~y ~nx ~ny ~nz list =
     if abs (y - ny) <= 1 then
       ({x= nx; y= ny; z= nz; bridge= No_bridge}, flat_ground_cost) :: list
@@ -132,15 +106,42 @@ let pathfind_road ~get_elevation ~get_obstacle ~has_existing_road ~start_coords
             add_bridge_continue_neighbor bridge ~y ~ny ~nx ~nz
             @@ add_bridge_end_neighbor bridge ~y ~ny ~nx ~nz acc )
   in
-  let neighbors {x; y; z; bridge} =
-    let n =
-      match bridge with
-      | No_bridge ->
-          ground_neighbors ~x ~y ~z
-      | b ->
-          bridge_neighbors ~x ~y ~z b
-    in
-    reuse_existing_roads n
+  match bridge with
+  | No_bridge ->
+      ground_neighbors ~x ~y ~z
+  | b ->
+      bridge_neighbors ~x ~y ~z b
+
+let pathfind_road ~get_elevation ~get_obstacle ~has_existing_road ~start_coords
+    ~goal_pred ~goal_coord =
+  let goal_x, goal_z = goal_coord in
+  let goal_y = get_elevation ~x:goal_x ~z:goal_z in
+  let wrapped_goal_pred {x; y= _; z; bridge} =
+    match bridge with No_bridge -> goal_pred ~x ~z | _ -> false
+  in
+  let rec reuse_existing_roads_opt neighbors =
+    match neighbors with
+    | ((coord, _cost) as old_here) :: rest -> (
+        if has_existing_road coord then
+          let n =
+            (coord, existing_road_cost)
+            :: Option.value (reuse_existing_roads_opt rest) ~default:rest
+          in
+          Some n
+        else
+          match reuse_existing_roads_opt rest with
+          | None ->
+              None
+          | Some new_rest ->
+              Some (old_here :: new_rest) )
+    | [] ->
+        None
+  in
+  let reuse_existing_roads neighbors =
+    Option.value (reuse_existing_roads_opt neighbors) ~default:neighbors
+  in
+  let neighbors c =
+    reuse_existing_roads (neighbors c ~get_obstacle ~get_elevation)
   in
   let heuristic {x; y; z; bridge= _} =
     existing_road_cost * (abs (goal_x - x) + abs (goal_z - z) + abs (goal_y - y))

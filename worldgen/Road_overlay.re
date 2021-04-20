@@ -1,4 +1,4 @@
-open Core_kernel;
+open! Core_kernel;
 
 module Niceness = {
   module T = {
@@ -33,26 +33,6 @@ type x = {
 type t = (x, Overlay.Canon.delta);
 
 let town_goal_side = Town_prototype.side;
-
-let colorizer =
-  fun
-  | None => 0
-  | Some(_road) => 0xFFFFFF;
-
-/** [a,b,c] => [(a,b),(b,a), (a,c),(c,a), (b,c),(c,b)] */
-let rec all_pairs = (list, result) =>
-  switch (list) {
-  | [] => result
-  | [a, ...list] =>
-    let result = List.concat_map(list, ~f=b => [(a, b), (b, a)]) @ result;
-    all_pairs(list, result);
-  };
-
-let heuristic = (canon: Overlay.Canon.t, (ax, ay), (bx, by)) => {
-  let a_elev = Grid_compat.at(canon.elevation, ax, ay);
-  let b_elev = Grid_compat.at(canon.elevation, bx, by);
-  A_star.distance_3d((ax, ay, a_elev), (bx, by, b_elev));
-};
 
 let edge_cost = (canon: Overlay.Canon.t, (ax, ay), (bx, by)) => {
   let a_elev = Grid_compat.at(canon.elevation, ax, ay);
@@ -182,91 +162,54 @@ let starts_of_poi = ((poi_x, poi_z)) => {
   let min_z = poi_z - town_goal_side / 2;
   let max_x = min_x + town_goal_side - 1;
   let max_z = min_z + town_goal_side - 1;
-  let g_score_at = (~x, ~z) =>
-    Int.((x - poi_x) ** 2 + (z - poi_z) ** 2)
-    * Road_pathing_rules.flat_ground_cost;
-  Range.map(min_z, max_z, z =>
-    Range.map(min_x, max_x, x => (x, z, g_score_at(~x, ~z)))
-  )
+  Range.map(min_z, max_z, z => Range.map(min_x, max_x, x => (x, z)))
   |> List.concat;
-};
-
-let goalf_of_poi = ((poi_x, poi_z)) => {
-  let min_x = poi_x - town_goal_side / 2;
-  let min_z = poi_z - town_goal_side / 2;
-  let max_x = min_x + town_goal_side - 1;
-  let max_z = min_z + town_goal_side - 1;
-  (~x, ~z) => min_x <= x && x <= max_x && min_z <= z && z <= max_z;
 };
 
 let prepare = () => {
   let canon = Overlay.Canon.require();
   let (towns, _) = Town_overlay.require();
-  /* Use a point cloud to get points of interest */
-  Tale.log("Making points of interest");
   let pois = List.map(~f=poi_of_town, towns);
-  /* Run A* to go from each point to each other point and again in reverse */
-  let poi_pairs = all_pairs(pois, []) |> Mg_util.take(1000, _);
-
   Tale.log("Pathfinding roads");
   let is_within = (~x, ~z) => Grid.is_within_side(~x, ~y=z, canon.side);
-  let get_elevation = (~x, ~z) =>
-    if (is_within(~x, ~z)) {
-      Grid.get(x, z, canon.elevation);
-    } else {
-      0;
-    };
+  // let get_elevation = (~x, ~z) =>
+  //   if (is_within(~x, ~z)) {
+  //     Grid.get(x, z, canon.elevation);
+  //   } else {
+  //     0;
+  //   };
   let get_obstacle = (~x, ~z) =>
     if (is_within(~x, ~z)) {
       Grid.get(x, z, canon.obstacles);
     } else {
       Impassable;
     };
-  let get_obstacle_in_margin = (~margin, ~x, ~z) =>
-    Range.fold(z - margin, z + margin, Overlay.Canon.Clear, (obs, z) =>
-      Range.fold(
-        x - margin,
-        x + margin,
-        obs,
-        (obs, x) => {
-          let here_obs = get_obstacle(~x, ~z);
-          Overlay.Canon.Obstacle.max(obs, here_obs);
-        },
-      )
-    );
+  // let get_obstacle_in_margin = (~margin, ~x, ~z) =>
+  //   Range.fold(z - margin, z + margin, Overlay.Canon.Clear, (obs, z) =>
+  //     Range.fold(
+  //       x - margin,
+  //       x + margin,
+  //       obs,
+  //       (obs, x) => {
+  //         let here_obs = get_obstacle(~x, ~z);
+  //         Overlay.Canon.Obstacle.max(obs, here_obs);
+  //       },
+  //     )
+  //   );
   module Cs = Road_pathing_rules.Coord.Set;
-  let roads =
-    List.fold_left(
-      poi_pairs,
-      ~init=Cs.empty,
-      ~f=(roads, (start, goal)) => {
-        let has_existing_road = coord => Cs.mem(roads, coord);
-        switch (
-          Road_pathing_rules.pathfind_road(
-            ~get_elevation,
-            ~get_obstacle=get_obstacle_in_margin(~margin=3),
-            ~has_existing_road,
-            ~start_coords=starts_of_poi(start),
-            ~goal_pred=goalf_of_poi(goal),
-            ~goal_coord=goal,
-          )
-        ) {
-        | Some(path) =>
-          Tale.log("found a road");
-          List.fold(path, ~init=roads, ~f=Cs.add);
-        | None =>
-          Tale.log("couldn't find road");
-          roads;
-        };
-      },
-    );
+  let pathing_state = Road_pathing.init_state();
+  let num_towns = List.length(pois);
+  List.iteri(pois, ~f=(i, poi) => {
+    Tale.blockf("Enroading town %d of %d", i, num_towns, ~f=() =>
+      Road_pathing.enroad(pathing_state, ~town_roads=starts_of_poi(poi))
+    )
+  });
+  let roads = Road_pathing.get_paths(pathing_state);
   let roads =
     place_road(canon, Sparse_grid.make(canon.side), Cs.to_list(roads));
   Tale.log("Widening roads and adding steps");
   let roads = widen_road(~get_obstacle, roads);
   let roads = add_steps(roads);
-  Tale.log("Drawing");
-  Draw.draw_sparse_grid(colorizer, "roads.png", roads);
   let obstacles =
     Sparse_grid.(
       map(roads, (_, _) => Overlay.Canon.Impassable)
