@@ -48,7 +48,16 @@ module Make = (P: Priority) => {
     fun
     | Empty => (None, Empty)
     | Node(_prio, elt, _, _) as queue => (Some(elt), remove_top(queue));
+
+  let extract_with_priority =
+    fun
+    | Empty => (None, Empty)
+    | Node(prio, elt, _, _) as queue => (
+        Some((prio, elt)),
+        remove_top(queue),
+      );
 };
 
 module Float = Make(Float);
+module Int = Make(Int);
 include Float;

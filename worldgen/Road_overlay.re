@@ -160,7 +160,7 @@ let rec add_road_to_grid = (roads: Sparse_grid.t(road), path) =>
 let place_road = (_canon: Overlay.Canon.t, roads: Sparse_grid.t(road), path) => {
   /* Add elevations */
   let path =
-    List.filter_map(path, ~f=(Bridge_pathing.{x, y, z, bridge}) => {
+    List.filter_map(path, ~f=(Road_pathing_rules.{x, y, z, bridge}) => {
       switch (bridge) {
       | No_bridge => Some((x, z, {elevation: y, niceness: Paved /* TODO */}))
       | Ns_bridge
@@ -183,7 +183,8 @@ let starts_of_poi = ((poi_x, poi_z)) => {
   let max_x = min_x + town_goal_side - 1;
   let max_z = min_z + town_goal_side - 1;
   let g_score_at = (~x, ~z) =>
-    Int.((x - poi_x) ** 2 + (z - poi_z) ** 2) * Bridge_pathing.flat_ground_cost;
+    Int.((x - poi_x) ** 2 + (z - poi_z) ** 2)
+    * Road_pathing_rules.flat_ground_cost;
   Range.map(min_z, max_z, z =>
     Range.map(min_x, max_x, x => (x, z, g_score_at(~x, ~z)))
   )
@@ -233,7 +234,7 @@ let prepare = () => {
         },
       )
     );
-  module Cs = Bridge_pathing.Coord.Set;
+  module Cs = Road_pathing_rules.Coord.Set;
   let roads =
     List.fold_left(
       poi_pairs,
@@ -241,7 +242,7 @@ let prepare = () => {
       ~f=(roads, (start, goal)) => {
         let has_existing_road = coord => Cs.mem(roads, coord);
         switch (
-          Bridge_pathing.pathfind_road(
+          Road_pathing_rules.pathfind_road(
             ~get_elevation,
             ~get_obstacle=get_obstacle_in_margin(~margin=3),
             ~has_existing_road,
