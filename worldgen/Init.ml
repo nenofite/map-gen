@@ -25,6 +25,7 @@ let prepare_all () =
   Town_overlay.prepare () ;
   Road_overlay.prepare () ;
   Plant_overlay.prepare () ;
+  Meta_overlay.prepare () ;
   Debug_overlay.prepare () ;
   ()
 
@@ -39,6 +40,7 @@ let apply_all region =
   Town_overlay.apply region ;
   Road_overlay.apply region ;
   Plant_overlay.apply region ;
+  Meta_overlay.apply region ;
   Debug_overlay.apply {glassify= (fun _ -> false); illuminate= false} region ;
   ()
 
