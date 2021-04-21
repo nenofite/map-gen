@@ -1,19 +1,6 @@
 open! Core_kernel
 module Pq = Priority_queue.Int
 module Path_coord = Road_pathing_rules.Coord
-(* module Path_coord = struct
-  type structure = Road | Bridge_ns | Bridge_ew
-  [@@deriving eq, ord, hash, sexp, bin_io]
-
-  module T = struct
-    type t = {x: int; y: int; z: int; structure: structure}
-    [@@deriving eq, ord, hash, sexp, bin_io]
-  end
-
-  include T
-  include Comparable.Make (T)
-  include Hashable.Make (T)
-end *)
 
 type closest_path = {cost: int; parent: Path_coord.t option}
 
@@ -88,7 +75,7 @@ let enroad ~town_roads state =
   let town_paths =
     List.map town_roads ~f:(fun (x, z) ->
         let y = Grid.get x z canon.elevation in
-        Path_coord.{x; y; z; bridge= No_bridge} )
+        Path_coord.make_road ~x ~y ~z )
   in
   let new_path =
     match get_closest_path state ~from_paths:town_paths with
@@ -97,9 +84,7 @@ let enroad ~town_roads state =
     | None ->
         Tale.log "No path" ; []
   in
-  let get_obstacle ~x ~z = Grid.get x z canon.obstacles in
-  let get_elevation ~x ~z = Grid.get x z canon.elevation in
-  let edges = Road_pathing_rules.neighbors ~get_obstacle ~get_elevation in
+  let edges = Road_pathing_rules.neighbors in
   update_closest_paths ~edges ~new_paths:(new_path @ town_paths) state ;
   List.iter new_path ~f:(fun p -> Hash_set.add state.paths p) ;
   ()

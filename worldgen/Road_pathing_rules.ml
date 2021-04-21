@@ -2,22 +2,23 @@ open Core_kernel
 
 module Coord = struct
   module T = struct
-    type direction = Ns | Ew [@@deriving eq, ord, sexp, bin_io]
+    type direction = Ns | Ew [@@deriving eq, ord, hash, sexp, bin_io]
 
-    type bridge = No_bridge | Ns_bridge | Ew_bridge
+    type structure = Road | Bridge of direction
     [@@deriving eq, ord, hash, sexp, bin_io]
 
-    type t = {x: int; y: int; z: int; bridge: bridge}
+    type t = {x: int; y: int; z: int; structure: structure}
     [@@deriving eq, ord, hash, sexp, bin_io]
   end
 
   include T
   include Comparable.Make (T)
   include Hashable.Make (T)
+
+  let make_road ~x ~y ~z = {x; y; z; structure= Road}
 end
 
 include Coord.T
-module A_star = A_star_gen.Make (Int) (Coord)
 
 (* Costs *)
 let flat_ground_cost = 10
@@ -26,17 +27,17 @@ let slope_ground_cost = 20
 
 let bridge_cost = 100
 
-let existing_road_cost = 1
+let get_obstacle_in_margin ~x ~z =
+  let margin = 3 in
+  let obstacles = (Overlay.Canon.require ()).obstacles in
+  Range.fold (z - margin) (z + margin) Overlay.Canon.Clear (fun obs z ->
+      Range.fold (x - margin) (x + margin) obs (fun obs x ->
+          let here_obs = Grid.get x z obstacles in
+          Overlay.Canon.Obstacle.max obs here_obs ) )
 
-let direction_of_bridge_exn = function
-  | Ns_bridge ->
-      Ns
-  | Ew_bridge ->
-      Ew
-  | No_bridge ->
-      invalid_arg "No_bridge"
-
-let bridge_of_direction = function Ns -> Ns_bridge | Ew -> Ew_bridge
+let get_elevation ~x ~z =
+  let elevation = (Overlay.Canon.require ()).elevation in
+  Grid.get x z elevation
 
 let two_neighbors_of_direction = function
   | Ns ->
@@ -49,18 +50,15 @@ let make_direction_exn x1 z1 x2 z2 =
   else if x1 <> x2 && z1 = z2 then Ew
   else invalid_argf "cannot make direction: (%d, %d) (%d, %d)" x1 z1 x2 z2 ()
 
-let neighbors {x; y; z; bridge} ~get_obstacle ~get_elevation =
+let neighbors {x; y; z; structure} =
   let add_ground_neighbor ~y ~nx ~ny ~nz list =
     if abs (y - ny) <= 1 then
-      ({x= nx; y= ny; z= nz; bridge= No_bridge}, flat_ground_cost) :: list
+      ({x= nx; y= ny; z= nz; structure= Road}, flat_ground_cost) :: list
     else list
   in
   let add_bridge_start_neighbor ~x ~y ~z ~nx ~ny ~nz list =
     if ny <= y then
-      ( { x= nx
-        ; y= ny
-        ; z= nz
-        ; bridge= bridge_of_direction (make_direction_exn x z nx nz) }
+      ( {x= nx; y= ny; z= nz; structure= Bridge (make_direction_exn x z nx nz)}
       , bridge_cost )
       :: list
     else list
@@ -70,7 +68,7 @@ let neighbors {x; y; z; bridge} ~get_obstacle ~get_elevation =
       ~f:(fun acc (dx, dz) ->
         let nx = x + dx in
         let nz = z + dz in
-        match get_obstacle ~x:nx ~z:nz with
+        match get_obstacle_in_margin ~x:nx ~z:nz with
         | Overlay.Canon.Impassable ->
             acc
         | Bridgeable ->
@@ -80,271 +78,34 @@ let neighbors {x; y; z; bridge} ~get_obstacle ~get_elevation =
             let ny = get_elevation ~x:nx ~z:nz in
             add_ground_neighbor ~y ~ny ~nx ~nz acc )
   in
-  let add_bridge_continue_neighbor bridge ~y ~ny ~nx ~nz list =
-    if ny <= y then ({x= nx; y; z= nz; bridge}, bridge_cost) :: list else list
+  let add_bridge_continue_neighbor bridge_dir ~y ~ny ~nx ~nz list =
+    if ny <= y then
+      ({x= nx; y; z= nz; structure= Bridge bridge_dir}, bridge_cost) :: list
+    else list
   in
   let add_bridge_end_neighbor _bridge ~y ~ny ~nx ~nz list =
     if ny = y then
-      ({x= nx; y; z= nz; bridge= No_bridge}, flat_ground_cost) :: list
+      ({x= nx; y; z= nz; structure= Road}, flat_ground_cost) :: list
     else list
   in
-  let bridge_neighbors ~x ~y ~z bridge =
-    List.fold
-      (two_neighbors_of_direction (direction_of_bridge_exn bridge))
-      ~init:[]
+  let bridge_neighbors ~x ~y ~z bridge_dir =
+    List.fold (two_neighbors_of_direction bridge_dir) ~init:[]
       ~f:(fun acc (dx, dz) ->
         let nx = x + dx in
         let nz = z + dz in
-        match get_obstacle ~x:nx ~z:nz with
+        match get_obstacle_in_margin ~x:nx ~z:nz with
         | Overlay.Canon.Impassable ->
             acc
         | Bridgeable ->
             let ny = get_elevation ~x:nx ~z:nz in
-            add_bridge_continue_neighbor bridge ~y ~ny ~nx ~nz acc
+            add_bridge_continue_neighbor bridge_dir ~y ~ny ~nx ~nz acc
         | Clear ->
             let ny = get_elevation ~x:nx ~z:nz in
-            add_bridge_continue_neighbor bridge ~y ~ny ~nx ~nz
-            @@ add_bridge_end_neighbor bridge ~y ~ny ~nx ~nz acc )
+            add_bridge_continue_neighbor bridge_dir ~y ~ny ~nx ~nz
+            @@ add_bridge_end_neighbor bridge_dir ~y ~ny ~nx ~nz acc )
   in
-  match bridge with
-  | No_bridge ->
+  match structure with
+  | Road ->
       ground_neighbors ~x ~y ~z
-  | b ->
-      bridge_neighbors ~x ~y ~z b
-
-let pathfind_road ~get_elevation ~get_obstacle ~has_existing_road ~start_coords
-    ~goal_pred ~goal_coord =
-  let goal_x, goal_z = goal_coord in
-  let goal_y = get_elevation ~x:goal_x ~z:goal_z in
-  let wrapped_goal_pred {x; y= _; z; bridge} =
-    match bridge with No_bridge -> goal_pred ~x ~z | _ -> false
-  in
-  let rec reuse_existing_roads_opt neighbors =
-    match neighbors with
-    | ((coord, _cost) as old_here) :: rest -> (
-        if has_existing_road coord then
-          let n =
-            (coord, existing_road_cost)
-            :: Option.value (reuse_existing_roads_opt rest) ~default:rest
-          in
-          Some n
-        else
-          match reuse_existing_roads_opt rest with
-          | None ->
-              None
-          | Some new_rest ->
-              Some (old_here :: new_rest) )
-    | [] ->
-        None
-  in
-  let reuse_existing_roads neighbors =
-    Option.value (reuse_existing_roads_opt neighbors) ~default:neighbors
-  in
-  let neighbors c =
-    reuse_existing_roads (neighbors c ~get_obstacle ~get_elevation)
-  in
-  let heuristic {x; y; z; bridge= _} =
-    existing_road_cost * (abs (goal_x - x) + abs (goal_z - z) + abs (goal_y - y))
-  in
-  let start_set =
-    List.map start_coords ~f:(fun (x, z, g) ->
-        ({x; y= get_elevation ~x ~z; z; bridge= No_bridge}, g) )
-  in
-  A_star.pathfind ~neighbors ~heuristic ~start_set ~goal:wrapped_goal_pred
-    ~max_iters:1_000_000
-
-let%test_module "tests" =
-  ( module struct
-    let palette =
-      [(".", Overlay.Canon.Clear); ("X", Impassable); ("O", Bridgeable)]
-
-    let print_path grid road =
-      let side = Grid.Mut.side grid in
-      let road_at ~x ~z =
-        List.find road ~f:(fun coord -> coord.x = x && coord.z = z)
-      in
-      for z = 0 to side - 1 do
-        for x = 0 to side - 1 do
-          let p =
-            match road_at ~x ~z with
-            | Some {bridge; _} -> (
-              match bridge with
-              | No_bridge ->
-                  "="
-              | Ns_bridge ->
-                  "v"
-              | Ew_bridge ->
-                  ">" )
-            | None -> (
-              match Grid.Mut.get ~x ~z grid with
-              | Overlay.Canon.Clear ->
-                  "."
-              | Impassable ->
-                  "X"
-              | Bridgeable ->
-                  "O" )
-          in
-          print_string p ; print_string " "
-        done ;
-        print_endline ""
-      done
-
-    let%expect_test "basic pathing" =
-      let grid =
-        Test_helpers.grid_of_txt ~palette
-          {|
-      X X X X X X X X X X X X X X X 
-      X . . . . . X . . . . . . . X 
-      X . . . . . X . . . . . . . X 
-      X . . . . . X . . . . . . . X 
-      X . . . . . X . . . . . . . X 
-      X . . . . . X . . . . . . . X 
-      X . . . . . X . . . . . . . X 
-      X . . . . . X . . X . . . . X 
-      X . . . . . X . . X . . . . X 
-      X . . . . . X . . X . . . . X 
-      X . . . . . . . . X . . . . X 
-      X . . . . . . . . X . . . . X 
-      X . . . X X X X X X . X X X X 
-      X . . . X . . . . . . . . . X 
-      X X X X X X X X X X X X X X X 
-    |}
-      in
-      let get_elevation ~x:_ ~z:_ = 0 in
-      let get_obstacle ~x ~z = Grid.Mut.get ~x ~z grid in
-      let has_existing_road _ = false in
-      let start = (2, 1, 0) in
-      let goal = (13, 13) in
-      let road =
-        Option.value_exn
-          (pathfind_road ~get_elevation ~get_obstacle ~has_existing_road
-             ~start_coords:[start]
-             ~goal_pred:(fun ~x ~z -> x = 13 && z = 13)
-             ~goal_coord:goal )
-      in
-      print_path grid road ;
-      [%expect
-        {|
-      X X X X X X X X X X X X X X X
-      X . = . . . X . . . . . . . X
-      X . = . . . X . . . . . . . X
-      X . = . . . X . . . . . . . X
-      X . = . . . X . . . . . . . X
-      X . = . . . X . . . . . . . X
-      X . = . . . X = = = = . . . X
-      X . = . . . X = . X = . . . X
-      X . = . . . X = . X = . . . X
-      X . = = = . X = . X = . . . X
-      X . . . = = = = . X = . . . X
-      X . . . . . . . . X = . . . X
-      X . . . X X X X X X = X X X X
-      X . . . X . . . . . = = = = X
-      X X X X X X X X X X X X X X X
-    |}]
-
-    let%expect_test "bridge pathing" =
-      let grid =
-        Test_helpers.grid_of_txt ~palette
-          {|
-      X X X X X X X X X X X X X X X 
-      X . . . . O O O . . . . . . X 
-      X . . . . O O O . . . . . . X 
-      X . . . . O O O . . . . . . X 
-      X . . . . O O O . . . . . . X 
-      X . . . . O O O . . . . . . X 
-      X . . . . O O O . . . . . . X 
-      X . . . . O O O . X O O . . X 
-      X . . . . O O O . X O O . . X 
-      X . . . . O O . . X O O . . X 
-      X . . . . O O . . X O O . . X 
-      X . . . . O O O . X O O . . X 
-      X . . . X X X X X X . X X X X 
-      X . . . X . . . . . . . . . X 
-      X X X X X X X X X X X X X X X 
-    |}
-      in
-      let get_elevation ~x:_ ~z:_ = 0 in
-      let get_obstacle ~x ~z = Grid.Mut.get ~x ~z grid in
-      let has_existing_road _ = false in
-      let start = (2, 1, 0) in
-      let goal = (13, 13) in
-      let road =
-        Option.value_exn
-          (pathfind_road ~get_elevation ~get_obstacle ~has_existing_road
-             ~start_coords:[start]
-             ~goal_pred:(fun ~x ~z -> x = 13 && z = 13)
-             ~goal_coord:goal )
-      in
-      print_path grid road ;
-      [%expect
-        {|
-      X X X X X X X X X X X X X X X
-      X . = . . O O O . . . . . . X
-      X . = . . O O O . . . . . . X
-      X . = . . O O O . . . . . . X
-      X . = . . O O O . . . . . . X
-      X . = . . O O O . . . . . . X
-      X . = . . O O O = = = . . . X
-      X . = . . O O O = X v O . . X
-      X . = . . O O O = X v O . . X
-      X . = = = > > = = X v O . . X
-      X . . . . O O . . X v O . . X
-      X . . . . O O O . X v O . . X
-      X . . . X X X X X X = X X X X
-      X . . . X . . . . . = = = = X
-      X X X X X X X X X X X X X X X
-    |}]
-
-    let%expect_test "reuse existing roads" =
-      let grid =
-        Test_helpers.grid_of_txt ~palette
-          {|
-      X X X X X X X X X X X X X X X 
-      X . . . . . . . . . . . . . X 
-      X . . . . . . . . . . . . . X 
-      X . . . . . . . . . . . . . X 
-      X . . . . . . . . . . . . . X 
-      X . . . . . . . . . . . . . X 
-      X . . . . . . . . . . . . . X 
-      X . . . . . . . . . . . . . X 
-      X . . . . . . . . . . . . . X 
-      X . . . . . . . . . . . . . X 
-      X . . . . . . . . . . . . . X 
-      X . . . . . . . . . . . . . X 
-      X . . . . . . . . . . . . . X 
-      X . . . . . . . . . . . . . X 
-      X X X X X X X X X X X X X X X 
-    |}
-      in
-      let get_elevation ~x:_ ~z:_ = 0 in
-      let get_obstacle ~x ~z = Grid.Mut.get ~x ~z grid in
-      let has_existing_road coord = coord.z = 2 in
-      let start = (2, 1, 0) in
-      let goal = (13, 1) in
-      let road =
-        Option.value_exn
-          (pathfind_road ~get_elevation ~get_obstacle ~has_existing_road
-             ~start_coords:[start]
-             ~goal_pred:(fun ~x ~z -> x = 13 && z = 1)
-             ~goal_coord:goal )
-      in
-      print_path grid road ;
-      [%expect
-        {|
-      X X X X X X X X X X X X X X X
-      X . = . . . . . . . . . . = X
-      X . = = = = = = = = = = = = X
-      X . . . . . . . . . . . . . X
-      X . . . . . . . . . . . . . X
-      X . . . . . . . . . . . . . X
-      X . . . . . . . . . . . . . X
-      X . . . . . . . . . . . . . X
-      X . . . . . . . . . . . . . X
-      X . . . . . . . . . . . . . X
-      X . . . . . . . . . . . . . X
-      X . . . . . . . . . . . . . X
-      X . . . . . . . . . . . . . X
-      X . . . . . . . . . . . . . X
-      X X X X X X X X X X X X X X X
-    |}]
-  end )
+  | Bridge dir ->
+      bridge_neighbors ~x ~y ~z dir

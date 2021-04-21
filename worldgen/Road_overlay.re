@@ -140,11 +140,10 @@ let rec add_road_to_grid = (roads: Sparse_grid.t(road), path) =>
 let place_road = (_canon: Overlay.Canon.t, roads: Sparse_grid.t(road), path) => {
   /* Add elevations */
   let path =
-    List.filter_map(path, ~f=(Road_pathing_rules.{x, y, z, bridge}) => {
-      switch (bridge) {
-      | No_bridge => Some((x, z, {elevation: y, niceness: Paved /* TODO */}))
-      | Ns_bridge
-      | Ew_bridge =>
+    List.filter_map(path, ~f=(Road_pathing_rules.{x, y, z, structure}) => {
+      switch (structure) {
+      | Road => Some((x, z, {elevation: y, niceness: Paved /* TODO */}))
+      | Bridge(Ns | Ew) =>
         Tale.logf("bridge at %d, %d", x, z);
         None;
       }
