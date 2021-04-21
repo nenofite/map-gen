@@ -53,6 +53,8 @@ let reset = (~rx, ~rz, r) => {
   ();
 };
 
+let get_region_coords = r => (r.rx, r.rz);
+
 /**
  * translates a global coord to a region-local coord. These are split into three
  * separate functions because allocating the tuple was causing a surprising
