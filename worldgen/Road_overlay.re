@@ -171,30 +171,12 @@ let prepare = () => {
   let pois = List.map(~f=poi_of_town, towns);
   Tale.log("Pathfinding roads");
   let is_within = (~x, ~z) => Grid.is_within_side(~x, ~y=z, canon.side);
-  // let get_elevation = (~x, ~z) =>
-  //   if (is_within(~x, ~z)) {
-  //     Grid.get(x, z, canon.elevation);
-  //   } else {
-  //     0;
-  //   };
   let get_obstacle = (~x, ~z) =>
     if (is_within(~x, ~z)) {
       Grid.get(x, z, canon.obstacles);
     } else {
       Impassable;
     };
-  // let get_obstacle_in_margin = (~margin, ~x, ~z) =>
-  //   Range.fold(z - margin, z + margin, Overlay.Canon.Clear, (obs, z) =>
-  //     Range.fold(
-  //       x - margin,
-  //       x + margin,
-  //       obs,
-  //       (obs, x) => {
-  //         let here_obs = get_obstacle(~x, ~z);
-  //         Overlay.Canon.Obstacle.max(obs, here_obs);
-  //       },
-  //     )
-  //   );
   module Cs = Road_pathing_rules.Coord.Set;
   let pathing_state = Road_pathing.init_state();
   let num_towns = List.length(pois);
