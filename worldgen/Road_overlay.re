@@ -290,6 +290,7 @@ let apply_progress_view = state => {
     ~state=(),
     layer,
   );
+  Progress_view.save(~side, "road");
 };
 
 let (require, prepare, apply) =
