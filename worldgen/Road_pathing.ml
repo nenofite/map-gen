@@ -60,7 +60,6 @@ let update_closest_paths ~edges ~new_paths state =
           ()
   in
   List.iter new_paths ~f:(fun p ->
-      Hash_set.add state.paths p ;
       Path_coord.Table.set state.closest_paths ~key:p ~data:root_path ) ;
   let open_set =
     List.fold new_paths ~init:Pq.empty ~f:(fun pq coord ->
@@ -80,7 +79,7 @@ let reconstruct_path start ~state =
 let get_closest_path ~from_paths state =
   List.filter_map from_paths ~f:(fun p ->
       Path_coord.Table.find state.closest_paths p )
-  |> List.max_elt ~compare:(fun a b -> Int.compare a.cost b.cost)
+  |> List.min_elt ~compare:(fun a b -> Int.compare a.cost b.cost)
   |> Option.map ~f:(fun cp ->
          reconstruct_path (Option.value_exn cp.parent) ~state )
 
@@ -102,4 +101,5 @@ let enroad ~town_roads state =
   let get_elevation ~x ~z = Grid.get x z canon.elevation in
   let edges = Road_pathing_rules.neighbors ~get_obstacle ~get_elevation in
   update_closest_paths ~edges ~new_paths:(new_path @ town_paths) state ;
+  List.iter new_path ~f:(fun p -> Hash_set.add state.paths p) ;
   ()
