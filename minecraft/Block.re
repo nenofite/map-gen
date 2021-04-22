@@ -2,6 +2,8 @@ open Core_kernel;
 
 exception Invalid_block(string);
 
+/** the direction you must walk to go up the stairs, or in other words the side
+  of the stairs which is taller */
 [@deriving (eq, bin_io)]
 type stair_dir =
   | E

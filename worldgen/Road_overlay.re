@@ -11,22 +11,15 @@ module Niceness = {
   include Comparable.Make(T);
 };
 
-[@deriving bin_io]
-type road = {
-  elevation: int,
-  niceness: Niceness.t,
-};
+module Rp = Road_pathing_rules.Coord;
 
 [@deriving bin_io]
-type stepped_road = {
-  road,
-  step_down: bool,
-};
+type road = Rp.t;
 
 [@deriving bin_io]
 type x = {
   pois: list((int, int)),
-  roads: Sparse_grid.t(stepped_road),
+  roads: Sparse_grid.t(road),
 };
 
 [@deriving bin_io]
@@ -46,110 +39,41 @@ let edge_cost = (canon: Overlay.Canon.t, (ax, ay), (bx, by)) => {
   };
 };
 
-let heighten_road =
-    (~get_obstacle, roads, x, y, up_to_niceness, up_to_elevation) => {
-  switch (Sparse_grid.at(roads, x, y)) {
-  | Some({elevation, niceness})
-      when elevation < up_to_elevation || Niceness.(niceness < up_to_niceness) =>
-    let new_elevation = max(elevation, up_to_elevation);
-    let new_niceness = Niceness.max(niceness, up_to_niceness);
-    Sparse_grid.put(
-      roads,
-      x,
-      y,
-      {elevation: new_elevation, niceness: new_niceness},
-    );
-  | Some(_) => roads
-  | None =>
-    switch (get_obstacle(~x, ~z=y)) {
-    | Overlay.Canon.Impassable
-    | Bridgeable => roads
-    | Clear =>
-      Sparse_grid.put(
-        roads,
-        x,
-        y,
-        {elevation: up_to_elevation, niceness: up_to_niceness},
-      )
-    }
-  };
-};
-
 /**
   widen_path makes Paved roads three blocks wide. Each block is the highest
   elevation and nicest niceness of any road it touches.
  */
-let widen_road = (~get_obstacle, roads: Sparse_grid.t(road)) => {
-  Sparse_grid.fold(
-    roads,
-    ((x, y), road, widened_roads) => {
-      let {niceness, elevation} = road;
-      switch (niceness) {
-      | Dirt => widened_roads /* TODO */
-      | Paved =>
-        Grid_compat.eight_directions
-        |> List.fold_left(~init=widened_roads, ~f=(roads, (dx, dy)) =>
-             heighten_road(
-               ~get_obstacle,
-               roads,
-               x + dx,
-               y + dy,
-               niceness,
-               elevation,
-             )
-           )
-      };
-    },
-    roads,
-  );
+let widen_road = (roads: Sparse_grid.t(road)) => {
+  let roads_lo_to_hi =
+    Sparse_grid.fold(
+      roads,
+      (coord, road, ls) => [(coord, road), ...ls],
+      [],
+    )
+    |> List.stable_sort(~compare=((_, a), (_, b))
+         /* TODO do stairs after roads of same y */
+         => Int.compare(a.Rp.y, b.Rp.y));
+  List.fold(
+    roads_lo_to_hi,
+    ~init=Sparse_grid.make(Sparse_grid.side(roads)),
+    ~f=(g, ((x, z), road)) => {
+    Mg_util.Range.fold(z - 1, z + 1, g, (g, z) => {
+      Mg_util.Range.fold(x - 1, x + 1, g, (g, x) => {
+        Sparse_grid.put(g, x, z, road)
+      })
+    })
+  });
 };
-
-/**
-  add_steps takes a widened path and smooths it. If any block cardinally
-  neighbors another block at the elevation below it, then it becomes a step.
- */
-let add_steps = (roads: Sparse_grid.t(road)) => {
-  Sparse_grid.map(
-    roads,
-    ((x, y), road) => {
-      let {elevation, _} = road;
-      let has_lower_neighbor =
-        Grid_compat.four_directions
-        |> List.exists(~f=((dx, dy)) =>
-             switch (Sparse_grid.at(roads, x + dx, y + dy)) {
-             | Some({elevation: neighbor_elevation, _})
-                 when neighbor_elevation == elevation - 1 =>
-               true
-             | Some(_)
-             | None => false
-             }
-           );
-      {road, step_down: has_lower_neighbor};
-    },
-  );
-};
-
-let rec add_road_to_grid = (roads: Sparse_grid.t(road), path) =>
-  switch (path) {
-  | [] => roads
-  | [(x, y, road_tile), ...path] =>
-    let roads = Sparse_grid.put(roads, x, y, road_tile);
-    add_road_to_grid(roads, path);
-  };
 
 let place_road = (_canon: Overlay.Canon.t, roads: Sparse_grid.t(road), path) => {
-  /* Add elevations */
-  let path =
-    List.filter_map(path, ~f=(Road_pathing_rules.{x, y, z, structure}) => {
-      switch (structure) {
-      | Road => Some((x, z, {elevation: y, niceness: Paved /* TODO */}))
-      | Bridge(Ns | Ew) =>
-        Tale.logf("bridge at %d, %d", x, z);
-        None;
-      }
-    });
-  /* Add to grid */
-  add_road_to_grid(roads, path);
+  let rec go = (roads: Sparse_grid.t(road), path) =>
+    switch (path) {
+    | [] => roads
+    | [road, ...path] =>
+      let roads = Sparse_grid.put(roads, road.Rp.x, road.Rp.z, road);
+      go(roads, path);
+    };
+  go(roads, path);
 };
 
 let poi_of_town = (town: Town_overlay.town) => {
@@ -170,13 +94,6 @@ let prepare = () => {
   let (towns, _) = Town_overlay.require();
   let pois = List.map(~f=poi_of_town, towns);
   Tale.log("Pathfinding roads");
-  let is_within = (~x, ~z) => Grid.is_within_side(~x, ~y=z, canon.side);
-  let get_obstacle = (~x, ~z) =>
-    if (is_within(~x, ~z)) {
-      Grid.get(x, z, canon.obstacles);
-    } else {
-      Impassable;
-    };
   module Cs = Road_pathing_rules.Coord.Set;
   let pathing_state = Road_pathing.init_state();
   let num_towns = List.length(pois);
@@ -189,8 +106,7 @@ let prepare = () => {
   let roads =
     place_road(canon, Sparse_grid.make(canon.side), Cs.to_list(roads));
   Tale.log("Widening roads and adding steps");
-  let roads = widen_road(~get_obstacle, roads);
-  let roads = add_steps(roads);
+  // let roads = widen_road(roads);
   let obstacles =
     Sparse_grid.(
       map(roads, (_, _) => Overlay.Canon.Impassable)
@@ -228,15 +144,20 @@ let place_road_block = (region, x, y, z) => {
   fill_beneath_road(region, x, y - 1, z);
 };
 
-let place_step_block = (region, x, y, z) => {
-  /* Step blocks are actually full blocks at y - 1 */
-  let y = y - 1;
+let stair_dir_of_dir4: Rp.dir4 => Minecraft.Block.stair_dir =
+  fun
+  | N => N
+  | E => E
+  | S => S
+  | W => W;
+
+let place_stair_block = (region, x, y, z, ~dir) => {
   clear_above_road(region, x, y + 1, z);
-  Minecraft.Region.set_block(
+  Minecraft.Region.set_block_opt(
     ~x,
     ~y,
     ~z,
-    Minecraft.Block.(Smooth_stone_slab(Double)),
+    Stairs(Stone_stairs, stair_dir_of_dir4(dir)),
     region,
   );
   fill_beneath_road(region, x, y - 1, z);
@@ -246,12 +167,11 @@ let apply_region = ((state, _canon), region: Minecraft.Region.t) => {
   let region = region;
   Sparse_grid.iter(state.roads, ((x, z), road) =>
     if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
-      let {road: {elevation: y, niceness}, step_down} = road;
-      ignore(niceness); /* TODO dirt paths */
-      if (step_down) {
-        place_step_block(region, x, y, z);
-      } else {
-        place_road_block(region, x, y, z);
+      let Rp.{x, y, z, structure} = road;
+      switch (structure) {
+      | Road => place_road_block(region, x, y, z)
+      | Stair(dir) => place_stair_block(region, x, y, z, ~dir)
+      | Bridge(_) => /* TODO */ ()
       };
     }
   );
