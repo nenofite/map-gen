@@ -50,18 +50,33 @@ let widen_road = (roads: Sparse_grid.t(road)) => {
       (coord, road, ls) => [(coord, road), ...ls],
       [],
     )
-    |> List.stable_sort(~compare=((_, a), (_, b))
-         /* TODO do stairs after roads of same y */
-         => Int.compare(a.Rp.y, b.Rp.y));
+    |> List.stable_sort(~compare=((_, a), (_, b)) =>
+         switch (Rp.compare_structure(a.Rp.structure, b.Rp.structure)) {
+         | 0 => Int.compare(a.Rp.y, b.Rp.y)
+         | i => i
+         }
+       );
   List.fold(
     roads_lo_to_hi,
     ~init=Sparse_grid.make(Sparse_grid.side(roads)),
-    ~f=(g, ((x, z), road)) => {
-    Mg_util.Range.fold(z - 1, z + 1, g, (g, z) => {
-      Mg_util.Range.fold(x - 1, x + 1, g, (g, x) => {
-        Sparse_grid.put(g, x, z, road)
+    ~f=(g, ((x, z), coord)) => {
+    switch (coord.Rp.structure) {
+    | Road =>
+      Mg_util.Range.fold(z - 1, z + 1, g, (g, z) => {
+        Mg_util.Range.fold(x - 1, x + 1, g, (g, x) => {
+          Sparse_grid.put(g, x, z, coord)
+        })
       })
-    })
+    | Stair(N | S) =>
+      Mg_util.Range.fold(x - 1, x + 1, g, (g, x) => {
+        Sparse_grid.put(g, x, z, coord)
+      })
+    | Stair(E | W) =>
+      Mg_util.Range.fold(z - 1, z + 1, g, (g, z) => {
+        Sparse_grid.put(g, x, z, coord)
+      })
+    | Bridge(_) => g
+    }
   });
 };
 
@@ -106,7 +121,7 @@ let prepare = () => {
   let roads =
     place_road(canon, Sparse_grid.make(canon.side), Cs.to_list(roads));
   Tale.log("Widening roads and adding steps");
-  // let roads = widen_road(roads);
+  let roads = widen_road(roads);
   let obstacles =
     Sparse_grid.(
       map(roads, (_, _) => Overlay.Canon.Impassable)
@@ -167,7 +182,7 @@ let apply_region = ((state, _canon), region: Minecraft.Region.t) => {
   let region = region;
   Sparse_grid.iter(state.roads, ((x, z), road) =>
     if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
-      let Rp.{x, y, z, structure} = road;
+      let Rp.{x: _, y, z: _, structure} = road;
       switch (structure) {
       | Road => place_road_block(region, x, y, z)
       | Stair(dir) => place_stair_block(region, x, y, z, ~dir)
