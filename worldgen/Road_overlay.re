@@ -155,7 +155,7 @@ let clear_above_road = (region, x, y, z) => {
 
 let place_road_block = (region, x, y, z) => {
   clear_above_road(region, x, y + 1, z);
-  Minecraft.Region.set_block_opt(~x, ~y, ~z, Stone_slab, region);
+  Minecraft.Region.set_block_opt(~x, ~y, ~z, Stone_brick_slab, region);
   fill_beneath_road(region, x, y - 1, z);
 };
 
@@ -172,7 +172,7 @@ let place_stair_block = (region, x, y, z, ~dir) => {
     ~x,
     ~y,
     ~z,
-    Stairs(Stone_stairs, stair_dir_of_dir4(dir)),
+    Stairs(Stone_brick_stairs, stair_dir_of_dir4(dir)),
     region,
   );
   fill_beneath_road(region, x, y - 1, z);
