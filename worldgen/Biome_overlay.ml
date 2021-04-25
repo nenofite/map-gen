@@ -1,7 +1,7 @@
 open! Core_kernel
 include Biome_overlay_i
 
-let scale_factor = 32
+let scale_factor = 8
 
 let colorize_biome = function
   | Mid (Plain _) ->
@@ -70,10 +70,11 @@ let get_obstacle dirt biome =
   | _ ->
       Clear
 
-let temperature_at z =
+let temperature_at ~x ~z =
   let side = (Overlay.Canon.require ()).side in
+  let dirt = Dirt_overlay.require () in
   (* range 0 to 50 degrees Celsius *)
-  z * 50 / side
+  (z * 50 / side) + (Grid.get x z dirt / 2)
 
 let fold_scale_factor ~mx ~mz ~init ~f =
   Range.fold (mz * scale_factor)
@@ -99,13 +100,13 @@ let initial_moisture_at ~mx ~mz base =
       max m here )
 
 let moisture_carry_at ~mx ~mz base =
-  fold_scale_factor ~mx ~mz ~init:10 ~f:(fun ~x ~z m ->
+  fold_scale_factor ~mx ~mz ~init:40 ~f:(fun ~x ~z m ->
       let here =
         match Grid.get x z base with
         | River.Tile.{elevation; _} when elevation > 100 ->
-            2
+            30
         | _ ->
-            9
+            39
       in
       min m here )
 
@@ -115,7 +116,9 @@ let west_wind = [(-1, 0); (0, 1); (-1, -1)]
 
 let wind_direction_at ~mx ~mz =
   ignore mx ;
-  if mz / 16 mod 2 = 0 then east_wind else west_wind
+  if mz * scale_factor / 512 mod 2 = 0 then east_wind else west_wind
+
+let mountain_threshold_at ~x ~z dirt = 100 + Grid.get x z dirt
 
 (* let draw_moisture_mut moisture =
   let draw_dense () x z =
@@ -141,8 +144,8 @@ let draw_moisture moisture =
   let l = Progress_view.push_layer () in
   Progress_view.update ~draw_dense ~state:() l
 
-let lookup_whittman ~moisture ~temperature ~elevation =
-  if elevation > 100 then
+let lookup_whittman ~mountain_threshold ~moisture ~temperature ~elevation =
+  if elevation > mountain_threshold then
     match (moisture > 50, temperature > 35) with
     | true, true ->
         High Pine_forest
@@ -180,7 +183,7 @@ let prepare_moisture () =
     List.fold (wind_direction_at ~mx:x ~mz:z) ~init:pq ~f:(fun pq (dx, dz) ->
         let x = x + dx in
         let z = z + dz in
-        let m = m * carry / 10 in
+        let m = m * carry / 40 in
         if Grid.Mut.is_within ~x ~z moisture then
           let old_m = Grid.Mut.get ~x ~z moisture in
           if m > old_m then (
@@ -207,7 +210,7 @@ let prepare_moisture () =
   (* draw_moisture_mut moisture ; *)
   spread_moisture pq ;
   (* draw_moisture_mut moisture ; *)
-  for _ = 1 to 4 do
+  for _ = 1 to 2 do
     Subdivide_mut.overwrite_subdivide_with_fill
       ~fill:(fun a b c d -> (a + b + c + d) / 4)
       moisture
@@ -224,10 +227,11 @@ let prepare () =
       Progress_view.save ~side:canon.side "moisture" ) ;
   let biomes =
     Grid.init ~side:canon.side (fun (x, z) ->
-        let temperature = temperature_at z in
+        let temperature = temperature_at ~x ~z in
         let moisture = Grid.get x z moisture in
         let elevation = Grid.get x z canon.elevation in
-        lookup_whittman ~moisture ~temperature ~elevation )
+        let mountain_threshold = mountain_threshold_at ~x ~z dirt in
+        lookup_whittman ~mountain_threshold ~moisture ~temperature ~elevation )
   in
   let biome_obstacles =
     Overlay.Canon.Obstacles.zip_map dirt biomes ~f:get_obstacle
