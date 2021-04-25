@@ -1,36 +1,5 @@
-open Core_kernel
-
-type flower = {block: Minecraft.Block.material; percentage: int}
-[@@deriving eq, bin_io]
-
-type cactus = {percentage: int} [@@deriving eq, bin_io]
-
-type mid_biome = Plain of flower | Forest of flower | Desert of cactus
-[@@deriving eq, bin_io]
-
-type shore_biome = Sand | Gravel | Clay [@@deriving eq, bin_io]
-
-type high_biome = Pine_forest | Barren | Snow [@@deriving eq, bin_io]
-
-type biome = Mid of mid_biome | Shore of shore_biome | High of high_biome
-[@@deriving eq, bin_io]
-
-type t = biome Grid.t * Overlay.Canon.delta [@@deriving bin_io]
-
-module Biome_grid = Grid.Make0 (struct
-  type t = biome
-
-  let ( = ) = equal_biome
-end)
-
-type low_mid_high = {shore: shore_biome; mid: mid_biome; high: high_biome}
-[@@deriving eq, bin_io]
-
-module Low_mid_high_grid = Grid.Make0 (struct
-  type t = low_mid_high
-
-  let ( = ) = equal_low_mid_high
-end)
+open! Core_kernel
+include Biome_overlay_i
 
 let colorize_biome = function
   | Mid (Plain _) ->
@@ -86,98 +55,11 @@ let random_flower () =
 
 let random_cactus () = {percentage= Random.int_incl 10 100}
 
-let random_mid () =
-  match Random.int 10 with
-  | 0 | 1 | 2 | 3 | 4 ->
-      Plain (random_flower ())
-  | 5 | 6 | 7 ->
-      Forest (random_flower ())
-  | 8 | _ ->
-      Desert (random_cactus ())
-
 let random_shore () =
   match Random.int 3 with 0 -> Sand | 1 -> Gravel | _ -> Clay
 
 let random_high () =
   match Random.int 3 with 0 -> Pine_forest | 1 -> Barren | _ -> Snow
-
-let select_elevation ~(base : Base_overlay.tile Grid.t)
-    (lmh : low_mid_high option Grid.Mut.t) =
-  Biome_grid.init ~side:base.Grid.side (fun (x, z) ->
-      let here_base = Grid.get x z base in
-      let elevation = here_base.elevation in
-      let {shore; mid; high} =
-        Option.value_exn ~message:"grid coordinate has no biome"
-          (Grid.Mut.get ~x ~z lmh)
-      in
-      if River.has_water here_base || elevation <= Heightmap.sea_level + 2 then
-        Shore shore
-      else if elevation >= Heightmap.mountain_level - 20 then
-        (* TODO use some sort of interp for mid-high cutoff, instead of flat line *)
-        High high
-      else Mid mid )
-
-let prepare_voronoi () =
-  let voronoi_frac = 4 in
-  let high_cost = 10 in
-  let canon = Overlay.Canon.require () in
-  let base, _ = Base_overlay.require () in
-  let voronoi_side = canon.side / voronoi_frac in
-  let high_cost_spots =
-    Grid.Poly.init ~side:voronoi_side (fun (x, z) ->
-        Range.exists z
-          (z + voronoi_frac - 1)
-          (fun z ->
-            Range.exists x
-              (x + voronoi_frac - 1)
-              (fun x ->
-                let t = Grid.get x z base in
-                t.elevation >= Heightmap.mountain_level - 20
-                || River.has_ocean t ) ) )
-  in
-  let random_lmh () =
-    {shore= random_shore (); mid= random_mid (); high= random_high ()}
-  in
-  let points =
-    Point_cloud.init ~side:voronoi_side ~spacing:(512 / voronoi_frac)
-      (fun _x _z -> random_lmh ())
-  in
-  let lmh = Grid.Mut.create ~side:voronoi_side ~alloc_side:canon.side None in
-  let initial_live_set =
-    Sparse_grid.fold points.points
-      (fun _ point ls ->
-        let value = point.value in
-        let x = Int.of_float point.px in
-        let z = Int.of_float point.py in
-        (x, z, value) :: ls )
-      []
-  in
-  let spread_into ~x ~z ~level lmh_val live_set =
-    if Grid.is_within x z high_cost_spots then
-      let cost = if Grid.get x z high_cost_spots then high_cost else 1 in
-      let occupied = Option.is_some (Grid.Mut.get ~x ~z lmh) in
-      if occupied then live_set else (level + cost, (x, z, lmh_val)) :: live_set
-    else live_set
-  in
-  Grid_flood.flood_gen ~init:() ~live:[(0, initial_live_set)]
-    ~spread:(fun () ~level (x, z, lmh_val) ->
-      let occupied = Option.is_some (Grid.Mut.get ~x ~z lmh) in
-      if occupied then ((), [])
-      else (
-        Grid.Mut.set ~x ~z (Some lmh_val) lmh ;
-        let next_live_set =
-          []
-          |> spread_into ~x ~z:(z - 1) ~level lmh_val
-          |> spread_into ~x:(x + 1) ~z ~level lmh_val
-          |> spread_into ~x ~z:(z + 1) ~level lmh_val
-          |> spread_into ~x:(x - 1) ~z ~level lmh_val
-        in
-        ((), next_live_set) ) ) ;
-  (* TODO base on voronoi_frac *)
-  Subdivide_mut.subdivide lmh ;
-  Subdivide_mut.subdivide lmh ;
-  let biomes = select_elevation ~base lmh in
-  biomes
 
 let get_obstacle dirt biome =
   match biome with
@@ -186,9 +68,88 @@ let get_obstacle dirt biome =
   | _ ->
       Clear
 
+let temperature_at z =
+  let side = (Overlay.Canon.require ()).side in
+  (* range 0 to 50 degrees Celsius *)
+  z * 50 / side
+
+let initial_moisture_at ~x ~z base =
+  match Grid.get x z base with
+  | River.Tile.{ocean= true; river= _; elevation= _} ->
+      100
+  | {ocean= false; river= true; elevation= _} ->
+      10
+  | {ocean= false; river= false; elevation= _} ->
+      0
+
+let draw_moisture_mut moisture =
+  let draw_dense () x z =
+    if Grid.Mut.is_within ~x ~z moisture then
+      let here = Grid.Mut.get ~x ~z moisture in
+      let g = here * 255 / 100 in
+      Some (g, g, g)
+    else None
+  in
+  let l = Progress_view.push_layer () in
+  Progress_view.update ~draw_dense ~state:() l
+
+let draw_moisture moisture =
+  let draw_dense () x z =
+    if Grid.is_within x z moisture then
+      let here = Grid.get x z moisture in
+      let g = here * 255 / 100 in
+      Some (g, g, g)
+    else None
+  in
+  let l = Progress_view.push_layer () in
+  Progress_view.update ~draw_dense ~state:() l
+
+let prepare_biomes () =
+  let canon = Overlay.Canon.require () in
+  let base, _ = Base_overlay.require () in
+  let add_to_pq pq ~x ~z ~moisture =
+    Pq.insert pq (-moisture) (x, z, moisture)
+  in
+  let pq = ref Pq.empty in
+  let moisture =
+    Grid.Mut.init ~side:canon.side 0 ~f:(fun ~x ~z ->
+        let m = initial_moisture_at ~x ~z base in
+        if m > 0 then pq := add_to_pq !pq ~x ~z ~moisture:m ;
+        m )
+  in
+  let pq = !pq in
+  let rec spread_moisture pq ~dit =
+    let dit =
+      if dit <= 0 then (draw_moisture_mut moisture ; 100) else dit - 1
+    in
+    match Pq.extract pq with
+    | Some (x, z, m), pq ->
+        let pq =
+          List.fold Grid.Griddable.four_directions ~init:pq
+            ~f:(fun pq (dx, dz) ->
+              let x = x + dx in
+              let z = z + dz in
+              let m = m - 1 in
+              if Grid.Mut.is_within ~x ~z moisture then
+                let old_m = Grid.Mut.get ~x ~z moisture in
+                if m > old_m then (
+                  Grid.Mut.set ~x ~z m moisture ;
+                  add_to_pq pq ~x ~z ~moisture:m )
+                else pq
+              else pq )
+        in
+        spread_moisture pq ~dit
+    | None, _pq ->
+        ()
+  in
+  spread_moisture pq ~dit:0 ; Grid.Poly.of_mut moisture
+
 let prepare () =
+  let canon = Overlay.Canon.require () in
   let dirt = Dirt_overlay.require () in
-  let biomes = prepare_voronoi () in
+  let moisture = prepare_biomes () in
+  draw_moisture moisture ;
+  let biomes = Grid.make ~side:canon.side (Shore Sand) in
   let biome_obstacles =
     Overlay.Canon.Obstacles.zip_map dirt biomes ~f:get_obstacle
   in
@@ -208,16 +169,16 @@ let colorize (biome, base) =
     let biome_col = colorize_biome biome in
     Color.blend black biome_col frac
 
-let apply_progress_view (state : t) =
-  let base, _ = Base_overlay.require () in
-  let biome, _canon = state in
-  let side = base.Grid.side in
-  let layer = Progress_view.push_layer () in
-  let g = Grid_compat.zip biome base in
-  Progress_view.update ~fit:(0, side, 0, side)
-    ~draw_dense:(Progress_view_helper.dense colorize)
-    ~state:g layer ;
-  Progress_view.save ~side ~format:Images.Png "biome" ;
+let apply_progress_view (_state : t) =
+  (* let base, _ = Base_overlay.require () in
+     let biome, _canon = state in
+     let side = base.Grid.side in
+     let layer = Progress_view.push_layer () in
+     let g = Grid_compat.zip biome base in
+     Progress_view.update ~fit:(0, side, 0, side)
+       ~draw_dense:(Progress_view_helper.dense colorize)
+       ~state:g layer ;
+     Progress_view.save ~side ~format:Images.Png "biome" ; *)
   ()
 
 (** overwrite_stone_air only sets the block if it is Stone or Air, to avoid overwriting rivers etc. *)
@@ -284,5 +245,5 @@ let apply_region state (region : Minecraft.Region.t) =
   apply_dirt dirt state region
 
 let require, prepare, apply =
-  Overlay.make_no_canon "biome" prepare ~apply_progress_view apply_region
-    bin_reader_t bin_writer_t
+  Overlay.make_lifecycle ~prepare ~after_prepare:apply_progress_view
+    ~apply:apply_region overlay
