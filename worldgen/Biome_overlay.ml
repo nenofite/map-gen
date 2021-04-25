@@ -1,6 +1,8 @@
 open! Core_kernel
 include Biome_overlay_i
 
+let scale_factor = 32
+
 let colorize_biome = function
   | Mid (Plain _) ->
       0x86A34D
@@ -73,19 +75,54 @@ let temperature_at z =
   (* range 0 to 50 degrees Celsius *)
   z * 50 / side
 
-let initial_moisture_at ~x ~z base =
-  match Grid.get x z base with
-  | River.Tile.{ocean= true; river= _; elevation= _} ->
-      100
-  | {ocean= false; river= true; elevation= _} ->
-      10
-  | {ocean= false; river= false; elevation= _} ->
-      0
+let fold_scale_factor ~mx ~mz ~init ~f =
+  Range.fold (mz * scale_factor)
+    ((mz * scale_factor) + scale_factor - 1)
+    init
+    (fun init z ->
+      Range.fold (mx * scale_factor)
+        ((mx * scale_factor) + scale_factor - 1)
+        init
+        (fun init x -> f ~x ~z init) )
+
+let initial_moisture_at ~mx ~mz base =
+  fold_scale_factor ~mx ~mz ~init:0 ~f:(fun ~x ~z m ->
+      let here =
+        match Grid.get x z base with
+        | River.Tile.{ocean= true; river= _; elevation= _} ->
+            100
+        | {ocean= false; river= true; elevation= _} ->
+            10
+        | {ocean= false; river= false; elevation= _} ->
+            0
+      in
+      max m here )
+
+let moisture_carry_at ~mx ~mz base =
+  fold_scale_factor ~mx ~mz ~init:10 ~f:(fun ~x ~z m ->
+      let here =
+        match Grid.get x z base with
+        | River.Tile.{elevation; _} when elevation > 100 ->
+            2
+        | _ ->
+            9
+      in
+      min m here )
+
+let east_wind = [(1, 0); (0, 1); (1, -1)]
+
+let west_wind = [(-1, 0); (0, 1); (-1, -1)]
+
+let wind_direction_at ~mx ~mz =
+  ignore mx ;
+  if mz / 16 mod 2 = 0 then east_wind else west_wind
 
 let draw_moisture_mut moisture =
   let draw_dense () x z =
-    if Grid.Mut.is_within ~x ~z moisture then
-      let here = Grid.Mut.get ~x ~z moisture in
+    let mx = x / scale_factor in
+    let mz = z / scale_factor in
+    if Grid.Mut.is_within ~x:mx ~z:mz moisture then
+      let here = Grid.Mut.get ~x:mx ~z:mz moisture in
       let g = here * 255 / 100 in
       Some (g, g, g)
     else None
@@ -110,45 +147,62 @@ let prepare_biomes () =
   let add_to_pq pq ~x ~z ~moisture =
     Pq.insert pq (-moisture) (x, z, moisture)
   in
-  let pq = ref Pq.empty in
+  let mside = canon.side / scale_factor in
   let moisture =
-    Grid.Mut.init ~side:canon.side 0 ~f:(fun ~x ~z ->
-        let m = initial_moisture_at ~x ~z base in
-        if m > 0 then pq := add_to_pq !pq ~x ~z ~moisture:m ;
+    Grid.Mut.init ~side:mside ~alloc_side:canon.side 0 ~f:(fun ~x ~z ->
+        let m = initial_moisture_at ~mx:x ~mz:z base in
         m )
   in
-  let pq = !pq in
-  let rec spread_moisture pq ~dit =
-    let dit =
-      if dit <= 0 then (draw_moisture_mut moisture ; 100) else dit - 1
-    in
+  let moisture_carry =
+    Grid.Mut.init ~side:mside 0 ~f:(fun ~x ~z ->
+        moisture_carry_at ~mx:x ~mz:z base )
+  in
+  let spread_coord ~x ~z ~m pq =
+    let carry = Grid.Mut.get ~x ~z moisture_carry in
+    List.fold (wind_direction_at ~mx:x ~mz:z) ~init:pq ~f:(fun pq (dx, dz) ->
+        let x = x + dx in
+        let z = z + dz in
+        let m = m * carry / 10 in
+        if Grid.Mut.is_within ~x ~z moisture then
+          let old_m = Grid.Mut.get ~x ~z moisture in
+          if m > old_m then (
+            Grid.Mut.set ~x ~z m moisture ;
+            add_to_pq pq ~x ~z ~moisture:m )
+          else pq
+        else pq )
+  in
+  let full_spread_moisture pq =
+    Range.fold 0 (mside - 1) pq (fun pq z ->
+        Range.fold 0 (mside - 1) pq (fun pq x ->
+            let m = Grid.Mut.get ~x ~z moisture in
+            spread_coord ~x ~z ~m pq ) )
+  in
+  let rec spread_moisture pq =
     match Pq.extract pq with
     | Some (x, z, m), pq ->
-        let pq =
-          List.fold Grid.Griddable.four_directions ~init:pq
-            ~f:(fun pq (dx, dz) ->
-              let x = x + dx in
-              let z = z + dz in
-              let m = m - 1 in
-              if Grid.Mut.is_within ~x ~z moisture then
-                let old_m = Grid.Mut.get ~x ~z moisture in
-                if m > old_m then (
-                  Grid.Mut.set ~x ~z m moisture ;
-                  add_to_pq pq ~x ~z ~moisture:m )
-                else pq
-              else pq )
-        in
-        spread_moisture pq ~dit
+        let pq = spread_coord ~x ~z ~m pq in
+        spread_moisture pq
     | None, _pq ->
         ()
   in
-  spread_moisture pq ~dit:0 ; Grid.Poly.of_mut moisture
+  let pq = full_spread_moisture Pq.empty in
+  draw_moisture_mut moisture ;
+  spread_moisture pq ;
+  draw_moisture_mut moisture ;
+  for _ = 1 to 4 do
+    Subdivide_mut.overwrite_subdivide_with_fill
+      ~fill:(fun a b c d -> (a + b + c + d) / 4)
+      moisture
+  done ;
+  Subdivide_mut.subdivide moisture ;
+  Grid.Poly.of_mut moisture
 
 let prepare () =
   let canon = Overlay.Canon.require () in
   let dirt = Dirt_overlay.require () in
   let moisture = prepare_biomes () in
   draw_moisture moisture ;
+  Progress_view.save ~side:canon.side "moisture" ;
   let biomes = Grid.make ~side:canon.side (Shore Sand) in
   let biome_obstacles =
     Overlay.Canon.Obstacles.zip_map dirt biomes ~f:get_obstacle
