@@ -92,7 +92,7 @@ let initial_moisture_at ~mx ~mz base =
         | River.Tile.{ocean= true; river= _; elevation= _} ->
             100
         | {ocean= false; river= true; elevation= _} ->
-            10
+            55
         | {ocean= false; river= false; elevation= _} ->
             0
       in
@@ -117,7 +117,7 @@ let wind_direction_at ~mx ~mz =
   ignore mx ;
   if mz / 16 mod 2 = 0 then east_wind else west_wind
 
-let draw_moisture_mut moisture =
+(* let draw_moisture_mut moisture =
   let draw_dense () x z =
     let mx = x / scale_factor in
     let mz = z / scale_factor in
@@ -128,7 +128,7 @@ let draw_moisture_mut moisture =
     else None
   in
   let l = Progress_view.push_layer () in
-  Progress_view.update ~draw_dense ~state:() l
+  Progress_view.update ~draw_dense ~state:() l *)
 
 let draw_moisture moisture =
   let draw_dense () x z =
@@ -141,7 +141,25 @@ let draw_moisture moisture =
   let l = Progress_view.push_layer () in
   Progress_view.update ~draw_dense ~state:() l
 
-let prepare_biomes () =
+let lookup_whittman ~moisture ~temperature ~elevation =
+  if elevation > 100 then
+    match (moisture > 50, temperature > 35) with
+    | true, true ->
+        High Pine_forest
+    | true, false ->
+        High Snow
+    | false, _ ->
+        High Barren
+  else
+    match (moisture > 50, temperature > 35) with
+    | true, _ ->
+        Mid (Forest (random_flower ()))
+    | false, true ->
+        Mid (Desert (random_cactus ()))
+    | false, false ->
+        Mid (Plain (random_flower ()))
+
+let prepare_moisture () =
   let canon = Overlay.Canon.require () in
   let base, _ = Base_overlay.require () in
   let add_to_pq pq ~x ~z ~moisture =
@@ -186,9 +204,9 @@ let prepare_biomes () =
         ()
   in
   let pq = full_spread_moisture Pq.empty in
-  draw_moisture_mut moisture ;
+  (* draw_moisture_mut moisture ; *)
   spread_moisture pq ;
-  draw_moisture_mut moisture ;
+  (* draw_moisture_mut moisture ; *)
   for _ = 1 to 4 do
     Subdivide_mut.overwrite_subdivide_with_fill
       ~fill:(fun a b c d -> (a + b + c + d) / 4)
@@ -200,10 +218,17 @@ let prepare_biomes () =
 let prepare () =
   let canon = Overlay.Canon.require () in
   let dirt = Dirt_overlay.require () in
-  let moisture = prepare_biomes () in
-  draw_moisture moisture ;
-  Progress_view.save ~side:canon.side "moisture" ;
-  let biomes = Grid.make ~side:canon.side (Shore Sand) in
+  let moisture = prepare_moisture () in
+  Tale.block "drawing moisture" ~f:(fun () ->
+      draw_moisture moisture ;
+      Progress_view.save ~side:canon.side "moisture" ) ;
+  let biomes =
+    Grid.init ~side:canon.side (fun (x, z) ->
+        let temperature = temperature_at z in
+        let moisture = Grid.get x z moisture in
+        let elevation = Grid.get x z canon.elevation in
+        lookup_whittman ~moisture ~temperature ~elevation )
+  in
   let biome_obstacles =
     Overlay.Canon.Obstacles.zip_map dirt biomes ~f:get_obstacle
   in
@@ -223,16 +248,16 @@ let colorize (biome, base) =
     let biome_col = colorize_biome biome in
     Color.blend black biome_col frac
 
-let apply_progress_view (_state : t) =
-  (* let base, _ = Base_overlay.require () in
-     let biome, _canon = state in
-     let side = base.Grid.side in
-     let layer = Progress_view.push_layer () in
-     let g = Grid_compat.zip biome base in
-     Progress_view.update ~fit:(0, side, 0, side)
-       ~draw_dense:(Progress_view_helper.dense colorize)
-       ~state:g layer ;
-     Progress_view.save ~side ~format:Images.Png "biome" ; *)
+let apply_progress_view (state : t) =
+  let base, _ = Base_overlay.require () in
+  let biome, _canon = state in
+  let side = base.Grid.side in
+  let layer = Progress_view.push_layer () in
+  let g = Grid_compat.zip biome base in
+  Progress_view.update ~fit:(0, side, 0, side)
+    ~draw_dense:(Progress_view_helper.dense colorize)
+    ~state:g layer ;
+  Progress_view.save ~side ~format:Images.Png "biome" ;
   ()
 
 (** overwrite_stone_air only sets the block if it is Stone or Air, to avoid overwriting rivers etc. *)
