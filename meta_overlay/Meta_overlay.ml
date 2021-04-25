@@ -11,7 +11,7 @@ let overlay = Overlay.make_overlay "meta" bin_reader_t bin_writer_t
 
 let wall_thickness = 2
 
-let wall_y = 140
+let wall_y = 69
 
 let prepare () = No_state
 

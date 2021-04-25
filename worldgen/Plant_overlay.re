@@ -42,9 +42,15 @@ let apply_trees =
 
 let is_opaque_or_water = b => Minecraft.Block.(is_wet(b) || is_opaque(b));
 
+let should_add_snow_despite_obstacle: Minecraft.Block.material => bool =
+  fun
+  | Dirt
+  | Grass => true
+  | _ => false;
+
 let apply_ground_cover =
     (biomes: Grid.t(Biome_overlay.biome), region: Minecraft.Region.t) => {
-  let region = region;
+  let canon = Overlay.Canon.require();
   /* Change dirt => grass and add snow */
   Minecraft_converter.iter_blocks(
     region,
@@ -55,12 +61,17 @@ let apply_ground_cover =
           highest_such_block(region, ~x, ~z, is_opaque_or_water),
           ~default=0,
         );
+      let can_build =
+        Overlay.Canon.can_build_on(Grid.get(x, z, canon.obstacles));
       let top = get_block(region, ~x, ~y, ~z);
       let biome = Grid_compat.at(biomes, x, z);
       switch (biome, top) {
       | (Mid(Plain(_) | Forest(_)) | High(Pine_forest), Dirt) =>
         set_block(~x, ~y, ~z, Grass_block, region)
-      | (High(Snow), _) => set_block(~x, ~y=y + 1, ~z, Snow, region)
+      | (High(Snow), _) =>
+        if (can_build || should_add_snow_despite_obstacle(top)) {
+          set_block(~x, ~y=y + 1, ~z, Snow, region);
+        }
       | (_, _) => ()
       };
     },
