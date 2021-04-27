@@ -202,6 +202,12 @@ let entity_nbt = (entity: Entity.t) => {
   );
 };
 
+let chunk_biomes = (~cx, ~cz, r) => {
+  open Core_kernel;
+  let ids = Region.biomes_in_xzy_order(~cx, ~cz, r) |> List.map(~f=Biome.id);
+  Nbt.Node.Int_array(ids);
+};
+
 let chunk_nbt = (~cx, ~cz, r) => {
   /* Save all non-empty sections */
   let (sections_nbt, sections_ents) =
@@ -216,6 +222,8 @@ let chunk_nbt = (~cx, ~cz, r) => {
 
   let entities_nbt = entities_in_chunk(~cx, ~cz, r) |> List.map(entity_nbt);
 
+  let biomes = chunk_biomes(~cx, ~cz, r);
+
   let heightmap = chunk_heightmap(~cx, ~cz, r);
   let global_cx = r.rx * Region.chunk_per_region_side + cx;
   let global_cz = r.rz * Region.chunk_per_region_side + cz;
@@ -224,6 +232,7 @@ let chunk_nbt = (~cx, ~cz, r) => {
     >: Compound([
          "Level"
          >: Compound([
+              "Biomes" >: biomes,
               "Sections" >: List(sections_nbt),
               "xPos" >: Int(global_cx |> Int32.of_int),
               "zPos" >: Int(global_cz |> Int32.of_int),
