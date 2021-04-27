@@ -39,6 +39,7 @@ let section_per_region_volume =
 
 let block_per_biome_side = 4;
 let biome_per_chunk_side = 4;
+let biome_per_chunk_vertical = block_per_chunk_vertical / block_per_biome_side;
 let biome_per_chunk_volume = 1024;
 let biome_per_region_side = biome_per_chunk_side * chunk_per_region_side;
 
@@ -49,7 +50,7 @@ let create = (~rx, ~rz) => {
     );
   let biomes =
     Array.init(chunk_per_region_side * chunk_per_region_side, ~f=_i =>
-      Array.create(~len=biome_per_chunk_volume, Biome.Plains)
+      Array.create(~len=biome_per_chunk_volume, Biome.Forest)
     );
   {rx, rz, sections, entities: [], biomes};
 };
@@ -59,7 +60,7 @@ let reset = (~rx, ~rz, r) => {
     Array.fill(s, ~pos=0, ~len=Array.length(s), Block.Air)
   });
   Array.iter(r.biomes, ~f=c =>
-    Array.fill(c, ~pos=0, ~len=Array.length(c), Biome.Plains)
+    Array.fill(c, ~pos=0, ~len=Array.length(c), Biome.Forest)
   );
   r.rx = rx;
   r.rz = rz;
@@ -135,9 +136,9 @@ let chunk_i_of_l = (~lx, ~lz) => {
 
 /** converts a local coord to an index within a biome chunk */
 let biome_i_of_l = (~lx, ~ly, ~lz) => {
-  let bmx = lx / block_per_biome_side % biome_per_chunk_side;
+  let bmx = lx % block_per_chunk_side / block_per_biome_side;
   let bmy = ly / block_per_biome_side;
-  let bmz = lz / block_per_biome_side % biome_per_chunk_side;
+  let bmz = lz % block_per_chunk_side / block_per_biome_side;
   bmy
   * biome_per_chunk_side
   * biome_per_chunk_side
@@ -231,7 +232,7 @@ let set_biome = (~x, ~y, ~z, biome, r) => {
 /** sets the full vertical column of biomes containing the given block */
 let set_biome_column = (~x, ~z, biome, r) => {
   assert_within(~x, ~y=0, ~z, r);
-  for (y in 0 to block_per_section_vertical) {
+  for (y in 0 to block_per_region_vertical - 1) {
     set_biome(~x, ~y, ~z, biome, r);
   };
 };

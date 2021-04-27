@@ -3,6 +3,32 @@ include Biome_overlay_i
 
 let scale_factor = 8
 
+let to_minecraft_biome = function
+  | Mid (Plain _) ->
+      Minecraft.Biome.Plains
+  | Mid (Forest _) ->
+      Minecraft.Biome.Forest
+  | Mid (Desert _) ->
+      (* TODO *)
+      Minecraft.Biome.Plains
+  | High Pine_forest ->
+      (* TODO *)
+      Minecraft.Biome.Forest
+  | High Barren ->
+      (* TODO *)
+      Minecraft.Biome.Plains
+  | High Snow ->
+      Minecraft.Biome.Snowy_tundra
+  | Shore Sand ->
+      (* TODO *)
+      Minecraft.Biome.Plains
+  | Shore Gravel ->
+      (* TODO *)
+      Minecraft.Biome.Plains
+  | Shore Clay ->
+      (* TODO *)
+      Minecraft.Biome.Plains
+
 let colorize_biome = function
   | Mid (Plain _) ->
       0x86A34D
@@ -275,14 +301,15 @@ let overwrite_stone_air region x y z block =
     " overwrite_stone_air only sets the block if it is Stone or Air, to avoid \
      overwriting rivers etc. "]
 
-let apply_dirt (dirt : int Grid_compat.t) (state, _canon)
-    (region : Minecraft.Region.t) =
-  let region = region in
+let apply (state, _canon) (region : Minecraft.Region.t) =
+  let dirt = Dirt_overlay.require () in
   Minecraft_converter.iter_blocks region (fun ~x ~z ->
       let open Minecraft.Region in
+      let biome = Grid.get x z state in
+      set_biome_column ~x ~z (to_minecraft_biome biome) region ;
       let elev = height_at ~x ~z region in
       let dirt_depth = Grid_compat.at dirt x z in
-      match Grid_compat.at state x z with
+      match biome with
       | Mid (Plain _ | Forest _) | High Pine_forest ->
           (* Dirt (will become grass in Plant_overlay) *)
           for y = elev - dirt_depth + 1 to elev do
@@ -323,10 +350,6 @@ let apply_dirt (dirt : int Grid_compat.t) (state, _canon)
             overwrite_stone_air region x y z material
           done )
 
-let apply_region state (region : Minecraft.Region.t) =
-  let dirt = Dirt_overlay.require () in
-  apply_dirt dirt state region
-
 let require, prepare, apply =
-  Overlay.make_lifecycle ~prepare ~after_prepare:apply_progress_view
-    ~apply:apply_region overlay
+  Overlay.make_lifecycle ~prepare ~after_prepare:apply_progress_view ~apply
+    overlay
