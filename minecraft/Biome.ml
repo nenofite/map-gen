@@ -1,5 +1,33 @@
 open! Core_kernel
 
-type t = Plains | Forest | Snowy_tundra [@@deriving eq, ord, bin_io]
+type t =
+  | Plains
+  | Desert
+  | Mountains
+  | Forest
+  | River
+  | Snowy_tundra
+  | Beach
+  | Stone_shore
+  | Wooded_mountains
+[@@deriving eq, ord, bin_io]
 
-let id = function Plains -> 1l | Forest -> 4l | Snowy_tundra -> 12l
+let id = function
+  | Plains ->
+      1l
+  | Desert ->
+      2l
+  | Mountains ->
+      3l
+  | Forest ->
+      4l
+  | River ->
+      7l
+  | Snowy_tundra ->
+      12l
+  | Beach ->
+      16l
+  | Stone_shore ->
+      25l
+  | Wooded_mountains ->
+      34l

@@ -9,25 +9,20 @@ let to_minecraft_biome = function
   | Mid (Forest _) ->
       Minecraft.Biome.Forest
   | Mid (Desert _) ->
-      (* TODO *)
-      Minecraft.Biome.Plains
+      Minecraft.Biome.Desert
   | High Pine_forest ->
-      (* TODO *)
-      Minecraft.Biome.Forest
+      Minecraft.Biome.Wooded_mountains
   | High Barren ->
-      (* TODO *)
-      Minecraft.Biome.Plains
+      Minecraft.Biome.Mountains
   | High Snow ->
       Minecraft.Biome.Snowy_tundra
   | Shore Sand ->
-      (* TODO *)
-      Minecraft.Biome.Plains
+      Minecraft.Biome.Beach
   | Shore Gravel ->
-      (* TODO *)
-      Minecraft.Biome.Plains
+      Minecraft.Biome.Stone_shore
   | Shore Clay ->
-      (* TODO *)
-      Minecraft.Biome.Plains
+      (* TODO sort of a weird choice *)
+      Minecraft.Biome.River
 
 let colorize_biome = function
   | Mid (Plain _) ->
