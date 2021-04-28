@@ -236,6 +236,8 @@ let nearest = (cloud, x, y) => {
   closest_point.value;
 };
 
+let nearest_int = (cloud, x, y) => nearest(cloud, float(x), float(y));
+
 /**
   interpolate finds the two closest points and returns an interpolation based
   on the relative distance to each.

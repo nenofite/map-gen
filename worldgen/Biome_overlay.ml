@@ -168,7 +168,24 @@ let draw_moisture moisture =
   let l = Progress_view.push_layer () in
   Progress_view.update ~draw_dense ~state:() l
 
-let lookup_whittman ~mountain_threshold ~moisture ~temperature ~elevation =
+let prepare_flowers () =
+  let side = (Overlay.Canon.require ()).side in
+  let coarse =
+    Point_cloud.init ~side ~spacing:512 (fun _ _ -> random_flower ())
+  in
+  Point_cloud.init ~side ~spacing:64 (fun x z ->
+      Point_cloud.nearest_int coarse x z )
+
+let prepare_cacti () =
+  let side = (Overlay.Canon.require ()).side in
+  let coarse =
+    Point_cloud.init ~side ~spacing:512 (fun _ _ -> random_cactus ())
+  in
+  Point_cloud.init ~side ~spacing:64 (fun x z ->
+      Point_cloud.nearest_int coarse x z )
+
+let lookup_whittman ~mountain_threshold ~flower ~cactus ~moisture ~temperature
+    ~elevation =
   if elevation > mountain_threshold then
     match (moisture > 50, temperature > 35) with
     | true, true ->
@@ -180,11 +197,11 @@ let lookup_whittman ~mountain_threshold ~moisture ~temperature ~elevation =
   else
     match (moisture > 50, temperature > 35) with
     | true, _ ->
-        Mid (Forest (random_flower ()))
+        Mid (Forest flower)
     | false, true ->
-        Mid (Desert (random_cactus ()))
+        Mid (Desert cactus)
     | false, false ->
-        Mid (Plain (random_flower ()))
+        Mid (Plain flower)
 
 let prepare_moisture () =
   let canon = Overlay.Canon.require () in
@@ -265,6 +282,8 @@ let prepare () =
       draw_moisture moisture ;
       Progress_view.save ~side:canon.side "moisture" ) ;
   let biomes =
+    let flowers = prepare_flowers () in
+    let cacti = prepare_cacti () in
     Grid.init ~side:canon.side (fun (x, z) ->
         let b = Minecraft.Region.block_per_biome_side in
         let x = x / b * b in
@@ -273,7 +292,10 @@ let prepare () =
         let moisture = Grid.get x z moisture in
         let elevation = Grid.get x z canon.elevation in
         let mountain_threshold = mountain_threshold_at ~x ~z dirt in
-        lookup_whittman ~mountain_threshold ~moisture ~temperature ~elevation )
+        let flower = Point_cloud.nearest_int flowers x z in
+        let cactus = Point_cloud.nearest_int cacti x z in
+        lookup_whittman ~mountain_threshold ~moisture ~temperature ~elevation
+          ~flower ~cactus )
   in
   let biome_obstacles =
     Overlay.Canon.Obstacles.zip_map dirt biomes ~f:get_obstacle
