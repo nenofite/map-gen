@@ -93,9 +93,12 @@ let get_obstacle dirt biome =
 
 let temperature_at ~x ~z =
   let side = (Overlay.Canon.require ()).side in
-  let dirt = Dirt_overlay.require () in
+  let offset =
+    Float.(Perlin.at ~x:(of_int x / 256.) ~y:0. ~z:(of_int z / 256.) * 10.)
+    |> Int.of_float
+  in
   (* range 0 to 50 degrees Celsius *)
-  (z * 50 / side) + (Grid.get x z dirt / 2)
+  (z * 50 / side) + offset
 
 let fold_scale_factor ~mx ~mz ~init ~f =
   Range.fold (mz * scale_factor)
@@ -231,12 +234,13 @@ let prepare_moisture () =
   (* draw_moisture_mut moisture ; *)
   spread_moisture pq ;
   (* draw_moisture_mut moisture ; *)
-  for _ = 1 to 2 do
+  for _ = 1 to 1 do
     Subdivide_mut.overwrite_subdivide_with_fill
       ~fill:(fun a b c d -> (a + b + c + d) / 4)
       moisture
   done ;
   Subdivide_mut.subdivide moisture ;
+  Subdivide_mut.magnify moisture ;
   Grid.Poly.of_mut moisture
 
 let prepare () =
@@ -248,6 +252,9 @@ let prepare () =
       Progress_view.save ~side:canon.side "moisture" ) ;
   let biomes =
     Grid.init ~side:canon.side (fun (x, z) ->
+        let b = Minecraft.Region.block_per_biome_side in
+        let x = x / b * b in
+        let z = z / b * b in
         let temperature = temperature_at ~x ~z in
         let moisture = Grid.get x z moisture in
         let elevation = Grid.get x z canon.elevation in
