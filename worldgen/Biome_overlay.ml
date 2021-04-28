@@ -230,10 +230,24 @@ let prepare_moisture () =
     | None, _pq ->
         ()
   in
+  let blur_moisture () =
+    for z = 0 to mside - 1 do
+      for x = 0 to mside - 1 do
+        let nw = Grid.Mut.get_wrap ~x:(x - 1) ~z:(z - 1) moisture in
+        let ne = Grid.Mut.get_wrap ~x:(x + 1) ~z:(z - 1) moisture in
+        let sw = Grid.Mut.get_wrap ~x:(x - 1) ~z:(z + 1) moisture in
+        let se = Grid.Mut.get_wrap ~x:(x + 1) ~z:(z + 1) moisture in
+        let here = Grid.Mut.get ~x ~z moisture in
+        Grid.Mut.set ~x ~z ((nw + ne + sw + se + here) / 5) moisture ;
+        ()
+      done
+    done
+  in
   let pq = full_spread_moisture Pq.empty in
-  (* draw_moisture_mut moisture ; *)
   spread_moisture pq ;
-  (* draw_moisture_mut moisture ; *)
+  for _ = 1 to 3 do
+    blur_moisture ()
+  done ;
   for _ = 1 to 1 do
     Subdivide_mut.overwrite_subdivide_with_fill
       ~fill:(fun a b c d -> (a + b + c + d) / 4)
