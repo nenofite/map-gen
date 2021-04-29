@@ -275,9 +275,6 @@ let prepare () =
     let flowers = prepare_flowers () in
     let cacti = prepare_cacti () in
     Grid.init ~side:canon.side (fun (x, z) ->
-        let b = Minecraft.Region.block_per_biome_side in
-        let x = x / b * b in
-        let z = z / b * b in
         let temperature = temperature_at ~x ~z in
         let moisture = Grid.get x z moisture in
         let elevation = Grid.get x z canon.elevation in
