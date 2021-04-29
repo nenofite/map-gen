@@ -261,12 +261,11 @@ let apply_tallgrass =
     if (value) {
       let x = int_of_float(x) + rx;
       let z = int_of_float(z) + rz;
+      let y = Minecraft.Region.height_at(region, ~x, ~z);
+      let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
+      let block_above = Minecraft.Region.get_block(region, ~x, ~y=y + 1, ~z);
       switch (Grid_compat.at(biomes, x, z)) {
       | Mid(Forest(_) | Plain(_) | Savanna) =>
-        let y = Minecraft.Region.height_at(region, ~x, ~z);
-        let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
-        let block_above =
-          Minecraft.Region.get_block(region, ~x, ~y=y + 1, ~z);
         switch (block, block_above) {
         | (Grass_block, Air) =>
           Minecraft.Region.set_block(
@@ -277,13 +276,23 @@ let apply_tallgrass =
             region,
           )
         | _ => ()
-        };
+        }
+      | High(Pine_forest) =>
+        if (Random.int(100) < 20) {
+          switch (block, block_above) {
+          | (Grass_block, Air) =>
+            Minecraft.Region.set_block(
+              ~x,
+              ~y=y + 1,
+              ~z,
+              Minecraft.Block.Grass,
+              region,
+            )
+          | _ => ()
+          };
+        }
       | Mid(Desert(_)) =>
         if (Random.int(100) < 1) {
-          let y = Minecraft.Region.height_at(region, ~x, ~z);
-          let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
-          let block_above =
-            Minecraft.Region.get_block(region, ~x, ~y=y + 1, ~z);
           switch (block, block_above) {
           | (Sand, Air) =>
             Minecraft.Region.set_block(
@@ -296,7 +305,6 @@ let apply_tallgrass =
           | _ => ()
           };
         }
-      | High(Pine_forest) => () /* TODO should pine forests have tallgrass? */
       | High(Barren | Snow)
       | Shore(_) => ()
       };
