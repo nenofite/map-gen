@@ -279,7 +279,7 @@ let apply_tallgrass =
         | _ => ()
         };
       | Mid(Desert(_)) =>
-        if (Random.int(100) < 10) {
+        if (Random.int(100) < 1) {
           let y = Minecraft.Region.height_at(region, ~x, ~z);
           let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
           let block_above =
