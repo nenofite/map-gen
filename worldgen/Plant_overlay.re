@@ -25,7 +25,7 @@ let apply_trees =
         switch (block) {
         | Grass_block =>
           Minecraft_template.place(
-            Tree_template.random_tree(),
+            Oak_tree.random_tree(),
             region,
             ~x,
             ~y=y + 1,

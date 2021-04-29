@@ -18,7 +18,8 @@ let trunk ~with_bees ~height =
   let height_before_bees = if with_bees then height - 1 else height in
   let log_before_bees =
     Minecraft_template.of_blocks
-    @@ Range.map 0 (height_before_bees - 1) (fun y -> (0, y, 0, Oak_log Y))
+    @@ Mg_util.Range.map 0 (height_before_bees - 1) (fun y ->
+           (0, y, 0, Oak_log Y) )
   in
   (* TODO put bee nest on random side; vary amount of bees *)
   let log_with_bees =
@@ -29,13 +30,13 @@ let trunk ~with_bees ~height =
 
 let wide_leaves ~height =
   let layer ls y =
-    Range.fold (-2) 2 ls (fun ls z ->
-        Range.fold (-2) 2 ls (fun ls x ->
+    Mg_util.Range.fold (-2) 2 ls (fun ls z ->
+        Mg_util.Range.fold (-2) 2 ls (fun ls x ->
             ( if x = 0 && z = 0 then (x, y, z, Oak_log Y)
             else (x, y, z, Oak_leaves) )
             :: ls ) )
   in
-  let blocks = Range.fold 0 (height - 1) [] layer in
+  let blocks = Mg_util.Range.fold 0 (height - 1) [] layer in
   Minecraft_template.of_blocks blocks
 
 let top =
