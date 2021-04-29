@@ -80,6 +80,8 @@ let random_flower () =
   in
   {block; percentage= Random.int_incl 10 100}
 
+let no_flower = {block= Dandelion; percentage= 0}
+
 let random_cactus () = {percentage= Random.int_incl 10 100}
 
 let random_shore () =
@@ -177,20 +179,31 @@ let prepare_cacti () =
 
 let lookup_whittman ~mountain_threshold ~flower ~cactus ~moisture ~temperature
     ~elevation =
-  if elevation > mountain_threshold then
-    match (moisture > 50, temperature > 35) with
-    | true, true ->
-        High Pine_forest
-    | true, false ->
-        High Snow
-    | false, _ ->
-        High Barren
-  else if temperature > 35 then
-    if moisture > 50 then Mid (Forest flower)
-    else if moisture > 20 then Mid Savanna
-    else Mid (Desert cactus)
-  else if moisture > 50 then Mid (Forest flower)
-  else Mid (Plain flower)
+  let e = elevation in
+  let t = temperature in
+  let m = moisture in
+  let mt = mountain_threshold in
+  match () with
+  | () when e > mt && m > 50 ->
+      High Snow
+  | () when e > mt - 10 && t > 20 && m > 50 ->
+      High Pine_forest
+  | () when e > mt - 10 && m > 50 ->
+      High Snow
+  | () when e > mt ->
+      High Barren
+  | () when t > 35 && m > 50 ->
+      Mid (Forest flower)
+  | () when t > 35 && m > 20 ->
+      Mid Savanna
+  | () when t > 35 ->
+      Mid (Desert cactus)
+  | () when m > 50 ->
+      Mid (Forest flower)
+  | () when m > 10 ->
+      Mid (Plain flower)
+  | () ->
+      Mid (Plain no_flower)
 
 let prepare_moisture () =
   let canon = Overlay.Canon.require () in
