@@ -10,6 +10,8 @@ let to_minecraft_biome = function
       Minecraft.Biome.Forest
   | Mid (Desert _) ->
       Minecraft.Biome.Desert
+  | Mid Savanna ->
+      Minecraft.Biome.Savanna
   | High Pine_forest ->
       Minecraft.Biome.Wooded_mountains
   | High Barren ->
@@ -31,6 +33,8 @@ let colorize_biome = function
       0x388824
   | Mid (Desert _) ->
       0xD9D0A1
+  | Mid Savanna ->
+      0x808000
   | High Pine_forest ->
       0x286519
   | High Barren ->
@@ -144,19 +148,6 @@ let wind_direction_at ~mx ~mz =
 
 let mountain_threshold_at ~x ~z dirt = 100 + Grid.get x z dirt
 
-(* let draw_moisture_mut moisture =
-  let draw_dense () x z =
-    let mx = x / scale_factor in
-    let mz = z / scale_factor in
-    if Grid.Mut.is_within ~x:mx ~z:mz moisture then
-      let here = Grid.Mut.get ~x:mx ~z:mz moisture in
-      let g = here * 255 / 100 in
-      Some (g, g, g)
-    else None
-  in
-  let l = Progress_view.push_layer () in
-  Progress_view.update ~draw_dense ~state:() l *)
-
 let draw_moisture moisture =
   let draw_dense () x z =
     if Grid.is_within x z moisture then
@@ -194,14 +185,12 @@ let lookup_whittman ~mountain_threshold ~flower ~cactus ~moisture ~temperature
         High Snow
     | false, _ ->
         High Barren
-  else
-    match (moisture > 50, temperature > 35) with
-    | true, _ ->
-        Mid (Forest flower)
-    | false, true ->
-        Mid (Desert cactus)
-    | false, false ->
-        Mid (Plain flower)
+  else if temperature > 35 then
+    if moisture > 50 then Mid (Forest flower)
+    else if moisture > 20 then Mid Savanna
+    else Mid (Desert cactus)
+  else if moisture > 50 then Mid (Forest flower)
+  else Mid (Plain flower)
 
 let prepare_moisture () =
   let canon = Overlay.Canon.require () in
@@ -247,24 +236,21 @@ let prepare_moisture () =
     | None, _pq ->
         ()
   in
-  let blur_moisture () =
-    for z = 0 to mside - 1 do
-      for x = 0 to mside - 1 do
-        let nw = Grid.Mut.get_wrap ~x:(x - 1) ~z:(z - 1) moisture in
-        let ne = Grid.Mut.get_wrap ~x:(x + 1) ~z:(z - 1) moisture in
-        let sw = Grid.Mut.get_wrap ~x:(x - 1) ~z:(z + 1) moisture in
-        let se = Grid.Mut.get_wrap ~x:(x + 1) ~z:(z + 1) moisture in
-        let here = Grid.Mut.get ~x ~z moisture in
-        Grid.Mut.set ~x ~z ((nw + ne + sw + se + here) / 5) moisture ;
-        ()
-      done
-    done
-  in
+  (* let blur_moisture () =
+       for z = 0 to mside - 1 do
+         for x = 0 to mside - 1 do
+           let nw = Grid.Mut.get_wrap ~x:(x - 1) ~z:(z - 1) moisture in
+           let ne = Grid.Mut.get_wrap ~x:(x + 1) ~z:(z - 1) moisture in
+           let sw = Grid.Mut.get_wrap ~x:(x - 1) ~z:(z + 1) moisture in
+           let se = Grid.Mut.get_wrap ~x:(x + 1) ~z:(z + 1) moisture in
+           let here = Grid.Mut.get ~x ~z moisture in
+           Grid.Mut.set ~x ~z ((nw + ne + sw + se + here) / 5) moisture ;
+           ()
+         done
+       done
+     in *)
   let pq = full_spread_moisture Pq.empty in
   spread_moisture pq ;
-  for _ = 1 to 3 do
-    blur_moisture ()
-  done ;
   for _ = 1 to 1 do
     Subdivide_mut.overwrite_subdivide_with_fill
       ~fill:(fun a b c d -> (a + b + c + d) / 4)
@@ -272,7 +258,11 @@ let prepare_moisture () =
   done ;
   Subdivide_mut.subdivide moisture ;
   Subdivide_mut.magnify moisture ;
-  Grid.Poly.of_mut moisture
+  let p =
+    Point_cloud.init ~side:canon.side ~spacing:32 (fun x z ->
+        Grid.Mut.get ~x ~z moisture )
+  in
+  Grid.Int.init ~side:canon.side (fun (x, z) -> Point_cloud.nearest_int p x z)
 
 let prepare () =
   let canon = Overlay.Canon.require () in
@@ -348,7 +338,7 @@ let apply (state, _canon) (region : Minecraft.Region.t) =
       let elev = height_at ~x ~z region in
       let dirt_depth = Grid_compat.at dirt x z in
       match biome with
-      | Mid (Plain _ | Forest _) | High Pine_forest ->
+      | Mid (Plain _ | Forest _ | Savanna) | High Pine_forest ->
           (* Dirt (will become grass in Plant_overlay) *)
           for y = elev - dirt_depth + 1 to elev do
             overwrite_stone_air region x y z Dirt

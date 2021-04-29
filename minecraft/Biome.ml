@@ -10,6 +10,7 @@ type t =
   | Beach
   | Stone_shore
   | Wooded_mountains
+  | Savanna
 [@@deriving eq, ord, bin_io]
 
 let id = function
@@ -31,3 +32,5 @@ let id = function
       25l
   | Wooded_mountains ->
       34l
+  | Savanna ->
+      35l

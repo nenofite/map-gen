@@ -5,7 +5,11 @@ type flower = {block: Minecraft.Block.material; percentage: int}
 
 type cactus = {percentage: int} [@@deriving eq, bin_io]
 
-type mid_biome = Plain of flower | Forest of flower | Desert of cactus
+type mid_biome =
+  | Plain of flower
+  | Forest of flower
+  | Desert of cactus
+  | Savanna
 [@@deriving eq, bin_io]
 
 type shore_biome = Sand | Gravel | Clay [@@deriving eq, bin_io]

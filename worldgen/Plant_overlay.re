@@ -34,7 +34,10 @@ let apply_trees =
           |> ignore
         | _ => ()
         };
-      | _ => ()
+      | High(Pine_forest) => () /*TODO*/
+      | High(Barren | Snow)
+      | Mid(Desert(_) | Plain(_) | Savanna)
+      | Shore(_) => ()
       };
     }
   );
@@ -65,14 +68,20 @@ let apply_ground_cover =
         Overlay.Canon.can_build_on(Grid.get(x, z, canon.obstacles));
       let top = get_block(region, ~x, ~y, ~z);
       let biome = Grid_compat.at(biomes, x, z);
-      switch (biome, top) {
-      | (Mid(Plain(_) | Forest(_)) | High(Pine_forest), Dirt) =>
-        set_block(~x, ~y, ~z, Grass_block, region)
-      | (High(Snow), _) =>
+      switch (biome) {
+      | Mid(Plain(_) | Forest(_) | Savanna)
+      | High(Pine_forest) =>
+        switch (top) {
+        | Dirt => set_block(~x, ~y, ~z, Grass_block, region)
+        | _ => ()
+        }
+      | High(Snow) =>
         if (can_build || should_add_snow_despite_obstacle(top)) {
           set_block(~x, ~y=y + 1, ~z, Snow, region);
         }
-      | (_, _) => ()
+      | High(Barren)
+      | Mid(Desert(_))
+      | Shore(_) => ()
       };
     },
   );
