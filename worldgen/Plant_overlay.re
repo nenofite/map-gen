@@ -18,10 +18,10 @@ let apply_trees =
     if (value) {
       let x = int_of_float(x) + rx;
       let z = int_of_float(z) + rz;
+      let y = Minecraft.Region.height_at(region, ~x, ~z);
+      let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
       switch (Grid_compat.at(biomes, x, z)) {
       | Mid(Forest(_)) =>
-        let y = Minecraft.Region.height_at(region, ~x, ~z);
-        let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
         switch (block) {
         | Grass_block =>
           Minecraft_template.place(
@@ -33,8 +33,20 @@ let apply_trees =
           )
           |> ignore
         | _ => ()
-        };
-      | High(Pine_forest) => () /*TODO*/
+        }
+      | High(Pine_forest) =>
+        switch (block) {
+        | Grass_block =>
+          Minecraft_template.place(
+            Spruce_tree.random_tree(),
+            region,
+            ~x,
+            ~y=y + 1,
+            ~z,
+          )
+          |> ignore
+        | _ => ()
+        }
       | High(Barren | Snow)
       | Mid(Desert(_) | Plain(_) | Savanna)
       | Shore(_) => ()

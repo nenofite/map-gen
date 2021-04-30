@@ -348,9 +348,9 @@ let create_house = (house: Town_prototype.house, region: Minecraft.Region.t) => 
   let floor_material = Oak_planks;
   let lower_edge_material = Cobblestone;
   let wall_material = Oak_planks;
-  let wall_post_material = Oak_log(Y);
-  let wall_ns_beam_material = Oak_log(Z);
-  let wall_ew_beam_material = Oak_log(X);
+  let wall_post_material = Log(Oak_log, Y);
+  let wall_ns_beam_material = Log(Oak_log, Z);
+  let wall_ew_beam_material = Log(Oak_log, X);
   let ceiling_material = Oak_planks;
 
   let Town_prototype.{
