@@ -290,6 +290,17 @@ let subdivide = (cloud, ~spacing) => {
   init(~side=cloud.side, ~spacing, (x, z) => nearest_int(cloud, x, z));
 };
 
+let subdivide4 = (cloud, ~spacing, ~f) => {
+  let fn = (x, z) => {
+    switch (n_closest_points(~n=4, cloud, float(x), float(z))) {
+    | [(_, a), (_, b), (_, c), (_, d)] =>
+      f(~x, ~z, a.value, b.value, c.value, d.value)
+    | _ => failwith("should be 4 points")
+    };
+  };
+  init(~side=cloud.side, ~spacing, fn);
+};
+
 let scale = (cloud, ~s) => {
   let {side, spacing, points} = cloud;
   let new_side = side * s;
