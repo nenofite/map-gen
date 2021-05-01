@@ -148,7 +148,7 @@ let wind_direction_at ~mx ~mz =
   ignore mx ;
   if mz * scale_factor / 512 mod 2 = 0 then east_wind else west_wind
 
-let mountain_threshold_at ~x ~z dirt = 100 + Grid.get x z dirt
+let mountain_threshold_at ~x ~z dirt = 90 + Grid.get x z dirt
 
 let draw_moisture moisture =
   let draw_dense () x z =
