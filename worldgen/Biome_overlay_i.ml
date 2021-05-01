@@ -19,13 +19,9 @@ type high_biome = Pine_forest | Barren | Snow [@@deriving eq, bin_io]
 type biome = Mid of mid_biome | Shore of shore_biome | High of high_biome
 [@@deriving eq, bin_io]
 
-type t = biome Grid.t * Overlay.Canon.delta [@@deriving bin_io]
+type t' = biome Point_cloud.t [@@deriving bin_io]
 
-module Biome_grid = Grid.Make0 (struct
-  type t = biome
-
-  let ( = ) = equal_biome
-end)
+type t = t' * Overlay.Canon.delta [@@deriving bin_io]
 
 module Pq = Priority_queue.Int
 

@@ -26,6 +26,8 @@ let to_minecraft_biome = function
       (* TODO sort of a weird choice *)
       Minecraft.Biome.River
 
+let biome_at ~x ~z biomes = Point_cloud.nearest_int biomes x z
+
 let colorize_biome = function
   | Mid (Plain _) ->
       0x86A34D
@@ -152,8 +154,8 @@ let mountain_threshold_at ~x ~z dirt = 90 + Grid.get x z dirt
 
 let draw_moisture moisture =
   let draw_dense () x z =
-    if Grid.is_within x z moisture then
-      let here = Grid.get x z moisture in
+    if Grid.is_within_side ~x ~y:z (Point_cloud.side moisture) then
+      let here = Point_cloud.nearest_int moisture x z in
       let g = here * 255 / 100 in
       Some (g, g, g)
     else None
@@ -258,12 +260,9 @@ let prepare_moisture () =
   done ;
   Subdivide_mut.subdivide moisture ;
   Subdivide_mut.magnify moisture ;
-  let p =
-    Point_cloud.init ~side:canon.side ~spacing:32 (fun x z ->
-        Grid.Mut.get ~x ~z moisture )
-    |> Point_cloud.subdivide ~spacing:8
-  in
-  Grid.Int.init ~side:canon.side (fun (x, z) -> Point_cloud.nearest_int p x z)
+  Point_cloud.init ~side:canon.side ~spacing:32 (fun x z ->
+      Grid.Mut.get ~x ~z moisture )
+  |> Point_cloud.subdivide ~spacing:8
 
 let prepare () =
   let canon = Overlay.Canon.require () in
@@ -275,9 +274,9 @@ let prepare () =
   let biomes =
     let flowers = prepare_flowers () in
     let cacti = prepare_cacti () in
-    Grid.init ~side:canon.side (fun (x, z) ->
+    Point_cloud.init ~side:canon.side ~spacing:8 (fun x z ->
         let temperature = temperature_at ~x ~z in
-        let moisture = Grid.get x z moisture in
+        let moisture = Point_cloud.nearest_int moisture x z in
         let elevation = Grid.get x z canon.elevation in
         let mountain_threshold = mountain_threshold_at ~x ~z dirt in
         let flower = Point_cloud.nearest_int flowers x z in
@@ -286,7 +285,10 @@ let prepare () =
           ~flower ~cactus )
   in
   let biome_obstacles =
-    Overlay.Canon.Obstacles.zip_map dirt biomes ~f:get_obstacle
+    Overlay.Canon.Obstacles.init ~side:(Grid.side dirt) (fun (x, z) ->
+        let here_dirt = Grid.get x z dirt in
+        let here_biome = biome_at ~x ~z biomes in
+        get_obstacle here_dirt here_biome )
   in
   let canond = Overlay.Canon.make_delta ~obstacles:(`Add biome_obstacles) () in
   (biomes, canond)
@@ -309,10 +311,14 @@ let apply_progress_view (state : t) =
   let biome, _canon = state in
   let side = base.Grid.side in
   let layer = Progress_view.push_layer () in
-  let g = Grid_compat.zip biome base in
-  Progress_view.update ~fit:(0, side, 0, side)
-    ~draw_dense:(Progress_view_helper.dense colorize)
-    ~state:g layer ;
+  let draw_dense () x z =
+    if Grid.is_within_side ~x ~y:z side then
+      let here_biome = biome_at ~x ~z biome in
+      let here_base = Grid.get x z base in
+      Some (colorize (here_biome, here_base) |> Color.split_rgb)
+    else None
+  in
+  Progress_view.update ~fit:(0, side, 0, side) ~draw_dense ~state:() layer ;
   Progress_view.save ~side ~format:Images.Png "biome" ;
   ()
 
@@ -331,7 +337,7 @@ let apply (state, _canon) (region : Minecraft.Region.t) =
   let dirt = Dirt_overlay.require () in
   Minecraft_converter.iter_blocks region (fun ~x ~z ->
       let open Minecraft.Region in
-      let biome = Grid.get x z state in
+      let biome = biome_at ~x ~z state in
       set_biome_column ~x ~z (to_minecraft_biome biome) region ;
       let elev = height_at ~x ~z region in
       let dirt_depth = Grid_compat.at dirt x z in

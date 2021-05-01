@@ -102,6 +102,8 @@ let init = (~avoid_edges=?, ~side, ~spacing=?, f) =>
     f(xi, yi)
   );
 
+let side = t => t.side;
+
 let make_list = (~avoid_edges=?, ~side, ~spacing=?, ()) => {
   let cloud = init(~avoid_edges?, ~side, ~spacing?, (_, _) => ());
   Sparse_grid.fold(
