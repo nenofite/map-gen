@@ -170,6 +170,39 @@ let rec closest_point = (~radius=1, cloud, x, y) => {
   };
 };
 
+let rec n_closest_points = (~radius=1, ~n, cloud, x, y) => {
+  /* Convert to cloud x, y */
+  let cx = Float.(x / of_int(cloud.spacing) + 0.5 |> to_int);
+  let cy = Float.(y / of_int(cloud.spacing) + 0.5 |> to_int);
+  /* Compare among the point at cx, cy and its eight neighbors */
+  let neighbors =
+    Mg_util.Range.(
+      fold(cy - radius, cy + radius, [], (ls, iter_cy) =>
+        fold(cx - radius, cx + radius, ls, (ls, iter_cx) =>
+          switch (Sparse_grid.at(cloud.points, iter_cx, iter_cy)) {
+          | Some(n) => [n, ...ls]
+          | None => ls
+          }
+        )
+      )
+    );
+  if (List.length(neighbors) >= n) {
+    List.map(neighbors, ~f=point =>
+      (distance2(point.px, point.py, x, y), point)
+    )
+    |> List.sort(~compare=((ad, _), (bd, _)) => Float.compare(ad, bd))
+    |> List.take(_, n)
+    |> List.map(~f=((d, p)) => (sqrt(d), p));
+  } else {
+    let next_radius = radius * 2;
+    if (next_radius <= cloud.side) {
+      n_closest_points(~radius=next_radius, ~n, cloud, x, y);
+    } else {
+      failwithf("could not find closest point for (%f, %f)", x, y, ());
+    };
+  };
+};
+
 let rec two_closest_points = (~radius=1, cloud, x, y) => {
   /* Convert to cloud x, y */
   let cx = Float.(x / of_int(cloud.spacing) + 0.5 |> to_int);
@@ -255,4 +288,16 @@ let interpolate = (cloud, x, y) => {
   */
 let subdivide = (cloud, ~spacing) => {
   init(~side=cloud.side, ~spacing, (x, z) => nearest_int(cloud, x, z));
+};
+
+let scale = (cloud, ~s) => {
+  let {side, spacing, points} = cloud;
+  let new_side = side * s;
+  let new_spacing = spacing * s;
+  let sf = float(s);
+  let new_points =
+    Sparse_grid.map(points, (_, {px, py, value}) =>
+      {px: px *. sf, py: py *. sf, value}
+    );
+  {side: new_side, spacing: new_spacing, points: new_points};
 };
