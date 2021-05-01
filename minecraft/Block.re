@@ -88,6 +88,12 @@ type stair_material =
   | Stone_stairs
   | Warped_stairs;
 
+[@deriving (eq, ord, bin_io)]
+type log_material =
+  | Oak_log
+  | Spruce_log;
+/* TODO extract other logs */
+
 /* Materials list taken from https://minecraft.gamepedia.com/Java_Edition_data_value */
 [@deriving (eq, bin_io)]
 type material =
@@ -479,6 +485,7 @@ type material =
   | Lime_wall_banner
   | Lime_wool
   | Lodestone
+  | Log(log_material, axis)
   | Loom
   | Magenta_banner
   | Magenta_bed
@@ -522,7 +529,6 @@ type material =
   | Oak_fence_gate
   | Oak_fence(waterlogged)
   | Oak_leaves
-  | Oak_log(axis)
   | Oak_planks
   | Oak_pressure_plate
   | Oak_sapling
@@ -713,7 +719,6 @@ type material =
   | Spruce_fence_gate
   | Spruce_fence
   | Spruce_leaves
-  | Spruce_log
   | Spruce_planks
   | Spruce_pressure_plate
   | Spruce_sapling
@@ -1293,7 +1298,7 @@ let namespace =
   | Oak_fence_gate => "minecraft:oak_fence_gate"
   | Oak_fence(_) => "minecraft:oak_fence"
   | Oak_leaves => "minecraft:oak_leaves"
-  | Oak_log(_) => "minecraft:oak_log"
+  | Log(Oak_log, _) => "minecraft:oak_log"
   | Oak_planks => "minecraft:oak_planks"
   | Oak_pressure_plate => "minecraft:oak_pressure_plate"
   | Oak_sapling => "minecraft:oak_sapling"
@@ -1500,7 +1505,7 @@ let namespace =
   | Spruce_fence_gate => "minecraft:spruce_fence_gate"
   | Spruce_fence => "minecraft:spruce_fence"
   | Spruce_leaves => "minecraft:spruce_leaves"
-  | Spruce_log => "minecraft:spruce_log"
+  | Log(Spruce_log, _) => "minecraft:spruce_log"
   | Spruce_planks => "minecraft:spruce_planks"
   | Spruce_pressure_plate => "minecraft:spruce_pressure_plate"
   | Spruce_sapling => "minecraft:spruce_sapling"
@@ -1655,7 +1660,7 @@ let rotate_cw = (mat, ~times) => {
   let rep = f => Mg_util.times(f, times);
   switch (mat) {
   | Oak_door(dir, part) => Oak_door(rep(rotate_dir_cw, dir), part)
-  | Oak_log(axis) => Oak_log(rep(rotate_axis_cw, axis))
+  | Log(mat, axis) => Log(mat, rep(rotate_axis_cw, axis))
   | Orange_bed(dir, part) => Orange_bed(rep(rotate_dir_cw, dir), part)
   | Stairs(mat, dir) => Stairs(mat, rep(rotate_stair_dir_cw, dir))
   | Wall_torch(dir) => Wall_torch(rep(rotate_dir_cw, dir))
@@ -1691,7 +1696,7 @@ let data = block => {
            ),
       ]
     | Oak_fence(waterlogged) => [data_of_waterlogged(waterlogged)]
-    | Oak_log(axis) => ["axis" >: String(string_of_axis(axis))]
+    | Log(_, axis) => ["axis" >: String(string_of_axis(axis))]
     | Orange_bed(dir, part) => [
         "facing" >: String(string_of_dir(dir)),
         "part"

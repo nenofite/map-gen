@@ -174,7 +174,8 @@ module With_coords_impl = struct
             (y + side - 1)
             accum
             (fun accum yi ->
-              fold x (x + side - 1) accum (fun accum xi -> f accum (xi, yi, n)))
+              fold x (x + side - 1) accum (fun accum xi -> f accum (xi, yi, n))
+              )
       | Quad (nw, ne, sw, se) ->
           let half = side / 2 in
           go nw accum ~x ~y ~side:half ~f
@@ -207,10 +208,10 @@ module Scan_impl = struct
         let accum =
           fold 0 (t.side - 2) accum (fun accum x ->
               let here = get x z t in
-              f accum (here, false))
+              f accum (here, false) )
         in
         let last = get (t.side - 1) z t in
-        f accum (last, true))
+        f accum (last, true) )
 
   let iter = `Define_using_fold
 
@@ -429,6 +430,8 @@ module Poly = Make (struct
   let ( = ) = Poly.( = )
 end)
 
+module Int = Make0 (Int)
+
 let to_mut ?alloc_side ?fill t =
   let fill = match fill with Some f -> f | None -> get 0 0 t in
   let m = Mut.create ~side:(side t) ?alloc_side fill in
@@ -439,7 +442,7 @@ let map_to_mut ?alloc_side ?fill ~f t =
   let fill = match fill with Some f -> f | None -> f ~x:0 ~z:0 (get 0 0 t) in
   let m = Mut.create ~side:(side t) ?alloc_side fill in
   With_coords.iter (With_coords.T t) ~f:(fun (x, z, v) ->
-      Mut.set ~x ~z (f ~x ~z v) m) ;
+      Mut.set ~x ~z (f ~x ~z v) m ) ;
   m
 
 let wrap_coord t x y = (x % t.side, y % t.side)
@@ -465,7 +468,7 @@ let print ?(sep = " ") ?(row_sep = "\n") ~f t =
   Scan.iter (Scan.T t) ~f:(fun (n, row_end) ->
       print_string (f n) ;
       print_string sep ;
-      if row_end then print_string row_sep)
+      if row_end then print_string row_sep )
 
 let%expect_test "inits and gets correct elements" =
   let print (x, y) = Printf.printf "%d, %d\n" x y in
@@ -508,7 +511,7 @@ let%expect_test "force_sets, scans, and counts leaves" =
     \  "]
 
 let%expect_test "set and compact" =
-  let module Int_grid = Make0 (Int) in
+  let module Int_grid = Int in
   let open Int_grid in
   (* Ensure init compacts into a single leaf *)
   let g = Int_grid.init ~side:8 (fun _ -> 0) in

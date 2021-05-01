@@ -26,12 +26,6 @@ let prepare = () => {
       Subdivide_mut.subdivide_with_fill(m, ~fill=line_fill);
     };
     assert(Grid.Mut.side(m) == side);
-    Draw.draw_griddable(
-      Grid.Mut.intf0(m),
-      ~f=i => i * 20 * 0x010101,
-      ~file="dirt.bmp",
-      m,
-    );
     Dirt_grid.of_mut(m);
   });
 };

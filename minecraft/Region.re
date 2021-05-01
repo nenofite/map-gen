@@ -9,6 +9,7 @@ type t = {
   /* dimensions are z x y */
   sections: array(section),
   mutable entities: list(Entity.t),
+  biomes: array(array(Biome.t)),
 };
 
 /*
@@ -16,7 +17,8 @@ type t = {
 
  - x,y,z block global coords
  - lx,ly,lz block region-local coords
- - si section index within region
+ - ci chunk index within region.biomes
+ - si section index within region.sections
  - cx, sy, cz chunk and section region-local coords
  - bi block index within section
  - bx, by, bz block section-local coords
@@ -35,18 +37,31 @@ let block_per_region_vertical = block_per_chunk_vertical;
 let section_per_region_volume =
   chunk_per_region_side * chunk_per_region_side * section_per_chunk_vertical;
 
+let block_per_biome_side = 4;
+let biome_per_chunk_side = 4;
+let biome_per_chunk_vertical = block_per_chunk_vertical / block_per_biome_side;
+let biome_per_chunk_volume = 1024;
+let biome_per_region_side = biome_per_chunk_side * chunk_per_region_side;
+
 let create = (~rx, ~rz) => {
   let sections =
     Array.init(section_per_region_volume, ~f=_i =>
       Array.create(~len=block_per_section_volume, Block.Air)
     );
-  {rx, rz, sections, entities: []};
+  let biomes =
+    Array.init(chunk_per_region_side * chunk_per_region_side, ~f=_i =>
+      Array.create(~len=biome_per_chunk_volume, Biome.Forest)
+    );
+  {rx, rz, sections, entities: [], biomes};
 };
 
 let reset = (~rx, ~rz, r) => {
   Array.iter(r.sections, ~f=s => {
     Array.fill(s, ~pos=0, ~len=Array.length(s), Block.Air)
   });
+  Array.iter(r.biomes, ~f=c =>
+    Array.fill(c, ~pos=0, ~len=Array.length(c), Biome.Forest)
+  );
   r.rx = rx;
   r.rz = rz;
   r.entities = [];
@@ -104,6 +119,32 @@ let region_containing = (~x, ~z) => {
     x / block_per_region_side - (x < 0 ? 1 : 0),
     z / block_per_region_side - (z < 0 ? 1 : 0),
   );
+};
+
+/** converts a chunk coord to an index of a biome chunk within biomes */
+let chunk_i_of_c = (~cx, ~cz) => {
+  let ci = cz * chunk_per_region_side + cx;
+  ci;
+};
+
+/** converts a local coord to an index of a biome chunk within biomes */
+let chunk_i_of_l = (~lx, ~lz) => {
+  let cx = lx / block_per_chunk_side;
+  let cz = lz / block_per_chunk_side;
+  chunk_i_of_c(~cx, ~cz);
+};
+
+/** converts a local coord to an index within a biome chunk */
+let biome_i_of_l = (~lx, ~ly, ~lz) => {
+  let bmx = lx % block_per_chunk_side / block_per_biome_side;
+  let bmy = ly / block_per_biome_side;
+  let bmz = lz % block_per_chunk_side / block_per_biome_side;
+  bmy
+  * biome_per_chunk_side
+  * biome_per_chunk_side
+  + bmz
+  * biome_per_chunk_side
+  + bmx;
 };
 
 /** converts a local coord to an index of a section within sections */
@@ -169,6 +210,32 @@ let get_block_opt = (~x, ~y, ~z, r) =>
   } else {
     None;
   };
+
+/* Biomes */
+
+let biomes_in_xzy_order = (~cx, ~cz, r) => {
+  let ci = chunk_i_of_c(~cx, ~cz);
+  Array.to_list(r.biomes[ci]);
+};
+
+/** sets the biome of the 4x4x4 cube containing the given block */
+let set_biome = (~x, ~y, ~z, biome, r) => {
+  assert_within(~x, ~y, ~z, r);
+  let lx = localize_x(x, r);
+  let ly = localize_y(y, r);
+  let lz = localize_z(z, r);
+  let ci = chunk_i_of_l(~lx, ~lz);
+  let bmi = biome_i_of_l(~lx, ~ly, ~lz);
+  r.biomes[ci][bmi] = biome;
+};
+
+/** sets the full vertical column of biomes containing the given block */
+let set_biome_column = (~x, ~z, biome, r) => {
+  assert_within(~x, ~y=0, ~z, r);
+  for (y in 0 to block_per_region_vertical - 1) {
+    set_biome(~x, ~y, ~z, biome, r);
+  };
+};
 
 /* Entities */
 

@@ -58,6 +58,10 @@ let random_grab_ahead = 5;
 let pop_per_farm = 2;
 let num_plazas = 3;
 
+let all_blocks = t => {
+  Core_kernel.([t.bell] @ t.farms @ List.map(t.houses, ~f=h => h.block));
+};
+
 let make_input = () => {
   let elevation =
     Phase_chain.(
@@ -160,10 +164,24 @@ let block_area = block => {
 };
 
 let block_center = block => {
-  let {min_x, max_x, min_z, max_z, _} = block;
+  let {min_x, max_x, min_z, max_z} = block;
   let x = min_x + (max_x - min_x) / 2;
   let z = min_z + (max_z - min_z) / 2;
   (x, z);
+};
+
+let block_center' = (block: block) => {
+  let {min_x, max_x, min_z, max_z, elevation: _} = block;
+  let x = min_x + (max_x - min_x) / 2;
+  let z = min_z + (max_z - min_z) / 2;
+  (x, z);
+};
+
+let distance_to_block_edge = (~x, ~z, block) => {
+  let {min_x, max_x, min_z, max_z, elevation: _} = block;
+  let x_dist = max(min_x - x, max(x - max_x, 0));
+  let z_dist = max(min_z - z, max(z - max_z, 0));
+  Mg_util.distance_int((0, 0), (x_dist, z_dist));
 };
 
 let rec grab_one = (index, list) => {

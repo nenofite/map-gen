@@ -178,7 +178,7 @@ let%expect_test "calc_footprint" = {
       (0, 0, 0, Cobblestone),
       (0, 1, 0, Cobblestone),
       (1, 1, 0, Air),
-      (1, 1, 1, Oak_log(Y)),
+      (1, 1, 1, Log(Oak_log, Y)),
     ];
   calc_footprint(blocks)
   |> List.iter(~f=((x, z)) => Printf.printf("%d, %d\n", x, z));
@@ -196,6 +196,10 @@ let%expect_test "calc_footprint" = {
 let stack = (base, addition) => {
   let (_, highest_y) = base.bounds_y;
   translate(addition, 0, highest_y + 1, 0) |> combine(base, _);
+};
+
+let stack_all = ls => {
+  List.reduce_exn(ls, ~f=stack);
 };
 
 let calc_mark = (t, ~on) => {
@@ -288,5 +292,13 @@ let rect = (material, ~xs, ~ys, ~zs) => {
     )
     |> List.concat
     |> List.concat;
+  of_blocks(blocks);
+};
+
+let clear_at = (t, ~x, ~y, ~z) => {
+  let blocks =
+    List.filter(t.blocks, ~f=((hx, hy, hz, _)) =>
+      !(hx == x && hy == y && hz == z)
+    );
   of_blocks(blocks);
 };

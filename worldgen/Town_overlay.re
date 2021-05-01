@@ -18,6 +18,7 @@ let num_towns = 8;
 let min_dist_between_towns = 500;
 let potential_sites_limit = 100;
 let wall_height = 4;
+let torch_margin = 10;
 
 let draw_towns = (canon: Overlay.Canon.t, towns) => {
   let sg =
@@ -347,9 +348,9 @@ let create_house = (house: Town_prototype.house, region: Minecraft.Region.t) => 
   let floor_material = Oak_planks;
   let lower_edge_material = Cobblestone;
   let wall_material = Oak_planks;
-  let wall_post_material = Oak_log(Y);
-  let wall_ns_beam_material = Oak_log(Z);
-  let wall_ew_beam_material = Oak_log(X);
+  let wall_post_material = Log(Oak_log, Y);
+  let wall_ns_beam_material = Log(Oak_log, Z);
+  let wall_ew_beam_material = Log(Oak_log, X);
   let ceiling_material = Oak_planks;
 
   let Town_prototype.{
@@ -601,7 +602,16 @@ let create_farm = (farm: Town_prototype.block, region: Minecraft.Region.t) => {
 /**
  adds torches to the town with min-corner x, z
  */
-let illuminate_town = (~x, ~z, region): unit => {
+let illuminate_town = (~x, ~z, ~blocks, region): unit => {
+  open Core_kernel;
+  let dist_to_nearest_block = (~x, ~z) => {
+    let n =
+      List.map(blocks, ~f=b => {
+        Town_prototype.distance_to_block_edge(~x, ~z, b)
+      })
+      |> List.min_elt(~compare=Int.compare);
+    Option.value(n, ~default=Town_prototype.side);
+  };
   /** determines how far below the first non-Air block to continue illuminating */
   let bottom_extent = 10;
   let rec fold_down_column = (~x, ~y, ~z, ~init, ~f) => {
@@ -620,15 +630,19 @@ let illuminate_town = (~x, ~z, region): unit => {
   let over_town = (~init, ~f) => {
     Mg_util.Range.(
       fold(z, z + Town_prototype.side - 1, init, (acc, z) => {
-        fold(x, x + Town_prototype.side - 1, acc, (acc, x) => {
-          fold_down_column(
-            ~x,
-            ~y=Minecraft.Region.block_per_region_vertical - 1,
-            ~z,
-            ~init=acc,
-            ~f,
-          )
-        })
+        fold(x, x + Town_prototype.side - 1, acc, (acc, x) =>
+          if (dist_to_nearest_block(~x, ~z) <= torch_margin) {
+            fold_down_column(
+              ~x,
+              ~y=Minecraft.Region.block_per_region_vertical - 1,
+              ~z,
+              ~init=acc,
+              ~f,
+            );
+          } else {
+            acc;
+          }
+        )
       })
     );
   };
@@ -637,12 +651,17 @@ let illuminate_town = (~x, ~z, region): unit => {
 
 let apply_region = ((towns, _canon): t, region: Minecraft.Region.t) => {
   List.iter(
-    ({x, z, town: {bell, farms, houses}}) =>
+    ({x, z, town: {bell, farms, houses} as town}) =>
       if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
         create_bell(bell, region);
         List.iter(house => create_house(house, region), houses);
         List.iter(farm => create_farm(farm, region), farms);
-        illuminate_town(~x, ~z, region);
+        illuminate_town(
+          ~x,
+          ~z,
+          ~blocks=Town_prototype.all_blocks(town),
+          region,
+        );
       },
     towns,
   );

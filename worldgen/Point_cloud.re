@@ -102,6 +102,8 @@ let init = (~avoid_edges=?, ~side, ~spacing=?, f) =>
     f(xi, yi)
   );
 
+let side = t => t.side;
+
 let make_list = (~avoid_edges=?, ~side, ~spacing=?, ()) => {
   let cloud = init(~avoid_edges?, ~side, ~spacing?, (_, _) => ());
   Sparse_grid.fold(
@@ -162,6 +164,39 @@ let rec closest_point = (~radius=1, cloud, x, y) => {
     let next_radius = radius * 2;
     if (next_radius <= cloud.side) {
       closest_point(~radius=next_radius, cloud, x, y);
+    } else {
+      failwithf("could not find closest point for (%f, %f)", x, y, ());
+    };
+  };
+};
+
+let rec n_closest_points = (~radius=1, ~n, cloud, x, y) => {
+  /* Convert to cloud x, y */
+  let cx = Float.(x / of_int(cloud.spacing) + 0.5 |> to_int);
+  let cy = Float.(y / of_int(cloud.spacing) + 0.5 |> to_int);
+  /* Compare among the point at cx, cy and its eight neighbors */
+  let neighbors =
+    Mg_util.Range.(
+      fold(cy - radius, cy + radius, [], (ls, iter_cy) =>
+        fold(cx - radius, cx + radius, ls, (ls, iter_cx) =>
+          switch (Sparse_grid.at(cloud.points, iter_cx, iter_cy)) {
+          | Some(n) => [n, ...ls]
+          | None => ls
+          }
+        )
+      )
+    );
+  if (List.length(neighbors) >= n) {
+    List.map(neighbors, ~f=point =>
+      (distance2(point.px, point.py, x, y), point)
+    )
+    |> List.sort(~compare=((ad, _), (bd, _)) => Float.compare(ad, bd))
+    |> List.take(_, n)
+    |> List.map(~f=((d, p)) => (sqrt(d), p));
+  } else {
+    let next_radius = radius * 2;
+    if (next_radius <= cloud.side) {
+      n_closest_points(~radius=next_radius, ~n, cloud, x, y);
     } else {
       failwithf("could not find closest point for (%f, %f)", x, y, ());
     };
@@ -236,6 +271,8 @@ let nearest = (cloud, x, y) => {
   closest_point.value;
 };
 
+let nearest_int = (cloud, x, y) => nearest(cloud, float(x), float(y));
+
 /**
   interpolate finds the two closest points and returns an interpolation based
   on the relative distance to each.
@@ -246,99 +283,32 @@ let interpolate = (cloud, x, y) => {
   a.value *. (1. -. frac) +. b.value *. frac;
 };
 
-let%expect_test "points" = {
-  Random.init(283);
-  let side = 8;
-  let rec print_grid_of_points = (~x, ~y, p) =>
-    if (y >= side) {
-      ();
-    } else if (x >= side) {
-      print_endline("");
-      print_grid_of_points(~x=0, ~y=y + 1, p);
-    } else {
-      if (List.exists(p, ~f=((here_x, here_y)) => here_x == x && here_y == y)) {
-        Printf.printf("%02d", 10 * y + x);
-      } else {
-        print_string("..");
-      };
-      print_string(" ");
-      print_grid_of_points(~x=x + 1, ~y, p);
-    };
-  let p = make_int_list(~side=8, ~spacing=2, ());
-  print_grid_of_points(~x=0, ~y=0, p);
-
-  %expect
-  {|
-    00 .. 02 .. .. .. .. 07
-    .. .. .. .. .. 15 .. ..
-    20 .. .. .. 24 .. .. ..
-    .. .. .. 33 .. .. 36 ..
-    .. .. .. .. 44 .. .. ..
-    50 .. .. 53 .. .. .. 57
-    .. .. .. .. 64 .. .. ..
-    70 .. 72 .. .. .. .. 77 |};
+/**
+  creates a new point cloud of the same dimensions but with different spacing. Each point in the new cloud samples from the nearest in the old cloud
+  */
+let subdivide = (cloud, ~spacing) => {
+  init(~side=cloud.side, ~spacing, (x, z) => nearest_int(cloud, x, z));
 };
 
-let%expect_test "nearest_with_edge without avoid_edges" = {
-  Random.init(283);
-  let rec print_grid_of_nearest = (~x, ~y, p) =>
-    if (y >= p.side) {
-      ();
-    } else if (x >= p.side) {
-      print_endline("");
-      print_grid_of_nearest(~x=0, ~y=y + 1, p);
-    } else {
-      let here =
-        nearest_with_edge(p, "##", Float.of_int(x), Float.of_int(y));
-      print_string(here);
-      print_string(" ");
-      print_grid_of_nearest(~x=x + 1, ~y, p);
+let subdivide4 = (cloud, ~spacing, ~f) => {
+  let fn = (x, z) => {
+    switch (n_closest_points(~n=4, cloud, float(x), float(z))) {
+    | [(_, a), (_, b), (_, c), (_, d)] =>
+      f(~x, ~z, a.value, b.value, c.value, d.value)
+    | _ => failwith("should be 4 points")
     };
-  let p =
-    init(~side=8, ~spacing=2, (x, y) => Printf.sprintf("%02d", 10 * y + x));
-  print_grid_of_nearest(~x=0, ~y=0, p);
-
-  %expect
-  {|
-    ## ## ## ## ## ## ## ##
-    ## ## 02 ## ## 04 04 06
-    ## 20 20 24 24 04 04 ##
-    ## 20 22 22 24 24 26 26
-    ## ## 22 22 44 44 26 26
-    ## ## 42 42 42 44 44 46
-    ## ## 42 42 64 64 46 46
-    ## 60 ## ## 64 ## ## 66 |};
+  };
+  init(~side=cloud.side, ~spacing, fn);
 };
 
-let%expect_test "nearest_with_edge with avoid_edges" = {
-  Random.init(283);
-  let rec print_grid_of_nearest = (~x, ~y, p) =>
-    if (y >= p.side) {
-      ();
-    } else if (x >= p.side) {
-      print_endline("");
-      print_grid_of_nearest(~x=0, ~y=y + 1, p);
-    } else {
-      let here =
-        nearest_with_edge(p, "##", Float.of_int(x), Float.of_int(y));
-      print_string(here);
-      print_string(" ");
-      print_grid_of_nearest(~x=x + 1, ~y, p);
-    };
-  let p =
-    init(~avoid_edges=true, ~side=8, ~spacing=2, (x, y) =>
-      Printf.sprintf("%02d", 10 * y + x)
+let scale = (cloud, ~s) => {
+  let {side, spacing, points} = cloud;
+  let new_side = side * s;
+  let new_spacing = spacing * s;
+  let sf = float(s);
+  let new_points =
+    Sparse_grid.map(points, (_, {px, py, value}) =>
+      {px: px *. sf, py: py *. sf, value}
     );
-  print_grid_of_nearest(~x=0, ~y=0, p);
-
-  %expect
-  {|
-    ## ## ## ## ## ## ## ##
-    ## ## ## ## ## ## ## ##
-    ## ## 22 22 24 24 24 ##
-    ## ## 22 22 24 24 44 ##
-    ## ## ## 42 42 44 44 ##
-    ## ## 42 42 42 44 44 ##
-    ## ## 42 42 42 44 44 ##
-    ## ## ## ## ## ## ## ## |};
+  {side: new_side, spacing: new_spacing, points: new_points};
 };

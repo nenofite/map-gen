@@ -1,8 +1,6 @@
 open Core_kernel
 
-let region_of_spawn (x, _y, z) =
-  ( x / Minecraft.Region.block_per_region_side
-  , z / Minecraft.Region.block_per_region_side )
+let region_of_spawn (x, _y, z) = Minecraft.Region.region_containing ~x ~z
 
 (**
   segment_grid_by_region divides the grid into squares such that each square

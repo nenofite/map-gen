@@ -1,36 +1,32 @@
-open Core_kernel
+open! Core_kernel
+include Biome_overlay_i
 
-type flower = {block: Minecraft.Block.material; percentage: int}
-[@@deriving eq, bin_io]
+let scale_factor = 8
 
-type cactus = {percentage: int} [@@deriving eq, bin_io]
+let to_minecraft_biome = function
+  | Mid (Plain _) ->
+      Minecraft.Biome.Plains
+  | Mid (Forest _) ->
+      Minecraft.Biome.Forest
+  | Mid (Desert _) ->
+      Minecraft.Biome.Desert
+  | Mid Savanna ->
+      Minecraft.Biome.Savanna
+  | High Pine_forest ->
+      Minecraft.Biome.Wooded_mountains
+  | High Barren ->
+      Minecraft.Biome.Mountains
+  | High Snow ->
+      Minecraft.Biome.Snowy_tundra
+  | Shore Sand ->
+      Minecraft.Biome.Beach
+  | Shore Gravel ->
+      Minecraft.Biome.Stone_shore
+  | Shore Clay ->
+      (* TODO sort of a weird choice *)
+      Minecraft.Biome.River
 
-type mid_biome = Plain of flower | Forest of flower | Desert of cactus
-[@@deriving eq, bin_io]
-
-type shore_biome = Sand | Gravel | Clay [@@deriving eq, bin_io]
-
-type high_biome = Pine_forest | Barren | Snow [@@deriving eq, bin_io]
-
-type biome = Mid of mid_biome | Shore of shore_biome | High of high_biome
-[@@deriving eq, bin_io]
-
-type t = biome Grid.t * Overlay.Canon.delta [@@deriving bin_io]
-
-module Biome_grid = Grid.Make0 (struct
-  type t = biome
-
-  let ( = ) = equal_biome
-end)
-
-type low_mid_high = {shore: shore_biome; mid: mid_biome; high: high_biome}
-[@@deriving eq, bin_io]
-
-module Low_mid_high_grid = Grid.Make0 (struct
-  type t = low_mid_high
-
-  let ( = ) = equal_low_mid_high
-end)
+let biome_at ~x ~z biomes = Point_cloud.nearest_int biomes x z
 
 let colorize_biome = function
   | Mid (Plain _) ->
@@ -39,6 +35,8 @@ let colorize_biome = function
       0x388824
   | Mid (Desert _) ->
       0xD9D0A1
+  | Mid Savanna ->
+      0x808000
   | High Pine_forest ->
       0x286519
   | High Barren ->
@@ -84,100 +82,15 @@ let random_flower () =
   in
   {block; percentage= Random.int_incl 10 100}
 
-let random_cactus () = {percentage= Random.int_incl 10 100}
+let no_flower = {block= Dandelion; percentage= 0}
 
-let random_mid () =
-  match Random.int 10 with
-  | 0 | 1 | 2 | 3 | 4 ->
-      Plain (random_flower ())
-  | 5 | 6 | 7 ->
-      Forest (random_flower ())
-  | 8 | _ ->
-      Desert (random_cactus ())
+let random_cactus () = {percentage= Random.int_incl 10 100}
 
 let random_shore () =
   match Random.int 3 with 0 -> Sand | 1 -> Gravel | _ -> Clay
 
 let random_high () =
   match Random.int 3 with 0 -> Pine_forest | 1 -> Barren | _ -> Snow
-
-let select_elevation ~(base : Base_overlay.tile Grid.t)
-    (lmh : low_mid_high option Grid.Mut.t) =
-  Biome_grid.init ~side:base.Grid.side (fun (x, z) ->
-      let here_base = Grid.get x z base in
-      let elevation = here_base.elevation in
-      let {shore; mid; high} =
-        Option.value_exn ~message:"grid coordinate has no biome"
-          (Grid.Mut.get ~x ~z lmh)
-      in
-      if River.has_water here_base || elevation <= Heightmap.sea_level + 2 then
-        Shore shore
-      else if elevation >= Heightmap.mountain_level - 20 then
-        (* TODO use some sort of interp for mid-high cutoff, instead of flat line *)
-        High high
-      else Mid mid )
-
-let prepare_voronoi () =
-  let voronoi_frac = 4 in
-  let high_cost = 10 in
-  let canon = Overlay.Canon.require () in
-  let base, _ = Base_overlay.require () in
-  let voronoi_side = canon.side / voronoi_frac in
-  let high_cost_spots =
-    Grid.Poly.init ~side:voronoi_side (fun (x, z) ->
-        Range.exists z
-          (z + voronoi_frac - 1)
-          (fun z ->
-            Range.exists x
-              (x + voronoi_frac - 1)
-              (fun x ->
-                let t = Grid.get x z base in
-                t.elevation >= Heightmap.mountain_level - 20
-                || River.has_ocean t ) ) )
-  in
-  let random_lmh () =
-    {shore= random_shore (); mid= random_mid (); high= random_high ()}
-  in
-  let points =
-    Point_cloud.init ~side:voronoi_side ~spacing:(512 / voronoi_frac)
-      (fun _x _z -> random_lmh ())
-  in
-  let lmh = Grid.Mut.create ~side:voronoi_side ~alloc_side:canon.side None in
-  let initial_live_set =
-    Sparse_grid.fold points.points
-      (fun _ point ls ->
-        let value = point.value in
-        let x = Int.of_float point.px in
-        let z = Int.of_float point.py in
-        (x, z, value) :: ls )
-      []
-  in
-  let spread_into ~x ~z ~level lmh_val live_set =
-    if Grid.is_within x z high_cost_spots then
-      let cost = if Grid.get x z high_cost_spots then high_cost else 1 in
-      let occupied = Option.is_some (Grid.Mut.get ~x ~z lmh) in
-      if occupied then live_set else (level + cost, (x, z, lmh_val)) :: live_set
-    else live_set
-  in
-  Grid_flood.flood_gen ~init:() ~live:[(0, initial_live_set)]
-    ~spread:(fun () ~level (x, z, lmh_val) ->
-      let occupied = Option.is_some (Grid.Mut.get ~x ~z lmh) in
-      if occupied then ((), [])
-      else (
-        Grid.Mut.set ~x ~z (Some lmh_val) lmh ;
-        let next_live_set =
-          []
-          |> spread_into ~x ~z:(z - 1) ~level lmh_val
-          |> spread_into ~x:(x + 1) ~z ~level lmh_val
-          |> spread_into ~x ~z:(z + 1) ~level lmh_val
-          |> spread_into ~x:(x - 1) ~z ~level lmh_val
-        in
-        ((), next_live_set) ) ) ;
-  (* TODO base on voronoi_frac *)
-  Subdivide_mut.subdivide lmh ;
-  Subdivide_mut.subdivide lmh ;
-  let biomes = select_elevation ~base lmh in
-  biomes
 
 let get_obstacle dirt biome =
   match biome with
@@ -186,11 +99,196 @@ let get_obstacle dirt biome =
   | _ ->
       Clear
 
+let temperature_at ~x ~z =
+  let side = (Overlay.Canon.require ()).side in
+  let offset =
+    Float.(Perlin.at ~x:(of_int x / 256.) ~y:0. ~z:(of_int z / 256.) * 10.)
+    |> Int.of_float
+  in
+  (* range 0 to 50 degrees Celsius *)
+  (z * 50 / side) + offset
+
+let fold_scale_factor ~mx ~mz ~init ~f =
+  Range.fold (mz * scale_factor)
+    ((mz * scale_factor) + scale_factor - 1)
+    init
+    (fun init z ->
+      Range.fold (mx * scale_factor)
+        ((mx * scale_factor) + scale_factor - 1)
+        init
+        (fun init x -> f ~x ~z init) )
+
+let initial_moisture_at ~mx ~mz base =
+  fold_scale_factor ~mx ~mz ~init:0 ~f:(fun ~x ~z m ->
+      let here =
+        match Grid.get x z base with
+        | River.Tile.{ocean= true; river= _; elevation= _} ->
+            100
+        | {ocean= false; river= true; elevation= _} ->
+            55
+        | {ocean= false; river= false; elevation= _} ->
+            0
+      in
+      max m here )
+
+let moisture_carry_at ~mx ~mz base =
+  fold_scale_factor ~mx ~mz ~init:40 ~f:(fun ~x ~z m ->
+      let here =
+        match Grid.get x z base with
+        | River.Tile.{elevation; _} when elevation > 100 ->
+            30
+        | _ ->
+            39
+      in
+      min m here )
+
+let east_wind = [(1, 0); (0, 1); (1, -1)]
+
+let west_wind = [(-1, 0); (0, 1); (-1, -1)]
+
+let wind_direction_at ~mx ~mz =
+  ignore mx ;
+  if mz * scale_factor / 512 mod 2 = 0 then east_wind else west_wind
+
+let mountain_threshold_at ~x ~z dirt = 90 + Grid.get x z dirt
+
+let draw_moisture moisture =
+  let draw_dense () x z =
+    if Grid.is_within_side ~x ~y:z (Point_cloud.side moisture) then
+      let here = Point_cloud.nearest_int moisture x z in
+      let g = here * 255 / 100 in
+      Some (g, g, g)
+    else None
+  in
+  let l = Progress_view.push_layer () in
+  Progress_view.update ~draw_dense ~state:() l
+
+let prepare_flowers () =
+  let side = (Overlay.Canon.require ()).side in
+  let coarse =
+    Point_cloud.init ~side ~spacing:512 (fun _ _ -> random_flower ())
+  in
+  Point_cloud.init ~side ~spacing:64 (fun x z ->
+      Point_cloud.nearest_int coarse x z )
+
+let prepare_cacti () =
+  let side = (Overlay.Canon.require ()).side in
+  let coarse =
+    Point_cloud.init ~side ~spacing:512 (fun _ _ -> random_cactus ())
+  in
+  Point_cloud.init ~side ~spacing:64 (fun x z ->
+      Point_cloud.nearest_int coarse x z )
+
+let lookup_whittman ~mountain_threshold ~flower ~cactus ~moisture ~temperature
+    ~elevation =
+  let e = elevation in
+  let t = temperature in
+  let m = moisture in
+  let mt = mountain_threshold in
+  match () with
+  | () when e > mt && m > 50 ->
+      High Snow
+  | () when e > mt - 10 && t > 20 && m > 50 ->
+      High Pine_forest
+  | () when e > mt - 10 && m > 50 ->
+      High Snow
+  | () when e > mt ->
+      High Barren
+  | () when t > 35 && m > 50 ->
+      Mid (Forest flower)
+  | () when t > 35 && m > 20 ->
+      Mid Savanna
+  | () when t > 35 ->
+      Mid (Desert cactus)
+  | () when m > 50 ->
+      Mid (Forest flower)
+  | () when m > 10 ->
+      Mid (Plain flower)
+  | () ->
+      Mid (Plain no_flower)
+
+let prepare_moisture () =
+  let canon = Overlay.Canon.require () in
+  let base, _ = Base_overlay.require () in
+  let add_to_pq pq ~x ~z ~moisture =
+    Pq.insert pq (-moisture) (x, z, moisture)
+  in
+  let mside = canon.side / scale_factor in
+  let moisture =
+    Grid.Mut.init ~side:mside ~alloc_side:canon.side 0 ~f:(fun ~x ~z ->
+        let m = initial_moisture_at ~mx:x ~mz:z base in
+        m )
+  in
+  let moisture_carry =
+    Grid.Mut.init ~side:mside 0 ~f:(fun ~x ~z ->
+        moisture_carry_at ~mx:x ~mz:z base )
+  in
+  let spread_coord ~x ~z ~m pq =
+    let carry = Grid.Mut.get ~x ~z moisture_carry in
+    List.fold (wind_direction_at ~mx:x ~mz:z) ~init:pq ~f:(fun pq (dx, dz) ->
+        let x = x + dx in
+        let z = z + dz in
+        let m = m * carry / 40 in
+        if Grid.Mut.is_within ~x ~z moisture then
+          let old_m = Grid.Mut.get ~x ~z moisture in
+          if m > old_m then (
+            Grid.Mut.set ~x ~z m moisture ;
+            add_to_pq pq ~x ~z ~moisture:m )
+          else pq
+        else pq )
+  in
+  let full_spread_moisture pq =
+    Range.fold 0 (mside - 1) pq (fun pq z ->
+        Range.fold 0 (mside - 1) pq (fun pq x ->
+            let m = Grid.Mut.get ~x ~z moisture in
+            spread_coord ~x ~z ~m pq ) )
+  in
+  let rec spread_moisture pq =
+    match Pq.extract pq with
+    | Some (x, z, m), pq ->
+        let pq = spread_coord ~x ~z ~m pq in
+        spread_moisture pq
+    | None, _pq ->
+        ()
+  in
+  let pq = full_spread_moisture Pq.empty in
+  spread_moisture pq ;
+  for _ = 1 to 1 do
+    Subdivide_mut.overwrite_subdivide_with_fill
+      ~fill:(fun a b c d -> (a + b + c + d) / 4)
+      moisture
+  done ;
+  Subdivide_mut.subdivide moisture ;
+  Subdivide_mut.magnify moisture ;
+  Point_cloud.init ~side:canon.side ~spacing:32 (fun x z ->
+      Grid.Mut.get ~x ~z moisture )
+  |> Point_cloud.subdivide ~spacing:8
+
 let prepare () =
+  let canon = Overlay.Canon.require () in
   let dirt = Dirt_overlay.require () in
-  let biomes = prepare_voronoi () in
+  let moisture = prepare_moisture () in
+  Tale.block "drawing moisture" ~f:(fun () ->
+      draw_moisture moisture ;
+      Progress_view.save ~side:canon.side "moisture" ) ;
+  let biomes =
+    let flowers = prepare_flowers () in
+    let cacti = prepare_cacti () in
+    Point_cloud.init ~side:canon.side ~spacing:8 (fun x z ->
+        let temperature = temperature_at ~x ~z in
+        let moisture = Point_cloud.nearest_int moisture x z in
+        let elevation = Grid.get x z canon.elevation in
+        let mountain_threshold = mountain_threshold_at ~x ~z dirt in
+        let flower = Point_cloud.nearest_int flowers x z in
+        let cactus = Point_cloud.nearest_int cacti x z in
+        lookup_whittman ~mountain_threshold ~moisture ~temperature ~elevation
+          ~flower ~cactus )
+  in
   let biome_obstacles =
-    Overlay.Canon.Obstacles.zip_map dirt biomes ~f:get_obstacle
+    Overlay.Canon.Obstacles.init ~side:(Grid.side dirt) (fun (x, z) ->
+        let here_dirt = Grid.get x z dirt in
+        let here_biome = biome_at ~x ~z biomes in
+        get_obstacle here_dirt here_biome )
   in
   let canond = Overlay.Canon.make_delta ~obstacles:(`Add biome_obstacles) () in
   (biomes, canond)
@@ -213,10 +311,14 @@ let apply_progress_view (state : t) =
   let biome, _canon = state in
   let side = base.Grid.side in
   let layer = Progress_view.push_layer () in
-  let g = Grid_compat.zip biome base in
-  Progress_view.update ~fit:(0, side, 0, side)
-    ~draw_dense:(Progress_view_helper.dense colorize)
-    ~state:g layer ;
+  let draw_dense () x z =
+    if Grid.is_within_side ~x ~y:z side then
+      let here_biome = biome_at ~x ~z biome in
+      let here_base = Grid.get x z base in
+      Some (colorize (here_biome, here_base) |> Color.split_rgb)
+    else None
+  in
+  Progress_view.update ~fit:(0, side, 0, side) ~draw_dense ~state:() layer ;
   Progress_view.save ~side ~format:Images.Png "biome" ;
   ()
 
@@ -231,15 +333,16 @@ let overwrite_stone_air region x y z block =
     " overwrite_stone_air only sets the block if it is Stone or Air, to avoid \
      overwriting rivers etc. "]
 
-let apply_dirt (dirt : int Grid_compat.t) (state, _canon)
-    (region : Minecraft.Region.t) =
-  let region = region in
+let apply (state, _canon) (region : Minecraft.Region.t) =
+  let dirt = Dirt_overlay.require () in
   Minecraft_converter.iter_blocks region (fun ~x ~z ->
       let open Minecraft.Region in
+      let biome = biome_at ~x ~z state in
+      set_biome_column ~x ~z (to_minecraft_biome biome) region ;
       let elev = height_at ~x ~z region in
       let dirt_depth = Grid_compat.at dirt x z in
-      match Grid_compat.at state x z with
-      | Mid (Plain _ | Forest _) | High Pine_forest ->
+      match biome with
+      | Mid (Plain _ | Forest _ | Savanna) | High Pine_forest ->
           (* Dirt (will become grass in Plant_overlay) *)
           for y = elev - dirt_depth + 1 to elev do
             overwrite_stone_air region x y z Dirt
@@ -279,10 +382,6 @@ let apply_dirt (dirt : int Grid_compat.t) (state, _canon)
             overwrite_stone_air region x y z material
           done )
 
-let apply_region state (region : Minecraft.Region.t) =
-  let dirt = Dirt_overlay.require () in
-  apply_dirt dirt state region
-
 let require, prepare, apply =
-  Overlay.make_no_canon "biome" prepare ~apply_progress_view apply_region
-    bin_reader_t bin_writer_t
+  Overlay.make_lifecycle ~prepare ~after_prepare:apply_progress_view ~apply
+    overlay
