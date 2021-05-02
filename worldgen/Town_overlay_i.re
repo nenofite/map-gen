@@ -49,6 +49,7 @@ type town = {
 };
 
 [@deriving bin_io]
-type t = (list(town), Overlay.Canon.delta);
+type t' = list(town);
 
-type x = list(town);
+[@deriving bin_io]
+type t = (t', Overlay.Canon.delta);
