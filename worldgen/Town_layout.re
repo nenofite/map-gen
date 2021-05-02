@@ -43,18 +43,17 @@ let make_input = () => {
       )
     );
   /* Roads to the center */
-  let roads = Sparse_grid.make(elevation.side);
   let center_x = elevation.side / 2;
   let center_z = elevation.side / 2;
   /* Start with boring roads */
-  let roads =
-    Range.fold(0, elevation.side - 1, roads, (roads, z) => {
-      Sparse_grid.put(roads, center_x, z, ())
-    });
   let obstacles =
-    Range.fold(0, elevation.side - 1, roads, (roads, x) => {
-      Sparse_grid.put(roads, x, center_z, ())
-    });
+    Sparse_grid.make(elevation.side)
+    |> Range.fold(0, elevation.side - 1, _, (roads, z) => {
+         Sparse_grid.put(roads, center_x, z, ())
+       })
+    |> Range.fold(0, elevation.side - 1, _, (roads, x) => {
+         Sparse_grid.put(roads, x, center_z, ())
+       });
 
   {elevation, obstacles};
 };
@@ -415,7 +414,10 @@ let run = (input: input): output => {
         prof_houses,
       );
 
-  {bell, farms, houses};
+  // TODO
+  let roads = Road_pathing_rules.Coord.Set.empty;
+
+  {bell, farms, houses, roads};
 };
 
 let test = () => {

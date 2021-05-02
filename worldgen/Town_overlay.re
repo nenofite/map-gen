@@ -213,7 +213,10 @@ let prepare_town =
       town_min_z,
     ) => {
   let input = extract_input(canon, town_min_x, town_min_z);
-  let {bell, houses, farms} = Town_layout.run(input);
+  let {bell, houses, farms, roads} = Town_layout.run(input);
+
+  // TODO
+  ignore(roads);
 
   /* Translate blocks into global coords */
   let translate_block = (b: block) => {
@@ -245,6 +248,7 @@ let prepare_town =
       bell,
       houses,
       farms,
+      roads,
     },
   };
 
@@ -632,8 +636,10 @@ let illuminate_town = (~x, ~z, ~blocks, region): unit => {
 
 let apply_region = ((towns, _canon): t, region: Minecraft.Region.t) => {
   List.iter(
-    ({x, z, town: {bell, farms, houses} as town}) =>
+    ({x, z, town: {bell, farms, houses, roads} as town}) =>
       if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
+        // TODO
+        ignore(roads);
         create_bell(bell, region);
         List.iter(house => create_house(house, region), houses);
         List.iter(farm => create_farm(farm, region), farms);

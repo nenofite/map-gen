@@ -15,7 +15,7 @@ module Coord = struct
   end
 
   include T
-  include Comparable.Make (T)
+  include Comparable.Make_binable (T)
   include Hashable.Make (T)
 
   let make_road ~x ~y ~z = {x; y; z; structure= Road}
