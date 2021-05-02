@@ -298,10 +298,13 @@ let rec fit_block = (state, ~side_x, ~side_z) => {
 
 let outlets_of_block = block => {
   let {min_x, max_x, min_z, max_z} = block;
-  // TODO all edges
-  ignore(max_x);
-  ignore(max_z);
-  [(min_x - 1, min_z - 1)];
+  let top_bottom =
+    Mg_util.Range.map(min_x, max_x, x => [(x, min_z - 1), (x, max_z + 1)])
+    |> List.concat;
+  let left_right =
+    Mg_util.Range.map(min_z, max_z, z => [(min_x - 1, z), (max_x + 1, z)])
+    |> List.concat;
+  left_right @ top_bottom;
 };
 
 let add_block_to_obstacles = (~block, obstacles) => {
