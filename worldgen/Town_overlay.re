@@ -8,36 +8,28 @@ let potential_sites_limit = 100;
 let wall_height = 4;
 let torch_margin = 10;
 
-let draw_towns = (canon: Overlay.Canon.t, towns) => {
-  let sg =
-    Sparse_grid.(
-      List.fold_left(
-        (sg, (x, z)) => put(sg, x, z, ()),
-        make(canon.side),
-        towns,
-      )
-    );
-  Draw.draw_sparse_grid(
-    fun
-    | None => 0
-    | Some () => 0xFFFFFF,
-    "towns.bmp",
-    sg,
-  );
-};
-
 let town_color = (255, 255, 0);
 
-let draw_sparse_towns = (town_centers, draw_point) => {
-  Core_kernel.(
-    List.iter(town_centers, ~f=((x, z)) =>
-      draw_point(~size=Town_layout.side, x, z, town_color)
-    )
-  );
-};
-
-let apply_progress_view = ((towns, _)) => {
+let apply_progress_view = ((towns, delta: Overlay.Canon.delta)) => {
   open Core_kernel;
+  let side = Overlay.Canon.require().side;
+  let obs =
+    switch (delta.Overlay.Canon.obstacles) {
+    | `Add(o) => o
+    | _ => failwith("expected `Add obstacles")
+    };
+
+  let draw_dense = ((), x, z) =>
+    if (Grid.is_within(x, z, obs)) {
+      if (!Overlay.Canon.can_build_on(Grid.get(x, z, obs))) {
+        Some(town_color);
+      } else {
+        None;
+      };
+    } else {
+      None;
+    };
+
   let town_centers =
     List.map(towns, ~f=town =>
       (town.x + Town_layout.side / 2, town.z + Town_layout.side / 2)
@@ -47,10 +39,11 @@ let apply_progress_view = ((towns, _)) => {
   Progress_view.update(
     ~center=?town_center,
     ~title="towns",
-    ~draw_sparse=draw_sparse_towns,
-    ~state=town_centers,
+    ~draw_dense,
+    ~state=(),
     l,
   );
+  Progress_view.save(~side, "towns");
 };
 
 let within_region_boundaries = (~canon_side, min_x, min_z) => {
@@ -277,7 +270,6 @@ let prepare = (): t => {
   Tale.log("Finding suitable towns");
   let towns = first_suitable_towns(canon, num_towns, river_coords, []);
   List.iter(((x, z)) => Tale.logf("town at %d, %d", x, z), towns);
-  draw_towns(canon, towns);
   let (towns, obs, spawn_points) =
     List.fold_left(
       ((towns, obs, spawn_points), (x, z)) => {
