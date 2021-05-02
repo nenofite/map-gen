@@ -1,3 +1,3 @@
 Printexc.record_backtrace(true);
 
-Worldgen.Town_prototype.test();
+Worldgen.Town_layout.test();

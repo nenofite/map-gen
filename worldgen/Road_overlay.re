@@ -25,7 +25,7 @@ type x = {
 [@deriving bin_io]
 type t = (x, Overlay.Canon.delta);
 
-let town_goal_side = Town_prototype.side;
+let town_goal_side = Town_layout.side;
 
 let edge_cost = (canon: Overlay.Canon.t, (ax, ay), (bx, by)) => {
   let a_elev = Grid_compat.at(canon.elevation, ax, ay);
@@ -92,7 +92,7 @@ let place_road = (_canon: Overlay.Canon.t, roads: Sparse_grid.t(road), path) => 
 };
 
 let poi_of_town = (town: Town_overlay.town) => {
-  Town_prototype.(town.x + side / 2, town.z + side / 2);
+  Town_layout.(town.x + side / 2, town.z + side / 2);
 };
 
 let starts_of_poi = ((poi_x, poi_z)) => {
