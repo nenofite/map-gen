@@ -4,6 +4,14 @@ type input = {
   elevation: Grid.t(int),
   obstacles: Sparse_grid.t(unit),
 };
+
+type layout_state = {
+  centers: list((int, int)),
+  elevation: Grid.t(int),
+  obstacles: Sparse_grid.t(unit),
+  pathing_state: Road_pathing.pathing_state,
+};
+
 let side = 128;
 let max_elevation = 150;
 let min_elevation = 0;
@@ -158,12 +166,12 @@ let rec grab_one = (index, list) => {
 
 let random_grab_one = blocks => {
   switch (blocks) {
-  | [] => (None, [])
+  | [] => None
   | blocks =>
     let avail = min(random_grab_ahead, List.length(blocks));
     let grab_index = Random.int(avail);
     let (block, blocks) = grab_one(grab_index, blocks);
-    (Some(block), blocks);
+    Some((block, blocks));
   };
 };
 
@@ -172,8 +180,8 @@ let rec random_grab = (amount, blocks, selected) =>
     (selected, blocks);
   } else {
     switch (random_grab_one(blocks)) {
-    | (None, blocks) => (selected, blocks)
-    | (Some(block), blocks) =>
+    | None => (selected, blocks)
+    | Some((block, blocks)) =>
       random_grab(amount - 1, blocks, [block, ...selected])
     };
   };
@@ -271,18 +279,19 @@ let pad_block = (block, amount) => {
   block centers until it finds one where the block will fit. Rejected block
   centers are discarded from the list.
  */
-let rec fit_block = (block_centers, ~obstacles, ~side_x, ~side_z) => {
-  switch (random_grab_one(block_centers)) {
-  | (None, block_centers) => (block_centers, None)
-  | (Some(center), block_centers) =>
+let rec fit_block = (state, ~side_x, ~side_z) => {
+  switch (random_grab_one(state.centers)) {
+  | None => (state, None)
+  | Some((center, centers)) =>
+    let state = {...state, centers};
     let new_block = make_block_from_center(center, side_x, side_z);
     if (check_block_obstacles(
-          ~obstacles,
+          ~obstacles=state.obstacles,
           pad_block(new_block, min_block_spacing),
         )) {
-      (block_centers, Some(new_block));
+      (state, Some(new_block));
     } else {
-      fit_block(~obstacles, block_centers, ~side_x, ~side_z);
+      fit_block(state, ~side_x, ~side_z);
     };
   };
 };
@@ -321,56 +330,70 @@ let add_roads_to_obstacles = (~roads, obstacles) => {
   );
 };
 
-let enroad = (~pathing_state, ~get_elevation, ~get_obstacle, block) => {
-  Road_pathing.enroad_gen(
-    ~get_elevation,
-    ~get_obstacle,
-    ~outlets=outlets_of_block(block),
-    pathing_state,
-  );
-  Road_pathing.get_paths_list(pathing_state);
+let get_elevation_of_state = state => {
+  let elevation = state.elevation;
+  (~x, ~z) => Grid.get(x, z, elevation);
 };
 
-let place_block = (block_centers, ~obstacles, ~enroad, ~side_x, ~side_z) => {
-  switch (fit_block(block_centers, ~obstacles, ~side_x, ~side_z)) {
-  | (centers, Some(block)) =>
-    let roads = enroad(block);
+let get_obstacle_of_state = state => {
+  let obstacles = state.obstacles;
+  (~x, ~z) =>
+    if (Sparse_grid.is_within'(obstacles, x, z)) {
+      if (Sparse_grid.has(obstacles, x, z)) {
+        Overlay.Canon.Obstacle.Impassable;
+      } else {
+        Overlay.Canon.Obstacle.Clear;
+      };
+    } else {
+      Overlay.Canon.Obstacle.Impassable;
+    };
+};
+
+let enroad = (state, ~block) => {
+  Road_pathing.enroad_gen(
+    ~get_elevation=get_elevation_of_state(state),
+    ~get_obstacle=get_obstacle_of_state(state),
+    ~outlets=outlets_of_block(block),
+    state.pathing_state,
+  );
+};
+
+let place_block = (state, ~side_x, ~side_z) => {
+  switch (fit_block(state, ~side_x, ~side_z)) {
+  | (state, Some(block)) =>
+    let obstacles = add_block_to_obstacles(~block, state.obstacles);
+    let state = {...state, obstacles};
+    enroad(state, ~block);
     let obstacles =
-      add_block_to_obstacles(~block, obstacles)
-      |> add_roads_to_obstacles(~roads);
-    Some((centers, block, obstacles));
-  | (_centers, None) => None
+      add_roads_to_obstacles(
+        state.obstacles,
+        ~roads=Road_pathing.get_paths_list(state.pathing_state),
+      );
+    let state = {...state, obstacles};
+    Some((state, block));
+  | (_state, None) => None
   };
 };
 
-let place_blocks =
-    (block_centers, ~obstacles, ~enroad, ~min_side, ~max_side, ~amount) => {
+let place_blocks = (state, ~min_side, ~max_side, ~amount) => {
   open Core_kernel;
-  let rec go = (block_centers, ~obstacles, ~amount, ~blocks) =>
+  let rec go = (state, ~amount, ~blocks) =>
     if (amount > 0) {
       let side_x = Random.int_incl(min_side, max_side);
       let side_z = Random.int_incl(min_side, max_side);
-      switch (
-        place_block(block_centers, ~obstacles, ~enroad, ~side_x, ~side_z)
-      ) {
-      | Some((block_centers, block, obstacles)) =>
-        go(
-          block_centers,
-          ~obstacles,
-          ~amount=amount - 1,
-          ~blocks=[block, ...blocks],
-        )
-      | None => (block_centers, blocks, obstacles)
+      switch (place_block(state, ~side_x, ~side_z)) {
+      | Some((state, block)) =>
+        go(state, ~amount=amount - 1, ~blocks=[block, ...blocks])
+      | None => (state, blocks)
       };
     } else {
-      (block_centers, blocks, obstacles);
+      (state, blocks);
     };
-  go(block_centers, ~obstacles, ~amount, ~blocks=[]);
+  go(state, ~amount, ~blocks=[]);
 };
-
 let run = (input': input): output => {
   open Core_kernel;
-  let {obstacles, elevation} = input';
+  let {obstacles, elevation}: input = input';
   let town_side = side;
   let town_center = (town_side / 2, town_side / 2);
   let target_population =
@@ -385,50 +408,32 @@ let run = (input': input): output => {
     |> List.map(~f=((x, z)) => Mg_util.Floats.(~~x, ~~z))
     /* Sort block centers by how close they are to the center plaza */
     |> sort_by_distance_to_center(town_center);
-
-  let get_elevation = (~x, ~z) => Grid.get(x, z, elevation);
-  let get_obstacle = (~x, ~z) =>
-    if (Sparse_grid.is_within'(obstacles, x, z)) {
-      if (Sparse_grid.has(obstacles, x, z)) {
-        Overlay.Canon.Obstacle.Impassable;
-      } else {
-        Overlay.Canon.Obstacle.Clear;
-      };
-    } else {
-      Overlay.Canon.Obstacle.Impassable;
-    };
-  let pathing_state = Road_pathing.init_state();
-  let enroad = enroad(~pathing_state, ~get_elevation, ~get_obstacle);
+  let state = {
+    centers,
+    elevation,
+    obstacles,
+    pathing_state: Road_pathing.init_state(),
+  };
 
   let bell_side = 3;
-  let (centers, bell, obstacles) =
+  let (state, bell) =
     Option.value_exn(
-      place_block(
-        centers,
-        ~obstacles,
-        ~enroad,
-        ~side_x=bell_side,
-        ~side_z=bell_side,
-      ),
+      place_block(state, ~side_x=bell_side, ~side_z=bell_side),
     );
 
   /* Grab houses */
-  let (centers, houses, obstacles) =
+  let (state, houses) =
     place_blocks(
-      centers,
-      ~obstacles,
-      ~enroad,
+      state,
       ~min_side=min_house_side,
       ~max_side=max_house_side,
       ~amount=num_houses,
     );
 
   /* Grab farms */
-  let (_centers, farms, obstacles) =
+  let (state, farms) =
     place_blocks(
-      centers,
-      ~obstacles,
-      ~enroad,
+      state,
       ~min_side=min_farm_side,
       ~max_side=max_farm_side,
       ~amount=num_farms,
@@ -448,6 +453,7 @@ let run = (input': input): output => {
         prof_houses,
       );
 
+  let {elevation: _, obstacles, centers: _, pathing_state} = state;
   // TODO
   ignore(obstacles);
   let roads = Road_pathing.get_paths_list(pathing_state);
