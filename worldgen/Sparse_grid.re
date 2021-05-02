@@ -37,6 +37,7 @@ let side = t => t.side;
 let make = side => {side, map: Coord.Map.empty};
 
 let is_within = (side, x, y) => 0 <= x && x < side && 0 <= y && y < side;
+let is_within' = (t, x, y) => 0 <= x && x < t.side && 0 <= y && y < t.side;
 
 let assert_within = (side, x, y) =>
   if (!is_within(side, x, y)) {

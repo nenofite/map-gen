@@ -233,19 +233,13 @@ let blocks_collide = (a, b) => {
   );
 };
 
-let check_block_obstacles = (obstacles, other_blocks, block) => {
+let check_block_obstacles = (~obstacles, block) => {
   let {min_x, max_x, min_z, max_z} = block;
   /* within town */
   0 <= min_x
   && max_x < side
   && 0 <= min_z
   && max_z < side
-  /* doesn't hit other block */
-  && !
-       List.exists(
-         other_block => blocks_collide(other_block, block),
-         other_blocks,
-       )
   /* doesn't hit obstacle */
   && !
        Range.exists(min_x, max_x, x =>
@@ -277,72 +271,107 @@ let pad_block = (block, amount) => {
   block centers until it finds one where the block will fit. Rejected block
   centers are discarded from the list.
  */
-let rec place_block = (obstacles, other_blocks, block_centers, side_x, side_z) => {
+let rec fit_block = (block_centers, ~obstacles, ~side_x, ~side_z) => {
   switch (random_grab_one(block_centers)) {
   | (None, block_centers) => (block_centers, None)
   | (Some(center), block_centers) =>
     let new_block = make_block_from_center(center, side_x, side_z);
     if (check_block_obstacles(
-          obstacles,
-          other_blocks,
+          ~obstacles,
           pad_block(new_block, min_block_spacing),
         )) {
       (block_centers, Some(new_block));
     } else {
-      place_block(obstacles, other_blocks, block_centers, side_x, side_z);
+      fit_block(~obstacles, block_centers, ~side_x, ~side_z);
     };
   };
 };
 
-let rec make_blocks =
-        (
-          obstacles,
-          other_blocks,
-          block_centers,
-          new_blocks,
-          min_side,
-          max_side,
-          amount,
-        ) =>
-  if (amount <= 0) {
-    (other_blocks, block_centers, new_blocks);
-  } else {
-    let side_x = Mg_util.random(max_side - min_side) + min_side;
-    let side_z = Mg_util.random(max_side - min_side) + min_side;
-    switch (
-      place_block(obstacles, other_blocks, block_centers, side_x, side_z)
-    ) {
-    | (block_centers, None) =>
-      /* Couldn't place the block, so quit */
-      (other_blocks, block_centers, new_blocks)
-    | (block_centers, Some(new_block)) =>
-      let new_blocks = [new_block, ...new_blocks];
-      let other_blocks = [new_block, ...other_blocks];
-      make_blocks(
-        obstacles,
-        other_blocks,
-        block_centers,
-        new_blocks,
-        min_side,
-        max_side,
-        amount - 1,
-      );
-    };
-  };
-let make_blocks =
-    (obstacles, other_blocks, block_centers, min_side, max_side, amount) =>
-  make_blocks(
-    obstacles,
-    other_blocks,
-    block_centers,
-    [],
-    min_side,
-    max_side,
-    amount,
-  );
+let outlets_of_block = block => {
+  let {min_x, max_x, min_z, max_z} = block;
+  // TODO all edges
+  ignore(max_x);
+  ignore(max_z);
+  [(min_x - 1, min_z - 1)];
+};
 
-let run = (input: input): output => {
-  let town_side = input.elevation.side;
+let add_block_to_obstacles = (~block, obstacles) => {
+  let {min_x, max_x, min_z, max_z} = block;
+  Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
+    Range.fold(min_x, max_x, obstacles, (obstacles, x) =>
+      Sparse_grid.put(obstacles, x, z, ())
+    )
+  );
+};
+
+let add_roads_to_obstacles = (~roads, obstacles) => {
+  Core_kernel.(
+    List.fold(
+      roads,
+      ~init=obstacles,
+      ~f=(obstacles, road) => {
+        let Road_pathing_rules.{x, z, _} = road;
+        Mg_util.Range.fold(z - 1, z + 1, obstacles, (obstacles, z) =>
+          Mg_util.Range.fold(x - 1, x + 1, obstacles, (obstacles, x) =>
+            Sparse_grid.put(obstacles, x, z, ())
+          )
+        );
+      },
+    )
+  );
+};
+
+let enroad = (~pathing_state, ~get_elevation, ~get_obstacle, block) => {
+  Road_pathing.enroad_gen(
+    ~get_elevation,
+    ~get_obstacle,
+    ~outlets=outlets_of_block(block),
+    pathing_state,
+  );
+  Road_pathing.get_paths_list(pathing_state);
+};
+
+let place_block = (block_centers, ~obstacles, ~enroad, ~side_x, ~side_z) => {
+  switch (fit_block(block_centers, ~obstacles, ~side_x, ~side_z)) {
+  | (centers, Some(block)) =>
+    let roads = enroad(block);
+    let obstacles =
+      add_block_to_obstacles(~block, obstacles)
+      |> add_roads_to_obstacles(~roads);
+    Some((centers, block, obstacles));
+  | (_centers, None) => None
+  };
+};
+
+let place_blocks =
+    (block_centers, ~obstacles, ~enroad, ~min_side, ~max_side, ~amount) => {
+  open Core_kernel;
+  let rec go = (block_centers, ~obstacles, ~amount, ~blocks) =>
+    if (amount > 0) {
+      let side_x = Random.int_incl(min_side, max_side);
+      let side_z = Random.int_incl(min_side, max_side);
+      switch (
+        place_block(block_centers, ~obstacles, ~enroad, ~side_x, ~side_z)
+      ) {
+      | Some((block_centers, block, obstacles)) =>
+        go(
+          block_centers,
+          ~obstacles,
+          ~amount=amount - 1,
+          ~blocks=[block, ...blocks],
+        )
+      | None => (block_centers, blocks, obstacles)
+      };
+    } else {
+      (block_centers, blocks, obstacles);
+    };
+  go(block_centers, ~obstacles, ~amount, ~blocks=[]);
+};
+
+let run = (input': input): output => {
+  open Core_kernel;
+  let {obstacles, elevation} = input';
+  let town_side = side;
   let town_center = (town_side / 2, town_side / 2);
   let target_population =
     min_population + Random.int(max_population - min_population);
@@ -353,70 +382,75 @@ let run = (input: input): output => {
   /* Use a point cloud for block centers */
   let centers =
     Point_cloud.make_list(~side=town_side, ~spacing=block_center_spacing, ())
-    |> List.map(((x, z)) => Mg_util.Floats.(~~x, ~~z))
+    |> List.map(~f=((x, z)) => Mg_util.Floats.(~~x, ~~z))
     /* Sort block centers by how close they are to the center plaza */
     |> sort_by_distance_to_center(town_center);
-  /* Grab town bell */
-  let other_blocks = [];
-  let bell_side = 3;
-  let (other_blocks, centers, bells) =
-    make_blocks(
-      input.obstacles,
-      other_blocks,
-      centers,
-      bell_side,
-      bell_side,
-      1,
-    );
-  let bell =
-    switch (bells) {
-    | [bell] => bell
-    | _ =>
-      failwith(
-        Printf.sprintf(
-          "Unexpected number of town bells: %d",
-          List.length(bells),
-        ),
-      )
+
+  let get_elevation = (~x, ~z) => Grid.get(x, z, elevation);
+  let get_obstacle = (~x, ~z) =>
+    if (Sparse_grid.is_within'(obstacles, x, z)) {
+      if (Sparse_grid.has(obstacles, x, z)) {
+        Overlay.Canon.Obstacle.Impassable;
+      } else {
+        Overlay.Canon.Obstacle.Clear;
+      };
+    } else {
+      Overlay.Canon.Obstacle.Impassable;
     };
-  /* Grab houses */
-  let (other_blocks, centers, houses) =
-    make_blocks(
-      input.obstacles,
-      other_blocks,
-      centers,
-      min_house_side,
-      max_house_side,
-      num_houses,
-    );
-  /* Grab farms */
-  let (_other_blocks, _centers, farms) =
-    make_blocks(
-      input.obstacles,
-      other_blocks,
-      centers,
-      min_farm_side,
-      max_farm_side,
-      num_farms,
+  let pathing_state = Road_pathing.init_state();
+  let enroad = enroad(~pathing_state, ~get_elevation, ~get_obstacle);
+
+  let bell_side = 3;
+  let (centers, bell, obstacles) =
+    Option.value_exn(
+      place_block(
+        centers,
+        ~obstacles,
+        ~enroad,
+        ~side_x=bell_side,
+        ~side_z=bell_side,
+      ),
     );
 
-  let bell = flatten_block(input, bell);
-  let houses = flatten_blocks(input, houses);
-  let farms = flatten_blocks(input, farms);
+  /* Grab houses */
+  let (centers, houses, obstacles) =
+    place_blocks(
+      centers,
+      ~obstacles,
+      ~enroad,
+      ~min_side=min_house_side,
+      ~max_side=max_house_side,
+      ~amount=num_houses,
+    );
+
+  /* Grab farms */
+  let (_centers, farms, obstacles) =
+    place_blocks(
+      centers,
+      ~obstacles,
+      ~enroad,
+      ~min_side=min_farm_side,
+      ~max_side=max_farm_side,
+      ~amount=num_farms,
+    );
+
+  let bell = flatten_block(input', bell);
+  let houses = flatten_blocks(input', houses);
+  let farms = flatten_blocks(input', farms);
 
   /* Assign jobs */
   let (farm_houses, prof_houses) =
     Mg_util.take_both(List.length(farms), houses);
   let houses =
-    List.map(block => {block, worksite: None}, farm_houses)
+    List.map(~f=block => {block, worksite: None}, farm_houses)
     @ List.map(
-        block => {block, worksite: Some(random_worksite())},
+        ~f=block => {block, worksite: Some(random_worksite())},
         prof_houses,
       );
 
   // TODO
-  let roads = Road_pathing_rules.Coord.Set.empty;
-
+  ignore(obstacles);
+  let roads = Road_pathing.get_paths_list(pathing_state);
   {bell, farms, houses, roads};
 };
 

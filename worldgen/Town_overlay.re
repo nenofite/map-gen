@@ -8,6 +8,8 @@ let potential_sites_limit = 100;
 let wall_height = 4;
 let torch_margin = 10;
 
+let roads = t => t.roads;
+
 let town_color = (255, 255, 0);
 
 let apply_progress_view = ((towns, delta: Overlay.Canon.delta)) => {
@@ -208,8 +210,11 @@ let prepare_town =
   let input = extract_input(canon, town_min_x, town_min_z);
   let {bell, houses, farms, roads} = Town_layout.run(input);
 
-  // TODO
-  ignore(roads);
+  let roads =
+    Core_kernel.List.map(
+      roads,
+      ~f=Road_pathing_rules.Coord.translate(~dx=town_min_x, ~dz=town_min_z),
+    );
 
   /* Translate blocks into global coords */
   let translate_block = (b: block) => {

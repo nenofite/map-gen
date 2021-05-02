@@ -19,6 +19,9 @@ module Coord = struct
   include Hashable.Make (T)
 
   let make_road ~x ~y ~z = {x; y; z; structure= Road}
+
+  let translate ~dx ~dz {x; y; z; structure} =
+    {x= x + dx; y; z= z + dz; structure}
 end
 
 include Coord.T
@@ -32,15 +35,18 @@ let continue_stair_cost = 10
 
 let bridge_cost = 100
 
-let get_obstacle_in_margin ~x ~z =
+let add_margin get_obstacle ~x ~z =
   let margin = 3 in
-  let obstacles = (Overlay.Canon.require ()).obstacles in
   Range.fold (z - margin) (z + margin) Overlay.Canon.Clear (fun obs z ->
       Range.fold (x - margin) (x + margin) obs (fun obs x ->
-          let here_obs = Grid.get x z obstacles in
+          let here_obs = get_obstacle ~x ~z in
           Overlay.Canon.Obstacle.max obs here_obs ) )
 
-let get_elevation ~x ~z =
+let get_canon_obstacle ~x ~z =
+  let canon = Overlay.Canon.require () in
+  Grid.get x z canon.obstacles
+
+let get_canon_elevation ~x ~z =
   let elevation = (Overlay.Canon.require ()).elevation in
   Grid.get x z elevation
 
@@ -90,7 +96,8 @@ let make_dir4_exn x1 z1 x2 z2 =
   | _ ->
       invalid_argf "cannot make dir4: (%d, %d) (%d, %d)" x1 z1 x2 z2 ()
 
-let neighbors {x; y; z; structure} =
+let neighbors ~get_elevation ~get_obstacle {x; y; z; structure} =
+  let get_obstacle_in_margin = add_margin get_obstacle in
   let add_ground_neighbor ~from_stair ~y ~nx ~ny ~nz list =
     let stair_cost =
       if from_stair then continue_stair_cost else start_stair_cost

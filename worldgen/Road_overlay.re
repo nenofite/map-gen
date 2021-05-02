@@ -66,14 +66,19 @@ let starts_of_poi = ((poi_x, poi_z)) => {
 let prepare = () => {
   let canon = Overlay.Canon.require();
   let (towns, _) = Town_overlay.require();
-  let pois = List.map(~f=poi_of_town, towns);
   Tale.log("Pathfinding roads");
   module Cs = Road_pathing_rules.Coord.Set;
   let pathing_state = Road_pathing.init_state();
-  let num_towns = List.length(pois);
-  List.iteri(pois, ~f=(i, poi) => {
-    Tale.blockf("Enroading town %d of %d", i, num_towns, ~f=() =>
-      Road_pathing.enroad(pathing_state, ~town_roads=starts_of_poi(poi))
+  let num_towns = List.length(towns);
+  List.iteri(towns, ~f=(i, town) => {
+    Tale.blockf(
+      "Enroading town %d of %d",
+      i + 1,
+      num_towns,
+      ~f=() => {
+        let town_roads = Town_overlay.roads(town.town);
+        Road_pathing.enroad(pathing_state, ~town_roads);
+      },
     )
   });
   let roads = Road_pathing.get_paths(pathing_state);
@@ -87,7 +92,7 @@ let prepare = () => {
       |> to_grid(~default=Overlay.Canon.Clear)
     );
   (
-    {pois, roads},
+    {pois: [], roads},
     Overlay.Canon.make_delta(~obstacles=`Add(obstacles), ()),
   );
 };

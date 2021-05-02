@@ -15,6 +15,8 @@ let init_state () =
 
 let get_paths state = Path_coord.Set.of_hash_set state.paths
 
+let get_paths_list state = Hash_set.to_list state.paths
+
 let update_closest_paths ~edges ~new_paths state =
   let allowed_iters = 10_000_000 in
   let rec go open_set ~elapsed_iters =
@@ -70,21 +72,40 @@ let get_closest_path ~from_paths state =
   |> Option.map ~f:(fun cp ->
          reconstruct_path (Option.value_exn cp.parent) ~state )
 
-let enroad ~town_roads state =
-  let canon = Overlay.Canon.require () in
+let enroad_gen ~get_elevation ~get_obstacle ~outlets state =
   let town_paths =
-    List.map town_roads ~f:(fun (x, z) ->
-        let y = Grid.get x z canon.elevation in
+    List.map outlets ~f:(fun (x, z) ->
+        let y = get_elevation ~x ~z in
         Path_coord.make_road ~x ~y ~z )
   in
   let new_path =
     match get_closest_path state ~from_paths:town_paths with
     | Some path ->
+        path
+    | None ->
+        []
+  in
+  let edges = Road_pathing_rules.neighbors ~get_elevation ~get_obstacle in
+  update_closest_paths ~edges ~new_paths:(new_path @ town_paths) state ;
+  List.iter new_path ~f:(fun p -> Hash_set.add state.paths p) ;
+  ()
+
+let enroad ~town_roads state =
+  (* TODO redundant *)
+  let new_path =
+    town_roads
+    @
+    match get_closest_path state ~from_paths:town_roads with
+    | Some path ->
         Tale.log "Found path" ; path
     | None ->
         Tale.log "No path" ; []
   in
-  let edges = Road_pathing_rules.neighbors in
-  update_closest_paths ~edges ~new_paths:(new_path @ town_paths) state ;
+  let edges =
+    Road_pathing_rules.(
+      neighbors ~get_elevation:get_canon_elevation
+        ~get_obstacle:get_canon_obstacle)
+  in
+  update_closest_paths ~edges ~new_paths:new_path state ;
   List.iter new_path ~f:(fun p -> Hash_set.add state.paths p) ;
   ()
