@@ -176,6 +176,35 @@ let spawn_point_of_block = block => {
   (x, y, z);
 };
 
+let extract_input = (canon: Overlay.Canon.t, town_min_x, town_min_z) => {
+  let side = Town_layout.side;
+  let elevation =
+    Grid.Int.init(~side, ((tx, tz)) => {
+      Grid.get(tx + town_min_x, tz + town_min_z, canon.elevation)
+    });
+  let obstacles =
+    Mg_util.Range.(
+      fold(0, side - 1, Sparse_grid.make(side), (town_obs, tz) => {
+        fold(
+          0,
+          side - 1,
+          town_obs,
+          (town_obs, tx) => {
+            let x = tx + town_min_x;
+            let z = tz + town_min_z;
+            let obs = Grid.get(x, z, canon.obstacles);
+            if (!Overlay.Canon.can_build_on(obs)) {
+              Sparse_grid.put(town_obs, tx, tz, ());
+            } else {
+              town_obs;
+            };
+          },
+        )
+      })
+    );
+  Town_layout.{elevation, obstacles};
+};
+
 let prepare_town =
     (
       canon: Overlay.Canon.t,
@@ -183,38 +212,8 @@ let prepare_town =
       town_min_x,
       town_min_z,
     ) => {
-  let town_max_x = town_min_x + Town_layout.side - 1;
-  let town_max_z = town_min_z + Town_layout.side - 1;
-
-  /* Slice elevations from base overlay */
-  let elevation =
-    Grid_compat.init(Town_layout.side, (town_x, town_z) => {
-      Grid_compat.at(
-        canon.elevation,
-        town_x + town_min_x,
-        town_z + town_min_z,
-      )
-    });
-
-  /* TODO misnomer */
-  let town_obstacles =
-    Grid.With_coords.fold(
-      Grid.With_coords.T(canon.obstacles),
-      ~init=Sparse_grid.make(Town_layout.side),
-      ~f=(town_obstacles, (x, z, obs)) =>
-      if (!Overlay.Canon.can_build_on(obs)
-          && town_min_x <= x
-          && x <= town_max_x
-          && town_min_z <= z
-          && z <= town_max_z) {
-        Sparse_grid.put(town_obstacles, x - town_min_x, z - town_min_z, ());
-      } else {
-        town_obstacles;
-      }
-    );
-
-  let {bell, houses, farms} =
-    Town_layout.run({elevation, roads: town_obstacles});
+  let input = extract_input(canon, town_min_x, town_min_z);
+  let {bell, houses, farms} = Town_layout.run(input);
 
   /* Translate blocks into global coords */
   let translate_block = (b: block) => {

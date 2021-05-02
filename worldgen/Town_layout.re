@@ -1,5 +1,9 @@
 open Town_overlay_i;
 
+type input = {
+  elevation: Grid.t(int),
+  obstacles: Sparse_grid.t(unit),
+};
 let side = 128;
 let max_elevation = 150;
 let min_elevation = 0;
@@ -47,12 +51,12 @@ let make_input = () => {
     Range.fold(0, elevation.side - 1, roads, (roads, z) => {
       Sparse_grid.put(roads, center_x, z, ())
     });
-  let roads =
+  let obstacles =
     Range.fold(0, elevation.side - 1, roads, (roads, x) => {
       Sparse_grid.put(roads, x, center_z, ())
     });
 
-  {elevation, roads};
+  {elevation, obstacles};
 };
 
 let draw_rect = (img, min_x, max_x, min_z, max_z, border_color) => {
@@ -97,7 +101,7 @@ let draw = (input: input, output: output, file) => {
     img#set(x, y, colorize_elevation(c))
   });
   let road_color = {r: 0, g: 0, b: 0};
-  Sparse_grid.iter(input.roads, ((x, y), ()) => {
+  Sparse_grid.iter(input.obstacles, ((x, y), ()) => {
     img#set(x, y, road_color)
   });
 
@@ -357,7 +361,14 @@ let run = (input: input): output => {
   let other_blocks = [];
   let bell_side = 3;
   let (other_blocks, centers, bells) =
-    make_blocks(input.roads, other_blocks, centers, bell_side, bell_side, 1);
+    make_blocks(
+      input.obstacles,
+      other_blocks,
+      centers,
+      bell_side,
+      bell_side,
+      1,
+    );
   let bell =
     switch (bells) {
     | [bell] => bell
@@ -372,7 +383,7 @@ let run = (input: input): output => {
   /* Grab houses */
   let (other_blocks, centers, houses) =
     make_blocks(
-      input.roads,
+      input.obstacles,
       other_blocks,
       centers,
       min_house_side,
@@ -382,7 +393,7 @@ let run = (input: input): output => {
   /* Grab farms */
   let (_other_blocks, _centers, farms) =
     make_blocks(
-      input.roads,
+      input.obstacles,
       other_blocks,
       centers,
       min_farm_side,

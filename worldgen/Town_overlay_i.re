@@ -1,10 +1,5 @@
 open! Core_kernel;
 
-type input = {
-  elevation: Grid.t(int),
-  roads: Sparse_grid.t(unit),
-};
-
 [@deriving bin_io]
 type block = {
   min_x: int,
