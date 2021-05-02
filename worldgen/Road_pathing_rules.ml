@@ -184,3 +184,34 @@ let neighbors {x; y; z; structure} =
       stair_neighbors ~x ~y ~z dir
   | Bridge dir ->
       bridge_neighbors ~x ~y ~z dir
+
+(**
+  widen_path makes Paved roads three blocks wide. Each block is the highest
+  elevation and nicest niceness of any road it touches.
+ *)
+let widen_road (roads : t Sparse_grid.t) =
+  let roads_lo_to_hi =
+    Sparse_grid.fold roads (fun coord road ls -> (coord, road) :: ls) []
+    |> List.stable_sort ~compare:(fun (_, a) (_, b) ->
+           match compare_structure a.structure b.structure with
+           | 0 ->
+               Int.compare a.y b.y
+           | i ->
+               i )
+  in
+  List.fold roads_lo_to_hi
+    ~init:(Sparse_grid.make (Sparse_grid.side roads))
+    ~f:(fun g ((x, z), coord) ->
+      match coord.structure with
+      | Road ->
+          Mg_util.Range.fold (z - 1) (z + 1) g (fun g z ->
+              Mg_util.Range.fold (x - 1) (x + 1) g (fun g x ->
+                  Sparse_grid.put g x z coord ) )
+      | Stair (N | S) ->
+          Mg_util.Range.fold (x - 1) (x + 1) g (fun g x ->
+              Sparse_grid.put g x z coord )
+      | Stair (E | W) ->
+          Mg_util.Range.fold (z - 1) (z + 1) g (fun g z ->
+              Sparse_grid.put g x z coord )
+      | Bridge _ ->
+          g )

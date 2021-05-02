@@ -39,47 +39,6 @@ let edge_cost = (canon: Overlay.Canon.t, (ax, ay), (bx, by)) => {
   };
 };
 
-/**
-  widen_path makes Paved roads three blocks wide. Each block is the highest
-  elevation and nicest niceness of any road it touches.
- */
-let widen_road = (roads: Sparse_grid.t(road)) => {
-  let roads_lo_to_hi =
-    Sparse_grid.fold(
-      roads,
-      (coord, road, ls) => [(coord, road), ...ls],
-      [],
-    )
-    |> List.stable_sort(~compare=((_, a), (_, b)) =>
-         switch (Rp.compare_structure(a.Rp.structure, b.Rp.structure)) {
-         | 0 => Int.compare(a.Rp.y, b.Rp.y)
-         | i => i
-         }
-       );
-  List.fold(
-    roads_lo_to_hi,
-    ~init=Sparse_grid.make(Sparse_grid.side(roads)),
-    ~f=(g, ((x, z), coord)) => {
-    switch (coord.Rp.structure) {
-    | Road =>
-      Mg_util.Range.fold(z - 1, z + 1, g, (g, z) => {
-        Mg_util.Range.fold(x - 1, x + 1, g, (g, x) => {
-          Sparse_grid.put(g, x, z, coord)
-        })
-      })
-    | Stair(N | S) =>
-      Mg_util.Range.fold(x - 1, x + 1, g, (g, x) => {
-        Sparse_grid.put(g, x, z, coord)
-      })
-    | Stair(E | W) =>
-      Mg_util.Range.fold(z - 1, z + 1, g, (g, z) => {
-        Sparse_grid.put(g, x, z, coord)
-      })
-    | Bridge(_) => g
-    }
-  });
-};
-
 let place_road = (_canon: Overlay.Canon.t, roads: Sparse_grid.t(road), path) => {
   let rec go = (roads: Sparse_grid.t(road), path) =>
     switch (path) {
@@ -121,7 +80,7 @@ let prepare = () => {
   let roads =
     place_road(canon, Sparse_grid.make(canon.side), Cs.to_list(roads));
   Tale.log("Widening roads and adding steps");
-  let roads = widen_road(roads);
+  let roads = Road_pathing_rules.widen_road(roads);
   let obstacles =
     Sparse_grid.(
       map(roads, (_, _) => Overlay.Canon.Impassable)
