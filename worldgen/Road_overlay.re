@@ -81,9 +81,8 @@ let prepare = () => {
       },
     )
   });
-  let roads = Road_pathing.get_paths(pathing_state);
-  let roads =
-    place_road(canon, Sparse_grid.make(canon.side), Cs.to_list(roads));
+  let roads = Road_pathing.get_paths_list(pathing_state);
+  let roads = place_road(canon, Sparse_grid.make(canon.side), roads);
   Tale.log("Widening roads and adding steps");
   let roads = Road_pathing_rules.widen_road(roads);
   let obstacles =

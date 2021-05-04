@@ -7,21 +7,25 @@ type closest_path = {cost: int; parent: Path_coord.t option}
 let root_path = {cost= 0; parent= None}
 
 type pathing_state =
-  {paths: Path_coord.Hash_set.t; closest_paths: closest_path Path_coord.Table.t}
+  { paths: Path_coord.Hash_set.t
+  ; mutable paths_to_place: Path_coord.t list
+  ; closest_paths: closest_path Path_coord.Table.t }
 
 let init_state () =
   { paths= Path_coord.Hash_set.create ()
+  ; paths_to_place= []
   ; closest_paths= Path_coord.Table.create () }
 
-let get_paths state = Path_coord.Set.of_hash_set state.paths
-
-let get_paths_list state = Hash_set.to_list state.paths
+let get_paths_list state = state.paths_to_place
 
 (** Call this if obstacles have changed *)
 let clear_closest_paths state = Path_coord.Table.clear state.closest_paths
 
-let add_paths ~new_paths state =
+let add_paths ~should_place ~new_paths state =
   List.iter new_paths ~f:(fun p -> Hash_set.add state.paths p) ;
+  if should_place then
+    List.iter new_paths ~f:(fun p ->
+        state.paths_to_place <- p :: state.paths_to_place ) ;
   ()
 
 let set_paths_as_roots state =
@@ -67,11 +71,6 @@ let update_closest_paths ~edges state =
   go open_set ~elapsed_iters:0 ;
   ()
 
-let add_paths_and_update ~edges ~new_paths state =
-  add_paths ~new_paths state ;
-  update_closest_paths ~edges state ;
-  ()
-
 let reconstruct_path start ~state =
   let rec go ls point =
     let ls = point :: ls in
@@ -87,7 +86,7 @@ let get_closest_path ~from_paths state =
   |> Option.bind ~f:(fun cp -> cp.parent)
   |> Option.map ~f:(fun parent -> reconstruct_path parent ~state)
 
-let enroad_gen ~get_elevation ~get_obstacle ~outlets ~add_outlets state =
+let enroad_gen ~get_elevation ~get_obstacle ~outlets state =
   let edges = Road_pathing_rules.neighbors ~get_elevation ~get_obstacle in
   update_closest_paths ~edges state ;
   let town_paths =
@@ -96,24 +95,16 @@ let enroad_gen ~get_elevation ~get_obstacle ~outlets ~add_outlets state =
         Path_coord.make_road ~x ~y ~z )
   in
   let new_path =
-    (if add_outlets then town_paths else [])
-    @
     match get_closest_path state ~from_paths:town_paths with
     | Some path ->
         Tale.log "Found path" ; path
     | None ->
         Tale.log "No path" ; []
   in
-  add_paths ~new_paths:new_path state ;
-  List.iter new_path ~f:(fun p -> Hash_set.add state.paths p) ;
+  add_paths ~should_place:true ~new_paths:new_path state ;
   ()
 
 let enroad ~town_roads state =
-  let town_roads =
-    List.map town_roads ~f:(fun (x, z) ->
-        let y = Road_pathing_rules.get_canon_elevation ~x ~z in
-        Road_pathing_rules.Coord.make_road ~x ~y ~z )
-  in
   let edges =
     Road_pathing_rules.(
       neighbors ~get_elevation:get_canon_elevation
@@ -130,6 +121,6 @@ let enroad ~town_roads state =
     | None ->
         Tale.log "No path" ; []
   in
-  add_paths ~new_paths:new_path state ;
+  add_paths ~should_place:true ~new_paths:new_path state ;
   List.iter new_path ~f:(fun p -> Hash_set.add state.paths p) ;
   ()

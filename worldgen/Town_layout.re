@@ -304,7 +304,7 @@ let outlets_of_block = block => {
     Mg_util.Range.map(min_x, max_x, x => [(x, min_z - m), (x, max_z + m)])
     |> List.concat;
   let left_right =
-    Mg_util.Range.map(min_z, max_z, z => [(min_x - m, z), (max_x + m, m)])
+    Mg_util.Range.map(min_z, max_z, z => [(min_x - m, z), (max_x + m, z)])
     |> List.concat;
   left_right @ top_bottom;
 };
@@ -354,25 +354,24 @@ let get_road_obstacle_of_state = state => {
     };
 };
 
-let enroad = (state, ~add_outlets, ~block) => {
+let enroad = (state, ~block) => {
   Road_pathing.clear_closest_paths(state.pathing_state);
   Road_pathing.enroad_gen(
     ~get_elevation=get_elevation_of_state(state),
     ~get_obstacle=get_road_obstacle_of_state(state),
     ~outlets=outlets_of_block(block),
-    ~add_outlets,
     state.pathing_state,
   );
 };
 
-let place_block = (state, ~add_outlets, ~side_x, ~side_z) => {
+let place_block = (state, ~side_x, ~side_z) => {
   switch (fit_block(state, ~side_x, ~side_z)) {
   | (state, Some(block)) =>
     let obstacles = add_block_to_obstacles(~block, state.obstacles);
     let road_obstacles = add_block_to_obstacles(~block, state.road_obstacles);
     let state = {...state, obstacles, road_obstacles};
     Road_pathing.clear_closest_paths(state.pathing_state);
-    enroad(state, ~add_outlets, ~block);
+    enroad(state, ~block);
     let obstacles =
       add_roads_to_obstacles(
         state.obstacles,
@@ -384,13 +383,13 @@ let place_block = (state, ~add_outlets, ~side_x, ~side_z) => {
   };
 };
 
-let place_blocks = (state, ~add_outlets, ~min_side, ~max_side, ~amount) => {
+let place_blocks = (state, ~min_side, ~max_side, ~amount) => {
   open Core_kernel;
   let rec go = (state, ~amount, ~blocks) =>
     if (amount > 0) {
       let side_x = Random.int_incl(min_side, max_side);
       let side_z = Random.int_incl(min_side, max_side);
-      switch (place_block(state, ~add_outlets, ~side_x, ~side_z)) {
+      switch (place_block(state, ~side_x, ~side_z)) {
       | Some((state, block)) =>
         go(state, ~amount=amount - 1, ~blocks=[block, ...blocks])
       | None => (state, blocks)
@@ -428,19 +427,24 @@ let run = (input': input): output => {
   let bell_side = 3;
   let (state, bell) =
     Option.value_exn(
-      place_block(
-        state,
-        ~add_outlets=true,
-        ~side_x=bell_side,
-        ~side_z=bell_side,
-      ),
+      place_block(state, ~side_x=bell_side, ~side_z=bell_side),
     );
+  let bell_paths =
+    outlets_of_block(bell)
+    |> List.map(~f=((x, z)) => {
+         let y = Grid.get(x, z, state.elevation);
+         Road_pathing_rules.Coord.make_road(~x, ~y, ~z);
+       });
+  Road_pathing.add_paths(
+    ~should_place=false,
+    ~new_paths=bell_paths,
+    state.pathing_state,
+  );
 
   /* Grab houses */
   let (state, houses) =
     place_blocks(
       state,
-      ~add_outlets=false,
       ~min_side=min_house_side,
       ~max_side=max_house_side,
       ~amount=num_houses,
@@ -450,7 +454,6 @@ let run = (input': input): output => {
   let (state, farms) =
     place_blocks(
       state,
-      ~add_outlets=false,
       ~min_side=min_farm_side,
       ~max_side=max_farm_side,
       ~amount=num_farms,
