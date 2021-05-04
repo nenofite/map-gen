@@ -36,7 +36,7 @@ let continue_stair_cost = 10
 let bridge_cost = 100
 
 let add_margin get_obstacle ~x ~z =
-  let margin = 3 in
+  let margin = 2 in
   Range.fold (z - margin) (z + margin) Overlay.Canon.Clear (fun obs z ->
       Range.fold (x - margin) (x + margin) obs (fun obs x ->
           let here_obs = get_obstacle ~x ~z in

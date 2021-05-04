@@ -8,6 +8,7 @@ type input = {
 type layout_state = {
   centers: list((int, int)),
   elevation: Grid.t(int),
+  road_obstacles: Sparse_grid.t(unit),
   obstacles: Sparse_grid.t(unit),
   pathing_state: Road_pathing.pathing_state,
 };
@@ -298,11 +299,12 @@ let rec fit_block = (state, ~side_x, ~side_z) => {
 
 let outlets_of_block = block => {
   let {min_x, max_x, min_z, max_z} = block;
+  let m = 3;
   let top_bottom =
-    Mg_util.Range.map(min_x, max_x, x => [(x, min_z - 1), (x, max_z + 1)])
+    Mg_util.Range.map(min_x, max_x, x => [(x, min_z - m), (x, max_z + m)])
     |> List.concat;
   let left_right =
-    Mg_util.Range.map(min_z, max_z, z => [(min_x - 1, z), (max_x + 1, z)])
+    Mg_util.Range.map(min_z, max_z, z => [(min_x - m, z), (max_x + m, m)])
     |> List.concat;
   left_right @ top_bottom;
 };
@@ -338,8 +340,8 @@ let get_elevation_of_state = state => {
   (~x, ~z) => Grid.get(x, z, elevation);
 };
 
-let get_obstacle_of_state = state => {
-  let obstacles = state.obstacles;
+let get_road_obstacle_of_state = state => {
+  let obstacles = state.road_obstacles;
   (~x, ~z) =>
     if (Sparse_grid.is_within'(obstacles, x, z)) {
       if (Sparse_grid.has(obstacles, x, z)) {
@@ -352,21 +354,25 @@ let get_obstacle_of_state = state => {
     };
 };
 
-let enroad = (state, ~block) => {
+let enroad = (state, ~add_outlets, ~block) => {
+  Road_pathing.clear_closest_paths(state.pathing_state);
   Road_pathing.enroad_gen(
     ~get_elevation=get_elevation_of_state(state),
-    ~get_obstacle=get_obstacle_of_state(state),
+    ~get_obstacle=get_road_obstacle_of_state(state),
     ~outlets=outlets_of_block(block),
+    ~add_outlets,
     state.pathing_state,
   );
 };
 
-let place_block = (state, ~side_x, ~side_z) => {
+let place_block = (state, ~add_outlets, ~side_x, ~side_z) => {
   switch (fit_block(state, ~side_x, ~side_z)) {
   | (state, Some(block)) =>
     let obstacles = add_block_to_obstacles(~block, state.obstacles);
-    let state = {...state, obstacles};
-    enroad(state, ~block);
+    let road_obstacles = add_block_to_obstacles(~block, state.road_obstacles);
+    let state = {...state, obstacles, road_obstacles};
+    Road_pathing.clear_closest_paths(state.pathing_state);
+    enroad(state, ~add_outlets, ~block);
     let obstacles =
       add_roads_to_obstacles(
         state.obstacles,
@@ -378,13 +384,13 @@ let place_block = (state, ~side_x, ~side_z) => {
   };
 };
 
-let place_blocks = (state, ~min_side, ~max_side, ~amount) => {
+let place_blocks = (state, ~add_outlets, ~min_side, ~max_side, ~amount) => {
   open Core_kernel;
   let rec go = (state, ~amount, ~blocks) =>
     if (amount > 0) {
       let side_x = Random.int_incl(min_side, max_side);
       let side_z = Random.int_incl(min_side, max_side);
-      switch (place_block(state, ~side_x, ~side_z)) {
+      switch (place_block(state, ~add_outlets, ~side_x, ~side_z)) {
       | Some((state, block)) =>
         go(state, ~amount=amount - 1, ~blocks=[block, ...blocks])
       | None => (state, blocks)
@@ -415,19 +421,26 @@ let run = (input': input): output => {
     centers,
     elevation,
     obstacles,
+    road_obstacles: obstacles,
     pathing_state: Road_pathing.init_state(),
   };
 
   let bell_side = 3;
   let (state, bell) =
     Option.value_exn(
-      place_block(state, ~side_x=bell_side, ~side_z=bell_side),
+      place_block(
+        state,
+        ~add_outlets=true,
+        ~side_x=bell_side,
+        ~side_z=bell_side,
+      ),
     );
 
   /* Grab houses */
   let (state, houses) =
     place_blocks(
       state,
+      ~add_outlets=false,
       ~min_side=min_house_side,
       ~max_side=max_house_side,
       ~amount=num_houses,
@@ -437,6 +450,7 @@ let run = (input': input): output => {
   let (state, farms) =
     place_blocks(
       state,
+      ~add_outlets=false,
       ~min_side=min_farm_side,
       ~max_side=max_farm_side,
       ~amount=num_farms,
@@ -456,7 +470,7 @@ let run = (input': input): output => {
         prof_houses,
       );
 
-  let {elevation: _, obstacles, centers: _, pathing_state} = state;
+  let {elevation: _, obstacles, road_obstacles: _, centers: _, pathing_state} = state;
   // TODO
   ignore(obstacles);
   let roads = Road_pathing.get_paths_list(pathing_state);
