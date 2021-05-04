@@ -309,6 +309,14 @@ let outlets_of_block = block => {
   left_right @ top_bottom;
 };
 
+let outlets_of_bell = block => {
+  let {min_x, max_x, min_z, max_z} = block;
+  Mg_util.Range.map(min_x, max_x, x =>
+    Mg_util.Range.map(min_z, max_z, z => (x, z))
+  )
+  |> List.concat;
+};
+
 let add_block_to_obstacles = (~block, obstacles) => {
   let {min_x, max_x, min_z, max_z} = block;
   Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
@@ -362,6 +370,16 @@ let enroad = (state, ~block) => {
     ~outlets=outlets_of_block(block),
     state.pathing_state,
   );
+};
+
+let place_plaza = (state, ~side_x, ~side_z) => {
+  switch (fit_block(state, ~side_x, ~side_z)) {
+  | (state, Some(block)) =>
+    let obstacles = add_block_to_obstacles(~block, state.obstacles);
+    let state = {...state, obstacles};
+    Some((state, block));
+  | (_state, None) => None
+  };
 };
 
 let place_block = (state, ~side_x, ~side_z) => {
@@ -424,13 +442,13 @@ let run = (input': input): output => {
     pathing_state: Road_pathing.init_state(),
   };
 
-  let bell_side = 3;
+  let bell_side = 9;
   let (state, bell) =
     Option.value_exn(
-      place_block(state, ~side_x=bell_side, ~side_z=bell_side),
+      place_plaza(state, ~side_x=bell_side, ~side_z=bell_side),
     );
   let bell_paths =
-    outlets_of_block(bell)
+    outlets_of_bell(bell)
     |> List.map(~f=((x, z)) => {
          let y = Grid.get(x, z, state.elevation);
          Road_pathing_rules.Coord.make_road(~x, ~y, ~z);

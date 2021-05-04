@@ -293,13 +293,24 @@ let prepare = (): t => {
 
 let create_bell = (bell: block, region: Minecraft.Region.t) => {
   open Minecraft.Region;
+  let plaza_material = Minecraft.Block.Stone_brick_slab;
   let base_material = Minecraft.Block.Stone;
 
   let {min_x, max_x, min_z, max_z, elevation: _, _} = bell;
 
-  /* Foundation */
+  /* Plaza */
   for (x in min_x to max_x) {
     for (z in min_z to max_z) {
+      Building_old.raise_lower_elev_match(region, x, z, bell.elevation);
+      set_block(~x, ~y=bell.elevation, ~z, plaza_material, region);
+    };
+  };
+
+  /* Base of bell */
+  let center_x = (max_x + min_x) / 2;
+  let center_z = (max_z + min_z) / 2;
+  for (x in center_x - 1 to center_x + 1) {
+    for (z in center_z - 1 to center_z + 1) {
       Building_old.raise_lower_elev_match(region, x, z, bell.elevation);
       set_block(~x, ~y=bell.elevation, ~z, base_material, region);
     };
@@ -307,9 +318,9 @@ let create_bell = (bell: block, region: Minecraft.Region.t) => {
 
   set_block(
     Minecraft.Block.Bell,
-    ~x=(min_x + max_x) / 2,
+    ~x=center_x,
     ~y=bell.elevation + 1,
-    ~z=(min_z + max_z) / 2,
+    ~z=center_z,
     region,
   );
 };
