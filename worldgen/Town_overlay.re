@@ -93,13 +93,10 @@ let acceptable_elevations = (elevations, x, z) => {
 
 let town_area_clear = (canon: Overlay.Canon.t, x, z) =>
   if (!within_region_boundaries(~canon_side=canon.side, x, z)) {
-    Tale.log("region boundaries");
     false;
   } else if (has_obstacle(canon.obstacles, x, z)) {
-    Tale.log("has obstacle");
     false;
   } else if (!acceptable_elevations(canon.elevation, x, z)) {
-    Tale.log("elevation");
     false;
   } else {
     true;
