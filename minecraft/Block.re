@@ -1785,7 +1785,8 @@ let is_air =
   | Air => true
   | _ => false;
 
-/** whether you can stand on this block and it'll stop you falling */
+/** whether you can stand on this block and the _full_ cube will stop you falling.
+  For example, torches can place on top of it. */
 let is_solid =
   fun
   /* Non-solids */
@@ -1805,6 +1806,8 @@ let is_solid =
   | Cornflower
   | Lily_of_the_valley
   | Wheat(_)
+  | Stairs(_, _)
+  | Stone_brick_slab
   | Lava
   | Water
   | Flowing_water(_) => false

@@ -1,16 +1,4 @@
-open Bin_prot.Std;
-
-[@deriving bin_io]
-type town = {
-  x: int,
-  z: int,
-  town: Town_prototype.output,
-};
-
-[@deriving bin_io]
-type t = (list(town), Overlay.Canon.delta);
-
-type x = list(town);
+include Town_overlay_i;
 
 let tweak_dist = 150;
 let tweak_tries = 100;
@@ -20,58 +8,53 @@ let potential_sites_limit = 100;
 let wall_height = 4;
 let torch_margin = 10;
 
-let draw_towns = (canon: Overlay.Canon.t, towns) => {
-  let sg =
-    Sparse_grid.(
-      List.fold_left(
-        (sg, (x, z)) => put(sg, x, z, ()),
-        make(canon.side),
-        towns,
-      )
-    );
-  Draw.draw_sparse_grid(
-    fun
-    | None => 0
-    | Some () => 0xFFFFFF,
-    "towns.bmp",
-    sg,
-  );
-};
+let roads = t => t.roads;
 
 let town_color = (255, 255, 0);
 
-let draw_sparse_towns = (town_centers, draw_point) => {
-  Core_kernel.(
-    List.iter(town_centers, ~f=((x, z)) =>
-      draw_point(~size=Town_prototype.side, x, z, town_color)
-    )
-  );
-};
-
-let apply_progress_view = ((towns, _)) => {
+let apply_progress_view = ((towns, delta: Overlay.Canon.delta)) => {
   open Core_kernel;
+  let side = Overlay.Canon.require().side;
+  let obs =
+    switch (delta.Overlay.Canon.obstacles) {
+    | `Add(o) => o
+    | _ => failwith("expected `Add obstacles")
+    };
+
+  let draw_dense = ((), x, z) =>
+    if (Grid.is_within(x, z, obs)) {
+      if (!Overlay.Canon.can_build_on(Grid.get(x, z, obs))) {
+        Some(town_color);
+      } else {
+        None;
+      };
+    } else {
+      None;
+    };
+
   let town_centers =
     List.map(towns, ~f=town =>
-      (town.x + Town_prototype.side / 2, town.z + Town_prototype.side / 2)
+      (town.x + Town_layout.side / 2, town.z + Town_layout.side / 2)
     );
   let town_center = List.hd(town_centers);
   let l = Progress_view.push_layer();
   Progress_view.update(
     ~center=?town_center,
     ~title="towns",
-    ~draw_sparse=draw_sparse_towns,
-    ~state=town_centers,
+    ~draw_dense,
+    ~state=(),
     l,
   );
+  Progress_view.save(~side, "towns");
 };
 
 let within_region_boundaries = (~canon_side, min_x, min_z) => {
   Minecraft_converter.within_region_boundaries(
     ~canon_side,
     ~min_x,
-    ~max_x=min_x + Town_prototype.side,
+    ~max_x=min_x + Town_layout.side,
     ~min_z,
-    ~max_z=min_z + Town_prototype.side,
+    ~max_z=min_z + Town_layout.side,
   );
 };
 
@@ -79,8 +62,8 @@ let obstacle_at = (~x, ~z, obstacles) =>
   !Overlay.Canon.can_build_on(Grid.get(x, z, obstacles));
 
 let has_obstacle = (obstacles, x, z) =>
-  Range.exists(z, z + Town_prototype.side - 1, z =>
-    Range.exists(x, x + Town_prototype.side - 1, x =>
+  Range.exists(z, z + Town_layout.side - 1, z =>
+    Range.exists(x, x + Town_layout.side - 1, x =>
       Grid.is_within(x, z, obstacles) && obstacle_at(~x, ~z, obstacles)
     )
   );
@@ -90,12 +73,12 @@ let acceptable_elevations = (elevations, x, z) => {
   let (emin, emax) =
     Range.fold(
       z,
-      z + Town_prototype.side - 1,
+      z + Town_layout.side - 1,
       (start_elev, start_elev),
       ((emin, emax), z) =>
       Range.fold(
         x,
-        x + Town_prototype.side - 1,
+        x + Town_layout.side - 1,
         (emin, emax),
         ((emin, emax), x) => {
           let here_elev = Grid_compat.at(elevations, x, z);
@@ -105,18 +88,15 @@ let acceptable_elevations = (elevations, x, z) => {
         },
       )
     );
-  emax - emin <= Town_prototype.elevation_range;
+  emax - emin <= Town_layout.elevation_range;
 };
 
 let town_area_clear = (canon: Overlay.Canon.t, x, z) =>
   if (!within_region_boundaries(~canon_side=canon.side, x, z)) {
-    Tale.log("region boundaries");
     false;
   } else if (has_obstacle(canon.obstacles, x, z)) {
-    Tale.log("has obstacle");
     false;
   } else if (!acceptable_elevations(canon.elevation, x, z)) {
-    Tale.log("elevation");
     false;
   } else {
     true;
@@ -172,7 +152,7 @@ let rec first_suitable_towns = (canon, remaining, coords, selected) => {
 };
 
 let add_block_to_obstacles = (block, obstacles) => {
-  let Town_prototype.{min_x, max_x, min_z, max_z, elevation: _} = block;
+  let {xz: {min_x, max_x, min_z, max_z}, elevation: _} = block;
   Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
     Range.fold(min_x, max_x, obstacles, (obstacles, x) =>
       Overlay.Canon.Obstacles.set(x, z, Impassable, obstacles)
@@ -181,11 +161,40 @@ let add_block_to_obstacles = (block, obstacles) => {
 };
 
 let spawn_point_of_block = block => {
-  let Town_prototype.{min_x, max_x, min_z, max_z, elevation: block_y} = block;
+  let {xz: {min_x, max_x, min_z, max_z}, elevation: block_y} = block;
   let x = (min_x + max_x) / 2;
   let z = (min_z + max_z) / 2;
   let y = block_y + 1;
   (x, y, z);
+};
+
+let extract_input = (canon: Overlay.Canon.t, town_min_x, town_min_z) => {
+  let side = Town_layout.side;
+  let elevation =
+    Grid.Int.init(~side, ((tx, tz)) => {
+      Grid.get(tx + town_min_x, tz + town_min_z, canon.elevation)
+    });
+  let obstacles =
+    Mg_util.Range.(
+      fold(0, side - 1, Sparse_grid.make(side), (town_obs, tz) => {
+        fold(
+          0,
+          side - 1,
+          town_obs,
+          (town_obs, tx) => {
+            let x = tx + town_min_x;
+            let z = tz + town_min_z;
+            let obs = Grid.get(x, z, canon.obstacles);
+            if (!Overlay.Canon.can_build_on(obs)) {
+              Sparse_grid.put(town_obs, tx, tz, ());
+            } else {
+              town_obs;
+            };
+          },
+        )
+      })
+    );
+  Town_layout.{elevation, obstacles};
 };
 
 let prepare_town =
@@ -195,60 +204,35 @@ let prepare_town =
       town_min_x,
       town_min_z,
     ) => {
-  let town_max_x = town_min_x + Town_prototype.side - 1;
-  let town_max_z = town_min_z + Town_prototype.side - 1;
+  let input = extract_input(canon, town_min_x, town_min_z);
+  let {bell, houses, farms, roads} = Town_layout.run(input);
 
-  /* Slice elevations from base overlay */
-  let elevation =
-    Grid_compat.init(Town_prototype.side, (town_x, town_z) => {
-      Grid_compat.at(
-        canon.elevation,
-        town_x + town_min_x,
-        town_z + town_min_z,
-      )
-    });
-
-  /* TODO misnomer */
-  let town_obstacles =
-    Grid.With_coords.fold(
-      Grid.With_coords.T(canon.obstacles),
-      ~init=Sparse_grid.make(Town_prototype.side),
-      ~f=(town_obstacles, (x, z, obs)) =>
-      if (!Overlay.Canon.can_build_on(obs)
-          && town_min_x <= x
-          && x <= town_max_x
-          && town_min_z <= z
-          && z <= town_max_z) {
-        Sparse_grid.put(town_obstacles, x - town_min_x, z - town_min_z, ());
-      } else {
-        town_obstacles;
-      }
+  let roads =
+    Core_kernel.List.map(
+      roads,
+      ~f=Road_pathing_rules.Coord.translate(~dx=town_min_x, ~dz=town_min_z),
     );
 
-  let Town_prototype.{bell, houses, farms} =
-    Town_prototype.run({elevation, roads: town_obstacles});
-
   /* Translate blocks into global coords */
-  let translate_block = (b: Town_prototype.block) => {
-    ...b,
-    min_x: b.min_x + town_min_x,
-    max_x: b.max_x + town_min_x,
-    min_z: b.min_z + town_min_z,
-    max_z: b.max_z + town_min_z,
+  let translate_block = (b: block) => {
+    xz: {
+      min_x: b.xz.min_x + town_min_x,
+      max_x: b.xz.max_x + town_min_x,
+      min_z: b.xz.min_z + town_min_z,
+      max_z: b.xz.max_z + town_min_z,
+    },
+    elevation: b.elevation,
   };
   let bell = translate_block(bell);
   let houses =
-    List.map(
-      h => Town_prototype.{...h, block: translate_block(h.block)},
-      houses,
-    );
+    List.map(h => {...h, block: translate_block(h.block)}, houses);
   let farms = List.map(translate_block, farms);
 
   let updated_obstacles =
     canon_obstacles
     |> add_block_to_obstacles(bell)
     |> List.fold_left(
-         (o, b: Town_prototype.house) => add_block_to_obstacles(b.block, o),
+         (o, b: house) => add_block_to_obstacles(b.block, o),
          _,
          houses,
        )
@@ -261,6 +245,7 @@ let prepare_town =
       bell,
       houses,
       farms,
+      roads,
     },
   };
 
@@ -278,7 +263,7 @@ let prepare = (): t => {
     Grid_compat.filter_map(base, (x, z, base) => {
       switch (base) {
       | {river: true, _} =>
-        Some((x - Town_prototype.side / 2, z - Town_prototype.side / 2))
+        Some((x - Town_layout.side / 2, z - Town_layout.side / 2))
       | {river: false, _} => None
       }
     });
@@ -289,7 +274,6 @@ let prepare = (): t => {
   Tale.log("Finding suitable towns");
   let towns = first_suitable_towns(canon, num_towns, river_coords, []);
   List.iter(((x, z)) => Tale.logf("town at %d, %d", x, z), towns);
-  draw_towns(canon, towns);
   let (towns, obs, spawn_points) =
     List.fold_left(
       ((towns, obs, spawn_points), (x, z)) => {
@@ -309,15 +293,26 @@ let prepare = (): t => {
   );
 };
 
-let create_bell = (bell: Town_prototype.block, region: Minecraft.Region.t) => {
+let create_bell = (bell: block, region: Minecraft.Region.t) => {
   open Minecraft.Region;
+  let plaza_material = Minecraft.Block.Stone_brick_slab;
   let base_material = Minecraft.Block.Stone;
 
-  let Town_prototype.{min_x, max_x, min_z, max_z, elevation: _, _} = bell;
+  let {xz: {min_x, max_x, min_z, max_z}, elevation: _} = bell;
 
-  /* Foundation */
+  /* Plaza */
   for (x in min_x to max_x) {
     for (z in min_z to max_z) {
+      Building_old.raise_lower_elev_match(region, x, z, bell.elevation);
+      set_block(~x, ~y=bell.elevation, ~z, plaza_material, region);
+    };
+  };
+
+  /* Base of bell */
+  let center_x = (max_x + min_x) / 2;
+  let center_z = (max_z + min_z) / 2;
+  for (x in center_x - 1 to center_x + 1) {
+    for (z in center_z - 1 to center_z + 1) {
       Building_old.raise_lower_elev_match(region, x, z, bell.elevation);
       set_block(~x, ~y=bell.elevation, ~z, base_material, region);
     };
@@ -325,14 +320,14 @@ let create_bell = (bell: Town_prototype.block, region: Minecraft.Region.t) => {
 
   set_block(
     Minecraft.Block.Bell,
-    ~x=(min_x + max_x) / 2,
+    ~x=center_x,
     ~y=bell.elevation + 1,
-    ~z=(min_z + max_z) / 2,
+    ~z=center_z,
     region,
   );
 };
 
-let worksite_material = (worksite: Town_prototype.worksite) => {
+let worksite_material = (worksite: worksite) => {
   Minecraft.Block.(
     switch (worksite) {
     | Butcher => Smoker
@@ -342,7 +337,7 @@ let worksite_material = (worksite: Town_prototype.worksite) => {
   );
 };
 
-let create_house = (house: Town_prototype.house, region: Minecraft.Region.t) => {
+let create_house = (house: house, region: Minecraft.Region.t) => {
   open Minecraft.Region;
   open Minecraft.Block;
   let floor_material = Oak_planks;
@@ -353,10 +348,7 @@ let create_house = (house: Town_prototype.house, region: Minecraft.Region.t) => 
   let wall_ew_beam_material = Log(Oak_log, X);
   let ceiling_material = Oak_planks;
 
-  let Town_prototype.{
-        block: {min_x, max_x, min_z, max_z, elevation, _},
-        worksite,
-      } = house;
+  let {block: {xz: {min_x, max_x, min_z, max_z}, elevation}, worksite} = house;
 
   /* Foundation and floor */
   for (x in min_x to max_x) {
@@ -555,11 +547,11 @@ let create_house = (house: Town_prototype.house, region: Minecraft.Region.t) => 
   };
 };
 
-let create_farm = (farm: Town_prototype.block, region: Minecraft.Region.t) => {
+let create_farm = (farm: block, region: Minecraft.Region.t) => {
   open Minecraft.Region;
   open Minecraft.Block;
 
-  let Town_prototype.{min_x, max_x, min_z, max_z, elevation, _} = farm;
+  let {xz: {min_x, max_x, min_z, max_z}, elevation} = farm;
   let elevation = elevation + 1;
 
   /* Foundation */
@@ -607,10 +599,10 @@ let illuminate_town = (~x, ~z, ~blocks, region): unit => {
   let dist_to_nearest_block = (~x, ~z) => {
     let n =
       List.map(blocks, ~f=b => {
-        Town_prototype.distance_to_block_edge(~x, ~z, b)
+        Town_layout.distance_to_block_edge(~x, ~z, b.xz)
       })
       |> List.min_elt(~compare=Int.compare);
-    Option.value(n, ~default=Town_prototype.side);
+    Option.value(n, ~default=Town_layout.side);
   };
   /** determines how far below the first non-Air block to continue illuminating */
   let bottom_extent = 10;
@@ -629,8 +621,8 @@ let illuminate_town = (~x, ~z, ~blocks, region): unit => {
   };
   let over_town = (~init, ~f) => {
     Mg_util.Range.(
-      fold(z, z + Town_prototype.side - 1, init, (acc, z) => {
-        fold(x, x + Town_prototype.side - 1, acc, (acc, x) =>
+      fold(z, z + Town_layout.side - 1, init, (acc, z) => {
+        fold(x, x + Town_layout.side - 1, acc, (acc, x) =>
           if (dist_to_nearest_block(~x, ~z) <= torch_margin) {
             fold_down_column(
               ~x,
@@ -651,15 +643,17 @@ let illuminate_town = (~x, ~z, ~blocks, region): unit => {
 
 let apply_region = ((towns, _canon): t, region: Minecraft.Region.t) => {
   List.iter(
-    ({x, z, town: {bell, farms, houses} as town}) =>
+    ({x, z, town: {bell, farms, houses, roads} as town}) =>
       if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
+        // TODO
+        ignore(roads);
         create_bell(bell, region);
         List.iter(house => create_house(house, region), houses);
         List.iter(farm => create_farm(farm, region), farms);
         illuminate_town(
           ~x,
           ~z,
-          ~blocks=Town_prototype.all_blocks(town),
+          ~blocks=Town_layout.all_blocks(town),
           region,
         );
       },
