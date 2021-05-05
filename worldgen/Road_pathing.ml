@@ -111,7 +111,6 @@ let enroad ~town_roads state =
         ~get_obstacle:get_canon_obstacle)
   in
   update_closest_paths ~edges state ;
-  (* TODO redundant *)
   let new_path =
     town_roads
     @
