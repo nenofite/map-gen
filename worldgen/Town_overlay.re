@@ -152,7 +152,7 @@ let rec first_suitable_towns = (canon, remaining, coords, selected) => {
 };
 
 let add_block_to_obstacles = (block, obstacles) => {
-  let {min_x, max_x, min_z, max_z, elevation: _} = block;
+  let {xz: {min_x, max_x, min_z, max_z}, elevation: _} = block;
   Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
     Range.fold(min_x, max_x, obstacles, (obstacles, x) =>
       Overlay.Canon.Obstacles.set(x, z, Impassable, obstacles)
@@ -161,7 +161,7 @@ let add_block_to_obstacles = (block, obstacles) => {
 };
 
 let spawn_point_of_block = block => {
-  let {min_x, max_x, min_z, max_z, elevation: block_y} = block;
+  let {xz: {min_x, max_x, min_z, max_z}, elevation: block_y} = block;
   let x = (min_x + max_x) / 2;
   let z = (min_z + max_z) / 2;
   let y = block_y + 1;
@@ -215,11 +215,13 @@ let prepare_town =
 
   /* Translate blocks into global coords */
   let translate_block = (b: block) => {
-    ...b,
-    min_x: b.min_x + town_min_x,
-    max_x: b.max_x + town_min_x,
-    min_z: b.min_z + town_min_z,
-    max_z: b.max_z + town_min_z,
+    xz: {
+      min_x: b.xz.min_x + town_min_x,
+      max_x: b.xz.max_x + town_min_x,
+      min_z: b.xz.min_z + town_min_z,
+      max_z: b.xz.max_z + town_min_z,
+    },
+    elevation: b.elevation,
   };
   let bell = translate_block(bell);
   let houses =
@@ -296,7 +298,7 @@ let create_bell = (bell: block, region: Minecraft.Region.t) => {
   let plaza_material = Minecraft.Block.Stone_brick_slab;
   let base_material = Minecraft.Block.Stone;
 
-  let {min_x, max_x, min_z, max_z, elevation: _, _} = bell;
+  let {xz: {min_x, max_x, min_z, max_z}, elevation: _} = bell;
 
   /* Plaza */
   for (x in min_x to max_x) {
@@ -346,7 +348,7 @@ let create_house = (house: house, region: Minecraft.Region.t) => {
   let wall_ew_beam_material = Log(Oak_log, X);
   let ceiling_material = Oak_planks;
 
-  let {block: {min_x, max_x, min_z, max_z, elevation, _}, worksite} = house;
+  let {block: {xz: {min_x, max_x, min_z, max_z}, elevation}, worksite} = house;
 
   /* Foundation and floor */
   for (x in min_x to max_x) {
@@ -549,7 +551,7 @@ let create_farm = (farm: block, region: Minecraft.Region.t) => {
   open Minecraft.Region;
   open Minecraft.Block;
 
-  let {min_x, max_x, min_z, max_z, elevation, _} = farm;
+  let {xz: {min_x, max_x, min_z, max_z}, elevation} = farm;
   let elevation = elevation + 1;
 
   /* Foundation */
@@ -597,7 +599,7 @@ let illuminate_town = (~x, ~z, ~blocks, region): unit => {
   let dist_to_nearest_block = (~x, ~z) => {
     let n =
       List.map(blocks, ~f=b => {
-        Town_layout.distance_to_block_edge(~x, ~z, b)
+        Town_layout.distance_to_block_edge(~x, ~z, b.xz)
       })
       |> List.min_elt(~compare=Int.compare);
     Option.value(n, ~default=Town_layout.side);

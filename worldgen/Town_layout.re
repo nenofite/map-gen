@@ -98,7 +98,7 @@ let draw = (input: input, output: output, file) => {
   let draw_blocks = (color, blocks) => {
     List.iter(
       block => {
-        let {min_x, max_x, min_z, max_z, elevation: _} = block;
+        let {xz: {min_x, max_x, min_z, max_z}, elevation: _} = block;
         draw_rect(img, min_x, max_x, min_z, max_z, color);
       },
       blocks,
@@ -142,14 +142,11 @@ let block_center = block => {
 };
 
 let block_center' = (block: block) => {
-  let {min_x, max_x, min_z, max_z, elevation: _} = block;
-  let x = min_x + (max_x - min_x) / 2;
-  let z = min_z + (max_z - min_z) / 2;
-  (x, z);
+  block_center(block.xz);
 };
 
 let distance_to_block_edge = (~x, ~z, block) => {
-  let {min_x, max_x, min_z, max_z, elevation: _} = block;
+  let {min_x, max_x, min_z, max_z} = block;
   let x_dist = max(min_x - x, max(x - max_x, 0));
   let z_dist = max(min_z - z, max(z - max_z, 0));
   Mg_util.distance_int((0, 0), (x_dist, z_dist));
@@ -188,7 +185,7 @@ let rec random_grab = (amount, blocks, selected) =>
   };
 let random_grab = (amount, blocks) => random_grab(amount, blocks, []);
 
-let calc_average_elevation = (input: input, min_x, max_x, min_z, max_z) => {
+let calc_average_elevation = (elevation, min_x, max_x, min_z, max_z) => {
   let sum =
     Range.fold(min_z, max_z, 0, (cur, z) =>
       Range.fold(
@@ -196,7 +193,7 @@ let calc_average_elevation = (input: input, min_x, max_x, min_z, max_z) => {
         max_x,
         cur,
         (cur, x) => {
-          let here = Grid_compat.at(input.elevation, x, z);
+          let here = Grid.get(x, z, elevation);
           cur + here;
         },
       )
@@ -204,14 +201,29 @@ let calc_average_elevation = (input: input, min_x, max_x, min_z, max_z) => {
   sum / ((max_z - min_z + 1) * (max_x - min_x + 1));
 };
 
-let flatten_block = (input: input, block) => {
+let flatten_block = (state, ~block) => {
   let {min_x, max_x, min_z, max_z} = block;
-  let elevation = calc_average_elevation(input, min_x, max_x, min_z, max_z);
-  {min_x, max_x, min_z, max_z, elevation};
+  let elevation =
+    calc_average_elevation(state.elevation, min_x, max_x, min_z, max_z);
+  {xz: block, elevation};
 };
 
-let flatten_blocks = (input: input, blocks) => {
-  List.map(flatten_block(input), blocks);
+let set_block_into_elevation = (state, ~block) => {
+  let {xz: {min_x, max_x, min_z, max_z}, elevation: block_elevation} = block;
+  let elevation = state.elevation;
+  let elevation =
+    Mg_util.Range.(
+      fold(min_z, max_z, elevation, (elevation, z) =>
+        fold(min_x, max_x, elevation, (elevation, x) =>
+          Grid.Int.set(x, z, block_elevation, elevation)
+        )
+      )
+    );
+  {...state, elevation};
+};
+
+let flatten_blocks = (state, ~blocks) => {
+  Core_kernel.List.map(blocks, ~f=block => flatten_block(state, ~block));
 };
 
 let sort_by_distance_to_center = (center, block_centers) => {
@@ -447,8 +459,10 @@ let run = (input': input): output => {
     Option.value_exn(
       place_plaza(state, ~side_x=bell_side, ~side_z=bell_side),
     );
+  let bell = flatten_block(state, ~block=bell);
+  let state = set_block_into_elevation(state, ~block=bell);
   let bell_paths =
-    outlets_of_bell(bell)
+    outlets_of_bell(bell.xz)
     |> List.map(~f=((x, z)) => {
          let y = Grid.get(x, z, state.elevation);
          Road_pathing_rules.Coord.make_road(~x, ~y, ~z);
@@ -477,9 +491,8 @@ let run = (input': input): output => {
       ~amount=num_farms,
     );
 
-  let bell = flatten_block(input', bell);
-  let houses = flatten_blocks(input', houses);
-  let farms = flatten_blocks(input', farms);
+  let houses = flatten_blocks(state, ~blocks=houses);
+  let farms = flatten_blocks(state, ~blocks=farms);
 
   /* Assign jobs */
   let (farm_houses, prof_houses) =

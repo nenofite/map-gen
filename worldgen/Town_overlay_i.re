@@ -1,20 +1,17 @@
 open! Core_kernel;
 
 [@deriving bin_io]
-type block = {
-  min_x: int,
-  max_x: int,
-  min_z: int,
-  max_z: int,
-  elevation: int,
-};
-
-[@deriving bin_io]
 type block_no_elevation = {
   min_x: int,
   max_x: int,
   min_z: int,
   max_z: int,
+};
+
+[@deriving bin_io]
+type block = {
+  xz: block_no_elevation,
+  elevation: int,
 };
 
 [@deriving bin_io]
