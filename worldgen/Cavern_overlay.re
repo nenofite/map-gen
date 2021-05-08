@@ -71,7 +71,7 @@ let add_ceiling_pillars = (pillar_cloud: Point_cloud.t(bool), ceiling) => {
 let prepare = () => {
   let (world, _) = Base_overlay.require();
   let r = 32;
-  let start_side = world.side / r;
+  let start_side = Base_overlay.side(world) / r;
   let floor_cloud =
     Point_cloud.init(~side=start_side, ~spacing=16, (_x, _y) =>
       switch (Random.int(3)) {
@@ -90,10 +90,10 @@ let prepare = () => {
     Phase_chain.(
       run_all(
         phase("Init floor", () =>
-          Grid_compat.init(start_side, (x, y) => {
-            switch (Grid_compat.at(world, x * r, y * r)) {
-            | {ocean: true, _} => pillar_meet_elev + 5
-            | {ocean: false, _} =>
+          Grid_compat.init(start_side, (x, y) =>
+            if (Base_overlay.ocean_at(~x=x * r, ~z=y * r, world)) {
+              pillar_meet_elev + 5;
+            } else {
               (
                 Point_cloud.interpolate(
                   floor_cloud,
@@ -102,9 +102,9 @@ let prepare = () => {
                 )
                 |> int_of_float
               )
-              + Random.int(2)
+              + Random.int(2);
             }
-          })
+          )
         )
         @> phase_repeat(
              2,
@@ -128,10 +128,10 @@ let prepare = () => {
     Phase_chain.(
       run_all(
         phase("Init ceiling", () =>
-          Grid_compat.init(start_side, (x, y) => {
-            switch (Grid_compat.at(world, x * r, y * r)) {
-            | {ocean: true, _} => pillar_meet_elev - 5
-            | {ocean: false, _} =>
+          Grid_compat.init(start_side, (x, y) =>
+            if (Base_overlay.ocean_at(~x=x * r, ~z=y * r, world)) {
+              pillar_meet_elev - 5;
+            } else {
               (
                 Point_cloud.interpolate(
                   ceiling_cloud,
@@ -141,9 +141,9 @@ let prepare = () => {
                 |> int_of_float
               )
               + Random.int(3)
-              - 2
+              - 2;
             }
-          })
+          )
         )
         @> phase_repeat(
              2,
@@ -183,7 +183,7 @@ let apply_region = (cavern, region: Minecraft.Region.t) => {
     (~x, ~z) => {
       open Minecraft.Region;
 
-      let surface_elev = Grid_compat.at(world, x, z).elevation;
+      let surface_elev = Base_overlay.elevation_at(~x, ~z, world);
       let {floor_elev, ceiling_elev} = Grid_compat.at(cavern, x, z);
 
       /* Don't go above the maximum */
