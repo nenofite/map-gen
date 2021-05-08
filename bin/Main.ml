@@ -12,6 +12,7 @@ let get_seed () =
 
 let () =
   Printexc.record_backtrace true ;
+  Memtrace.trace_if_requested ~context:"worldgen" () ;
   Stats.init () ;
   Init.init ~seed:(get_seed ()) () ;
   Init.prepare_all () ;

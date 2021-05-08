@@ -25,6 +25,7 @@ depends: [
     "ppx_let"
     "decompress" {>= "1.2.0"}
     "tsdl"
+    "memtrace"
     "merlin" {dev}
     "odoc" {dev}
     "utop" {dev}
