@@ -1,46 +1,133 @@
 open Core_kernel;
 
-[@deriving bin_io]
-type tile = River.tile;
+[@deriving (eq, ord, bin_io)]
+type water =
+  | No_water
+  | River
+  | Ocean;
+
+module Water_grid =
+  Grid.Make0({
+    type t = water;
+    let (==) = equal_water;
+  });
 
 [@deriving bin_io]
-type t = (Grid.t(tile), Overlay.Canon.t);
+type x = {
+  water: Grid.t(water),
+  elevation: Grid.t(int),
+};
 
-type x = Grid.t(tile);
+[@deriving bin_io]
+type t = (x, Overlay.Canon.t);
 
 let overlay = Overlay.make_overlay("base", bin_reader_t, bin_writer_t);
 
+let elevation_at = (~x, ~z, base) => {
+  Grid.get(x, z, base.elevation);
+};
+
+let water_at = (~x, ~z, base) => {
+  Grid.get(x, z, base.water);
+};
+
+let any_water_at = (~x, ~z, base) => {
+  switch (water_at(~x, ~z, base)) {
+  | No_water => false
+  | River
+  | Ocean => true
+  };
+};
+
+let river_at = (~x, ~z, base) => {
+  switch (water_at(~x, ~z, base)) {
+  | River => true
+  | _ => false
+  };
+};
+
+let ocean_at = (~x, ~z, base) => {
+  switch (water_at(~x, ~z, base)) {
+  | Ocean => true
+  | _ => false
+  };
+};
+
+let side = base => Grid.side(base.elevation);
+
+let gray_of_elevation = e => Float.(of_int(e) / 200.);
+
+let gray_at = (~x, ~z, base) =>
+  gray_of_elevation(elevation_at(~x, ~z, base));
+
+let color_of_water =
+  fun
+  | No_water => 0xFFFFFF
+  | River
+  | Ocean => 0x0000FF;
+
+let color_at = (~x, ~z, base) => {
+  let elevation = elevation_at(~x, ~z, base);
+  let gray = gray_of_elevation(elevation);
+  let color = water_at(~x, ~z, base) |> color_of_water;
+  Color.split_rgb(Color.blend(0, color, gray));
+};
+
 let apply_progress_view = (state: t) => {
   let (world, _canon) = state;
+  let side = side(world);
   let layer = Progress_view.push_layer();
+  let draw_dense = ((), x, z) =>
+    if (Grid.is_within_side(~x, ~y=z, side)) {
+      Some(color_at(~x, ~z, world));
+    } else {
+      None;
+    };
   Progress_view.update(
-    ~fit=(0, world.Grid.side, 0, world.Grid.side),
-    ~draw_dense=Progress_view_helper.dense(River.colorize),
-    ~state=world,
+    ~fit=(0, side, 0, side),
+    ~draw_dense,
+    ~state=(),
     layer,
   );
   ();
 };
 
-let obstacle_of_tile = tile => {
-  Overlay.Canon.(
-    if (River.has_ocean(tile)) {
-      Impassable;
-    } else if (River.has_river(tile)) {
-      Bridgeable;
-    } else {
-      Clear;
-    }
+let to_obstacles = base => {
+  Overlay.Canon.Obstacles.map(
+    base.water,
+    ~f=
+      fun
+      | No_water => Clear
+      | River => Bridgeable
+      | Ocean => Impassable,
   );
 };
 
-let extract_canonical = (grid: Grid.t(tile)) =>
+let extract_canonical = (base: x) =>
   Overlay.Canon.{
-    side: grid.side,
-    elevation: Grid_compat.map(grid, (_x, _y, tile) => tile.elevation),
-    obstacles: Obstacles.map(grid, ~f=obstacle_of_tile),
+    side: side(base),
+    elevation: base.elevation,
+    obstacles: to_obstacles(base),
     spawn_points: [],
   };
+
+let of_river_mut = grid => {
+  let elevation =
+    Grid.Int.map_of_mut(grid, ~f=(~x as _, ~z as _, t) =>
+      t.River.Tile.elevation
+    );
+  let water =
+    Water_grid.map_of_mut(grid, ~f=(~x as _, ~z as _, t) =>
+      if (River.has_ocean(t)) {
+        Ocean;
+      } else if (River.has_river(t)) {
+        River;
+      } else {
+        No_water;
+      }
+    );
+  {elevation, water};
+};
 
 let prepare = () => {
   module Pvh = Progress_view_helper.Make(Grid.Mut.Intf);
@@ -79,10 +166,10 @@ let prepare = () => {
   );
   Progress_view.save(~side=Grid.Mut.side(grid), "grid-river");
   Progress_view.remove_layer(layer);
-  let grid = River.Tile.Grid.of_mut(grid);
-  let canon = extract_canonical(grid);
+  let base = of_river_mut(grid);
+  let canon = extract_canonical(base);
   Overlay.Canon.restore(canon);
-  (grid, canon);
+  (base, canon);
 };
 
 let apply_region = (state: t, region: Minecraft.Region.t) => {
@@ -92,26 +179,28 @@ let apply_region = (state: t, region: Minecraft.Region.t) => {
     (~x, ~z) => {
       open Minecraft.Region;
 
-      let here = Grid_compat.at(world, x, z);
-      let elevation = here.elevation;
+      let elevation = elevation_at(~x, ~z, world);
+      let water = water_at(~x, ~z, world);
 
       set_block(~x, ~y=0, ~z, Minecraft.Block.Bedrock, region);
 
       for (y in 1 to elevation) {
         set_block(~x, ~y, ~z, Stone, region);
       };
-      if (River.has_ocean(here)) {
-        for (y in elevation + 1 to Heightmap.sea_level) {
-          set_block(~x, ~y, ~z, Minecraft.Block.Water, region);
-        };
-      } else if (River.has_river(here)) {
+      switch (water) {
+      | No_water => ()
+      | River =>
         set_block(
           ~x,
           ~y=elevation,
           ~z,
           Minecraft.Block.Flowing_water(0),
           region,
-        );
+        )
+      | Ocean =>
+        for (y in elevation + 1 to Heightmap.sea_level) {
+          set_block(~x, ~y, ~z, Minecraft.Block.Water, region);
+        }
       };
     },
   );
