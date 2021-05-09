@@ -37,7 +37,7 @@ let can_place_ore = (block: Minecraft.Block.material) =>
 
 let make_layer =
     (
-      base: Grid.t(Base_overlay.tile),
+      base,
       ~min_density,
       ~max_density,
       ~depth,
@@ -46,7 +46,7 @@ let make_layer =
       ~ore,
     ) => {
   let densities =
-    Point_cloud.init(~side=base.side, ~spacing=128, (_, _) =>
+    Point_cloud.init(~side=Base_overlay.side(base), ~spacing=128, (_, _) =>
       min_density +. Random.float(max_density -. min_density)
     );
   {ore, densities, depth, min_deposit_size, max_deposit_size};
@@ -208,14 +208,16 @@ let prepare = () => {
   ];
 };
 
-let rec remove_i = (i, list) =>
-  switch (list) {
-  | [] => raise(Invalid_argument("index out of bounds"))
-  | [x, ...rest] when i == 0 => (x, rest)
-  | [not_x, ...rest] =>
-    let (x, rest) = remove_i(i - 1, rest);
-    (x, [not_x, ...rest]);
-  };
+let remove_i = (i, list) => {
+  open Core_kernel;
+  let rec go = (passed, i, rest) =>
+    switch (rest) {
+    | [] => raise(Invalid_argument("index out of bounds"))
+    | [x, ...rest] when i == 0 => (x, List.rev_append(passed, rest))
+    | [not_x, ...rest] => go([not_x, ...passed], i - 1, rest)
+    };
+  go([], i, list);
+};
 
 let%expect_test "remove_i" = {
   let l = [0, 10, 20, 30];

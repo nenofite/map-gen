@@ -257,15 +257,18 @@ let prepare_town =
 let prepare = (): t => {
   let canon = Overlay.Canon.require();
   let (base, _) = Base_overlay.require();
+  let side = Base_overlay.side(base);
   /* Shuffle a list of all river tiles */
   Tale.log("Finding river coords");
   let river_coords =
-    Grid_compat.filter_map(base, (x, z, base) => {
-      switch (base) {
-      | {river: true, _} =>
-        Some((x - Town_layout.side / 2, z - Town_layout.side / 2))
-      | {river: false, _} => None
-      }
+    Mg_util.Range.fold(0, side - 1, [], (ls, z) => {
+      Mg_util.Range.fold(0, side - 1, ls, (ls, x) =>
+        if (Base_overlay.river_at(~x, ~z, base)) {
+          [(x - Town_layout.side / 2, z - Town_layout.side / 2), ...ls];
+        } else {
+          ls;
+        }
+      )
     });
   Tale.log("Shuffling river coords");
   let river_coords =

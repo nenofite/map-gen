@@ -121,12 +121,12 @@ let fold_scale_factor ~mx ~mz ~init ~f =
 let initial_moisture_at ~mx ~mz base =
   fold_scale_factor ~mx ~mz ~init:0 ~f:(fun ~x ~z m ->
       let here =
-        match Grid.get x z base with
-        | River.Tile.{ocean= true; river= _; elevation= _} ->
+        match Base_overlay.water_at ~x ~z base with
+        | Ocean ->
             100
-        | {ocean= false; river= true; elevation= _} ->
+        | River ->
             55
-        | {ocean= false; river= false; elevation= _} ->
+        | No_water ->
             0
       in
       max m here )
@@ -134,8 +134,8 @@ let initial_moisture_at ~mx ~mz base =
 let moisture_carry_at ~mx ~mz base =
   fold_scale_factor ~mx ~mz ~init:40 ~f:(fun ~x ~z m ->
       let here =
-        match Grid.get x z base with
-        | River.Tile.{elevation; _} when elevation > 100 ->
+        match Base_overlay.elevation_at ~x ~z base with
+        | e when e > 100 ->
             30
         | _ ->
             39
@@ -309,13 +309,16 @@ let colorize (biome, base) =
 let apply_progress_view (state : t) =
   let base, _ = Base_overlay.require () in
   let biome, _canon = state in
-  let side = base.Grid.side in
+  let side = Base_overlay.side base in
   let layer = Progress_view.push_layer () in
   let draw_dense () x z =
     if Grid.is_within_side ~x ~y:z side then
-      let here_biome = biome_at ~x ~z biome in
-      let here_base = Grid.get x z base in
-      Some (colorize (here_biome, here_base) |> Color.split_rgb)
+      if Base_overlay.any_water_at ~x ~z base then
+        Some (Base_overlay.color_at ~x ~z base)
+      else
+        let here_biome = biome_at ~x ~z biome in
+        let gray = Base_overlay.gray_at ~x ~z base in
+        Some (Color.blend 0 (colorize_biome here_biome) gray |> Color.split_rgb)
     else None
   in
   Progress_view.update ~fit:(0, side, 0, side) ~draw_dense ~state:() layer ;
