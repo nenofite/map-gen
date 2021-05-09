@@ -172,6 +172,7 @@ let prepare = () => {
   (base, canon);
 };
 
+let river_mat = Minecraft.Block.Flowing_water(0);
 let apply_region = (state: t, region: Minecraft.Region.t) => {
   let (world, _canon) = state;
   Minecraft_converter.iter_blocks(
@@ -189,14 +190,7 @@ let apply_region = (state: t, region: Minecraft.Region.t) => {
       };
       switch (water) {
       | No_water => ()
-      | River =>
-        set_block(
-          ~x,
-          ~y=elevation,
-          ~z,
-          Minecraft.Block.Flowing_water(0),
-          region,
-        )
+      | River => set_block(~x, ~y=elevation, ~z, river_mat, region)
       | Ocean =>
         for (y in elevation + 1 to Heightmap.sea_level) {
           set_block(~x, ~y, ~z, Minecraft.Block.Water, region);
