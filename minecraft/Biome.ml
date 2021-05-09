@@ -1,6 +1,7 @@
 open! Core_kernel
 
 type t =
+  | Ocean
   | Plains
   | Desert
   | Mountains
@@ -14,6 +15,8 @@ type t =
 [@@deriving eq, ord, bin_io]
 
 let id = function
+  | Ocean ->
+      0l
   | Plains ->
       1l
   | Desert ->

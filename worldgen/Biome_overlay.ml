@@ -4,50 +4,91 @@ include Biome_overlay_i
 let scale_factor = 8
 
 let to_minecraft_biome = function
-  | Mid (Plain _) ->
+  | Ocean ->
+      Minecraft.Biome.Ocean
+  | Plain _ ->
       Minecraft.Biome.Plains
-  | Mid (Forest _) ->
+  | Forest _ ->
       Minecraft.Biome.Forest
-  | Mid (Desert _) ->
+  | Desert _ ->
       Minecraft.Biome.Desert
-  | Mid Savanna ->
+  | Savanna ->
       Minecraft.Biome.Savanna
-  | High Pine_forest ->
+  | Pine_forest ->
       Minecraft.Biome.Wooded_mountains
-  | High Barren ->
+  | Barren_mountain ->
       Minecraft.Biome.Mountains
-  | High Snow ->
+  | Snow_mountain ->
       Minecraft.Biome.Snowy_tundra
-  | Shore Sand ->
+  | Shore ->
       Minecraft.Biome.Beach
-  | Shore Gravel ->
+  | Stone_shore ->
       Minecraft.Biome.Stone_shore
-  | Shore Clay ->
+  | River ->
       (* TODO sort of a weird choice *)
       Minecraft.Biome.River
 
-let biome_at ~x ~z biomes = Point_cloud.nearest_int biomes x z
+let is_near_river_at ~x ~z base =
+  let r = 2 in
+  let side = Base_overlay.side base in
+  let result = ref false in
+  for z = z - r to z + r do
+    for x = x - r to x + r do
+      if Grid.is_within_side ~x ~y:z side && Base_overlay.river_at ~x ~z base
+      then result := true
+    done
+  done ;
+  !result
+
+let is_near_ocean_at ~x ~z base =
+  let r = 3 in
+  let max_elev = Heightmap.sea_level + 3 in
+  let side = Base_overlay.side base in
+  if Base_overlay.elevation_at ~x ~z base <= max_elev then (
+    let result = ref false in
+    for z = z - r to z + r do
+      for x = x - r to x + r do
+        if Grid.is_within_side ~x ~y:z side && Base_overlay.ocean_at ~x ~z base
+        then result := true
+      done
+    done ;
+    !result )
+  else false
+
+let biome_at ~x ~z biomes =
+  let base, _ = Base_overlay.require () in
+  match () with
+  | _ when Base_overlay.ocean_at ~x ~z base ->
+      Ocean
+  | _ when is_near_ocean_at ~x ~z base ->
+      Shore (* TODO also Stone_shore *)
+  | _ when is_near_river_at ~x ~z base ->
+      River
+  | _ ->
+      Point_cloud.nearest_int biomes x z
 
 let colorize_biome = function
-  | Mid (Plain _) ->
+  | Ocean ->
+      0
+  | Plain _ ->
       0x86A34D
-  | Mid (Forest _) ->
+  | Forest _ ->
       0x388824
-  | Mid (Desert _) ->
+  | Desert _ ->
       0xD9D0A1
-  | Mid Savanna ->
+  | Savanna ->
       0x808000
-  | High Pine_forest ->
+  | Pine_forest ->
       0x286519
-  | High Barren ->
+  | Barren_mountain ->
       0x727272
-  | High Snow ->
+  | Snow_mountain ->
       0xFDFDFD
-  | Shore Sand ->
+  | Shore ->
       0xF5EAB7
-  | Shore Gravel ->
+  | Stone_shore ->
       0x828282
-  | Shore Clay ->
+  | River ->
       0x8E7256
 
 let random_flower () =
@@ -86,15 +127,9 @@ let no_flower = {block= Dandelion; percentage= 0}
 
 let random_cactus () = {percentage= Random.int_incl 10 100}
 
-let random_shore () =
-  match Random.int 3 with 0 -> Sand | 1 -> Gravel | _ -> Clay
-
-let random_high () =
-  match Random.int 3 with 0 -> Pine_forest | 1 -> Barren | _ -> Snow
-
 let get_obstacle dirt biome =
   match biome with
-  | Mid (Desert _) -> (
+  | Desert _ -> (
     match dirt = 0 with true -> Overlay.Canon.Impassable | false -> Clear )
   | _ ->
       Clear
@@ -187,25 +222,25 @@ let lookup_whittman ~mountain_threshold ~flower ~cactus ~moisture ~temperature
   let mt = mountain_threshold in
   match () with
   | () when e > mt && m > 50 ->
-      High Snow
+      Snow_mountain
   | () when e > mt - 10 && t > 20 && m > 50 ->
-      High Pine_forest
+      Pine_forest
   | () when e > mt - 10 && m > 50 ->
-      High Snow
+      Snow_mountain
   | () when e > mt ->
-      High Barren
+      Barren_mountain
   | () when t > 35 && m > 50 ->
-      Mid (Forest flower)
+      Forest flower
   | () when t > 35 && m > 20 ->
-      Mid Savanna
+      Savanna
   | () when t > 35 ->
-      Mid (Desert cactus)
+      Desert cactus
   | () when m > 50 ->
-      Mid (Forest flower)
+      Forest flower
   | () when m > 10 ->
-      Mid (Plain flower)
+      Plain flower
   | () ->
-      Mid (Plain no_flower)
+      Plain no_flower
 
 let prepare_moisture () =
   let canon = Overlay.Canon.require () in
@@ -345,12 +380,12 @@ let apply (state, _canon) (region : Minecraft.Region.t) =
       let elev = height_at ~x ~z region in
       let dirt_depth = Grid_compat.at dirt x z in
       match biome with
-      | Mid (Plain _ | Forest _ | Savanna) | High Pine_forest ->
+      | Plain _ | Forest _ | Savanna | Pine_forest ->
           (* Dirt (will become grass in Plant_overlay) *)
           for y = elev - dirt_depth + 1 to elev do
             overwrite_stone_air region x y z Dirt
           done
-      | Mid (Desert _) ->
+      | Desert _ ->
           (* Sand with rocks sticking out *)
           for y = elev - dirt_depth + 1 to elev do
             overwrite_stone_air region x y z Sand
@@ -360,28 +395,30 @@ let apply (state, _canon) (region : Minecraft.Region.t) =
             for y = elev + 1 to elev + 2 do
               overwrite_stone_air region x y z Stone
             done
-      | High Barren ->
+      | Barren_mountain ->
           (* Gravel *)
           let gravel_depth = max 0 (dirt_depth - Dirt_overlay.max_depth + 2) in
           for y = elev - gravel_depth + 1 to elev do
             overwrite_stone_air region x y z Gravel
           done
-      | High Snow ->
+      | Snow_mountain ->
           (* Dirt (will add snow in Plant_overlay) *)
           for y = elev - dirt_depth + 1 to elev do
             overwrite_stone_air region x y z Dirt
           done
-      | Shore m ->
-          let material =
-            match m with
-            | Sand ->
-                Minecraft.Block.Sand
-            | Gravel ->
-                Minecraft.Block.Gravel
-            | Clay ->
-                Minecraft.Block.Clay
-          in
+      | Ocean | Shore ->
+          let material = Minecraft.Block.Sand in
           for y = elev - dirt_depth + 1 to elev do
+            overwrite_stone_air region x y z material
+          done
+      | Stone_shore ->
+          let material = Minecraft.Block.Gravel in
+          for y = elev - dirt_depth + 1 to elev do
+            overwrite_stone_air region x y z material
+          done
+      | River ->
+          let material = Minecraft.Block.Clay in
+          for y = elev - 1 to elev do
             overwrite_stone_air region x y z material
           done )
 

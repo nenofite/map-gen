@@ -5,18 +5,18 @@ type flower = {block: Minecraft.Block.material; percentage: int}
 
 type cactus = {percentage: int} [@@deriving eq, bin_io]
 
-type mid_biome =
+type biome =
+  | Ocean (* TODO specific ocean biomes *)
   | Plain of flower
   | Forest of flower
   | Desert of cactus
   | Savanna
-[@@deriving eq, bin_io]
-
-type shore_biome = Sand | Gravel | Clay [@@deriving eq, bin_io]
-
-type high_biome = Pine_forest | Barren | Snow [@@deriving eq, bin_io]
-
-type biome = Mid of mid_biome | Shore of shore_biome | High of high_biome
+  | Shore
+  | Stone_shore
+  | River
+  | Pine_forest
+  | Barren_mountain
+  | Snow_mountain
 [@@deriving eq, bin_io]
 
 type t' = biome Point_cloud.t [@@deriving bin_io]
