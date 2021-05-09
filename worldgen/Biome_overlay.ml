@@ -29,7 +29,7 @@ let to_minecraft_biome = function
       Minecraft.Biome.River
 
 let is_near_river_at ~x ~z base =
-  let r = 2 in
+  let r = 1 in
   let side = Base_overlay.side base in
   let result = ref false in
   for z = z - r to z + r do
@@ -41,8 +41,8 @@ let is_near_river_at ~x ~z base =
   !result
 
 let is_near_ocean_at ~x ~z base =
-  let r = 3 in
-  let max_elev = Heightmap.sea_level + 3 in
+  let r = 5 in
+  let max_elev = Heightmap.sea_level + 2 in
   let side = Base_overlay.side base in
   if Base_overlay.elevation_at ~x ~z base <= max_elev then (
     let result = ref false in
@@ -360,6 +360,26 @@ let apply_progress_view (state : t) =
   Progress_view.save ~side ~format:Images.Png "biome" ;
   ()
 
+let improvise_river_floors () =
+  let random_floor () =
+    match Random.int 100 with
+    | i when i < 90 ->
+        Minecraft.Block.Dirt
+    | i when i < 95 ->
+        Minecraft.Block.Sand
+    | _ ->
+        Minecraft.Block.Clay
+  in
+  let side = Minecraft.Region.block_per_region_side in
+  Point_cloud.init ~avoid_edges:true ~side ~spacing:32 (fun _ _ ->
+      random_floor () )
+  |> Point_cloud.subdivide ~avoid_edges:true ~spacing:8
+
+let river_floor_at p ~x ~z ~rxo ~rzo =
+  Point_cloud.nearest_with_edge p Minecraft.Block.Dirt
+    (float (x - rxo))
+    (float (z - rzo))
+
 (** overwrite_stone_air only sets the block if it is Stone or Air, to avoid overwriting rivers etc. *)
 let overwrite_stone_air region x y z block =
   match Minecraft.Region.get_block_opt region ~x ~y ~z with
@@ -373,8 +393,10 @@ let overwrite_stone_air region x y z block =
 
 let apply (state, _canon) (region : Minecraft.Region.t) =
   let dirt = Dirt_overlay.require () in
+  let river_floors = improvise_river_floors () in
   Minecraft_converter.iter_blocks region (fun ~x ~z ->
       let open Minecraft.Region in
+      let rxo, rzo = Minecraft.Region.region_offset region in
       let biome = biome_at ~x ~z state in
       set_biome_column ~x ~z (to_minecraft_biome biome) region ;
       let elev = height_at ~x ~z region in
@@ -417,7 +439,7 @@ let apply (state, _canon) (region : Minecraft.Region.t) =
             overwrite_stone_air region x y z material
           done
       | River ->
-          let material = Minecraft.Block.Clay in
+          let material = river_floor_at river_floors ~x ~z ~rxo ~rzo in
           for y = elev - 1 to elev do
             overwrite_stone_air region x y z material
           done )

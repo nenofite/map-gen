@@ -89,6 +89,7 @@ let apply_ground_cover =
       | Plain(_)
       | Forest(_)
       | Savanna
+      | River
       | Pine_forest =>
         switch (top) {
         | Dirt => set_block(~x, ~y, ~z, Grass_block, region)
@@ -102,8 +103,7 @@ let apply_ground_cover =
       | Barren_mountain
       | Desert(_)
       | Shore
-      | Stone_shore
-      | River => ()
+      | Stone_shore => ()
       };
     },
   );
