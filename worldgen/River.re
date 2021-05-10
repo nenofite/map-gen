@@ -73,12 +73,12 @@ let river_sources = state => {
   List.sort(~compare, coords) |> List.rev_map(~f=((x, y, _)) => (x, y));
 };
 
-let place_river_tile = (state, ~x, ~z, ~elev, ~radius) => {
+let place_river_tile = (state, ~x as cx, ~z as cz, ~elev, ~radius) => {
   let rd = radius / 2;
   let ru = (radius + 1) / 2;
   let {elevation, river_depth} = state;
-  for (z in z - rd - 1 to z + ru + 1) {
-    for (x in x - rd - 1 to x + ru + 1) {
+  for (z in cz - rd - 1 to cz + ru + 1) {
+    for (x in cx - rd - 1 to cx + ru + 1) {
       let here_elev = Grid.Mut.get(~x, ~z, elevation);
       let here_depth = Grid.Mut.get(~x, ~z, river_depth);
       if (here_elev < elev && here_depth == 0) {
@@ -86,15 +86,16 @@ let place_river_tile = (state, ~x, ~z, ~elev, ~radius) => {
       };
     };
   };
-  for (z in z - rd to z + ru) {
-    for (x in x - rd to x + ru) {
-      let here_elev = Grid.Mut.get(~x, ~z, elevation);
+  for (z in cz - rd to cz + ru) {
+    for (x in cx - rd to cx + ru) {
+      let dist = abs(x - cx) + abs(z - cz);
       let here_depth = Grid.Mut.get(~x, ~z, river_depth);
-      let target_depth = 1;
-      // TODO
-      ignore(here_elev);
-      if (!ocean_at(~x, ~z, state) && here_depth < target_depth) {
-        Grid.Mut.set(~x, ~z, target_depth, river_depth);
+      let target_depth = max(1, radius - dist);
+      if (!ocean_at(~x, ~z, state)) {
+        Grid.Mut.set(~x, ~z, elev, elevation);
+        if (here_depth < target_depth) {
+          Grid.Mut.set(~x, ~z, target_depth, river_depth);
+        };
       };
     };
   };
