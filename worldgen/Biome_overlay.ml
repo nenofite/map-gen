@@ -380,6 +380,7 @@ let overwrite_stone_air region x y z block =
 
 let apply (state, _canon) (region : Minecraft.Region.t) =
   let dirt = Dirt_overlay.require () in
+  let base, _ = Base_overlay.require () in
   let river_floors = improvise_river_floors () in
   Minecraft_converter.iter_blocks region (fun ~x ~z ->
       let open Minecraft.Region in
@@ -426,8 +427,11 @@ let apply (state, _canon) (region : Minecraft.Region.t) =
             overwrite_stone_air region x y z material
           done
       | River ->
+          let dirt_depth =
+            dirt_depth + Base_overlay.river_depth_at ~x ~z base
+          in
           let material = river_floor_at river_floors ~x ~z ~rxo ~rzo in
-          for y = elev - 1 to elev do
+          for y = elev - dirt_depth + 1 to elev do
             overwrite_stone_air region x y z material
           done )
 

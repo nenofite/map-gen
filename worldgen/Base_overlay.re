@@ -46,6 +46,13 @@ let river_at = (~x, ~z, base) => {
   };
 };
 
+let river_depth_at = (~x, ~z, base) => {
+  switch (water_at(~x, ~z, base)) {
+  | River(d) => d
+  | _ => 0
+  };
+};
+
 let ocean_at = (~x, ~z, base) => {
   switch (water_at(~x, ~z, base)) {
   | Ocean => true
