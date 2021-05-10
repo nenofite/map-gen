@@ -231,14 +231,15 @@ let fill_weighted_avg = (a, b, c, d) => {
 
 let phase = tectonic =>
   Tale.block("Heightmap", ~f=() => {
+    let revs = 5;
     let distances_grid = empty_distances_of_tectonic(tectonic);
     spread_distances(distances_grid);
     let elevation_grid =
       elevation_of_distances(
-        ~alloc_side=Grid.Mut.side(distances_grid) * 8,
+        ~alloc_side=Grid.Mut.side(distances_grid) * Int.(2 ** revs),
         distances_grid,
       );
-    for (_i in 1 to 3) {
+    for (_ in 1 to revs) {
       Subdivide_mut.overwrite_subdivide_with_fill(
         ~fill=fill_avg,
         elevation_grid,

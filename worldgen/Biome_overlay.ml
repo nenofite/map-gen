@@ -159,7 +159,7 @@ let initial_moisture_at ~mx ~mz base =
         match Base_overlay.water_at ~x ~z base with
         | Ocean ->
             100
-        | River ->
+        | River _ ->
             55
         | No_water ->
             0
