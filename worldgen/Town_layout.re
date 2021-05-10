@@ -318,7 +318,9 @@ let outlets_of_block = block => {
   let left_right =
     Mg_util.Range.map(min_z, max_z, z => [(min_x - m, z), (max_x + m, z)])
     |> List.concat;
-  left_right @ top_bottom;
+  left_right
+  @ top_bottom
+  |> List.filter(((x, z)) => 0 <= x && x < side && 0 <= z && z < side);
 };
 
 let outlets_of_bell = block => {
