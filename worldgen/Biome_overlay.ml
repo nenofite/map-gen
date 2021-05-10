@@ -328,19 +328,6 @@ let prepare () =
   let canond = Overlay.Canon.make_delta ~obstacles:(`Add biome_obstacles) () in
   (biomes, canond)
 
-let colorize (biome, base) =
-  if River.has_water base then River.colorize base
-  else
-    let elev = base.River.Tile.elevation in
-    let frac = float_of_int elev /. 200. in
-    let frac =
-      let open Float in
-      max (min frac 1.) 0.
-    in
-    let black = 0 in
-    let biome_col = colorize_biome biome in
-    Color.blend black biome_col frac
-
 let apply_progress_view (state : t) =
   let base, _ = Base_overlay.require () in
   let biome, _canon = state in

@@ -1,37 +1,9 @@
 open Core_kernel;
 
-module Tile = {
-  module T = {
-    [@deriving (eq, ord, sexp, bin_io)]
-    type t = {
-      elevation: int,
-      river_depth: int,
-      ocean: bool,
-    };
-  };
-  module T1 = {
-    include T;
-    include Comparable.Make(T);
-  };
-  module T2 = {
-    include T1;
-    module Grid = Grid.Make0(T1);
-  };
-  include T2;
-};
-
 type state = {
   river_depth: Grid.Mut.t(int),
   elevation: Grid.Mut.t(int),
 };
-
-[@deriving bin_io]
-type tile = Tile.t;
-let has_river = (t: tile) => t.river_depth > 0;
-let has_ocean = (t: tile) => t.ocean;
-let has_water = (t: tile) => has_river(t) || has_ocean(t);
-
-let empty_tile = Tile.{elevation: 0, river_depth: 0, ocean: false};
 
 let min_river_length = 100;
 let min_source_elevation = Heightmap.mountain_level - 5;
@@ -40,26 +12,6 @@ let max_source_elevation = Heightmap.mountain_level + 5;
 let increase_width_every = 100;
 
 let side = state => Grid.Mut.side(state.elevation);
-
-let colorize = (tile: tile): int => {
-  let base = Heightmap.colorize(tile.elevation * Heightmap.precision_coef);
-  let blue = 0x0000FF;
-  if (has_water(tile)) {
-    Color.blend(base, blue, 0.5);
-  } else {
-    base;
-  };
-};
-
-let colorize_hiprec = (tile: tile): int => {
-  let base = Heightmap.colorize(tile.elevation);
-  let blue = 0x0000FF;
-  if (has_water(tile)) {
-    Color.blend(base, blue, 0.5);
-  } else {
-    base;
-  };
-};
 
 let elevation_at = (~x, ~z, state) => Grid.Mut.get(~x, ~z, state.elevation);
 
