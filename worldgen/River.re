@@ -208,7 +208,8 @@ let second_biggest_flow = (~x, ~z, state) => {
 };
 
 let best_forks = (~river, state) => {
-  let count = List.length(river) / 200;
+  let river = List.take(river, 130);
+  let count = 2;
   List.map(river, ~f=((x, z)) => {second_biggest_flow(~x, ~z, state)})
   |> List.sort(~compare=((a, _), (b, _)) => Int.compare(b, a))
   |> List.take(_, count)
