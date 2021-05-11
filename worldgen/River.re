@@ -34,22 +34,26 @@ let convert = (elevation: Grid.Mut.t(int)) => {
   {elevation, river_depth, inflow};
 };
 
-let compare_elevations = (a, b) => {
-  let (ae, _, _) = a;
-  let (be, _, _) = b;
-  Int.compare(ae, be);
-};
-
 /** fall_to determines which neighbor the river will flow to */
-let fall_to = (here, neighbors) => {
-  let neighbors = List.sort(~compare=compare_elevations, neighbors);
-  let (lowest, lx, ly) as l = List.hd_exn(neighbors);
-  let cmp = compare_elevations(l, (here, 0, 0));
-  if (cmp < 0) {
-    Ok((lx, ly));
-  } else {
-    Error(lowest);
-  };
+let fall_to = (~x, ~z, state) => {
+  let here = elevation_at(~x, ~z, state);
+  let rec go = (lowest, lx, lz, neighbors) =>
+    switch (neighbors) {
+    | [(dx, dz), ...neighbors] =>
+      let nelev = elevation_at(~x=x + dx, ~z=z + dz, state);
+      if (nelev < lowest) {
+        go(nelev, x + dx, z + dz, neighbors);
+      } else {
+        go(lowest, lx, lz, neighbors);
+      };
+    | [] =>
+      if (lowest < here) {
+        Ok((lx, lz));
+      } else {
+        Error(lowest);
+      }
+    };
+  go(here, 0, 0, Grid.Griddable.eight_directions);
 };
 
 let place_river_tile = (state, ~x as cx, ~z as cz, ~elev, ~radius) => {
@@ -101,26 +105,31 @@ let place_river = (path, ~state) => {
   });
 };
 
-let raise_elevation_to = (elevation, ~x, ~z, ~state) => {
-  // TODO misnomer?
-  Grid.Mut.set(elevation, state.elevation, ~x, ~z);
-};
-
 let incr_inflow = (~x, ~z, state) =>
   Grid.Mut.update(~x, ~z, ~f=Int.succ, state.inflow) |> ignore;
 
-let flow_raindrop = (~x, ~z, state) => {
-  let rec go = (x, z) => {
-    incr_inflow(~x, ~z, state);
+let dig_raindrop = (~x, ~z, state) => {
+  let rec go = (x, z) =>
     if (!ocean_at(~x, ~z, state)) {
-      let here = Grid.Mut.get(~x, ~z, state.elevation);
-      let neighbors = Grid.Mut.neighbors_coords(state.elevation, ~x, ~z);
-      switch (fall_to(here, neighbors)) {
+      switch (fall_to(~x, ~z, state)) {
       | Ok((next_x, next_z)) =>
         assert(next_x != x || next_z != z);
         go(next_x, next_z);
       | Error(lowest_elev) =>
-        raise_elevation_to(lowest_elev + 1, ~x, ~z, ~state)
+        Grid.Mut.set(lowest_elev + 1, state.elevation, ~x, ~z)
+      };
+    };
+  go(x, z);
+};
+let flow_raindrop = (~x, ~z, state) => {
+  let rec go = (x, z) => {
+    incr_inflow(~x, ~z, state);
+    if (!ocean_at(~x, ~z, state)) {
+      switch (fall_to(~x, ~z, state)) {
+      | Ok((next_x, next_z)) =>
+        assert(next_x != x || next_z != z);
+        go(next_x, next_z);
+      | Error(_lowest_elev) => ()
       };
     };
   };
@@ -128,12 +137,16 @@ let flow_raindrop = (~x, ~z, state) => {
 };
 
 let flow_all_raindrops = state => {
-  Point_cloud.make_int_list(~side=side(state), ~spacing=4, ())
-  |> List.iter(~f=((x, z)) =>
-       for (_ in 1 to 10) {
-         flow_raindrop(~x, ~z, state);
-       }
-     );
+  let dig_revs = 10;
+  let starts = Point_cloud.make_int_list(~side=side(state), ~spacing=4, ());
+  for (i in 1 to dig_revs) {
+    Tale.blockf("Digging %d of %d", i, dig_revs, ~f=() => {
+      starts |> List.iter(~f=((x, z)) => dig_raindrop(~x, ~z, state))
+    });
+  };
+  Tale.block("Flowing", ~f=() => {
+    starts |> List.iter(~f=((x, z)) => flow_raindrop(~x, ~z, state))
+  });
 };
 
 let reconstruct_biggest_flow = (~x, ~z, state) => {
@@ -168,7 +181,7 @@ let biggest_ocean_inflows = state => {
     }
   )
   |> List.sort(~compare=((a, _, _), (b, _, _)) => Int.compare(b, a))
-  |> List.take(_, 10)
+  |> List.take(_, 5)
   |> List.map(~f=((_, x, z)) => (x, z));
 };
 
