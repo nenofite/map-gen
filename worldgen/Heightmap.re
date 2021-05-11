@@ -231,16 +231,25 @@ let fill_weighted_avg = (a, b, c, d) => {
 
 let phase = tectonic =>
   Tale.block("Heightmap", ~f=() => {
+    let rand_revs = 3;
+    let avg_revs = 2;
     let distances_grid = empty_distances_of_tectonic(tectonic);
     spread_distances(distances_grid);
     let elevation_grid =
       elevation_of_distances(
-        ~alloc_side=Grid.Mut.side(distances_grid) * 8,
+        ~alloc_side=
+          Grid.Mut.side(distances_grid) * Int.(2 ** (rand_revs + avg_revs)),
         distances_grid,
       );
-    for (_i in 1 to 3) {
+    for (_ in 1 to rand_revs) {
       Subdivide_mut.overwrite_subdivide_with_fill(
-        ~fill=fill_avg,
+        ~fill=Fill.random_avg,
+        elevation_grid,
+      );
+    };
+    for (_ in 1 to avg_revs) {
+      Subdivide_mut.overwrite_subdivide_with_fill(
+        ~fill=Fill.avg,
         elevation_grid,
       );
     };

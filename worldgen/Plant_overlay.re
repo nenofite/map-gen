@@ -20,7 +20,7 @@ let apply_trees = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
       let y = Minecraft.Region.height_at(region, ~x, ~z);
       let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
       switch (Biome_overlay.biome_at(~x, ~z, biomes)) {
-      | Mid(Forest(_)) =>
+      | Forest(_) =>
         switch (block) {
         | Grass_block =>
           Minecraft_template.place(
@@ -33,7 +33,7 @@ let apply_trees = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
           |> ignore
         | _ => ()
         }
-      | High(Pine_forest) =>
+      | Pine_forest =>
         switch (block) {
         | Grass_block =>
           Minecraft_template.place(
@@ -46,9 +46,15 @@ let apply_trees = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
           |> ignore
         | _ => ()
         }
-      | High(Barren | Snow)
-      | Mid(Desert(_) | Plain(_) | Savanna)
-      | Shore(_) => ()
+      | Ocean
+      | Barren_mountain
+      | Snow_mountain
+      | Desert(_)
+      | Plain(_)
+      | Savanna
+      | Shore
+      | Stone_shore
+      | River => ()
       };
     }
   );
@@ -80,19 +86,24 @@ let apply_ground_cover =
       let top = get_block(region, ~x, ~y, ~z);
       let biome = Biome_overlay.biome_at(~x, ~z, biomes);
       switch (biome) {
-      | Mid(Plain(_) | Forest(_) | Savanna)
-      | High(Pine_forest) =>
+      | Plain(_)
+      | Forest(_)
+      | Savanna
+      | River
+      | Pine_forest =>
         switch (top) {
         | Dirt => set_block(~x, ~y, ~z, Grass_block, region)
         | _ => ()
         }
-      | High(Snow) =>
+      | Snow_mountain =>
         if (can_build || should_add_snow_despite_obstacle(top)) {
           set_block(~x, ~y=y + 1, ~z, Snow, region);
         }
-      | High(Barren)
-      | Mid(Desert(_))
-      | Shore(_) => ()
+      | Ocean
+      | Barren_mountain
+      | Desert(_)
+      | Shore
+      | Stone_shore => ()
       };
     },
   );
@@ -174,8 +185,8 @@ let apply_flowers = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
       region,
       ~f=
         fun
-        | Mid(Plain(flower) | Forest(flower))
-            when Random.int(100) < flower.percentage =>
+        | Plain(flower)
+        | Forest(flower) when Random.int(100) < flower.percentage =>
           Some(flower)
         | _ => None,
     );
@@ -185,7 +196,8 @@ let apply_flowers = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
     ~can_place=
       (biome, cluster) =>
         switch (biome) {
-        | Mid(Plain(biome_flower) | Forest(biome_flower)) =>
+        | Plain(biome_flower)
+        | Forest(biome_flower) =>
           Minecraft.Block.equal_material(
             biome_flower.block,
             cluster.Biome_overlay.block,
@@ -238,7 +250,7 @@ let apply_cactus = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
       region,
       ~f=
         fun
-        | Mid(Desert(cactus)) when Random.int(100) < cactus.percentage =>
+        | Desert(cactus) when Random.int(100) < cactus.percentage =>
           Some(cactus)
         | _ => None,
     );
@@ -248,7 +260,7 @@ let apply_cactus = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
     ~can_place=
       (biome, _cluster) =>
         switch (biome) {
-        | Mid(Desert(_)) => true
+        | Desert(_) => true
         | _ => false
         },
     ~place=(~x, ~z, _cluster, region) => place_cactus(~x, ~z, region),
@@ -272,7 +284,9 @@ let apply_tallgrass = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => 
       let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
       let block_above = Minecraft.Region.get_block(region, ~x, ~y=y + 1, ~z);
       switch (Biome_overlay.biome_at(~x, ~z, biomes)) {
-      | Mid(Forest(_) | Plain(_) | Savanna) =>
+      | Forest(_)
+      | Plain(_)
+      | Savanna =>
         switch (block, block_above) {
         | (Grass_block, Air) =>
           Minecraft.Region.set_block(
@@ -284,7 +298,7 @@ let apply_tallgrass = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => 
           )
         | _ => ()
         }
-      | High(Pine_forest) =>
+      | Pine_forest =>
         if (Random.int(100) < 20) {
           switch (block, block_above) {
           | (Grass_block, Air) =>
@@ -298,7 +312,7 @@ let apply_tallgrass = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => 
           | _ => ()
           };
         }
-      | Mid(Desert(_)) =>
+      | Desert(_) =>
         if (Random.int(100) < 1) {
           switch (block, block_above) {
           | (Sand, Air) =>
@@ -312,8 +326,12 @@ let apply_tallgrass = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => 
           | _ => ()
           };
         }
-      | High(Barren | Snow)
-      | Shore(_) => ()
+      | Ocean
+      | Barren_mountain
+      | Snow_mountain
+      | Shore
+      | Stone_shore
+      | River => ()
       };
     }
   );

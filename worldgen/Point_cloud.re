@@ -286,8 +286,10 @@ let interpolate = (cloud, x, y) => {
 /**
   creates a new point cloud of the same dimensions but with different spacing. Each point in the new cloud samples from the nearest in the old cloud
   */
-let subdivide = (cloud, ~spacing) => {
-  init(~side=cloud.side, ~spacing, (x, z) => nearest_int(cloud, x, z));
+let subdivide = (~avoid_edges=?, cloud, ~spacing) => {
+  init(~side=cloud.side, ~avoid_edges?, ~spacing, (x, z) =>
+    nearest_int(cloud, x, z)
+  );
 };
 
 let subdivide4 = (cloud, ~spacing, ~f) => {

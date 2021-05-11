@@ -318,7 +318,9 @@ let outlets_of_block = block => {
   let left_right =
     Mg_util.Range.map(min_z, max_z, z => [(min_x - m, z), (max_x + m, z)])
     |> List.concat;
-  left_right @ top_bottom;
+  left_right
+  @ top_bottom
+  |> List.filter(((x, z)) => 0 <= x && x < side && 0 <= z && z < side);
 };
 
 let outlets_of_bell = block => {
@@ -344,7 +346,7 @@ let add_roads_to_obstacles = (~roads, obstacles) => {
       roads,
       ~init=obstacles,
       ~f=(obstacles, road) => {
-        let Road_pathing_rules.{x, z, _} = road;
+        let {x, z, _}: Road_pathing_rules.t = road;
         Mg_util.Range.fold(z - 1, z + 1, obstacles, (obstacles, z) =>
           Mg_util.Range.fold(x - 1, x + 1, obstacles, (obstacles, x) =>
             Sparse_grid.put(obstacles, x, z, ())

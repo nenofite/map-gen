@@ -18,14 +18,15 @@ let init_state () =
 
 let get_paths_list state = state.paths_to_place
 
+let get_bridges_list state =
+  Road_pathing_rules.extract_bridges state.paths_to_place
+
 (** Call this if obstacles have changed *)
 let clear_closest_paths state = Path_coord.Table.clear state.closest_paths
 
 let add_paths ~should_place ~new_paths state =
   List.iter new_paths ~f:(fun p -> Hash_set.add state.paths p) ;
-  if should_place then
-    List.iter new_paths ~f:(fun p ->
-        state.paths_to_place <- p :: state.paths_to_place ) ;
+  if should_place then state.paths_to_place <- new_paths @ state.paths_to_place ;
   ()
 
 let set_paths_as_roots state =

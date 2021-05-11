@@ -20,6 +20,7 @@ type road = Rp.t;
 type x = {
   pois: list((int, int)),
   roads: Sparse_grid.t(road),
+  bridges: list(Road_pathing_rules.bridge),
 };
 
 [@deriving bin_io]
@@ -85,13 +86,14 @@ let prepare = () => {
   let roads = place_road(canon, Sparse_grid.make(canon.side), roads);
   Tale.log("Widening roads and adding steps");
   let roads = Road_pathing_rules.widen_road(roads);
+  let bridges = Road_pathing.get_bridges_list(pathing_state);
   let obstacles =
     Sparse_grid.(
       map(roads, (_, _) => Overlay.Canon.Impassable)
       |> to_grid(~default=Overlay.Canon.Clear)
     );
   (
-    {pois: [], roads},
+    {pois: [], roads, bridges},
     Overlay.Canon.make_delta(~obstacles=`Add(obstacles), ()),
   );
 };
@@ -141,6 +143,19 @@ let place_stair_block = (region, x, y, z, ~dir) => {
   fill_beneath_road(region, x, y - 1, z);
 };
 
+let template_of_bridge = bridge => {
+  let Road_pathing_rules.{x, y, z, direction, length} = bridge;
+  let rotation =
+    switch (direction) {
+    | N => 0
+    | E => 1
+    | S => 2
+    | W => 3
+    };
+  Bridge.bridge(~length, ~rotation)
+  |> Minecraft_template.translate(_, x, y, z);
+};
+
 let apply_region = ((state, _canon), region: Minecraft.Region.t) => {
   let region = region;
   Sparse_grid.iter(state.roads, ((x, z), road) =>
@@ -152,6 +167,13 @@ let apply_region = ((state, _canon), region: Minecraft.Region.t) => {
       | Bridge(_) => /* TODO */ ()
       };
     }
+  );
+  List.iter(
+    state.bridges,
+    ~f=bridge => {
+      let t = template_of_bridge(bridge);
+      Minecraft_template.place_overwrite_opt(~x=0, ~y=0, ~z=0, t, region);
+    },
   );
 };
 
