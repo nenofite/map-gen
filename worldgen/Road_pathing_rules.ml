@@ -7,7 +7,7 @@ module Coord = struct
     (** the direction you must walk to go up the stairs *)
     type dir4 = N | E | S | W [@@deriving eq, ord, hash, sexp, bin_io]
 
-    type structure = Road | Stair of dir4 | Bridge of dir2
+    type structure = Road | Stair of dir4 | Bridge of dir4
     [@@deriving eq, ord, hash, sexp, bin_io]
 
     type t = {x: int; y: int; z: int; structure: structure}
@@ -25,6 +25,9 @@ module Coord = struct
 end
 
 include Coord.T
+
+type bridge = {x: int; y: int; z: int; direction: dir4; length: int}
+[@@deriving eq, bin_io]
 
 (* Costs *)
 let flat_ground_cost = 10
@@ -122,7 +125,7 @@ let neighbors ~get_elevation ~get_obstacle {x; y; z; structure} =
   in
   let add_bridge_start_neighbor ~x ~y ~z ~nx ~ny ~nz list =
     if ny <= y then
-      ( {x= nx; y= ny; z= nz; structure= Bridge (make_dir2_exn x z nx nz)}
+      ( {x= nx; y= ny; z= nz; structure= Bridge (make_dir4_exn x z nx nz)}
       , bridge_cost )
       :: list
     else list
@@ -169,20 +172,19 @@ let neighbors ~get_elevation ~get_obstacle {x; y; z; structure} =
     else list
   in
   let bridge_neighbors ~x ~y ~z bridge_dir =
-    List.fold (two_neighbors_of_dir2 bridge_dir) ~init:[]
-      ~f:(fun acc (dx, dz) ->
-        let nx = x + dx in
-        let nz = z + dz in
-        match get_obstacle_in_margin ~x:nx ~z:nz with
-        | Overlay.Canon.Impassable ->
-            acc
-        | Bridgeable ->
-            let ny = get_elevation ~x:nx ~z:nz in
-            add_bridge_continue_neighbor bridge_dir ~y ~ny ~nx ~nz acc
-        | Clear ->
-            let ny = get_elevation ~x:nx ~z:nz in
-            add_bridge_continue_neighbor bridge_dir ~y ~ny ~nx ~nz
-            @@ add_bridge_end_neighbor bridge_dir ~y ~ny ~nx ~nz acc )
+    let dx, dz = neighbor_of_dir4 bridge_dir in
+    let nx = x + dx in
+    let nz = z + dz in
+    match get_obstacle_in_margin ~x:nx ~z:nz with
+    | Overlay.Canon.Impassable ->
+        []
+    | Bridgeable ->
+        let ny = get_elevation ~x:nx ~z:nz in
+        add_bridge_continue_neighbor bridge_dir ~y ~ny ~nx ~nz []
+    | Clear ->
+        let ny = get_elevation ~x:nx ~z:nz in
+        add_bridge_continue_neighbor bridge_dir ~y ~ny ~nx ~nz
+        @@ add_bridge_end_neighbor bridge_dir ~y ~ny ~nx ~nz []
   in
   match structure with
   | Road ->
@@ -221,4 +223,25 @@ let widen_road (roads : t Sparse_grid.t) =
           Mg_util.Range.fold (z - 1) (z + 1) g (fun g z ->
               Sparse_grid.put g x z coord )
       | Bridge _ ->
-          g )
+          Sparse_grid.put g x z coord )
+
+let extract_bridges paths =
+  let rec go paths cur_bridge bridges =
+    match paths with
+    | {x; y; z; structure= Bridge direction} :: paths -> (
+      match cur_bridge with
+      | Some cb ->
+          (* TODO check same direction? *)
+          go paths (Some {cb with length= cb.length + 1}) bridges
+      | None ->
+          go paths (Some {x; y; z; direction; length= 1}) bridges )
+    | _ :: paths -> (
+      match cur_bridge with
+      | Some cb ->
+          go paths None (cb :: bridges)
+      | None ->
+          go paths None bridges )
+    | [] -> (
+      match cur_bridge with Some cb -> cb :: bridges | None -> bridges )
+  in
+  go paths None []

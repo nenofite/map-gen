@@ -23,11 +23,24 @@ type z_mark =
 
 let center = (a, b) => (a + b) / 2;
 let zero = (_, _) => 0;
+let shift = (mark, ~by, a, b) => mark(a, b) + by;
 
-let height_of = template => {
-  let (miny, maxy) = template.bounds_y;
-  maxy - miny + 1;
+let x_size_of = template => {
+  let (min, max) = template.bounds_x;
+  max - min + 1;
 };
+
+let y_size_of = template => {
+  let (min, max) = template.bounds_y;
+  max - min + 1;
+};
+
+let z_size_of = template => {
+  let (min, max) = template.bounds_z;
+  max - min + 1;
+};
+
+let height_of = y_size_of;
 
 let compare_coord_block = ((ax, ay, az, _), (bx, by, bz, _)) =>
   switch (Int.(compare(ax, bx), compare(ay, by), compare(az, bz))) {
@@ -136,6 +149,22 @@ let place_overwrite = (template, ~x, ~y, ~z, r) => {
   );
 };
 
+let place_overwrite_opt = (template, ~x, ~y, ~z, r) => {
+  List.iter(
+    ~f=
+      ((dx, dy, dz, material)) => {
+        Minecraft.Region.set_block_opt(
+          ~x=dx + x,
+          ~y=dy + y,
+          ~z=dz + z,
+          material,
+          r,
+        )
+      },
+    template.blocks,
+  );
+};
+
 /**
   place attempts to paste a template at the given coordinate. If any of the
   blocks are not air or are outside the region, it fails and returns false
@@ -217,8 +246,20 @@ let align_with = (a, ~other as b, ~my, ~their) => {
   translate(a, bx - ax, by - ay, bz - az);
 };
 
+let align_with' =
+    (a, ~other as b, ~x as (mx, ox), ~y as (my, oy), ~z as (mz, oz)) => {
+  let (ax, ay, az) = calc_mark((X(mx), Y(my), Z(mz)), ~on=a);
+  let (bx, by, bz) = calc_mark((X(ox), Y(oy), Z(oz)), ~on=b);
+  translate(a, bx - ax, by - ay, bz - az);
+};
+
 let align_with_origin = (a, ~my) => {
   let (ax, ay, az) = calc_mark(my, ~on=a);
+  translate(a, 0 - ax, 0 - ay, 0 - az);
+};
+
+let align_with_origin' = (a, ~x, ~y, ~z) => {
+  let (ax, ay, az) = calc_mark((X(x), Y(y), Z(z)), ~on=a);
   translate(a, 0 - ax, 0 - ay, 0 - az);
 };
 
@@ -272,7 +313,12 @@ let flip_y = template => {
 };
 
 let rotate_90_cw_once = template => {
-  let map_coord = ((x, y, z, m)) => (- z, y, x, m);
+  let map_coord = ((x, y, z, m)) => (
+    - z,
+    y,
+    x,
+    Minecraft.Block.rotate_cw(m, ~times=1),
+  );
   of_blocks(List.map(template.blocks, ~f=map_coord));
 };
 
