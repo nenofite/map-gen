@@ -49,7 +49,7 @@ let endpiece_going_north = {
     pillar
     |> align_with'(
          ~other=stairs0,
-         ~x=(max, shift(min, ~by=-1)),
+         ~x=(max, min),
          ~y=(min, min),
          ~z=(max, max),
        );
@@ -57,7 +57,7 @@ let endpiece_going_north = {
     pillar
     |> align_with'(
          ~other=stairs0,
-         ~x=(min, shift(max, ~by=1)),
+         ~x=(min, max),
          ~y=(min, min),
          ~z=(max, max),
        );
@@ -85,7 +85,7 @@ let bridge = (~length, ~rotation) => {
     connector(length)
     |> align_with'(
          ~other=start_piece,
-         ~x=(min, min),
+         ~x=(center, center),
          ~y=(max, max),
          ~z=(max, min),
        );
@@ -94,11 +94,10 @@ let bridge = (~length, ~rotation) => {
     |> rotate_90_cw(~times=2)
     |> align_with'(
          ~other=connector,
-         ~x=(min, min),
+         ~x=(center, center),
          ~y=(max, max),
          ~z=(max, min),
        );
-  let debug_marker = rect(Glowstone, ~xs=1, ~ys=1, ~zs=1);
-  combine_all([start_piece, connector, end_piece, debug_marker])
+  combine_all([start_piece, connector, end_piece])
   |> rotate_90_cw(~times=rotation);
 };
