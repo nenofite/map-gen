@@ -56,6 +56,13 @@ let fall_to = (~x, ~z, state) => {
   go(here, 0, 0, Grid.Griddable.eight_directions);
 };
 
+let is_lowest_neighbor = (~x, ~z, ~nx, ~nz, state) => {
+  switch (fall_to(~x, ~z, state)) {
+  | Ok((lx, lz)) => lx == nx && lz == nz
+  | Error(_) => false
+  };
+};
+
 let place_river_tile = (state, ~x as cx, ~z as cz, ~elev, ~radius) => {
   let rd = radius / 2;
   let ru = (radius + 1) / 2;
@@ -154,10 +161,12 @@ let reconstruct_biggest_flow = (~x, ~z, state) => {
   let rec go = (x, z, ls) => {
     let ls = [(x, z), ...ls];
     let here = Grid.Mut.get(~x, ~z, state.elevation);
+    let nx = x;
+    let nz = z;
     let best_upstream =
       Grid.Mut.neighbors_coords(state.elevation, ~x, ~z)
       |> List.filter_map(~f=((elev, x, z)) =>
-           if (elev > here) {
+           if (elev > here && is_lowest_neighbor(~x, ~z, ~nx, ~nz, state)) {
              let inflow = Grid.Mut.get(~x, ~z, state.inflow);
              Some((inflow, x, z));
            } else {
@@ -175,10 +184,12 @@ let reconstruct_biggest_flow = (~x, ~z, state) => {
 
 let second_biggest_flow = (~x, ~z, state) => {
   let here = Grid.Mut.get(~x, ~z, state.elevation);
+  let nx = x;
+  let nz = z;
   let best_upstream =
     Grid.Mut.neighbors_coords(state.elevation, ~x, ~z)
     |> List.filter_map(~f=((elev, x, z)) =>
-         if (elev > here) {
+         if (elev > here && is_lowest_neighbor(~x, ~z, ~nx, ~nz, state)) {
            let inflow = Grid.Mut.get(~x, ~z, state.inflow);
            Some((inflow, x, z));
          } else {
@@ -190,31 +201,28 @@ let second_biggest_flow = (~x, ~z, state) => {
     |> List.hd;
   switch (best_upstream) {
   | Some((_, x, z)) => reconstruct_biggest_flow(~x, ~z, state)
-  | None => failwith("no second best")
+  | None =>
+    Tale.log("no second best");
+    [];
   };
 };
 
-let reconstruct_fork = (~river, ~offset, state) => {
-  let root = List.drop(river, offset);
-  switch (List.hd(root)) {
-  | Some((x, z)) => second_biggest_flow(~x, ~z, state)
-  | None => []
-  };
+let best_forks = (~river, state) => {
+  List.map(
+    river,
+    ~f=((x, z)) => {
+      let fork = second_biggest_flow(~x, ~z, state);
+      (List.length(fork), fork);
+    },
+  )
+  |> List.sort(~compare=((a, _), (b, _)) => Int.compare(b, a))
+  |> List.take(_, 3)
+  |> List.map(~f=((_, f)) => f);
 };
 
 let river_and_fork = (~x, ~z, state) => {
   let river = reconstruct_biggest_flow(~x, ~z, state);
-  [
-    river,
-    reconstruct_fork(~river, ~offset=10, state),
-    reconstruct_fork(~river, ~offset=20, state),
-    reconstruct_fork(~river, ~offset=30, state),
-    reconstruct_fork(~river, ~offset=50, state),
-    reconstruct_fork(~river, ~offset=80, state),
-    reconstruct_fork(~river, ~offset=130, state),
-    reconstruct_fork(~river, ~offset=210, state),
-    reconstruct_fork(~river, ~offset=340, state),
-  ];
+  [river, ...best_forks(~river, state)];
 };
 
 let biggest_ocean_inflows = state => {
