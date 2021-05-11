@@ -142,8 +142,8 @@ let flow_raindrop = (~x, ~z, state) => {
     };
   };
   if (!ocean_at(~x, ~z, state)) {
-  go(x, z);
-};
+    go(x, z);
+  };
 };
 
 let flow_all_raindrops = state => {
@@ -202,23 +202,16 @@ let second_biggest_flow = (~x, ~z, state) => {
     |> List.drop(_, 1)
     |> List.hd;
   switch (best_upstream) {
-  | Some((_, x, z)) => reconstruct_biggest_flow(~x, ~z, state)
-  | None =>
-    Tale.log("no second best");
-    [];
+  | Some((i, x, z)) => (i, reconstruct_biggest_flow(~x, ~z, state))
+  | None => (0, [])
   };
 };
 
 let best_forks = (~river, state) => {
-  List.map(
-    river,
-    ~f=((x, z)) => {
-      let fork = second_biggest_flow(~x, ~z, state);
-      (List.length(fork), fork);
-    },
-  )
+  let count = List.length(river) / 200;
+  List.map(river, ~f=((x, z)) => {second_biggest_flow(~x, ~z, state)})
   |> List.sort(~compare=((a, _), (b, _)) => Int.compare(b, a))
-  |> List.take(_, 3)
+  |> List.take(_, count)
   |> List.map(~f=((_, f)) => f);
 };
 
