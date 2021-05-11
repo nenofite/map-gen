@@ -141,7 +141,9 @@ let flow_raindrop = (~x, ~z, state) => {
       };
     };
   };
+  if (!ocean_at(~x, ~z, state)) {
   go(x, z);
+};
 };
 
 let flow_all_raindrops = state => {
