@@ -85,6 +85,7 @@ let place_river_tile = (state, ~x as cx, ~z as cz, ~elev, ~radius) => {
 };
 
 let place_river = (path, ~state) => {
+  Tale.logf("Placing river with length %d", List.length(path));
   let rec add_params = (rest, ls, ~elapsed, ~radius) =>
     switch (rest) {
     | [] => ls
@@ -172,6 +173,50 @@ let reconstruct_biggest_flow = (~x, ~z, state) => {
   go(x, z, []);
 };
 
+let second_biggest_flow = (~x, ~z, state) => {
+  let here = Grid.Mut.get(~x, ~z, state.elevation);
+  let best_upstream =
+    Grid.Mut.neighbors_coords(state.elevation, ~x, ~z)
+    |> List.filter_map(~f=((elev, x, z)) =>
+         if (elev > here) {
+           let inflow = Grid.Mut.get(~x, ~z, state.inflow);
+           Some((inflow, x, z));
+         } else {
+           None;
+         }
+       )
+    |> List.sort(~compare=((a, _, _), (b, _, _)) => Int.compare(b, a))
+    |> List.drop(_, 1)
+    |> List.hd;
+  switch (best_upstream) {
+  | Some((_, x, z)) => reconstruct_biggest_flow(~x, ~z, state)
+  | None => failwith("no second best")
+  };
+};
+
+let reconstruct_fork = (~river, ~offset, state) => {
+  let root = List.drop(river, offset);
+  switch (List.hd(root)) {
+  | Some((x, z)) => second_biggest_flow(~x, ~z, state)
+  | None => []
+  };
+};
+
+let river_and_fork = (~x, ~z, state) => {
+  let river = reconstruct_biggest_flow(~x, ~z, state);
+  [
+    river,
+    reconstruct_fork(~river, ~offset=10, state),
+    reconstruct_fork(~river, ~offset=20, state),
+    reconstruct_fork(~river, ~offset=30, state),
+    reconstruct_fork(~river, ~offset=50, state),
+    reconstruct_fork(~river, ~offset=80, state),
+    reconstruct_fork(~river, ~offset=130, state),
+    reconstruct_fork(~river, ~offset=210, state),
+    reconstruct_fork(~river, ~offset=340, state),
+  ];
+};
+
 let biggest_ocean_inflows = state => {
   Grid.Mut.fold(state.inflow, ~init=[], ~f=(~x, ~z, ls, inflow) =>
     if (inflow > 0 && ocean_at(~x, ~z, state)) {
@@ -200,10 +245,13 @@ let add_rivers = state => {
       i,
       ~f=() => {
         let (x, z) = r;
-        Tale.block("Reconstructing", ~f=() =>
-          reconstruct_biggest_flow(~x, ~z, state)
-        )
-        |> Tale.block("Placing", ~f=() => place_river(~state));
+        let rivers =
+          Tale.block("Reconstructing", ~f=() =>
+            river_and_fork(~x, ~z, state)
+          );
+        Tale.block("Placing", ~f=() =>
+          List.iter(rivers, ~f=place_river(~state))
+        );
       },
     )
   );
