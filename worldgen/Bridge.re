@@ -1,5 +1,12 @@
 open! Core_kernel;
 
+let pillar = {
+  open Minecraft_template;
+  let base = rect(Stone_bricks, ~xs=1, ~ys=2, ~zs=1);
+  let cap = rect(Chiseled_stone_bricks, ~xs=1, ~ys=1, ~zs=1);
+  stack(base, cap);
+};
+
 let endpiece_going_north = {
   open Minecraft_template;
   let stairs = rect(Stairs(Stone_brick_stairs, N), ~xs=3, ~ys=1, ~zs=1);
@@ -38,7 +45,31 @@ let endpiece_going_north = {
          ~y=(min, max),
          ~z=(min, min),
        );
-  combine_all([stairs0, inv_stairs0, stairs1, inv_stairs1, stairs2]);
+  let left_pillar =
+    pillar
+    |> align_with'(
+         ~other=stairs0,
+         ~x=(max, shift(min, ~by=-1)),
+         ~y=(min, min),
+         ~z=(max, max),
+       );
+  let right_pillar =
+    pillar
+    |> align_with'(
+         ~other=stairs0,
+         ~x=(min, shift(max, ~by=1)),
+         ~y=(min, min),
+         ~z=(max, max),
+       );
+  combine_all([
+    stairs0,
+    inv_stairs0,
+    stairs1,
+    inv_stairs1,
+    stairs2,
+    left_pillar,
+    right_pillar,
+  ]);
 };
 
 let connector = length => {
@@ -69,6 +100,5 @@ let bridge = (~length, ~rotation) => {
        );
   let debug_marker = rect(Glowstone, ~xs=1, ~ys=1, ~zs=1);
   combine_all([start_piece, connector, end_piece, debug_marker])
-  //   |> rotate_90_cw(~times=rotation);
-  |> rotate_90_cw(~times=rotation + 2 /* TODO idk why but this fixes it */);
+  |> rotate_90_cw(~times=rotation);
 };

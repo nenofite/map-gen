@@ -226,15 +226,20 @@ let widen_road (roads : t Sparse_grid.t) =
           Sparse_grid.put g x z coord )
 
 let extract_bridges paths =
+  (* direction always goes from min to max *)
+  let normalize_dir = function N | S -> S | E | W -> E in
   let rec go paths cur_bridge bridges =
     match paths with
     | {x; y; z; structure= Bridge direction} :: paths -> (
-      match cur_bridge with
-      | Some cb ->
-          (* TODO check same direction? *)
-          go paths (Some {cb with length= cb.length + 1}) bridges
-      | None ->
-          go paths (Some {x; y; z; direction; length= 1}) bridges )
+        let direction = normalize_dir direction in
+        match cur_bridge with
+        | Some {x= cx; y= _; z= cz; length; direction= _} ->
+            (* TODO check same direction? *)
+            go paths
+              (Some {x= min x cx; y; z= min z cz; length= length + 1; direction})
+              bridges
+        | None ->
+            go paths (Some {x; y; z; direction; length= 1}) bridges )
     | _ :: paths -> (
       match cur_bridge with
       | Some cb ->
