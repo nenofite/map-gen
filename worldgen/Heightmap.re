@@ -241,12 +241,27 @@ let phase = tectonic =>
           Grid.Mut.side(distances_grid) * Int.(2 ** (rand_revs + avg_revs)),
         distances_grid,
       );
-    for (_ in 1 to rand_revs) {
+    for (_ in 1 to rand_revs - 2) {
       Subdivide_mut.overwrite_subdivide_with_fill(
         ~fill=Fill.random_avg,
         elevation_grid,
       );
     };
+    let points =
+      Point_cloud.init(
+        ~side=Grid.Mut.side(elevation_grid) * 2, ~spacing=4, (x, z) =>
+        Grid.Mut.get(~x=x / 2, ~z=z / 2, elevation_grid)
+      )
+      |> Point_cloud.subdivide(~spacing=2);
+    Grid.Mut.expand_for_subdivide(elevation_grid);
+    Grid.Mut.map(elevation_grid, ~f=(~x, ~z, _) =>
+      Point_cloud.nearest_int(points, x, z)
+    )
+    |> ignore;
+    Subdivide_mut.overwrite_subdivide_with_fill(
+      ~fill=Fill.random_avg,
+      elevation_grid,
+    );
     for (_ in 1 to avg_revs) {
       Subdivide_mut.overwrite_subdivide_with_fill(
         ~fill=Fill.avg,
