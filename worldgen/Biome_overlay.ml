@@ -29,7 +29,7 @@ let to_minecraft_biome = function
       Minecraft.Biome.River
 
 let is_near_river_at ~x ~z base =
-  let r = 1 in
+  let r = 0 in
   let side = Base_overlay.side base in
   let result = ref false in
   for z = z - r to z + r do
@@ -220,11 +220,9 @@ let lookup_whittman ~mountain_threshold ~flower ~cactus ~precipitation
   let m = precipitation in
   let mt = mountain_threshold in
   match () with
-  | () when e > mt && m > 50 ->
-      Snow_mountain
-  | () when e > mt - 10 && t > 20 && m > 50 ->
+  | () when e > mt - 5 && m > 50 ->
       Pine_forest
-  | () when e > mt - 10 && m > 50 ->
+  | () when e > mt && t <= 35 && m > 0 ->
       Snow_mountain
   | () when e > mt ->
       Barren_mountain
