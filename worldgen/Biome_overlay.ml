@@ -166,16 +166,15 @@ let initial_moisture_at ~mx ~mz base =
       in
       max m here )
 
-let moisture_carry_at ~mx ~mz base =
-  fold_scale_factor ~mx ~mz ~init:40 ~f:(fun ~x ~z m ->
-      let here =
-        match Base_overlay.elevation_at ~x ~z base with
-        | e when e > 100 ->
-            30
-        | _ ->
-            39
-      in
-      min m here )
+let moisture_loss_at ~mx ~mz base =
+  let sum =
+    fold_scale_factor ~mx ~mz ~init:0 ~f:(fun ~x ~z m ->
+        let e = Base_overlay.elevation_at ~x ~z base in
+        let here = if e > 100 then 25 else 2 in
+        m + here )
+  in
+  let avg = sum / scale_factor / scale_factor in
+  avg |> Int.clamp_exn ~min:0 ~max:100
 
 let east_wind = [(1, 0); (0, 1); (1, -1)]
 
@@ -187,7 +186,7 @@ let wind_direction_at ~mx ~mz =
 
 let mountain_threshold_at ~x ~z dirt = 90 + Grid.get x z dirt
 
-let draw_moisture moisture =
+let draw_cells moisture =
   let draw_dense () x z =
     if Grid.is_within_side ~x ~y:z (Point_cloud.side moisture) then
       let here = Point_cloud.nearest_int moisture x z in
@@ -214,11 +213,11 @@ let prepare_cacti () =
   Point_cloud.init ~side ~spacing:64 (fun x z ->
       Point_cloud.nearest_int coarse x z )
 
-let lookup_whittman ~mountain_threshold ~flower ~cactus ~moisture ~temperature
-    ~elevation =
+let lookup_whittman ~mountain_threshold ~flower ~cactus ~precipitation
+    ~temperature ~elevation =
   let e = elevation in
   let t = temperature in
-  let m = moisture in
+  let m = precipitation in
   let mt = mountain_threshold in
   match () with
   | () when e > mt && m > 50 ->
@@ -242,7 +241,7 @@ let lookup_whittman ~mountain_threshold ~flower ~cactus ~moisture ~temperature
   | () ->
       Plain no_flower
 
-let prepare_moisture () =
+let prepare_precipitation () =
   let canon = Overlay.Canon.require () in
   let base, _ = Base_overlay.require () in
   let add_to_pq pq ~x ~z ~moisture =
@@ -250,20 +249,21 @@ let prepare_moisture () =
   in
   let mside = canon.side / scale_factor in
   let moisture =
-    Grid.Mut.init ~side:mside ~alloc_side:canon.side 0 ~f:(fun ~x ~z ->
+    Grid.Mut.init ~side:mside 0 ~f:(fun ~x ~z ->
         let m = initial_moisture_at ~mx:x ~mz:z base in
         m )
   in
-  let moisture_carry =
+  let moisture_loss =
     Grid.Mut.init ~side:mside 0 ~f:(fun ~x ~z ->
-        moisture_carry_at ~mx:x ~mz:z base )
+        moisture_loss_at ~mx:x ~mz:z base )
   in
   let spread_coord ~x ~z ~m pq =
-    let carry = Grid.Mut.get ~x ~z moisture_carry in
+    let loss = Grid.Mut.get ~x ~z moisture_loss in
+    let send = 100 - loss in
     List.fold (wind_direction_at ~mx:x ~mz:z) ~init:pq ~f:(fun pq (dx, dz) ->
         let x = x + dx in
         let z = z + dz in
-        let m = m * carry / 40 in
+        let m = m * send / 100 in
         if Grid.Mut.is_within ~x ~z moisture then
           let old_m = Grid.Mut.get ~x ~z moisture in
           if m > old_m then (
@@ -288,36 +288,45 @@ let prepare_moisture () =
   in
   let pq = full_spread_moisture Pq.empty in
   spread_moisture pq ;
+  let precipitation =
+    Grid.Mut.init ~side:(Grid.Mut.side moisture) ~alloc_side:canon.side
+      ~f:(fun ~x ~z ->
+        let m = Grid.Mut.get ~x ~z moisture in
+        let loss = Grid.Mut.get ~x ~z moisture_loss in
+        let stay = (4 * loss) + 100 |> Int.clamp_exn ~min:0 ~max:100 in
+        m * stay / 100 |> Int.clamp_exn ~min:0 ~max:100 )
+      0
+  in
   for _ = 1 to 1 do
     Subdivide_mut.overwrite_subdivide_with_fill
       ~fill:(fun a b c d -> (a + b + c + d) / 4)
-      moisture
+      precipitation
   done ;
-  Subdivide_mut.subdivide moisture ;
-  Subdivide_mut.magnify moisture ;
+  Subdivide_mut.subdivide precipitation ;
+  Subdivide_mut.magnify precipitation ;
   Point_cloud.init ~side:canon.side ~spacing:32 (fun x z ->
-      Grid.Mut.get ~x ~z moisture )
+      Grid.Mut.get ~x ~z precipitation )
   |> Point_cloud.subdivide ~spacing:8
 
 let prepare () =
   let canon = Overlay.Canon.require () in
   let dirt = Dirt_overlay.require () in
-  let moisture = prepare_moisture () in
+  let precipitation = prepare_precipitation () in
   Tale.block "drawing moisture" ~f:(fun () ->
-      draw_moisture moisture ;
+      draw_cells precipitation ;
       Progress_view.save ~side:canon.side "moisture" ) ;
   let biomes =
     let flowers = prepare_flowers () in
     let cacti = prepare_cacti () in
     Point_cloud.init ~side:canon.side ~spacing:8 (fun x z ->
         let temperature = temperature_at ~x ~z in
-        let moisture = Point_cloud.nearest_int moisture x z in
+        let precipitation = Point_cloud.nearest_int precipitation x z in
         let elevation = Grid.get x z canon.elevation in
         let mountain_threshold = mountain_threshold_at ~x ~z dirt in
         let flower = Point_cloud.nearest_int flowers x z in
         let cactus = Point_cloud.nearest_int cacti x z in
-        lookup_whittman ~mountain_threshold ~moisture ~temperature ~elevation
-          ~flower ~cactus )
+        lookup_whittman ~mountain_threshold ~precipitation ~temperature
+          ~elevation ~flower ~cactus )
   in
   let biome_obstacles =
     Overlay.Canon.Obstacles.init ~side:(Grid.side dirt) (fun (x, z) ->
