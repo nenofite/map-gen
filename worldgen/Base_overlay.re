@@ -60,6 +60,16 @@ let ocean_at = (~x, ~z, base) => {
   };
 };
 
+let oceanside_at = (~x, ~z, base) => {
+  !any_water_at(~x, ~z, base)
+  && (
+    ocean_at(~x=x - 1, ~z, base)
+    || ocean_at(~x, ~z=z - 1, base)
+    || ocean_at(~x=x + 1, ~z, base)
+    || ocean_at(~x, ~z=z + 1, base)
+  );
+};
+
 let side = base => Grid.side(base.elevation);
 
 let gray_of_elevation = e => Float.(of_int(e) / 200.);

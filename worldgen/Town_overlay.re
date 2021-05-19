@@ -263,7 +263,8 @@ let prepare = (): t => {
   let river_coords =
     Mg_util.Range.fold(0, side - 1, [], (ls, z) => {
       Mg_util.Range.fold(0, side - 1, ls, (ls, x) =>
-        if (Base_overlay.river_at(~x, ~z, base)) {
+        if (Base_overlay.river_at(~x, ~z, base)
+            || Base_overlay.oceanside_at(~x, ~z, base)) {
           [(x - Town_layout.side / 2, z - Town_layout.side / 2), ...ls];
         } else {
           ls;
