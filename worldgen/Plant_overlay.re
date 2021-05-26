@@ -13,9 +13,9 @@ let apply_trees = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
     );
   let (rx, rz) = Minecraft.Region.region_offset(region);
   /* Try placing them where it's forest && solid ground */
-  Sparse_grid.iter(
-    trees.points,
-    (_, Point_cloud.{px: x, py: z, value}) => {
+  Point_cloud.iter(
+    trees,
+    ~f=(~x, ~y as z, value) => {
       let x = int_of_float(x) + rx;
       let z = int_of_float(z) + rz;
       if (value && Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
@@ -283,7 +283,7 @@ let apply_tallgrass = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => 
       Random.int(100) < 67
     );
   let (rx, rz) = Minecraft.Region.region_offset(region);
-  Sparse_grid.iter(tallgrass.points, (_, Point_cloud.{px: x, py: z, value}) =>
+  Point_cloud.iter(tallgrass, ~f=(~x, ~y as z, value) =>
     if (value) {
       let x = int_of_float(x) + rx;
       let z = int_of_float(z) + rz;
