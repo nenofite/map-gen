@@ -365,9 +365,9 @@ let improvise_river_floors () =
         Minecraft.Block.Clay
   in
   let side = Minecraft.Region.block_per_region_side in
-  Point_cloud.init ~avoid_edges:true ~side ~spacing:32 (fun _ _ ->
+  Point_cloud.init ~cover_edges:false ~side ~spacing:32 (fun _ _ ->
       random_floor () )
-  |> Point_cloud.subdivide ~avoid_edges:true ~spacing:8
+  |> Point_cloud.subdivide ~cover_edges:false ~spacing:8
 
 let river_floor_at p ~x ~z ~rxo ~rzo =
   Point_cloud.nearest_with_edge p Minecraft.Block.Dirt
