@@ -49,23 +49,18 @@ let init_f = (~cover_edges=true, ~side, ~spacing=1, ~edge_f=?, f) => {
       side / spacing;
     };
   let offset = (side - points_per_side * spacing) / 2;
-  Tale.logf(
-    "dbg pps=%d offset=%d side=%d spacing=%d",
-    points_per_side,
-    offset,
-    side,
-    spacing,
-  );
   let points = ref(Sparse_grid.make(points_per_side));
   let imin = 0;
   let imax = points_per_side - 1;
   let spacing_f = Float.of_int(spacing);
   for (yi in imin to imax) {
     for (xi in imin to imax) {
-      let x = xi * spacing + offset;
-      let y = yi * spacing + offset;
-      let xf = Float.of_int(x) +. Random.float(spacing_f);
-      let yf = Float.of_int(y) +. Random.float(spacing_f);
+      let xf =
+        Float.of_int(xi * spacing + offset) +. Random.float(spacing_f);
+      let yf =
+        Float.of_int(yi * spacing + offset) +. Random.float(spacing_f);
+      let x = Int.of_float(xf);
+      let y = Int.of_float(yf);
       /* Discard if the point is outside */
       if (is_within(side, xf, yf)) {
         let is_edge = xi == imin || xi == imax || yi == imin || yi == imax;

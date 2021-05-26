@@ -13,50 +13,53 @@ let apply_trees = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
     );
   let (rx, rz) = Minecraft.Region.region_offset(region);
   /* Try placing them where it's forest && solid ground */
-  Sparse_grid.iter(trees.points, (_, Point_cloud.{px: x, py: z, value}) =>
-    if (value) {
+  Sparse_grid.iter(
+    trees.points,
+    (_, Point_cloud.{px: x, py: z, value}) => {
       let x = int_of_float(x) + rx;
       let z = int_of_float(z) + rz;
-      let y = Minecraft.Region.height_at(region, ~x, ~z);
-      let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
-      switch (Biome_overlay.biome_at(~x, ~z, biomes)) {
-      | Forest(_) =>
-        switch (block) {
-        | Grass_block =>
-          Minecraft_template.place(
-            Oak_tree.random_tree(),
-            region,
-            ~x,
-            ~y=y + 1,
-            ~z,
-          )
-          |> ignore
-        | _ => ()
-        }
-      | Pine_forest =>
-        switch (block) {
-        | Grass_block =>
-          Minecraft_template.place(
-            Spruce_tree.random_tree(),
-            region,
-            ~x,
-            ~y=y + 1,
-            ~z,
-          )
-          |> ignore
-        | _ => ()
-        }
-      | Ocean
-      | Barren_mountain
-      | Snow_mountain
-      | Desert(_)
-      | Plain(_)
-      | Savanna
-      | Shore
-      | Stone_shore
-      | River => ()
+      if (value && Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
+        let y = Minecraft.Region.height_at(region, ~x, ~z);
+        let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
+        switch (Biome_overlay.biome_at(~x, ~z, biomes)) {
+        | Forest(_) =>
+          switch (block) {
+          | Grass_block =>
+            Minecraft_template.place(
+              Oak_tree.random_tree(),
+              region,
+              ~x,
+              ~y=y + 1,
+              ~z,
+            )
+            |> ignore
+          | _ => ()
+          }
+        | Pine_forest =>
+          switch (block) {
+          | Grass_block =>
+            Minecraft_template.place(
+              Spruce_tree.random_tree(),
+              region,
+              ~x,
+              ~y=y + 1,
+              ~z,
+            )
+            |> ignore
+          | _ => ()
+          }
+        | Ocean
+        | Barren_mountain
+        | Snow_mountain
+        | Desert(_)
+        | Plain(_)
+        | Savanna
+        | Shore
+        | Stone_shore
+        | River => ()
+        };
       };
-    }
+    },
   );
 };
 
@@ -113,6 +116,7 @@ let make_clusters = (~spacing, ~f, ~biomes: Biome_overlay.t', region) => {
   open Core_kernel;
   let (x_off, z_off) = Minecraft.Region.region_offset(region);
   Point_cloud.init(
+    ~cover_edges=false,
     ~side=Minecraft.Region.block_per_region_side,
     ~spacing,
     (lx, lz) => {
@@ -272,7 +276,10 @@ let apply_cactus = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
 let apply_tallgrass = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
   let tallgrass =
     Point_cloud.init(
-      ~side=Minecraft.Region.block_per_region_side, ~spacing=2, (_, _) =>
+      ~cover_edges=false,
+      ~side=Minecraft.Region.block_per_region_side,
+      ~spacing=2,
+      (_, _) =>
       Random.int(100) < 67
     );
   let (rx, rz) = Minecraft.Region.region_offset(region);
