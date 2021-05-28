@@ -319,7 +319,7 @@ let apply_layer = (layer, region) => {
         Random.float(1.) < prob;
       },
     );
-  Sparse_grid.iter(deposits.points, (_, Point_cloud.{px: x, py: z, value}) =>
+  Point_cloud.iter(deposits, ~f=(~x, ~y as z, value) =>
     if (value) {
       let deposit_size =
         min_deposit_size + Random.int(max_deposit_size - min_deposit_size);

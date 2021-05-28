@@ -58,21 +58,25 @@ let random_direction = () =>
 let generate = target_size => {
   let size = target_size / 32;
   let next_id = ref(1);
+  let edge = {direction: S, is_ocean: true, id: 0};
   let continents =
     Point_cloud.init(
       ~side=size,
-      ~spacing=25,
+      ~spacing=size / 7,
+      ~cover_edges=false,
+      ~edge_f=(_, _) => edge,
       (_, _) => {
         let direction = random_direction();
-        let is_ocean = Random.int(100) < 50;
+        let is_ocean = Random.int(100) < 30;
         let id = next_id^;
         next_id := id + 1;
         {direction, is_ocean, id};
       },
-    );
-  let edge = {direction: S, is_ocean: true, id: 0};
+    )
+    |> Point_cloud.subdivide(~cover_edges=false, ~spacing=8)
+    |> Point_cloud.subdivide(~cover_edges=false, ~spacing=4);
   let plates =
-    Point_cloud.init(~avoid_edges=true, ~side=size, ~spacing=8, (x, y) => {
+    Point_cloud.init(~side=size, ~cover_edges=false, ~spacing=2, (x, y) => {
       Point_cloud.nearest_with_edge(
         continents,
         edge,

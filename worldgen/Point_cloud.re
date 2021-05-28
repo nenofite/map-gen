@@ -21,6 +21,7 @@ type point('v) = {
 type t('v) = {
   points: Sparse_grid.t(point('v)),
   spacing: int,
+  offset: int,
   side: int,
 };
 
@@ -34,88 +35,68 @@ let assert_within = (side, x, y) =>
     raise(Invalid_argument(msg));
   };
 
-let init_f = (~avoid_edges=false, ~side, ~spacing=1, f) => {
-  if (avoid_edges && side % spacing != 0) {
-    invalid_argf(
-      "when using avoid_edges, side (%d) must divide evenly by spacing (%d)",
-      side,
-      spacing,
-      (),
-    );
-  };
-  let points_per_side = (side - 1) / spacing + 1;
+let iter = (cloud, ~f) => {
+  Sparse_grid.iter(cloud.points, (_, point) => {
+    f(~x=point.px, ~y=point.py, point.value)
+  });
+};
+
+let init_f = (~cover_edges=true, ~side, ~spacing=1, ~edge_f=?, f) => {
+  let points_per_side =
+    if (side % spacing != 0 && cover_edges) {
+      side / spacing + 1;
+    } else {
+      side / spacing;
+    };
+  let offset = (side - points_per_side * spacing) / 2;
   let points = ref(Sparse_grid.make(points_per_side));
-  let imin = avoid_edges ? 1 : 0;
-  let imax = avoid_edges ? points_per_side - 2 : points_per_side - 1;
+  let imin = 0;
+  let imax = points_per_side - 1;
   let spacing_f = Float.of_int(spacing);
   for (yi in imin to imax) {
     for (xi in imin to imax) {
-      let x = xi * spacing;
-      let y = yi * spacing;
-      let xf = Float.of_int(x) +. Random.float(spacing_f);
-      let yf = Float.of_int(y) +. Random.float(spacing_f);
+      let xf =
+        Float.of_int(xi * spacing + offset) +. Random.float(spacing_f);
+      let yf =
+        Float.of_int(yi * spacing + offset) +. Random.float(spacing_f);
+      let x = Int.of_float(xf);
+      let y = Int.of_float(yf);
       /* Discard if the point is outside */
       if (is_within(side, xf, yf)) {
+        let is_edge = xi == imin || xi == imax || yi == imin || yi == imax;
+        let f =
+          switch (edge_f) {
+          | Some(ef) when is_edge => ef
+          | Some(_)
+          | None => f
+          };
         let point = {px: xf, py: yf, value: f(~xf, ~yf, ~xi=x, ~yi=y)};
         points := Sparse_grid.put(points^, xi, yi, point);
       };
     };
   };
-  {points: points^, spacing, side};
+  {points: points^, spacing, offset, side};
 };
-/**
-  init creates a point cloud, randomizes the points, and initializes their
-  value by calling `f(x, y)`.
-
-  spacing determines how many points will fill the space. If side=10 and
-  spacing=2, then there will be 5 points horizontally. If side=10 and
-  spacing=3, then there will be 4 points horizontally--the division is
-  rounded up to ensure the space gets filled completely.
-
-  avoid_edges causes no points to be generated along the edges, ensuring that
-  the nearest_with_edge would return a natural-looking edge along the edges
-  of the point cloud. It defaults to false.
-
-  For example, with side=12 and spacing=4:
-
-  - If avoid_edges=true, points are generated at 2 + 4n ± 2, for n in {0, 1, 2}
-  - If avoid_edges=false, points are generated at 2 + 4n ± 2, for n in {-1, 0, 1, 2, 3}
-  - Any points that fall outside 0 <= p < 12 are discarded, regardless of
-    avoid_edges setting.
-
-  . 0 1 2 3 4 5 6 7 8 9 0 1
-  0 - - - - - - - - - - - -
-  1 - - - - - - - - - - - -
-  2 - - o - - - o - - - o -
-  3 - - - - - - - - - - - -
-  4 - - - - ^ ^ ^ ^ ^ - - -
-  5 - - - - < - - - > - - -
-  6 - - o - < - o - > - o -
-  7 - - - - < - - - > - - -
-  8 - - - - v v v v v - - -
-  9 - - - - - - - - - - - -
-  0 - - o - - - o - - - o -
-  1 - - - - - - - - - - - -
- */
-let init = (~avoid_edges=?, ~side, ~spacing=?, f) =>
-  init_f(~avoid_edges?, ~side, ~spacing?, (~xf as _, ~yf as _, ~xi, ~yi) =>
-    f(xi, yi)
-  );
+let init = (~cover_edges=?, ~side, ~spacing=?, ~edge_f=?, f) => {
+  let simplify_f = (f, ~xf as _, ~yf as _, ~xi, ~yi) => f(xi, yi);
+  let edge_f = Option.map(edge_f, ~f=simplify_f);
+  let f = simplify_f(f);
+  init_f(~cover_edges?, ~side, ~spacing?, ~edge_f?, f);
+};
 
 let side = t => t.side;
 
-let make_list = (~avoid_edges=?, ~side, ~spacing=?, ()) => {
-  let cloud = init(~avoid_edges?, ~side, ~spacing?, (_, _) => ());
+let make_list = (~cover_edges=?, ~side, ~spacing=?, ()) => {
+  let cloud = init(~cover_edges?, ~side, ~spacing?, (_, _) => ());
   Sparse_grid.fold(
     cloud.points,
     (_, {px, py, value: _}, ls) => [(px, py), ...ls],
     [],
   );
-  /* |> List.rev; */
 };
 
-let make_int_list = (~avoid_edges=?, ~side, ~spacing=?, ()) => {
-  let cloud = init(~avoid_edges?, ~side, ~spacing?, (_, _) => ());
+let make_int_list = (~cover_edges=?, ~side, ~spacing=?, ()) => {
+  let cloud = init(~cover_edges?, ~side, ~spacing?, (_, _) => ());
   Sparse_grid.fold(
     cloud.points,
     (_, {px, py, value: _}, ls) => [Mg_util.Floats.(~~px, ~~py), ...ls],
@@ -129,8 +110,8 @@ let distance2 = (ax, ay, bx, by) => Float.((ax - bx) ** 2. + (ay - by) ** 2.);
 let rec closest_point = (~radius=1, cloud, x, y) => {
   open Core_kernel;
   /* Convert to cloud x, y */
-  let cx = Float.(x / of_int(cloud.spacing) + 0.5 |> to_int);
-  let cy = Float.(y / of_int(cloud.spacing) + 0.5 |> to_int);
+  let cx = (Int.of_float(x) - cloud.offset) / cloud.spacing;
+  let cy = (Int.of_float(y) - cloud.offset) / cloud.spacing;
   /* Compare among the point at cx, cy and its eight neighbors */
   let neighbors =
     Mg_util.Range.(
@@ -172,8 +153,8 @@ let rec closest_point = (~radius=1, cloud, x, y) => {
 
 let rec n_closest_points = (~radius=1, ~n, cloud, x, y) => {
   /* Convert to cloud x, y */
-  let cx = Float.(x / of_int(cloud.spacing) + 0.5 |> to_int);
-  let cy = Float.(y / of_int(cloud.spacing) + 0.5 |> to_int);
+  let cx = (Int.of_float(x) - cloud.offset) / cloud.spacing;
+  let cy = (Int.of_float(y) - cloud.offset) / cloud.spacing;
   /* Compare among the point at cx, cy and its eight neighbors */
   let neighbors =
     Mg_util.Range.(
@@ -205,8 +186,8 @@ let rec n_closest_points = (~radius=1, ~n, cloud, x, y) => {
 
 let rec two_closest_points = (~radius=1, cloud, x, y) => {
   /* Convert to cloud x, y */
-  let cx = Float.(x / of_int(cloud.spacing) + 0.5 |> to_int);
-  let cy = Float.(y / of_int(cloud.spacing) + 0.5 |> to_int);
+  let cx = (Int.of_float(x) - cloud.offset) / cloud.spacing;
+  let cy = (Int.of_float(y) - cloud.offset) / cloud.spacing;
   /* Compare among the point at cx, cy and its eight neighbors */
   let neighbors =
     Mg_util.Range.(
@@ -286,31 +267,45 @@ let interpolate = (cloud, x, y) => {
 /**
   creates a new point cloud of the same dimensions but with different spacing. Each point in the new cloud samples from the nearest in the old cloud
   */
-let subdivide = (~avoid_edges=?, cloud, ~spacing) => {
-  init(~side=cloud.side, ~avoid_edges?, ~spacing, (x, z) =>
-    nearest_int(cloud, x, z)
+let subdivide = (~cover_edges=?, cloud, ~spacing) => {
+  init_f(
+    ~side=cloud.side, ~cover_edges?, ~spacing, (~xf, ~yf, ~xi as _, ~yi as _) =>
+    nearest(cloud, xf, yf)
+  );
+};
+
+/**
+  creates a new point cloud of the same dimensions but with different spacing. Each point in the new cloud samples from the nearest in the old cloud
+  */
+let subdivide_with_edge = (~cover_edges=?, cloud, ~edge, ~spacing) => {
+  init_f(
+    ~side=cloud.side, ~cover_edges?, ~spacing, (~xf, ~yf, ~xi as _, ~yi as _) =>
+    nearest_with_edge(cloud, edge, xf, yf)
   );
 };
 
 let subdivide4 = (cloud, ~spacing, ~f) => {
-  let fn = (x, z) => {
-    switch (n_closest_points(~n=4, cloud, float(x), float(z))) {
+  let fn = (~xf, ~yf, ~xi, ~yi) => {
+    switch (n_closest_points(~n=4, cloud, xf, yf)) {
     | [(_, a), (_, b), (_, c), (_, d)] =>
-      f(~x, ~z, a.value, b.value, c.value, d.value)
+      f(~x=xi, ~z=yi, a.value, b.value, c.value, d.value)
     | _ => failwith("should be 4 points")
     };
   };
-  init(~side=cloud.side, ~spacing, fn);
+  init_f(~side=cloud.side, ~spacing, fn);
 };
 
 let scale = (cloud, ~s) => {
-  let {side, spacing, points} = cloud;
-  let new_side = side * s;
-  let new_spacing = spacing * s;
+  let {side, spacing, offset, points} = cloud;
   let sf = float(s);
   let new_points =
     Sparse_grid.map(points, (_, {px, py, value}) =>
       {px: px *. sf, py: py *. sf, value}
     );
-  {side: new_side, spacing: new_spacing, points: new_points};
+  {
+    side: side * s,
+    spacing: spacing * s,
+    offset: offset * s,
+    points: new_points,
+  };
 };
