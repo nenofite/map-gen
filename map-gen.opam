@@ -12,10 +12,10 @@ depends: [
     "reason"
     "dune" {>= "2.6.0"}
     "ANSITerminal"
-    "base"
     "bitstring"
     "camlimages"
     "core_kernel"
+    "core"
     "ppx_sexp_conv"
     "ppx_deriving"
     "ppx_hash"

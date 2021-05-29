@@ -1,21 +1,9 @@
-open Core_kernel
+open! Core
 open Worldgen
-
-let default_seed = 123
-
-let get_seed () =
-  match Sys.argv with
-  | [|_cmd; seed|] -> (
-    match int_of_string_opt seed with Some seed -> seed | None -> default_seed )
-  | _ ->
-      default_seed
 
 let () =
   Printexc.record_backtrace true ;
   Memtrace.trace_if_requested ~context:"worldgen" () ;
   Stats.init () ;
-  Init.init ~seed:(get_seed ()) () ;
-  Init.prepare_all () ;
-  Stats.flush () ;
-  Init.save () ;
+  Command.run Init.command ;
   Stats.finalize ()
