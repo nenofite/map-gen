@@ -9,7 +9,7 @@ let init ~seed ~force_overlays =
   Config.Paths.world_level_base :=
     Filename.concat s (Filename.concat "worlds" s) ;
   Config.Paths.create_directories () ;
-  Config.Force.force_overlays := force_overlays ;
+  Config.Force.set_force_overlays force_overlays ;
   Progress_view.init () ;
   Overlay.init seed ;
   Overlay.Canon.init ~side ;

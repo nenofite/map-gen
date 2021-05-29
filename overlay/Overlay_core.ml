@@ -80,10 +80,7 @@ let finish_prepare ~state overlay =
   ()
 
 let wrap_prepare ?(force = false) overlay f =
-  let force =
-    force
-    || List.mem !Config.Force.force_overlays overlay.name ~equal:String.equal
-  in
+  let force = force || Config.Force.should_force_overlay overlay.name in
   before_prepare overlay ;
   let state =
     match
