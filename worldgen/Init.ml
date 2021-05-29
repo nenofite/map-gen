@@ -2,7 +2,7 @@ open Core_kernel
 
 let side = 4096
 
-let init ~seed ~force_overlays =
+let init ~show_progress ~seed ~force_overlays =
   Tale.logf "Using seed %d" seed ;
   let s = "seed-" ^ Int.to_string seed in
   Config.Paths.overlays_base := Filename.concat s "overlays" ;
@@ -10,7 +10,7 @@ let init ~seed ~force_overlays =
     Filename.concat s (Filename.concat "worlds" s) ;
   Config.Paths.create_directories () ;
   Config.Force.set_force_overlays force_overlays ;
-  Progress_view.init () ;
+  if show_progress then Progress_view.init () else Progress_view.init_ignore () ;
   Overlay.init seed ;
   Overlay.Canon.init ~side ;
   ()
@@ -63,5 +63,8 @@ let command =
       let%map_open seed = anon ("seed" %: int)
       and force_overlays =
         flag "-f" (listed string) ~doc:"overlay force an overlay to re-run"
-      in
-      fun () -> init ~seed ~force_overlays ; prepare_all () ; save ())
+      and show_progress = flag "-p" no_arg ~doc:" display a progress view" in
+      fun () ->
+        init ~show_progress ~seed ~force_overlays ;
+        prepare_all () ;
+        save ())
