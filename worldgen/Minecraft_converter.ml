@@ -62,17 +62,21 @@ let save ~(side : int) ~(spawn : int * int * int)
     ~(apply_overlays : Minecraft.Region.t -> unit) : unit =
   let builder = Minecraft.World.make "heightmap" ~spawn () in
   let regions = segment_grid_by_region ~side ~spawn () in
-  List.iter regions ~f:(fun (rx, rz) ->
-      Minecraft.World.make_region ~rx ~rz builder (fun region ->
-          let min_x, min_z = Minecraft.Region.region_offset region in
-          Progress_view.fit
-            ~title:(Printf.sprintf "region r.%d.%d" rx rz)
-            (let open Minecraft.Region in
-            ( min_x
-            , min_x + block_per_region_side
-            , min_z
-            , min_z + block_per_region_side )) ;
-          convert_region ~region ~apply_overlays ) ) ;
+  let make_region (rx, rz) =
+    Minecraft.World.make_region ~rx ~rz builder (fun region ->
+        let min_x, min_z = Minecraft.Region.region_offset region in
+        Progress_view.fit
+          ~title:(Printf.sprintf "region r.%d.%d" rx rz)
+          (let open Minecraft.Region in
+          ( min_x
+          , min_x + block_per_region_side
+          , min_z
+          , min_z + block_per_region_side )) ;
+        convert_region ~region ~apply_overlays )
+  in
+  (* TODO must not be showing progress view *)
+  Parmap.pariter ~ncores:4 ~chunksize:1 make_region (L regions) ;
+  Tale.log "Finished parallel apply" ;
   ()
 
 let iter_blocks (r : Minecraft.Region.t) fn : unit =

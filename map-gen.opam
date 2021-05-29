@@ -16,6 +16,7 @@ depends: [
     "camlimages"
     "core_kernel"
     "core"
+    "parmap"
     "ppx_sexp_conv"
     "ppx_deriving"
     "ppx_hash"
