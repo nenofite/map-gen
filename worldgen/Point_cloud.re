@@ -84,6 +84,18 @@ let init = (~cover_edges=?, ~side, ~spacing=?, ~edge_f=?, f) => {
   init_f(~cover_edges?, ~side, ~spacing?, ~edge_f?, f);
 };
 
+let of_griddable = (~grid_side, ~grid_get, ~spacing) => {
+  let side = grid_side * spacing;
+  init(~side, ~spacing, (x, z) => grid_get(~x=x / spacing, ~z=z / spacing));
+};
+
+let of_grid_mut = (grid, ~spacing) =>
+  of_griddable(
+    ~grid_side=Grid.Mut.side(grid),
+    ~grid_get=Grid.Mut.get(grid),
+    ~spacing,
+  );
+
 let side = t => t.side;
 
 let make_list = (~cover_edges=?, ~side, ~spacing=?, ()) => {
@@ -264,6 +276,19 @@ let interpolate = (cloud, x, y) => {
   a.value *. (1. -. frac) +. b.value *. frac;
 };
 
+let interpolate4 = (cloud, x, y) => {
+  let ns = n_closest_points(~n=4, cloud, x, y);
+  let dist_total = List.sum((module Float), ns, ~f=((dist, _)) => dist);
+  let inv_dist_total =
+    List.sum((module Float), ns, ~f=((dist, _)) =>
+      Float.(1. - dist / dist_total)
+    );
+  List.sum((module Float), ns, ~f=((dist, point)) => {
+    Float.(of_int(point.value) * (1. - dist / dist_total) / inv_dist_total)
+  })
+  |> Int.of_float;
+};
+
 /**
   creates a new point cloud of the same dimensions but with different spacing. Each point in the new cloud samples from the nearest in the old cloud
   */
@@ -284,14 +309,8 @@ let subdivide_with_edge = (~cover_edges=?, cloud, ~edge, ~spacing) => {
   );
 };
 
-let subdivide4 = (cloud, ~spacing, ~f) => {
-  let fn = (~xf, ~yf, ~xi, ~yi) => {
-    switch (n_closest_points(~n=4, cloud, xf, yf)) {
-    | [(_, a), (_, b), (_, c), (_, d)] =>
-      f(~x=xi, ~z=yi, a.value, b.value, c.value, d.value)
-    | _ => failwith("should be 4 points")
-    };
-  };
+let subdivide_interpolate4 = (cloud, ~spacing) => {
+  let fn = (~xf, ~yf, ~xi as _, ~yi as _) => interpolate4(cloud, xf, yf);
   init_f(~side=cloud.side, ~spacing, fn);
 };
 

@@ -48,6 +48,8 @@ module type S = sig
 
   val fold : init:'b -> f:(x:int -> z:int -> 'b -> 'a elt -> 'b) -> 'a t -> 'b
 
+  val iter : f:(x:int -> z:int -> 'a elt -> unit) -> 'a t -> unit
+
   val map : f:(x:int -> z:int -> 'a elt -> 'a elt) -> 'a t -> 'a t
 
   val neighbors : x:int -> z:int -> 'a t -> 'a elt list
@@ -95,29 +97,37 @@ struct
     let s = side t in
     Mg_util.Range.fold 0 (s - 1) init (fun acc z ->
         Mg_util.Range.fold 0 (s - 1) acc (fun acc x ->
-            f ~x ~z acc (get ~x ~z t)))
+            f ~x ~z acc (get ~x ~z t) ) )
+
+  let iter ~f t =
+    let s = side t in
+    for z = 0 to s - 1 do
+      for x = 0 to s - 1 do
+        f ~x ~z (get ~x ~z t)
+      done
+    done
 
   let map ~f t =
     let s = side t in
     Mg_util.Range.fold 0 (s - 1) t (fun acc z ->
         Mg_util.Range.fold 0 (s - 1) acc (fun acc x ->
-            set ~x ~z (f ~x ~z (get ~x ~z acc)) acc))
+            set ~x ~z (f ~x ~z (get ~x ~z acc)) acc ) )
 
   let neighbors ~x ~z t =
     List.map eight_directions ~f:(fun (dx, dz) ->
-        get_wrap t ~x:(x + dx) ~z:(z + dz))
+        get_wrap t ~x:(x + dx) ~z:(z + dz) )
 
   let neighbors_offsets ~x ~z t =
     List.map eight_directions ~f:(fun (dx, dz) ->
         let nx = x + dx in
         let nz = z + dz in
-        (get_wrap t ~x:nx ~z:nz, dx, dz))
+        (get_wrap t ~x:nx ~z:nz, dx, dz) )
 
   let neighbors_coords ~x ~z t =
     List.map eight_directions ~f:(fun (dx, dz) ->
         let nx = x + dx in
         let nz = z + dz in
-        (get_wrap t ~x:nx ~z:nz, nx, nz))
+        (get_wrap t ~x:nx ~z:nz, nx, nz) )
 end
 
 module Make0 (T : Arg0) : S0 with type t = T.t and type elt = T.elt = struct

@@ -14,7 +14,7 @@ let region_of_spawn (x, _y, z) = Minecraft.Region.region_containing ~x ~z
   sub is an optional range of regions to limit the export, eg. ((2, 3), (1,
   1)) to export a 1x1 slice of regions starting with region r.2.3
   *)
-let segment_grid_by_region ~(side : int) ~spawn ?sub f : unit =
+let segment_grid_by_region ~(side : int) ~spawn ?sub () =
   let block_per_region = Minecraft.Region.block_per_region_side in
   (* The grid must split evenly into regions *)
   ( if side mod block_per_region <> 0 then
@@ -44,14 +44,11 @@ let segment_grid_by_region ~(side : int) ~spawn ?sub f : unit =
     |> List.sort ~compare:compare_by_spawn_dist
   in
   (* Iterate over the grid *)
-  List.iter regions ~f:(fun (rx, rz) ->
-      let in_sub =
-        min_rx <= rx
-        && rx < min_rx + len_rx
-        && min_rz <= rz
-        && rz < min_rz + len_rz
-      in
-      if in_sub then f ~rx ~rz )
+  List.filter regions ~f:(fun (rx, rz) ->
+      min_rx <= rx
+      && rx < min_rx + len_rx
+      && min_rz <= rz
+      && rz < min_rz + len_rz )
 
 (** fills the region with blocks from the grid *)
 let convert_region ~region ~apply_overlays =
@@ -63,18 +60,23 @@ let convert_region ~region ~apply_overlays =
 (** save creates a Minecraft world with the given heightmap *)
 let save ~(side : int) ~(spawn : int * int * int)
     ~(apply_overlays : Minecraft.Region.t -> unit) : unit =
-  Minecraft.World.make "heightmap" ~spawn (fun builder ->
-      segment_grid_by_region ~side ~spawn (fun ~rx ~rz ->
-          Minecraft.World.make_region ~rx ~rz builder (fun region ->
-              let min_x, min_z = Minecraft.Region.region_offset region in
-              Progress_view.fit
-                ~title:(Printf.sprintf "region r.%d.%d" rx rz)
-                (let open Minecraft.Region in
-                ( min_x
-                , min_x + block_per_region_side
-                , min_z
-                , min_z + block_per_region_side )) ;
-              convert_region ~region ~apply_overlays ) ) ) ;
+  let builder = Minecraft.World.make "heightmap" ~spawn () in
+  let regions = segment_grid_by_region ~side ~spawn () in
+  let make_region (rx, rz) =
+    Minecraft.World.make_region ~rx ~rz builder (fun region ->
+        let min_x, min_z = Minecraft.Region.region_offset region in
+        Progress_view.fit
+          ~title:(Printf.sprintf "region r.%d.%d" rx rz)
+          (let open Minecraft.Region in
+          ( min_x
+          , min_x + block_per_region_side
+          , min_z
+          , min_z + block_per_region_side )) ;
+        convert_region ~region ~apply_overlays )
+  in
+  (* TODO must not be showing progress view *)
+  Parmap.pariter ~ncores:4 ~chunksize:1 make_region (L regions) ;
+  Tale.log "Finished parallel apply" ;
   ()
 
 let iter_blocks (r : Minecraft.Region.t) fn : unit =

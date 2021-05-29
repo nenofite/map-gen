@@ -23,6 +23,6 @@ type t' = biome Point_cloud.t [@@deriving bin_io]
 
 type t = t' * Overlay.Canon.delta [@@deriving bin_io]
 
-module Pq = Priority_queue.Int
+module Pq = Priority_queue.Int_desc
 
 let overlay = Overlay.make_overlay "biome" bin_reader_t bin_writer_t

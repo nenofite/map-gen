@@ -363,7 +363,7 @@ let save_region = (memory, region_path, r: Region.t) => {
 };
 
 let make =
-    (name, ~generator=Generator.Flat, ~mode=Creative, ~spawn=(0, 0, 0), fn) => {
+    (name, ~generator=Generator.Flat, ~mode=Creative, ~spawn=(0, 0, 0), ()) => {
   /* Create the directory structure: worlds, level, region */
   let level_path = Config.Paths.world_level();
 
@@ -386,11 +386,11 @@ let make =
   let region_path = Filename.concat(level_path, "region");
   Mg_util.mkdir(region_path);
 
-  fn({
+  {
     path: region_path,
     cached_region: None,
     memory: Nbt.Nbt_printer.create_memory(),
-  });
+  };
 };
 
 let make_region = (~rx: int, ~rz: int, builder: builder, fn) => {

@@ -242,9 +242,7 @@ let lookup_whittman ~mountain_threshold ~flower ~cactus ~precipitation
 let prepare_precipitation () =
   let canon = Overlay.Canon.require () in
   let base, _ = Base_overlay.require () in
-  let add_to_pq pq ~x ~z ~moisture =
-    Pq.insert pq (-moisture) (x, z, moisture)
-  in
+  let add_to_pq pq ~x ~z ~moisture = Pq.insert pq moisture (x, z, moisture) in
   let mside = canon.side / scale_factor in
   let moisture =
     Grid.Mut.init ~side:mside 0 ~f:(fun ~x ~z ->

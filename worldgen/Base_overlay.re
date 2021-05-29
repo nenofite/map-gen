@@ -160,6 +160,7 @@ let prepare = () => {
     grid,
     layer,
   );
+  Progress_view.save(~side=Grid.Mut.side(grid), "height");
   Progress_view.remove_layer(layer);
   let grid = River.phase(grid);
   assert(River.side(grid) == side);

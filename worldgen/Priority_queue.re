@@ -60,4 +60,9 @@ module Make = (P: Priority) => {
 
 module Float = Make(Float);
 module Int = Make(Int);
+module Int_desc =
+  Make({
+    type t = int;
+    let (<=) = (>=);
+  });
 include Float;

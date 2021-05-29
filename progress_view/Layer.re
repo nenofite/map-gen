@@ -15,6 +15,8 @@ let empty_layer = Layer((), default_draw_sparse, default_draw_dense);
 
 let make_layer_stack = () => {layers: []};
 
+let fake_layer = () => ref(empty_layer);
+
 let push_layer = (stack: stack) => {
   let l = ref(empty_layer);
   stack.layers = [l, ...stack.layers];

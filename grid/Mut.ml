@@ -75,11 +75,14 @@ let intf0 (type elt) (_t : elt t) =
 
 let set ~x ~z v t = ignore (set ~x ~z v t)
 
+let raw_set_side t ~side =
+  assert (side * side <= Array.length t.data) ;
+  t.side <- side
+
 let expand_for_subdivide t =
   let old_side = t.side in
   let new_side = t.side * 2 in
-  assert (new_side * new_side <= Array.length t.data) ;
-  t.side <- new_side ;
+  raw_set_side t ~side:new_side ;
   for z = old_side - 1 downto 0 do
     for x = old_side - 1 downto 0 do
       let old_i = i_of_xz ~x ~z old_side in
