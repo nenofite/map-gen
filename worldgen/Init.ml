@@ -67,4 +67,4 @@ let command =
       fun () ->
         init ~show_progress ~seed ~force_overlays ;
         prepare_all () ;
-        save ())
+        if not show_progress then save ())
