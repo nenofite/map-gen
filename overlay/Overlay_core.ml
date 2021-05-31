@@ -123,14 +123,12 @@ let make_no_canon (name : string)
     (apply_region : 'a -> Minecraft.Region.t -> unit)
     (reader : 'a Bin_prot.Type_class.reader)
     (writer : 'a Bin_prot.Type_class.writer) =
-  Tale.logf "%s overlay using deprecated [make_no_canon] function" name ;
   let overlay = make_overlay name reader writer in
   make_lifecycle ~prepare ~after_prepare:apply_progress_view ~apply:apply_region
     overlay
 
 let make name ?(apply_progress_view = fun _ -> ()) prepare apply_region reader
     writer =
-  Tale.logf "%s overlay using deprecated [make] function" name ;
   let overlay = make_overlay name reader writer in
   let after_prepare ((_, canond) as state) =
     Canon.push_delta canond ; apply_progress_view state ; ()

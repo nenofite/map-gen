@@ -24,7 +24,7 @@ let prepare_all () =
   Cave_overlay.prepare () ;
   Site_overlay.prepare () ;
   Town_overlay.prepare () ;
-  (* Road_overlay.prepare () ; *)
+  Road_overlay.prepare () ;
   Plant_overlay.prepare () ;
   Meta_overlay.prepare () ;
   Debug_overlay.prepare () ;
@@ -39,7 +39,7 @@ let apply_all region =
   Cave_overlay.apply region ;
   Site_overlay.apply region ;
   Town_overlay.apply region ;
-  (* Road_overlay.apply region ; *)
+  Road_overlay.apply region ;
   Plant_overlay.apply region ;
   Meta_overlay.apply region ;
   Debug_overlay.apply {glassify= (fun _ -> false); illuminate= false} region ;
