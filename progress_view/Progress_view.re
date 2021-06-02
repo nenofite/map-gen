@@ -78,6 +78,10 @@ let update_window = () => {
   });
 };
 
+let pump_events = () => {
+  with_state(s => {Window.pump_events(s.window)});
+};
+
 /**
  * fits the given box into the window, zooming in as much as possible while
  * still fitting the whole box

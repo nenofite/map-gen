@@ -26,13 +26,17 @@ let make_window ?(pixels_per_tile = 2) ?(width = 400) ?(height = 400) () =
 
 let close_window (_w : t) = Sdl.quit ()
 
+let pump_events (_w : t) =
+  Sdl.pump_events () ;
+  Sdl.flush_events Sdl.Event.first_event Sdl.Event.last_event
+
 let update ~(zoom : int) ~(center_x : int) ~(center_z : int) (title : string)
     (draw_tiles :
          zoom:int
       -> x:int * int
       -> z:int * int
       -> (int -> int -> int * int * int -> unit)
-      -> unit) (w : t) =
+      -> unit ) (w : t) =
   let {pixels_per_tile; width; height; renderer; window} = w in
   let view =
     View.calculate ~zoom ~center_x ~center_z ~width ~height ~pixels_per_tile
@@ -47,7 +51,7 @@ let update ~(zoom : int) ~(center_x : int) ~(center_z : int) (title : string)
         Sdl.set_render_draw_color renderer r g b 255 |> ok_or_sdl ;
         Sdl.Rect.set_x tile_rect wx ;
         Sdl.Rect.set_y tile_rect wy ;
-        Sdl.render_fill_rect renderer (Some tile_rect) |> ok_or_sdl)
+        Sdl.render_fill_rect renderer (Some tile_rect) |> ok_or_sdl )
   in
   draw_tiles ~zoom ~x:(view.min_x, view.max_x) ~z:(view.min_z, view.max_z)
     draw_tile ;
