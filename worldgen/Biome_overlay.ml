@@ -55,18 +55,6 @@ let is_near_ocean_at ~x ~z base =
     !result )
   else false
 
-let biome_at ~x ~z biomes =
-  let base, _ = Base_overlay.require () in
-  match () with
-  | _ when Base_overlay.ocean_at ~x ~z base ->
-      Ocean
-  | _ when is_near_ocean_at ~x ~z base ->
-      Shore (* TODO also Stone_shore *)
-  | _ when is_near_river_at ~x ~z base ->
-      River
-  | _ ->
-      Point_cloud.nearest_int biomes x z
-
 let colorize_biome = function
   | Ocean ->
       0
@@ -213,32 +201,6 @@ let prepare_cacti () =
   Point_cloud.init ~side ~spacing:64 (fun x z ->
       Point_cloud.nearest_int coarse x z )
 
-let lookup_whittman ~mountain_threshold ~flower ~cactus ~precipitation
-    ~temperature ~elevation =
-  let e = elevation in
-  let t = temperature in
-  let m = precipitation in
-  let mt = mountain_threshold in
-  match () with
-  | () when e > mt - 5 && m > 50 ->
-      Pine_forest
-  | () when e > mt && t <= 35 && m > 0 ->
-      Snow_mountain
-  | () when e > mt ->
-      Barren_mountain
-  | () when t > 35 && m > 50 ->
-      Forest flower
-  | () when t > 35 && m > 20 ->
-      Savanna
-  | () when t > 35 ->
-      Desert cactus
-  | () when m > 50 ->
-      Forest flower
-  | () when m > 10 ->
-      Plain flower
-  | () ->
-      Plain no_flower
-
 let prepare_precipitation () =
   let canon = Overlay.Canon.require () in
   let base, _ = Base_overlay.require () in
@@ -304,6 +266,55 @@ let prepare_precipitation () =
       Grid.Mut.get ~x ~z precipitation )
   |> Point_cloud.subdivide ~spacing:8
 
+let precipitation_at ~x ~z biomes =
+  Point_cloud.nearest_int biomes.precipitation x z
+
+let category_at ~category ~x ~z biomes =
+  let cat = biomes.categories.(category) in
+  match cat with
+  | First cloud ->
+      Point_cloud.nearest_int cloud x z
+  | Second const ->
+      const
+
+let lookup_biome_category ~mountain_threshold ~temperature ~precipitation
+    ~elevation =
+  let is_mt_peak = elevation > mountain_threshold + 20 in
+  let is_mt_side = elevation > mountain_threshold in
+  let is_arid = precipitation <= 10 in
+  let is_mid_moisture = (not is_arid) && precipitation <= 50 in
+  let is_cold = temperature <= 15 in
+  let is_moderate = (not is_cold) && temperature <= 35 in
+  if is_mt_peak then 0
+  else if is_mt_side then if is_arid then 1 else 2
+  else if is_cold then 3
+  else if is_moderate then
+    if is_arid then 4 else if is_mid_moisture then 5 else 6
+  else if is_arid then 4
+  else if is_mid_moisture then 7
+  else 8
+
+let biome_at ~x ~z biomes =
+  let base, _ = Base_overlay.require () in
+  let dirt = Dirt_overlay.require () in
+  match () with
+  | _ when Base_overlay.ocean_at ~x ~z base ->
+      Ocean
+  | _ when is_near_ocean_at ~x ~z base ->
+      Shore (* TODO also Stone_shore *)
+  | _ when is_near_river_at ~x ~z base ->
+      River
+  | _ ->
+      let temperature = temperature_at ~x ~z in
+      let precipitation = precipitation_at ~x ~z biomes in
+      let elevation = Base_overlay.elevation_at ~x ~z base in
+      let mountain_threshold = mountain_threshold_at ~x ~z dirt in
+      let category =
+        lookup_biome_category ~temperature ~precipitation ~elevation
+          ~mountain_threshold
+      in
+      category_at ~category ~x ~z biomes
+
 let prepare () =
   let canon = Overlay.Canon.require () in
   let dirt = Dirt_overlay.require () in
@@ -311,19 +322,22 @@ let prepare () =
   Tale.block "drawing moisture" ~f:(fun () ->
       draw_cells precipitation ;
       Progress_view.save ~side:canon.side "moisture" ) ;
-  let biomes =
-    let flowers = prepare_flowers () in
-    let cacti = prepare_cacti () in
-    Point_cloud.init ~side:canon.side ~spacing:8 (fun x z ->
-        let temperature = temperature_at ~x ~z in
-        let precipitation = Point_cloud.nearest_int precipitation x z in
-        let elevation = Grid.get x z canon.elevation in
-        let mountain_threshold = mountain_threshold_at ~x ~z dirt in
-        let flower = Point_cloud.nearest_int flowers x z in
-        let cactus = Point_cloud.nearest_int cacti x z in
-        lookup_whittman ~mountain_threshold ~precipitation ~temperature
-          ~elevation ~flower ~cactus )
+  let cacti = prepare_cacti () in
+  let flowers = prepare_flowers () in
+  let b0 = Either.Second Snow_mountain in
+  let b1 = Either.Second Barren_mountain in
+  let b2 = Either.Second Pine_forest in
+  let b3 = Either.Second Snow_mountain (* TODO snowy tundra *) in
+  let b4 = Either.First (Point_cloud.map cacti ~f:(fun c -> Desert c)) in
+  let b5 = Either.First (Point_cloud.map flowers ~f:(fun f -> Plain f)) in
+  let b6 =
+    Either.First (Point_cloud.map flowers ~f:(fun f -> Forest f))
+    (* TODO mushroom *)
   in
+  let b7 = Either.Second Savanna in
+  let b8 = b6 (* TODO rainforest *) in
+  let categories = [|b0; b1; b2; b3; b4; b5; b6; b7; b8|] in
+  let biomes = {precipitation; categories} in
   let biome_obstacles =
     Overlay.Canon.Obstacles.init ~side:(Grid.side dirt) (fun (x, z) ->
         let here_dirt = Grid.get x z dirt in

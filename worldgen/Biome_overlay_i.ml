@@ -19,7 +19,10 @@ type biome =
   | Snow_mountain
 [@@deriving eq, bin_io]
 
-type t' = biome Point_cloud.t [@@deriving bin_io]
+type t' =
+  { precipitation: int Point_cloud.t
+  ; categories: (biome Point_cloud.t, biome) Either.t array }
+[@@deriving bin_io]
 
 type t = t' * Overlay.Canon.delta [@@deriving bin_io]
 

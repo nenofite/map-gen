@@ -41,6 +41,12 @@ let iter = (cloud, ~f) => {
   });
 };
 
+let map = (cloud, ~f) => {
+  let points =
+    Sparse_grid.map(cloud.points, (_, p) => {...p, value: f(p.value)});
+  {...cloud, points};
+};
+
 let init_f = (~cover_edges=true, ~side, ~spacing=1, ~edge_f=?, f) => {
   let points_per_side =
     if (side % spacing != 0 && cover_edges) {
