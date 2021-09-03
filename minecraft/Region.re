@@ -322,3 +322,14 @@ let chunk_offset = (~cx, ~cz, r) => {
 let section_offset = (~sy, _r) => {
   sy * block_per_section_vertical;
 };
+
+/* Iteration helpers */
+
+let iter_region_xz = (~f, r) => {
+  let (x_off, z_off) = chunk_offset(~cx=0, ~cz=0, r);
+  for (z in 0 to pred(block_per_region_side)) {
+    for (x in 0 to pred(block_per_region_side)) {
+      f(~x=x + x_off, ~z=z + z_off);
+    };
+  };
+};

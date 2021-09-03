@@ -115,11 +115,9 @@ let convert_intermediate = (grid: Grid.t(intermediate)) => {
   );
 };
 
-let phase = side =>
-  Phase_chain.(
-    run_all(
-      phase("Generate tectonic plates", () => generate(side))
-      @> Draw.phase("plates.png", draw_intermediate)
-      @> phase("Convert", convert_intermediate(_)),
-    )
-  );
+let phase = side => {
+  Tale.block("Generate tectonic plates", ~f=() => {
+    let g = generate(side);
+    convert_intermediate(g);
+  });
+};

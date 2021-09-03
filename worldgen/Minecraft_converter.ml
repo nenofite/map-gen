@@ -80,13 +80,7 @@ let save ~(side : int) ~(spawn : int * int * int)
   ()
 
 let iter_blocks (r : Minecraft.Region.t) fn : unit =
-  let open Minecraft.Region in
-  let x_off, z_off = chunk_offset ~cx:0 ~cz:0 r in
-  for z = 0 to pred block_per_region_side do
-    for x = 0 to pred block_per_region_side do
-      fn ~x:(x + x_off) ~z:(z + z_off)
-    done
-  done
+  Minecraft.Region.iter_region_xz ~f:fn r
 
 let template_within_region_boundaries t ~x ~z ~canon_side =
   let open Minecraft_template in

@@ -7,8 +7,8 @@ type state = {
 };
 
 let min_river_length = 100;
-let min_source_elevation = Heightmap.mountain_level - 5;
-let max_source_elevation = Heightmap.mountain_level + 5;
+let min_source_elevation = Constants.mountain_level - 5;
+let max_source_elevation = Constants.mountain_level + 5;
 
 let increase_width_every = 100;
 
@@ -17,8 +17,8 @@ let side = state => Grid.Mut.side(state.elevation);
 let elevation_at = (~x, ~z, state) => Grid.Mut.get(~x, ~z, state.elevation);
 
 let ocean_at = (~x, ~z, state) => {
-  Grid.Mut.get(~x, ~z, state.elevation) <= Heightmap.sea_level
-  * Heightmap.precision_coef;
+  Grid.Mut.get(~x, ~z, state.elevation) <= Constants.sea_level
+  * Constants.precision_coef;
 };
 
 let river_at = (~x, ~z, state) => {
