@@ -42,7 +42,7 @@ let is_near_river_at ~x ~z base =
 
 let is_near_ocean_at ~x ~z base =
   let r = 5 in
-  let max_elev = Heightmap.sea_level + 2 in
+  let max_elev = Base_overlay.sea_level + 2 in
   let side = Base_overlay.side base in
   if Base_overlay.elevation_at ~x ~z base <= max_elev then (
     let result = ref false in
@@ -359,7 +359,9 @@ let apply_progress_view (state : t) =
       else
         let here_biome = biome_at ~x ~z biome in
         let gray = Base_overlay.gray_at ~x ~z base in
-        Some (Color.blend 0 (colorize_biome here_biome) gray |> Color.split_rgb)
+        Some
+          ( Mg_util.Color.blend 0 (colorize_biome here_biome) gray
+          |> Mg_util.Color.split_rgb )
     else None
   in
   Progress_view.update ~fit:(0, side, 0, side) ~draw_dense ~state:() layer ;

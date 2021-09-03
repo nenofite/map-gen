@@ -26,7 +26,7 @@ let colorize = tile =>
     0xFF0000;
   } else {
     let frac = float_of_int(tile.floor_elev) /. 50.;
-    Color.blend(0x101010, 0xFFFFFF, frac);
+    Mg_util.Color.blend(0x101010, 0xFFFFFF, frac);
   };
 
 let add_floor_pillars = (pillar_cloud: Point_cloud.t(bool), floor) => {

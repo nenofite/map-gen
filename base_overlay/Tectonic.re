@@ -26,7 +26,7 @@ let show = tile =>
 
 let draw_intermediate = tile => {
   let frac = float_of_int(tile.id) /. 40.;
-  Color.blend(0, 0xFFFFFF, frac);
+  Mg_util.Color.blend(0, 0xFFFFFF, frac);
 };
 
 let xy_of_direction = direction =>

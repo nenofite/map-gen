@@ -1,4 +1,5 @@
 open Core_kernel;
+open Constants;
 
 type with_distances = {
   tectonic: Tectonic.tile,
@@ -6,18 +7,12 @@ type with_distances = {
   distance_to_mountain: int,
 };
 
-let sea_level = 62;
-let mountain_level = 120;
-let max_slope_level = 100;
-
-let precision_coef = 100;
-
 let colorize = (tile: int): int => {
   let frac = float_of_int(tile / precision_coef) /. 200.;
   let frac = Float.(max(min(frac, 1.), 0.));
   let black = 0;
   let white = 0xFFFFFF;
-  Color.blend(black, white, frac);
+  Mg_util.Color.blend(black, white, frac);
 };
 
 let empty_distance = Int.max_value - 10;

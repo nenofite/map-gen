@@ -1,4 +1,5 @@
 open Core_kernel;
+include Constants;
 
 [@deriving (eq, ord, bin_io)]
 type water =
@@ -87,7 +88,7 @@ let color_at = (~x, ~z, base) => {
   let elevation = elevation_at(~x, ~z, base);
   let gray = gray_of_elevation(elevation);
   let color = water_at(~x, ~z, base) |> color_of_water;
-  Color.split_rgb(Color.blend(0, color, gray));
+  Mg_util.Color.split_rgb(Mg_util.Color.blend(0, color, gray));
 };
 
 let apply_progress_view = (state: t) => {

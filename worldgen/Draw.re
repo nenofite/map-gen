@@ -1,5 +1,5 @@
 let images_color_of_int = color => {
-  let (r, g, b) = Color.split_rgb(color);
+  let (r, g, b) = Mg_util.Color.split_rgb(color);
   Images.{r, g, b};
 };
 
