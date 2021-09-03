@@ -124,7 +124,7 @@ let obstacles_of_balls balls (canon : Overlay.Canon.t) =
       ball_bounds ball
       |> List.filter ~f:(fun (x, y, z) ->
              Grid.is_within x z canon.elevation
-             && y = Grid_compat.at canon.elevation x z )
+             && y = Grid.Compat.at canon.elevation x z )
       |> List.fold ~init:obs ~f:(fun obs (x, _y, z) ->
              Sparse_grid.put obs x z () ) )
 

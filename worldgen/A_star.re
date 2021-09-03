@@ -81,7 +81,7 @@ let rec run' =
               };
             },
             (nodes, open_set),
-            Grid_compat.four_directions,
+            Grid.Compat.four_directions,
           );
         run'(
           ~grid_side,

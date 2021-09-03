@@ -112,7 +112,7 @@ let spread_mountain = (grid, ~level as _, (x, z)) => {
   let next_distance = here.distance_to_mountain + 1;
   /* Spread in all 8 directions */
   List.fold(
-    Grid_compat.eight_directions,
+    Grid.Compat.eight_directions,
     ~init=(grid, []),
     ~f=((grid, updated_coords), (dx, dz)) =>
     spread_mountain_into(grid, updated_coords, x + dx, z + dz, next_distance)
@@ -149,7 +149,7 @@ let spread_ocean = (grid, ~level as _, (x, z)) => {
   let next_distance = here.distance_to_ocean + 1;
   /* Spread in all 8 directions */
   List.fold(
-    Grid_compat.eight_directions,
+    Grid.Compat.eight_directions,
     ~init=(grid, []),
     ~f=((grid, updated_coords), (dx, dz)) =>
     spread_ocean_into(grid, updated_coords, x + dx, z + dz, next_distance)
@@ -248,13 +248,13 @@ let phase = tectonic =>
       Point_cloud.nearest_int(points, x, z)
     )
     |> ignore;
-    Subdivide_mut.overwrite_subdivide_with_fill(
-      ~fill=Fill.random_avg,
+    Grid.Subdivide_mut.overwrite_subdivide_with_fill(
+      ~fill=Grid.Fill.random_avg,
       elevation_grid,
     );
     for (_ in 1 to 2) {
-      Subdivide_mut.overwrite_subdivide_with_fill(
-        ~fill=Fill.avg,
+      Grid.Subdivide_mut.overwrite_subdivide_with_fill(
+        ~fill=Grid.Fill.avg,
         elevation_grid,
       );
     };

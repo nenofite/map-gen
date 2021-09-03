@@ -1,5 +1,5 @@
-let subdivide_with_fill = (old_grid: Grid.t('a), fill): Grid.t('a) => {
-  open Grid_compat;
+let subdivide_with_fill = (old_grid: Immut.t('a), fill): Immut.t('a) => {
+  open Compat;
 
   /*
      old_grid:
@@ -85,14 +85,14 @@ let subdivide_with_fill = (old_grid: Grid.t('a), fill): Grid.t('a) => {
   combined;
 };
 
-let overwrite_subdivide_with_fill = (old_grid: Grid.t('a), fill) => {
+let overwrite_subdivide_with_fill = (old_grid: Immut.t('a), fill) => {
   let grid = subdivide_with_fill(old_grid, fill);
-  Grid_compat.map(grid, (x, y, here) =>
+  Compat.map(grid, (x, y, here) =>
     if (x mod 2 == 0 && y mod 2 == 0) {
-      let n = Grid_compat.at_w(grid, x, y - 1);
-      let e = Grid_compat.at_w(grid, x + 1, y);
-      let s = Grid_compat.at_w(grid, x, y + 1);
-      let w = Grid_compat.at_w(grid, x - 1, y);
+      let n = Compat.at_w(grid, x, y - 1);
+      let e = Compat.at_w(grid, x + 1, y);
+      let s = Compat.at_w(grid, x, y + 1);
+      let w = Compat.at_w(grid, x - 1, y);
       fill(n, e, s, w);
     } else {
       here;
@@ -121,11 +121,11 @@ let%expect_test "subdivide_with_fill" = {
    12 13 14 15
    */
   let grid =
-    Grid_compat.init(4, (x, y) => [string_of_int(x + y * 4)])
+    Compat.init(4, (x, y) => [string_of_int(x + y * 4)])
     |> subdivide_with_fill(_, (a, b, c, d) => a @ b @ c @ d);
 
   /* Old tile */
-  print_list(Grid_compat.at(grid, 0, 0));
+  print_list(Compat.at(grid, 0, 0));
   %expect
   {| 0 |};
 
@@ -135,7 +135,7 @@ let%expect_test "subdivide_with_fill" = {
       X
     4   5
    */
-  print_list(Grid_compat.at(grid, 1, 1));
+  print_list(Compat.at(grid, 1, 1));
   %expect
   {| 0, 1, 5, 4 |};
 
@@ -145,7 +145,7 @@ let%expect_test "subdivide_with_fill" = {
     0 X 1
       =
    */
-  print_list(Grid_compat.at(grid, 1, 0));
+  print_list(Compat.at(grid, 1, 0));
   %expect
   {| 12, 13, 1, 0, 1, 0, 1, 5, 4, 0 |};
 
@@ -155,7 +155,7 @@ let%expect_test "subdivide_with_fill" = {
    = X =
      4
    */
-  print_list(Grid_compat.at(grid, 0, 1));
+  print_list(Compat.at(grid, 0, 1));
   %expect
   {| 0, 0, 1, 5, 4, 4, 3, 0, 4, 7 |};
 };

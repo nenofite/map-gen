@@ -31,7 +31,7 @@ type output = {
   bell: block,
   farms: list(block),
   houses: list(house),
-  roads: list(Road_pathing_rules.t),
+  roads: list(Roads.Rules.t),
 };
 
 [@deriving bin_io]

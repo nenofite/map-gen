@@ -256,12 +256,12 @@ let prepare_precipitation () =
       0
   in
   for _ = 1 to 1 do
-    Subdivide_mut.overwrite_subdivide_with_fill
+    Grid.Subdivide_mut.overwrite_subdivide_with_fill
       ~fill:(fun a b c d -> (a + b + c + d) / 4)
       precipitation
   done ;
-  Subdivide_mut.subdivide precipitation ;
-  Subdivide_mut.magnify precipitation ;
+  Grid.Subdivide_mut.subdivide precipitation ;
+  Grid.Subdivide_mut.magnify precipitation ;
   Point_cloud.init ~side:canon.side ~spacing:32 (fun x z ->
       Grid.Mut.get ~x ~z precipitation )
   |> Point_cloud.subdivide ~spacing:8
@@ -407,7 +407,7 @@ let apply (state, _canon) (region : Minecraft.Region.t) =
       let biome = biome_at ~x ~z state in
       set_biome_column ~x ~z (to_minecraft_biome biome) region ;
       let elev = height_at ~x ~z region in
-      let dirt_depth = Grid_compat.at dirt x z in
+      let dirt_depth = Grid.Compat.at dirt x z in
       match biome with
       | Plain _ | Forest _ | Savanna | Pine_forest ->
           (* Dirt (will become grass in Plant_overlay) *)

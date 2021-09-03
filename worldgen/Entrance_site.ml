@@ -53,7 +53,7 @@ let prepare ~x ~z =
     cavern_entrance_fits_within_region ~canon_side:canon.side ~x ~z
     && can_build_cavern_entrance canon ~x ~z
   then
-    match Grid_compat.at cavern x z with
+    match Grid.Compat.at cavern x z with
     | {floor_elev; ceiling_elev}
       when ceiling_elev > floor_elev
            && floor_elev > Cavern_overlay.magma_sea_elev ->

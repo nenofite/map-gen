@@ -314,7 +314,7 @@ let stair_foundation =
     )
     : unit => {
   let stair_material = d => Minecraft.Block.Stairs(stair_material, d);
-  /* Fill the base rectangle */
+  /* Grid.Fill the base rectangle */
   rectangle_foundation(
     ~material=rectangle_material,
     region,

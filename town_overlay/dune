@@ -1,5 +1,5 @@
 (library
- (name Worldgen)
+ (name Town_overlay)
  (inline_tests)
  (libraries
   core_kernel
@@ -8,18 +8,13 @@
   Grid
   Config
   Progress_view
-  ANSITerminal
   Minecraft
   Minecraft_template
   Overlay
-  Priority_queue
   Roads
   Sparse_grid
   Building
   Meta_overlay
-  parmap
-  camlimages.core
-  camlimages.png
   bin_prot)
  (preprocess
   (pps

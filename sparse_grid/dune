@@ -1,0 +1,14 @@
+(library
+ (name Sparse_grid)
+ (inline_tests)
+ (libraries core_kernel bin_prot Grid Mg_util)
+ (preprocess
+  (pps
+   ppx_inline_test
+   ppx_expect
+   ppx_sexp_conv
+   ppx_deriving.eq
+   ppx_deriving.ord
+   ppx_hash
+   ppx_let
+   ppx_bin_prot)))
