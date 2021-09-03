@@ -12,9 +12,11 @@
   Minecraft
   Minecraft_template
   Overlay
+  Point_cloud
   Priority_queue
   Roads
   Sparse_grid
+  Town_overlay
   Building
   Meta_overlay
   parmap

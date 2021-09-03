@@ -26,7 +26,7 @@ type x = {
 [@deriving bin_io]
 type t = (x, Overlay.Canon.delta);
 
-let town_goal_side = Town_layout.side;
+let town_goal_side = Town_overlay.town_side;
 
 let edge_cost = (canon: Overlay.Canon.t, (ax, ay), (bx, by)) => {
   let a_elev = Grid.Compat.at(canon.elevation, ax, ay);

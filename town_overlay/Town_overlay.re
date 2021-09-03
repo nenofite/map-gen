@@ -1,4 +1,7 @@
 include Town_overlay_i;
+open Mg_util;
+
+let town_side = Town_layout.side;
 
 let tweak_dist = 150;
 let tweak_tries = 100;
@@ -49,7 +52,7 @@ let apply_progress_view = ((towns, delta: Overlay.Canon.delta)) => {
 };
 
 let within_region_boundaries = (~canon_side, min_x, min_z) => {
-  Minecraft_converter.within_region_boundaries(
+  Minecraft.Region.within_region_boundaries(
     ~canon_side,
     ~min_x,
     ~max_x=min_x + Town_layout.side,

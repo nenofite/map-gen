@@ -21,7 +21,7 @@ let cavern_entrance_fits_within_region ~canon_side ~x ~z =
   let top = Site_templates.cavern_entrance in
   let minx, maxx = top.bounds_x in
   let minz, maxz = top.bounds_z in
-  Minecraft_converter.within_region_boundaries ~canon_side ~min_x:(minx + x)
+  Minecraft.Region.within_region_boundaries ~canon_side ~min_x:(minx + x)
     ~max_x:(maxx + x) ~min_z:(minz + z) ~max_z:(maxz + z)
 
 let can_build_cavern_entrance (canon : Overlay.Canon.t) ~x ~z =

@@ -121,6 +121,28 @@ let region_containing = (~x, ~z) => {
   );
 };
 
+/**
+  checks whether the given bounding box is within the world and fits within a
+  single region. In other words, it checks that the box is region-aligned, so
+  it won't cause issues during the apply phase.
+  */
+let within_region_boundaries = (~canon_side, ~min_x, ~max_x, ~min_z, ~max_z) => {
+  let x_side = max_x - min_x;
+  let z_side = max_z - min_z;
+  let within_world =
+    0 <= min_x && max_x < canon_side && 0 <= min_z && max_z < canon_side;
+
+  let within_region =
+    min_x
+    mod block_per_region_side < block_per_region_side
+    - x_side
+    && min_z
+    mod block_per_region_side < block_per_region_side
+    - z_side;
+
+  within_world && within_region;
+};
+
 /** converts a chunk coord to an index of a biome chunk within biomes */
 let chunk_i_of_c = (~cx, ~cz) => {
   let ci = cz * chunk_per_region_side + cx;

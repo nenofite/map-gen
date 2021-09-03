@@ -51,10 +51,10 @@ let make_input = () => {
   /* Start with boring roads */
   let obstacles =
     Sparse_grid.make(elevation.side)
-    |> Range.fold(0, elevation.side - 1, _, (roads, z) => {
+    |> Mg_util.Range.fold(0, elevation.side - 1, _, (roads, z) => {
          Sparse_grid.put(roads, center_x, z, ())
        })
-    |> Range.fold(0, elevation.side - 1, _, (roads, x) => {
+    |> Mg_util.Range.fold(0, elevation.side - 1, _, (roads, x) => {
          Sparse_grid.put(roads, x, center_z, ())
        });
 
@@ -181,8 +181,8 @@ let random_grab = (amount, blocks) => random_grab(amount, blocks, []);
 
 let calc_average_elevation = (elevation, min_x, max_x, min_z, max_z) => {
   let sum =
-    Range.fold(min_z, max_z, 0, (cur, z) =>
-      Range.fold(
+    Mg_util.Range.fold(min_z, max_z, 0, (cur, z) =>
+      Mg_util.Range.fold(
         min_x,
         max_x,
         cur,
@@ -257,8 +257,8 @@ let check_block_obstacles = (~obstacles, block) => {
   && max_z < side
   /* doesn't hit obstacle */
   && !
-       Range.exists(min_x, max_x, x =>
-         Range.exists(min_z, max_z, z =>
+       Mg_util.Range.exists(min_x, max_x, x =>
+         Mg_util.Range.exists(min_z, max_z, z =>
            Sparse_grid.at(obstacles, x, z) |> Option.is_some
          )
        );
@@ -327,8 +327,8 @@ let outlets_of_bell = block => {
 
 let add_block_to_obstacles = (~block, obstacles) => {
   let {min_x, max_x, min_z, max_z} = block;
-  Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
-    Range.fold(min_x, max_x, obstacles, (obstacles, x) =>
+  Mg_util.Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
+    Mg_util.Range.fold(min_x, max_x, obstacles, (obstacles, x) =>
       Sparse_grid.put(obstacles, x, z, ())
     )
   );
