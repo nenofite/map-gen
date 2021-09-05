@@ -1,25 +1,17 @@
 (library
- (name Town_overlay)
+ (name Torching)
  (inline_tests)
  (libraries
+  bin_prot
   core_kernel
-  Base_overlay
-  Building_old
-  Mg_util
-  Tale
-  Torching
-  Grid
   Config
-  Progress_view
+  Grid
+  Grid_flood
+  Mg_util
   Minecraft
   Minecraft_template
-  Overlay
-  Point_cloud
-  Roads
-  Sparse_grid
-  Building
-  Meta_overlay
-  bin_prot)
+  Tale
+  Overlay)
  (preprocess
   (pps
    ppx_inline_test

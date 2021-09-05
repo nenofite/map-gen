@@ -1,4 +1,5 @@
 open Core_kernel
+module Geometry = Mg_util.Geometry
 
 type metaball = {center: Geometry.Vec3i.t; radii: Geometry.Vec3i.t}
 [@@deriving bin_io]

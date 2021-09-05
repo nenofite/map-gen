@@ -1,3 +1,5 @@
+module Range = Mg_util.Range;
+
 type usage =
   | Common
   | Bedroom

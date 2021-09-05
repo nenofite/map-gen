@@ -3,6 +3,8 @@ module Floats = {
   let (~~) = int_of_float;
 };
 
+module Geometry = Geometry;
+
 module Color = {
   let split_rgb = color => {
     let r = (color land 0xFF0000) lsr 16;

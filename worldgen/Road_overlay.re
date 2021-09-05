@@ -52,7 +52,7 @@ let place_road = (_canon: Overlay.Canon.t, roads: Sparse_grid.t(road), path) => 
 };
 
 let poi_of_town = (town: Town_overlay.town) => {
-  Town_layout.(town.x + side / 2, town.z + side / 2);
+  Town_overlay.(town.x + town_side / 2, town.z + town_side / 2);
 };
 
 let starts_of_poi = ((poi_x, poi_z)) => {
