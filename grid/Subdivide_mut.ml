@@ -1,7 +1,7 @@
 open Core_kernel
 
 let subdivide_with_fill ~fill m =
-  let open Grid.Mut in
+  let open Mut in
   (*
      old grid:
      1-2-3-
@@ -57,7 +57,7 @@ let subdivide_with_fill ~fill m =
 let subdivide m = subdivide_with_fill ~fill:Fill.random m
 
 let overwrite_subdivide_with_fill ~fill m =
-  let open Grid.Mut in
+  let open Mut in
   let old_side = side m in
   subdivide_with_fill ~fill m ;
   for zi = 0 to old_side - 1 do
@@ -73,7 +73,7 @@ let overwrite_subdivide_with_fill ~fill m =
   done
 
 let magnify m =
-  let open Grid.Mut in
+  let open Mut in
   (*
      old grid:
      1-2-3-

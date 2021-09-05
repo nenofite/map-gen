@@ -1,4 +1,5 @@
 open Core_kernel;
+open Constants;
 
 type with_distances = {
   tectonic: Tectonic.tile,
@@ -6,18 +7,12 @@ type with_distances = {
   distance_to_mountain: int,
 };
 
-let sea_level = 62;
-let mountain_level = 120;
-let max_slope_level = 100;
-
-let precision_coef = 100;
-
 let colorize = (tile: int): int => {
   let frac = float_of_int(tile / precision_coef) /. 200.;
   let frac = Float.(max(min(frac, 1.), 0.));
   let black = 0;
   let white = 0xFFFFFF;
-  Color.blend(black, white, frac);
+  Mg_util.Color.blend(black, white, frac);
 };
 
 let empty_distance = Int.max_value - 10;
@@ -112,7 +107,7 @@ let spread_mountain = (grid, ~level as _, (x, z)) => {
   let next_distance = here.distance_to_mountain + 1;
   /* Spread in all 8 directions */
   List.fold(
-    Grid_compat.eight_directions,
+    Grid.Compat.eight_directions,
     ~init=(grid, []),
     ~f=((grid, updated_coords), (dx, dz)) =>
     spread_mountain_into(grid, updated_coords, x + dx, z + dz, next_distance)
@@ -149,7 +144,7 @@ let spread_ocean = (grid, ~level as _, (x, z)) => {
   let next_distance = here.distance_to_ocean + 1;
   /* Spread in all 8 directions */
   List.fold(
-    Grid_compat.eight_directions,
+    Grid.Compat.eight_directions,
     ~init=(grid, []),
     ~f=((grid, updated_coords), (dx, dz)) =>
     spread_ocean_into(grid, updated_coords, x + dx, z + dz, next_distance)
@@ -248,13 +243,13 @@ let phase = tectonic =>
       Point_cloud.nearest_int(points, x, z)
     )
     |> ignore;
-    Subdivide_mut.overwrite_subdivide_with_fill(
-      ~fill=Fill.random_avg,
+    Grid.Subdivide_mut.overwrite_subdivide_with_fill(
+      ~fill=Grid.Fill.random_avg,
       elevation_grid,
     );
     for (_ in 1 to 2) {
-      Subdivide_mut.overwrite_subdivide_with_fill(
-        ~fill=Fill.avg,
+      Grid.Subdivide_mut.overwrite_subdivide_with_fill(
+        ~fill=Grid.Fill.avg,
         elevation_grid,
       );
     };

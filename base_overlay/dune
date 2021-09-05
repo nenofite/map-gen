@@ -1,32 +1,19 @@
 (library
- (name Worldgen)
+ (name Base_overlay)
  (inline_tests)
  (libraries
   bin_prot
-  camlimages.core
-  camlimages.png
   core_kernel
-  parmap
-  Base_overlay
-  Building
-  Building_old
-  Config
   Mg_util
   Tale
-  Torching
   Grid
   Grid_flood
+  Config
   Progress_view
-  ANSITerminal
   Minecraft
   Minecraft_template
   Overlay
-  Point_cloud
-  Priority_queue
-  Roads
-  Sparse_grid
-  Town_overlay
-  Meta_overlay)
+  Point_cloud)
  (preprocess
   (pps
    ppx_inline_test

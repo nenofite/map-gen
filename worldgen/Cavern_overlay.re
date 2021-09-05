@@ -26,7 +26,7 @@ let colorize = tile =>
     0xFF0000;
   } else {
     let frac = float_of_int(tile.floor_elev) /. 50.;
-    Color.blend(0x101010, 0xFFFFFF, frac);
+    Mg_util.Color.blend(0x101010, 0xFFFFFF, frac);
   };
 
 let add_floor_pillars = (pillar_cloud: Point_cloud.t(bool), floor) => {
@@ -34,7 +34,7 @@ let add_floor_pillars = (pillar_cloud: Point_cloud.t(bool), floor) => {
     pillar_cloud.points,
     (_, Point_cloud.{px: x, py: y, value}, floor) =>
       if (value) {
-        Grid_compat.update(floor, int_of_float(x), int_of_float(y), old_elev =>
+        Grid.Compat.update(floor, int_of_float(x), int_of_float(y), old_elev =>
           if (old_elev < pillar_meet_elev) {
             pillar_meet_elev + 5;
           } else {
@@ -53,7 +53,7 @@ let add_ceiling_pillars = (pillar_cloud: Point_cloud.t(bool), ceiling) => {
     pillar_cloud.points,
     (_, Point_cloud.{px: x, py: y, value}, ceiling) =>
       if (value) {
-        Grid_compat.update(
+        Grid.Compat.update(
           ceiling, int_of_float(x), int_of_float(y), old_elev =>
           if (old_elev > pillar_meet_elev) {
             pillar_meet_elev - 5;
@@ -90,7 +90,7 @@ let prepare = () => {
     Phase_chain.(
       run_all(
         phase("Init floor", () =>
-          Grid_compat.init(start_side, (x, y) =>
+          Grid.Compat.init(start_side, (x, y) =>
             if (Base_overlay.ocean_at(~x=x * r, ~z=y * r, world)) {
               pillar_meet_elev + 5;
             } else {
@@ -109,18 +109,21 @@ let prepare = () => {
         @> phase_repeat(
              2,
              "Random avg subdivide",
-             Subdivide.subdivide_with_fill(_, Fill.random_avg),
+             Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.random_avg),
            )
         @> phase("Add pillars", add_floor_pillars(pillar_cloud))
         @> phase_repeat(
              2,
              "Random avg subdivide",
-             Subdivide.subdivide_with_fill(_, Fill.random_avg),
+             Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.random_avg),
            )
         @> phase_repeat(
              1,
              "Line subdivide",
-             Subdivide.subdivide_with_fill(_, Fill.(line() **> avg)),
+             Grid.Subdivide.subdivide_with_fill(
+               _,
+               Grid.Fill.(line() **> avg),
+             ),
            ),
       )
     );
@@ -128,7 +131,7 @@ let prepare = () => {
     Phase_chain.(
       run_all(
         phase("Init ceiling", () =>
-          Grid_compat.init(start_side, (x, y) =>
+          Grid.Compat.init(start_side, (x, y) =>
             if (Base_overlay.ocean_at(~x=x * r, ~z=y * r, world)) {
               pillar_meet_elev - 5;
             } else {
@@ -148,25 +151,25 @@ let prepare = () => {
         @> phase_repeat(
              2,
              "Random avg subdivide",
-             Subdivide.subdivide_with_fill(_, Fill.random_avg),
+             Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.random_avg),
            )
         @> phase("Add pillars", add_ceiling_pillars(pillar_cloud))
         @> phase_repeat(
              2,
              "Random avg subdivide",
-             Subdivide.subdivide_with_fill(_, Fill.random_avg),
+             Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.random_avg),
            )
         @> phase_repeat(
              1,
              "Rough subdivide",
-             Subdivide.subdivide_with_fill(_, Fill.random),
+             Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.random),
            ),
       )
     );
   Phase_chain.(
     run_all(
       phase("Combine", () =>
-        Grid_compat.zip_map(floor, ceiling, (floor_elev, ceiling_elev) =>
+        Grid.Compat.zip_map(floor, ceiling, (floor_elev, ceiling_elev) =>
           {floor_elev, ceiling_elev}
         )
       )
@@ -184,7 +187,7 @@ let apply_region = (cavern, region: Minecraft.Region.t) => {
       open Minecraft.Region;
 
       let surface_elev = Base_overlay.elevation_at(~x, ~z, world);
-      let {floor_elev, ceiling_elev} = Grid_compat.at(cavern, x, z);
+      let {floor_elev, ceiling_elev} = Grid.Compat.at(cavern, x, z);
 
       /* Don't go above the maximum */
       let ceiling_elev =

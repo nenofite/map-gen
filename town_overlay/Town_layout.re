@@ -10,7 +10,7 @@ type layout_state = {
   elevation: Grid.t(int),
   road_obstacles: Sparse_grid.t(unit),
   obstacles: Sparse_grid.t(unit),
-  pathing_state: Road_pathing.pathing_state,
+  pathing_state: Roads.pathing_state,
 };
 
 let side = 128;
@@ -36,31 +36,25 @@ let all_blocks = t => {
 
 let make_input = () => {
   let elevation =
-    Phase_chain.(
-      run_all(
-        phase("init", () =>
-          Grid_compat.init(4, (_x, _y) =>
-            Random.int(elevation_range) + base_elevation
-          )
-        )
-        @> phase_repeat(2, "subdivide", Subdivide.subdivide)
-        @> phase_repeat(
-             3,
-             "line subdivide",
-             Subdivide.subdivide_with_fill(_, Fill.(line() **> avg)),
-           ),
-      )
-    );
+    Grid.Int.init(~side=4, _xy =>
+      Random.int(elevation_range) + base_elevation
+    )
+    |> Grid.Subdivide.subdivide
+    |> Grid.Subdivide.subdivide
+    |> Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.(line() **> avg))
+    |> Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.(line() **> avg))
+    |> Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.(line() **> avg));
+
   /* Roads to the center */
   let center_x = elevation.side / 2;
   let center_z = elevation.side / 2;
   /* Start with boring roads */
   let obstacles =
     Sparse_grid.make(elevation.side)
-    |> Range.fold(0, elevation.side - 1, _, (roads, z) => {
+    |> Mg_util.Range.fold(0, elevation.side - 1, _, (roads, z) => {
          Sparse_grid.put(roads, center_x, z, ())
        })
-    |> Range.fold(0, elevation.side - 1, _, (roads, x) => {
+    |> Mg_util.Range.fold(0, elevation.side - 1, _, (roads, x) => {
          Sparse_grid.put(roads, x, center_z, ())
        });
 
@@ -105,7 +99,7 @@ let draw = (input: input, output: output, file) => {
     );
   };
 
-  Grid_compat.iter(input.elevation, (x, y, c) => {
+  Grid.Compat.iter(input.elevation, (x, y, c) => {
     img#set(x, y, colorize_elevation(c))
   });
   let road_color = {r: 0, g: 0, b: 0};
@@ -187,8 +181,8 @@ let random_grab = (amount, blocks) => random_grab(amount, blocks, []);
 
 let calc_average_elevation = (elevation, min_x, max_x, min_z, max_z) => {
   let sum =
-    Range.fold(min_z, max_z, 0, (cur, z) =>
-      Range.fold(
+    Mg_util.Range.fold(min_z, max_z, 0, (cur, z) =>
+      Mg_util.Range.fold(
         min_x,
         max_x,
         cur,
@@ -263,8 +257,8 @@ let check_block_obstacles = (~obstacles, block) => {
   && max_z < side
   /* doesn't hit obstacle */
   && !
-       Range.exists(min_x, max_x, x =>
-         Range.exists(min_z, max_z, z =>
+       Mg_util.Range.exists(min_x, max_x, x =>
+         Mg_util.Range.exists(min_z, max_z, z =>
            Sparse_grid.at(obstacles, x, z) |> Option.is_some
          )
        );
@@ -333,8 +327,8 @@ let outlets_of_bell = block => {
 
 let add_block_to_obstacles = (~block, obstacles) => {
   let {min_x, max_x, min_z, max_z} = block;
-  Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
-    Range.fold(min_x, max_x, obstacles, (obstacles, x) =>
+  Mg_util.Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
+    Mg_util.Range.fold(min_x, max_x, obstacles, (obstacles, x) =>
       Sparse_grid.put(obstacles, x, z, ())
     )
   );
@@ -346,7 +340,7 @@ let add_roads_to_obstacles = (~roads, obstacles) => {
       roads,
       ~init=obstacles,
       ~f=(obstacles, road) => {
-        let {x, z, _}: Road_pathing_rules.t = road;
+        let {x, z, _}: Roads.Rules.t = road;
         Mg_util.Range.fold(z - 1, z + 1, obstacles, (obstacles, z) =>
           Mg_util.Range.fold(x - 1, x + 1, obstacles, (obstacles, x) =>
             Sparse_grid.put(obstacles, x, z, ())
@@ -377,8 +371,8 @@ let get_road_obstacle_of_state = state => {
 };
 
 let enroad = (state, ~block) => {
-  Road_pathing.clear_closest_paths(state.pathing_state);
-  Road_pathing.enroad_gen(
+  Roads.clear_closest_paths(state.pathing_state);
+  Roads.enroad_gen(
     ~get_elevation=get_elevation_of_state(state),
     ~get_obstacle=get_road_obstacle_of_state(state),
     ~outlets=outlets_of_block(block),
@@ -402,12 +396,12 @@ let place_block = (state, ~side_x, ~side_z) => {
     let obstacles = add_block_to_obstacles(~block, state.obstacles);
     let road_obstacles = add_block_to_obstacles(~block, state.road_obstacles);
     let state = {...state, obstacles, road_obstacles};
-    Road_pathing.clear_closest_paths(state.pathing_state);
+    Roads.clear_closest_paths(state.pathing_state);
     enroad(state, ~block);
     let obstacles =
       add_roads_to_obstacles(
         state.obstacles,
-        ~roads=Road_pathing.get_paths_list(state.pathing_state),
+        ~roads=Roads.get_paths_list(state.pathing_state),
       );
     let state = {...state, obstacles};
     Some((state, block));
@@ -453,7 +447,7 @@ let run = (input': input): output => {
     elevation,
     obstacles,
     road_obstacles: obstacles,
-    pathing_state: Road_pathing.init_state(),
+    pathing_state: Roads.init_state(),
   };
 
   let bell_side = 9;
@@ -467,9 +461,9 @@ let run = (input': input): output => {
     outlets_of_bell(bell.xz)
     |> List.map(~f=((x, z)) => {
          let y = Grid.get(x, z, state.elevation);
-         Road_pathing_rules.Coord.make_road(~x, ~y, ~z);
+         Roads.Rules.Coord.make_road(~x, ~y, ~z);
        });
-  Road_pathing.add_paths(
+  Roads.add_paths(
     ~should_place=false,
     ~new_paths=bell_paths,
     state.pathing_state,
@@ -509,7 +503,7 @@ let run = (input': input): output => {
   let {elevation: _, obstacles, road_obstacles: _, centers: _, pathing_state} = state;
   // TODO
   ignore(obstacles);
-  let roads = Road_pathing.get_paths_list(pathing_state);
+  let roads = Roads.get_paths_list(pathing_state);
   {bell, farms, houses, roads};
 };
 

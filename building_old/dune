@@ -1,6 +1,16 @@
 (library
- (name Mg_util)
- (libraries bin_prot core_kernel Tale)
+ (name Building_old)
+ (inline_tests)
+ (libraries
+  bin_prot
+  core_kernel
+  Mg_util
+  Tale
+  Grid
+  Config
+  Minecraft
+  Minecraft_template
+  Overlay)
  (preprocess
   (pps
    ppx_inline_test

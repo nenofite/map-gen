@@ -1,4 +1,7 @@
 include Town_overlay_i;
+open Mg_util;
+
+let town_side = Town_layout.side;
 
 let tweak_dist = 150;
 let tweak_tries = 100;
@@ -49,7 +52,7 @@ let apply_progress_view = ((towns, delta: Overlay.Canon.delta)) => {
 };
 
 let within_region_boundaries = (~canon_side, min_x, min_z) => {
-  Minecraft_converter.within_region_boundaries(
+  Minecraft.Region.within_region_boundaries(
     ~canon_side,
     ~min_x,
     ~max_x=min_x + Town_layout.side,
@@ -69,7 +72,7 @@ let has_obstacle = (obstacles, x, z) =>
   );
 
 let acceptable_elevations = (elevations, x, z) => {
-  let start_elev = Grid_compat.at(elevations, x, z);
+  let start_elev = Grid.Compat.at(elevations, x, z);
   let (emin, emax) =
     Range.fold(
       z,
@@ -81,7 +84,7 @@ let acceptable_elevations = (elevations, x, z) => {
         x + Town_layout.side - 1,
         (emin, emax),
         ((emin, emax), x) => {
-          let here_elev = Grid_compat.at(elevations, x, z);
+          let here_elev = Grid.Compat.at(elevations, x, z);
           let emin = min(emin, here_elev);
           let emax = max(emax, here_elev);
           (emin, emax);
@@ -210,7 +213,7 @@ let prepare_town =
   let roads =
     Core_kernel.List.map(
       roads,
-      ~f=Road_pathing_rules.Coord.translate(~dx=town_min_x, ~dz=town_min_z),
+      ~f=Roads.Rules.Coord.translate(~dx=town_min_x, ~dz=town_min_z),
     );
 
   /* Translate blocks into global coords */

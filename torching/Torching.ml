@@ -1,4 +1,6 @@
 open Core_kernel
+module Range = Mg_util.Range
+module Geometry = Mg_util.Geometry
 
 let torch_light_level = 14
 

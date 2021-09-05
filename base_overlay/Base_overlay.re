@@ -1,4 +1,5 @@
 open Core_kernel;
+include Constants;
 
 [@deriving (eq, ord, bin_io)]
 type water =
@@ -87,7 +88,7 @@ let color_at = (~x, ~z, base) => {
   let elevation = elevation_at(~x, ~z, base);
   let gray = gray_of_elevation(elevation);
   let color = water_at(~x, ~z, base) |> color_of_water;
-  Color.split_rgb(Color.blend(0, color, gray));
+  Mg_util.Color.split_rgb(Mg_util.Color.blend(0, color, gray));
 };
 
 let apply_progress_view = (state: t) => {
@@ -132,7 +133,7 @@ let of_river_state = state => {
   let side = River.side(state);
   let elevation =
     Grid.Int.init(~side, ((x, z)) =>
-      River.elevation_at(~x, ~z, state) / Heightmap.precision_coef
+      River.elevation_at(~x, ~z, state) / Constants.precision_coef
     );
   let water =
     Water_grid.init(~side, ((x, z)) =>
@@ -148,16 +149,24 @@ let of_river_state = state => {
 };
 
 let prepare = () => {
-  module Pvh = Progress_view_helper.Make(Grid.Mut.Intf);
   let layer = Progress_view.push_layer();
-
   let side = Overlay.Canon.require().side;
   let grid = Tectonic.phase(side);
   let grid = Heightmap.phase(grid);
-  Pvh.update_with_colorize(
+  Progress_view.update(
     ~title="height",
-    ~colorize=Heightmap.colorize,
-    grid,
+    ~draw_dense=
+      ((), x, z) =>
+        if (Grid.Mut.is_within(~x, ~z, grid)) {
+          Some(
+            Grid.Mut.get(~x, ~z, grid)
+            |> Heightmap.colorize
+            |> Mg_util.Color.split_rgb,
+          );
+        } else {
+          None;
+        },
+    ~state=(),
     layer,
   );
   Progress_view.save(~side=Grid.Mut.side(grid), "height");
@@ -173,9 +182,9 @@ let prepare = () => {
 let river_mat = Minecraft.Block.Flowing_water(0);
 let apply_region = (state: t, region: Minecraft.Region.t) => {
   let (world, _canon) = state;
-  Minecraft_converter.iter_blocks(
+  Minecraft.Region.iter_region_xz(
     region,
-    (~x, ~z) => {
+    ~f=(~x, ~z) => {
       open Minecraft.Region;
 
       let elevation = elevation_at(~x, ~z, world);
@@ -193,7 +202,7 @@ let apply_region = (state: t, region: Minecraft.Region.t) => {
           set_block(~x, ~y, ~z, river_mat, region);
         }
       | Ocean =>
-        for (y in elevation + 1 to Heightmap.sea_level) {
+        for (y in elevation + 1 to Constants.sea_level) {
           set_block(~x, ~y, ~z, Minecraft.Block.Water, region);
         }
       };

@@ -1,5 +1,5 @@
 let bedroom_1 =
-  Template_txt.parse_template(
+  Minecraft_template.Txt.parse_template(
     ~palette=
       Minecraft.Block.[
         ("B", Some(Orange_bed(N, Head))),

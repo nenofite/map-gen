@@ -42,7 +42,7 @@ let is_near_river_at ~x ~z base =
 
 let is_near_ocean_at ~x ~z base =
   let r = 5 in
-  let max_elev = Heightmap.sea_level + 2 in
+  let max_elev = Base_overlay.sea_level + 2 in
   let side = Base_overlay.side base in
   if Base_overlay.elevation_at ~x ~z base <= max_elev then (
     let result = ref false in
@@ -256,12 +256,12 @@ let prepare_precipitation () =
       0
   in
   for _ = 1 to 1 do
-    Subdivide_mut.overwrite_subdivide_with_fill
+    Grid.Subdivide_mut.overwrite_subdivide_with_fill
       ~fill:(fun a b c d -> (a + b + c + d) / 4)
       precipitation
   done ;
-  Subdivide_mut.subdivide precipitation ;
-  Subdivide_mut.magnify precipitation ;
+  Grid.Subdivide_mut.subdivide precipitation ;
+  Grid.Subdivide_mut.magnify precipitation ;
   Point_cloud.init ~side:canon.side ~spacing:32 (fun x z ->
       Grid.Mut.get ~x ~z precipitation )
   |> Point_cloud.subdivide ~spacing:8
@@ -359,7 +359,9 @@ let apply_progress_view (state : t) =
       else
         let here_biome = biome_at ~x ~z biome in
         let gray = Base_overlay.gray_at ~x ~z base in
-        Some (Color.blend 0 (colorize_biome here_biome) gray |> Color.split_rgb)
+        Some
+          ( Mg_util.Color.blend 0 (colorize_biome here_biome) gray
+          |> Mg_util.Color.split_rgb )
     else None
   in
   Progress_view.update ~fit:(0, side, 0, side) ~draw_dense ~state:() layer ;
@@ -407,7 +409,7 @@ let apply (state, _canon) (region : Minecraft.Region.t) =
       let biome = biome_at ~x ~z state in
       set_biome_column ~x ~z (to_minecraft_biome biome) region ;
       let elev = height_at ~x ~z region in
-      let dirt_depth = Grid_compat.at dirt x z in
+      let dirt_depth = Grid.Compat.at dirt x z in
       match biome with
       | Plain _ | Forest _ | Savanna | Pine_forest ->
           (* Dirt (will become grass in Plant_overlay) *)

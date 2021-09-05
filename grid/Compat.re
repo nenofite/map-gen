@@ -1,7 +1,7 @@
 open Core_kernel;
 
-include Grid;
-include Grid.Poly;
+include Immut;
+include Immut.Poly;
 
 let init = (side, f) => init(~side, ((x, y)) => f(x, y));
 

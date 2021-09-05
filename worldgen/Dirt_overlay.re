@@ -18,12 +18,12 @@ let prepare = () => {
       });
     for (i in 1 to 3) {
       Tale.logf("Avg subdivide %d", i);
-      Subdivide_mut.subdivide_with_fill(m, ~fill=Fill.random_avg);
+      Grid.Subdivide_mut.subdivide_with_fill(m, ~fill=Grid.Fill.random_avg);
     };
-    let line_fill = Fill.(line(~eq=Int.(==), ()) **> random_avg);
+    let line_fill = Grid.Fill.(line(~eq=Int.(==), ()) **> random_avg);
     for (i in 1 to 2) {
       Tale.logf("Line subdivide %d", i);
-      Subdivide_mut.subdivide_with_fill(m, ~fill=line_fill);
+      Grid.Subdivide_mut.subdivide_with_fill(m, ~fill=line_fill);
     };
     assert(Grid.Mut.side(m) == side);
     Dirt_grid.of_mut(m);

@@ -1,6 +1,17 @@
 (library
- (name Mg_util)
- (libraries bin_prot core_kernel Tale)
+ (name Torching)
+ (inline_tests)
+ (libraries
+  bin_prot
+  core_kernel
+  Config
+  Grid
+  Grid_flood
+  Mg_util
+  Minecraft
+  Minecraft_template
+  Tale
+  Overlay)
  (preprocess
   (pps
    ppx_inline_test

@@ -1,5 +1,5 @@
 let images_color_of_int = color => {
-  let (r, g, b) = Color.split_rgb(color);
+  let (r, g, b) = Mg_util.Color.split_rgb(color);
   Images.{r, g, b};
 };
 
@@ -42,7 +42,7 @@ let draw_griddable =
 /** draw_grid creates a .PPM bitmap file with each pixel representing a tile on the grid */
 let draw_grid = (colorizer: 'a => int, file: string, grid: Grid.t('a)): unit => {
   draw(
-    (x, y) => colorizer(Grid_compat.at(grid, x, y)),
+    (x, y) => colorizer(Grid.Compat.at(grid, x, y)),
     grid.side,
     grid.side,
     file,

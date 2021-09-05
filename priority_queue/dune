@@ -1,6 +1,7 @@
 (library
- (name Mg_util)
- (libraries bin_prot core_kernel Tale)
+ (name Priority_queue)
+ (inline_tests)
+ (libraries bin_prot core_kernel Mg_util Tale)
  (preprocess
   (pps
    ppx_inline_test

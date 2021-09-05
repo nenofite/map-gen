@@ -11,7 +11,7 @@ module Niceness = {
   include Comparable.Make(T);
 };
 
-module Rp = Road_pathing_rules.Coord;
+module Rp = Roads.Rules.Coord;
 
 [@deriving bin_io]
 type road = Rp.t;
@@ -20,17 +20,17 @@ type road = Rp.t;
 type x = {
   pois: list((int, int)),
   roads: Sparse_grid.t(road),
-  bridges: list(Road_pathing_rules.bridge),
+  bridges: list(Roads.Rules.bridge),
 };
 
 [@deriving bin_io]
 type t = (x, Overlay.Canon.delta);
 
-let town_goal_side = Town_layout.side;
+let town_goal_side = Town_overlay.town_side;
 
 let edge_cost = (canon: Overlay.Canon.t, (ax, ay), (bx, by)) => {
-  let a_elev = Grid_compat.at(canon.elevation, ax, ay);
-  let b_elev = Grid_compat.at(canon.elevation, bx, by);
+  let a_elev = Grid.Compat.at(canon.elevation, ax, ay);
+  let b_elev = Grid.Compat.at(canon.elevation, bx, by);
   let elev_diff = abs(a_elev - b_elev);
   let b_obs = !Overlay.Canon.can_build_on(Grid.get(bx, by, canon.obstacles));
   if (!b_obs && elev_diff <= 1) {
@@ -52,7 +52,7 @@ let place_road = (_canon: Overlay.Canon.t, roads: Sparse_grid.t(road), path) => 
 };
 
 let poi_of_town = (town: Town_overlay.town) => {
-  Town_layout.(town.x + side / 2, town.z + side / 2);
+  Town_overlay.(town.x + town_side / 2, town.z + town_side / 2);
 };
 
 let starts_of_poi = ((poi_x, poi_z)) => {
@@ -68,8 +68,8 @@ let prepare = () => {
   let canon = Overlay.Canon.require();
   let (towns, _) = Town_overlay.require();
   Tale.log("Pathfinding roads");
-  module Cs = Road_pathing_rules.Coord.Set;
-  let pathing_state = Road_pathing.init_state();
+  module Cs = Roads.Rules.Coord.Set;
+  let pathing_state = Roads.init_state();
   let num_towns = List.length(towns);
   List.iteri(towns, ~f=(i, town) => {
     Tale.blockf(
@@ -78,15 +78,15 @@ let prepare = () => {
       num_towns,
       ~f=() => {
         let town_roads = Town_overlay.roads(town.town);
-        Road_pathing.enroad(pathing_state, ~town_roads);
+        Roads.enroad(pathing_state, ~town_roads);
       },
     )
   });
-  let roads = Road_pathing.get_paths_list(pathing_state);
+  let roads = Roads.get_paths_list(pathing_state);
   let roads = place_road(canon, Sparse_grid.make(canon.side), roads);
   Tale.log("Widening roads and adding steps");
-  let roads = Road_pathing_rules.widen_road(roads);
-  let bridges = Road_pathing.get_bridges_list(pathing_state);
+  let roads = Roads.Rules.widen_road(roads);
+  let bridges = Roads.get_bridges_list(pathing_state);
   let obstacles =
     Sparse_grid.(
       map(roads, (_, _) => Overlay.Canon.Impassable)
@@ -144,7 +144,7 @@ let place_stair_block = (region, x, y, z, ~dir) => {
 };
 
 let template_of_bridge = bridge => {
-  let Road_pathing_rules.{x, y, z, direction, length} = bridge;
+  let Roads.Rules.{x, y, z, direction, length} = bridge;
   let rotation =
     switch (direction) {
     | N => 0
