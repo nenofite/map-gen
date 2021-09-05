@@ -1,6 +1,6 @@
 (executables
- (names Main Test Town Splat)
- (public_names Main Test Town Splat)
+ (names Main Test Splat)
+ (public_names Main Test Splat)
  (preprocess
   (pps ppx_let))
- (libraries core Worldgen Stats Proc memtrace))
+ (libraries core memtrace Stats Proc Worldgen))
