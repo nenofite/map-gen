@@ -355,7 +355,8 @@ let create_house = (house: house, region: Minecraft.Region.t) => {
   let {building, worksite} = house;
   let x = building.block.min_x;
   let z = building.block.min_z;
-  let template = building.building.template;
+  let template =
+    Minecraft_template.normalize_on_origin(building.building.template);
 
   let y = Building_old.flatten_footprint(region, ~x, ~z, template.footprint);
   Minecraft_template.place_overwrite(template, ~x, ~y, ~z, region);

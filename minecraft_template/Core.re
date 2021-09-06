@@ -253,15 +253,28 @@ let align_with' =
   translate(a, bx - ax, by - ay, bz - az);
 };
 
-let align_with_origin = (a, ~my) => {
+let align_with_point = (a, ~point, ~my) => {
+  let (px, py, pz) = point;
   let (ax, ay, az) = calc_mark(my, ~on=a);
-  translate(a, 0 - ax, 0 - ay, 0 - az);
+  translate(a, px - ax, py - ay, pz - az);
+};
+
+let align_with_origin = (a, ~my) => {
+  align_with_point(a, ~my, ~point=(0, 0, 0));
 };
 
 let align_with_origin' = (a, ~x, ~y, ~z) => {
   let (ax, ay, az) = calc_mark((X(x), Y(y), Z(z)), ~on=a);
   translate(a, 0 - ax, 0 - ay, 0 - az);
 };
+
+/**
+  Align the template so its X and Z mins are at the origin. Does not change Y
+  coordinates.  This is useful eg. after rotating a template so it can be placed
+  predictably.
+ */
+let normalize_on_origin = a =>
+  align_with_origin(a, ~my=(X(min), Y(zero), Z(min)));
 
 let of_blocks = (blocks: _): t => {
   /* Get starter values */
