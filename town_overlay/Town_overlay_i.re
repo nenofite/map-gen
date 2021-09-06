@@ -21,8 +21,17 @@ type worksite =
   | Shepherd;
 
 [@deriving bin_io]
+type building = {template: Minecraft_template.t};
+
+[@deriving bin_io]
+type fitted_building = {
+  building,
+  block: block_no_elevation,
+};
+
+[@deriving bin_io]
 type house = {
-  block,
+  building: fitted_building,
   worksite: option(worksite),
 };
 

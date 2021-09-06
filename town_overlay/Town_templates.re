@@ -1,4 +1,7 @@
-let bedroom_1 =
+open! Core_kernel;
+open Town_overlay_i;
+
+let bedroom_1_t =
   Minecraft_template.Txt.parse_template(
     ~palette=
       Minecraft.Block.[
@@ -57,3 +60,6 @@ X = = = = = X
 X X X X X X X
     |},
   );
+let bedroom_1 = {template: bedroom_1_t};
+
+let houses = [bedroom_1];

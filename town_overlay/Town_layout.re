@@ -31,7 +31,11 @@ let pop_per_farm = 2;
 let num_plazas = 3;
 
 let all_blocks = t => {
-  Core_kernel.([t.bell] @ t.farms @ List.map(t.houses, ~f=h => h.block));
+  Core_kernel.(
+    [t.bell.xz]
+    @ List.map(t.farms, ~f=f => f.xz)
+    @ List.map(t.houses, ~f=h => h.building.block)
+  );
 };
 
 let make_input = () => {
@@ -92,7 +96,7 @@ let draw = (input: input, output: output, file) => {
   let draw_blocks = (color, blocks) => {
     List.iter(
       block => {
-        let {xz: {min_x, max_x, min_z, max_z}, elevation: _} = block;
+        let {min_x, max_x, min_z, max_z} = block;
         draw_rect(img, min_x, max_x, min_z, max_z, color);
       },
       blocks,
@@ -107,11 +111,18 @@ let draw = (input: input, output: output, file) => {
     img#set(x, y, road_color)
   });
 
-  draw_blocks({r: 0, g: 255, b: 0}, output.farms);
-  draw_blocks({r: 0, g: 0, b: 255}, output.houses |> List.map(h => h.block));
+  draw_blocks({r: 0, g: 255, b: 0}, output.farms |> List.map(f => f.xz));
+  draw_blocks(
+    {r: 0, g: 0, b: 255},
+    output.houses |> List.map(h => h.building.block),
+  );
 
   img#save(file, Some(Png), []);
   ();
+};
+
+let rotate_building_cw = (b: building, ~times: int): building => {
+  template: Minecraft_template.rotate_90_cw(b.template, ~times),
 };
 
 let random_worksite = () => {
@@ -380,6 +391,89 @@ let enroad = (state, ~block) => {
   );
 };
 
+/**
+ Try to place a building in each possible rotation
+ */
+let fit_building =
+    (state: layout_state, ~building: building)
+    : (layout_state, option(fitted_building)) => {
+  open Core_kernel;
+
+  let rec go = (building, remaining_rots, state) => {
+    let side_x = Minecraft_template.x_size_of(building.template);
+    let side_z = Minecraft_template.z_size_of(building.template);
+    switch (random_grab_one(state.centers)) {
+    | None => (state, None)
+    | Some((center, centers)) =>
+      let state = {...state, centers};
+      let new_block = make_block_from_center(center, side_x, side_z);
+      if (check_block_obstacles(
+            ~obstacles=state.obstacles,
+            pad_block(new_block, min_block_spacing),
+          )) {
+        let fitted = {building, block: new_block};
+        (state, Some(fitted));
+      } else if (remaining_rots > 0) {
+        go(
+          rotate_building_cw(building, ~times=1),
+          remaining_rots - 1,
+          state,
+        );
+      } else {
+        (state, None);
+      };
+    };
+  };
+
+  let building = rotate_building_cw(building, ~times=Random.int_incl(0, 3));
+  go(building, 3, state);
+};
+
+/**
+  Flatten elevation under a fitted building, add it to obstacles, and enroad it
+ */
+let place_building =
+    (state: layout_state, ~building: fitted_building): layout_state => {
+  let {building: _, block} = building;
+  let state =
+    set_block_into_elevation(state, ~block=flatten_block(state, ~block));
+  let obstacles = add_block_to_obstacles(~block, state.obstacles);
+  let road_obstacles = add_block_to_obstacles(~block, state.road_obstacles);
+  let state = {...state, obstacles, road_obstacles};
+  Roads.clear_closest_paths(state.pathing_state);
+  enroad(state, ~block);
+  let obstacles =
+    add_roads_to_obstacles(
+      state.obstacles,
+      ~roads=Roads.get_paths_list(state.pathing_state),
+    );
+  let state = {...state, obstacles};
+  state;
+};
+
+/**
+  Fit and place a random selection of buildings from the list, up to a given amount
+ */
+let place_buildings =
+    (state: layout_state, ~buildings: list(building), ~amount: int)
+    : (layout_state, list(fitted_building)) => {
+  open Core_kernel;
+  let buildings = Mg_util.shuffle(buildings);
+  let rec go = (state, buildings, amount, result) => {
+    switch (buildings) {
+    | [] => (state, result)
+    | [building, ...buildings] =>
+      switch (fit_building(state, ~building)) {
+      | (state, Some(fitted_building)) =>
+        let state = place_building(state, ~building=fitted_building);
+        go(state, buildings, amount - 1, [fitted_building, ...result]);
+      | (state, None) => go(state, buildings, amount, result)
+      }
+    };
+  };
+  go(state, buildings, amount, []);
+};
+
 let place_plaza = (state, ~side_x, ~side_z) => {
   switch (fit_block(state, ~side_x, ~side_z)) {
   | (state, Some(block)) =>
@@ -471,10 +565,9 @@ let run = (input': input): output => {
 
   /* Grab houses */
   let (state, houses) =
-    place_blocks(
+    place_buildings(
       state,
-      ~min_side=min_house_side,
-      ~max_side=max_house_side,
+      ~buildings=Town_templates.houses,
       ~amount=num_houses,
     );
 
@@ -487,16 +580,15 @@ let run = (input': input): output => {
       ~amount=num_farms,
     );
 
-  let houses = flatten_blocks(state, ~blocks=houses);
   let farms = flatten_blocks(state, ~blocks=farms);
 
   /* Assign jobs */
   let (farm_houses, prof_houses) =
     Mg_util.take_both(List.length(farms), houses);
   let houses =
-    List.map(~f=block => {block, worksite: None}, farm_houses)
+    List.map(~f=building => {building, worksite: None}, farm_houses)
     @ List.map(
-        ~f=block => {block, worksite: Some(random_worksite())},
+        ~f=building => {building, worksite: Some(random_worksite())},
         prof_houses,
       );
 
