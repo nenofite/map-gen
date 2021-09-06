@@ -466,7 +466,12 @@ let place_buildings =
       switch (fit_building(state, ~building)) {
       | (state, Some(fitted_building)) =>
         let state = place_building(state, ~building=fitted_building);
-        go(state, buildings, amount - 1, [fitted_building, ...result]);
+        go(
+          state,
+          buildings @ [building],
+          amount - 1,
+          [fitted_building, ...result],
+        );
       | (state, None) => go(state, buildings, amount, result)
       }
     };
