@@ -4,7 +4,7 @@ exception Invalid_block(string);
 
 /** the direction you must walk to go up the stairs, or in other words the side
   of the stairs which is taller */
-[@deriving (eq, bin_io)]
+[@deriving (eq, sexp, bin_io)]
 type stair_dir =
   | E
   | W
@@ -15,41 +15,41 @@ type stair_dir =
   | Sd
   | Nd;
 
-[@deriving (eq, bin_io)]
+[@deriving (eq, sexp, bin_io)]
 type dir =
   | N
   | E
   | S
   | W;
 
-[@deriving (eq, bin_io)]
+[@deriving (eq, sexp, bin_io)]
 type bed_part =
   | Foot
   | Head;
 
-[@deriving (eq, bin_io)]
+[@deriving (eq, sexp, bin_io)]
 type door_part =
   | Lower
   | Upper;
 
-[@deriving (eq, bin_io)]
+[@deriving (eq, sexp, bin_io)]
 type slab_type =
   | Bottom
   | Top
   | Double;
 
-[@deriving (eq, bin_io)]
+[@deriving (eq, sexp, bin_io)]
 type waterlogged =
   | Dry
   | Waterlogged;
 
-[@deriving (eq, bin_io)]
+[@deriving (eq, sexp, bin_io)]
 type axis =
   | X
   | Y
   | Z;
 
-[@deriving (eq, bin_io)]
+[@deriving (eq, sexp, bin_io)]
 type stair_material =
   | Acacia_stairs
   | Andesite_stairs
@@ -88,14 +88,14 @@ type stair_material =
   | Stone_stairs
   | Warped_stairs;
 
-[@deriving (eq, ord, bin_io)]
+[@deriving (eq, ord, sexp, bin_io)]
 type log_material =
   | Oak_log
   | Spruce_log;
 /* TODO extract other logs */
 
 /* Materials list taken from https://minecraft.gamepedia.com/Java_Edition_data_value */
-[@deriving (eq, bin_io)]
+[@deriving (eq, sexp, bin_io)]
 type material =
   /* Air needs to be 0 */
   | Air

@@ -354,6 +354,11 @@ let rect = (material, ~xs, ~ys, ~zs) => {
   of_blocks(blocks);
 };
 
+let at = (t: t, ~x: int, ~y: int, ~z: int) => {
+  List.find(t.blocks, ~f=((hx, hy, hz, _)) => hx == x && hy == y && hz == z)
+  |> Option.map(~f=((_, _, _, b)) => b);
+};
+
 let clear_at = (t, ~x, ~y, ~z) => {
   let blocks =
     List.filter(t.blocks, ~f=((hx, hy, hz, _)) =>
