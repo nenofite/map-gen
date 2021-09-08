@@ -21,7 +21,10 @@ type worksite =
   | Shepherd;
 
 [@deriving bin_io]
-type building = {template: Minecraft_template.t};
+type building = {
+  template: Minecraft_template.t,
+  worksite_offset: (int, int, int),
+};
 
 [@deriving bin_io]
 type fitted_building = {

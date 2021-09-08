@@ -79,6 +79,11 @@ module Vec3i = struct
   let ( /. ) (x, y, z) s = Int.(x / s, y / s, z / s)
 
   let of_float = Tuple3.map ~f:Int.of_float
+
+  let rec rotate_cw ~(times : int) (x, y, z) =
+    let rotated = (-z, y, x) in
+    if Int.(times > 1) then rotate_cw ~times:Int.(times - 1) rotated
+    else rotated
 end
 
 type vec3f = Vec3f.t

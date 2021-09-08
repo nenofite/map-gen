@@ -366,3 +366,13 @@ let clear_at = (t, ~x, ~y, ~z) => {
     );
   of_blocks(blocks);
 };
+
+let set_at =
+    (t: t, ~x: int, ~y: int, ~z: int, ~block: Minecraft.Block.material) => {
+  let blocks =
+    List.filter(t.blocks, ~f=((hx, hy, hz, _)) =>
+      !(hx == x && hy == y && hz == z)
+    );
+  let blocks = [(x, y, z, block), ...blocks];
+  of_blocks(blocks);
+};

@@ -1,14 +1,14 @@
 let cavern_entrance =
-  Template_txt.parse_template(
+  Minecraft_template.Txt.parse_template(
     ~palette=
-      Minecraft.Block.[
-        ("Q", Some(Smooth_stone)),
-        ("O", Some(Stone_bricks)),
-        ("U", Some(Chiseled_stone_bricks)),
-        ("v", Some(Stairs(Stone_brick_stairs, N))),
-        ("<", Some(Stairs(Stone_brick_stairs, E))),
-        ("^", Some(Stairs(Stone_brick_stairs, S))),
-        (">", Some(Stairs(Stone_brick_stairs, W))),
+      Minecraft_template.Txt.Palette_incl.[
+        ("Q", Filled(Smooth_stone)),
+        ("O", Filled(Stone_bricks)),
+        ("U", Filled(Chiseled_stone_bricks)),
+        ("v", Filled(Stairs(Stone_brick_stairs, N))),
+        ("<", Filled(Stairs(Stone_brick_stairs, E))),
+        ("^", Filled(Stairs(Stone_brick_stairs, S))),
+        (">", Filled(Stairs(Stone_brick_stairs, W))),
       ],
     {|
 X - - - - - - - X
@@ -74,16 +74,16 @@ X X X X X X X X X
   );
 
 let cavern_entrance_tube =
-  Template_txt.parse_template(
+  Minecraft_template.Txt.parse_template(
     ~palette=
-      Minecraft.Block.[
-        ("Q", Some(Smooth_stone)),
-        ("O", Some(Stone_bricks)),
-        ("U", Some(Chiseled_stone_bricks)),
-        ("v", Some(Stairs(Stone_brick_stairs, N))),
-        ("<", Some(Stairs(Stone_brick_stairs, E))),
-        ("^", Some(Stairs(Stone_brick_stairs, S))),
-        (">", Some(Stairs(Stone_brick_stairs, W))),
+      Minecraft_template.Txt.Palette_incl.[
+        ("Q", Filled(Smooth_stone)),
+        ("O", Filled(Stone_bricks)),
+        ("U", Filled(Chiseled_stone_bricks)),
+        ("v", Filled(Stairs(Stone_brick_stairs, N))),
+        ("<", Filled(Stairs(Stone_brick_stairs, E))),
+        ("^", Filled(Stairs(Stone_brick_stairs, S))),
+        (">", Filled(Stairs(Stone_brick_stairs, W))),
       ],
     {|
 . . . . . . . . .
@@ -129,20 +129,20 @@ let cavern_entrance_tube =
   );
 
 let cavern_entrance_base =
-  Template_txt.parse_template(
+  Minecraft_template.Txt.parse_template(
     ~palette=
-      Minecraft.Block.[
-        ("N", Some(Stairs(Cobblestone_stairs, Nd))),
-        ("E", Some(Stairs(Cobblestone_stairs, Ed))),
-        ("S", Some(Stairs(Cobblestone_stairs, Sd))),
-        ("W", Some(Stairs(Cobblestone_stairs, Wd))),
-        ("Q", Some(Smooth_stone)),
-        ("O", Some(Stone_bricks)),
-        ("U", Some(Chiseled_stone_bricks)),
-        ("v", Some(Stairs(Stone_brick_stairs, N))),
-        ("<", Some(Stairs(Stone_brick_stairs, E))),
-        ("^", Some(Stairs(Stone_brick_stairs, S))),
-        (">", Some(Stairs(Stone_brick_stairs, W))),
+      Minecraft_template.Txt.Palette_incl.[
+        ("N", Filled(Stairs(Cobblestone_stairs, Nd))),
+        ("E", Filled(Stairs(Cobblestone_stairs, Ed))),
+        ("S", Filled(Stairs(Cobblestone_stairs, Sd))),
+        ("W", Filled(Stairs(Cobblestone_stairs, Wd))),
+        ("Q", Filled(Smooth_stone)),
+        ("O", Filled(Stone_bricks)),
+        ("U", Filled(Chiseled_stone_bricks)),
+        ("v", Filled(Stairs(Stone_brick_stairs, N))),
+        ("<", Filled(Stairs(Stone_brick_stairs, E))),
+        ("^", Filled(Stairs(Stone_brick_stairs, S))),
+        (">", Filled(Stairs(Stone_brick_stairs, W))),
       ],
     {|
 . . . . . . . . .

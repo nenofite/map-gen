@@ -349,29 +349,37 @@ let worksite_material = (worksite: worksite) => {
   );
 };
 
+let apply_worksite_to_house = (~house: building, worksite: option(worksite)) => {
+  switch (worksite) {
+  | None => house.template
+  | Some(worksite) =>
+    let (x, y, z) = house.worksite_offset;
+    Minecraft_template.set_at(
+      ~x,
+      ~y,
+      ~z,
+      ~block=worksite_material(worksite),
+      house.template,
+    );
+  };
+};
+
 let create_house = (house: house, region: Minecraft.Region.t) => {
   open Minecraft.Region;
 
   let {building, worksite} = house;
+  let template =
+    apply_worksite_to_house(worksite, ~house=building.building)
+    |> Minecraft_template.normalize_on_origin;
+
   let x = building.block.min_x;
   let z = building.block.min_z;
-  let template =
-    Minecraft_template.normalize_on_origin(building.building.template);
-
   let y = Building_old.flatten_footprint(region, ~x, ~z, template.footprint);
   Minecraft_template.place_overwrite(template, ~x, ~y, ~z, region);
 
-  /* Only add worksite and villager when one is specified */
   switch (worksite) {
   | None => ()
-  | Some(worksite) =>
-    set_block(
-      worksite_material(worksite),
-      ~x=x + 1,
-      ~y=y + 10,
-      ~z=z + 1,
-      region,
-    );
+  | Some(_) =>
     add_entity(
       Minecraft.Entity.{
         id: "villager",
@@ -380,7 +388,7 @@ let create_house = (house: house, region: Minecraft.Region.t) => {
         z: Float.of_int(z + 1),
       },
       region,
-    );
+    )
   };
 };
 
