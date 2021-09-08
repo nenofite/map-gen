@@ -381,7 +381,25 @@ let get_road_obstacle_of_state = state => {
     };
 };
 
-let enroad = (state, ~block) => {
+let enroad_building = (state, ~roads) => {
+  Roads.clear_closest_paths(state.pathing_state);
+  let found_path =
+    Roads.enroad_gen(
+      ~get_elevation=get_elevation_of_state(state),
+      ~get_obstacle=get_road_obstacle_of_state(state),
+      ~outlets=roads,
+      ~add_outlets=true,
+      state.pathing_state,
+    );
+  if (found_path) {
+    Tale.log("Found path to building 💃");
+  } else {
+    Tale.log("No path to building 😪");
+  };
+  found_path;
+};
+
+let enroad_block = (state, ~block) => {
   Roads.clear_closest_paths(state.pathing_state);
   Roads.enroad_gen(
     ~get_elevation=get_elevation_of_state(state),
@@ -434,6 +452,7 @@ let fit_building =
  */
 let place_building =
     (state: layout_state, ~building: fitted_building): layout_state => {
+  open Core_kernel;
   let {building: _, block} = building;
   let state =
     set_block_into_elevation(state, ~block=flatten_block(state, ~block));
@@ -441,7 +460,24 @@ let place_building =
   let road_obstacles = add_block_to_obstacles(~block, state.road_obstacles);
   let state = {...state, obstacles, road_obstacles};
   Roads.clear_closest_paths(state.pathing_state);
-  enroad(state, ~block);
+  let found_path =
+    switch (
+      Minecraft_template.get_marks(building.building.template, ~mark=`Road)
+    ) {
+    | [] => enroad_block(state, ~block)
+    | roads =>
+      let roads =
+        List.map(
+          roads,
+          ~f=((x, _y, z)) => {
+            let x = block.min_x + x;
+            let z = block.min_z + z;
+            (x, z);
+          },
+        );
+      enroad_building(state, ~roads);
+    };
+  ignore(found_path: bool);
   let obstacles =
     add_roads_to_obstacles(
       state.obstacles,
@@ -496,7 +532,7 @@ let place_block = (state, ~side_x, ~side_z) => {
     let road_obstacles = add_block_to_obstacles(~block, state.road_obstacles);
     let state = {...state, obstacles, road_obstacles};
     Roads.clear_closest_paths(state.pathing_state);
-    enroad(state, ~block);
+    ignore(enroad_block(state, ~block): bool);
     let obstacles =
       add_roads_to_obstacles(
         state.obstacles,

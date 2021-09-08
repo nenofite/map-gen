@@ -86,7 +86,8 @@ let get_closest_path ~from_paths state =
   |> Option.bind ~f:(fun cp -> cp.parent)
   |> Option.map ~f:(fun parent -> reconstruct_path parent ~state)
 
-let enroad_gen ~get_elevation ~get_obstacle ~outlets state =
+let enroad_gen ?(add_outlets = false) ~get_elevation ~get_obstacle ~outlets
+    state =
   let edges = Rules.neighbors ~get_elevation ~get_obstacle in
   update_closest_paths ~edges state ;
   let town_paths =
@@ -94,15 +95,17 @@ let enroad_gen ~get_elevation ~get_obstacle ~outlets state =
         let y = get_elevation ~x ~z in
         Path_coord.make_road ~x ~y ~z )
   in
-  let new_path =
+  let found_path =
     match get_closest_path state ~from_paths:town_paths with
-    | Some path ->
-        Tale.log "Found path" ; path
+    | Some new_path ->
+        if add_outlets then
+          add_paths ~should_place:true ~new_paths:town_paths state ;
+        add_paths ~should_place:true ~new_paths:new_path state ;
+        true
     | None ->
-        Tale.log "No path" ; []
+        false
   in
-  add_paths ~should_place:true ~new_paths:new_path state ;
-  ()
+  found_path
 
 let enroad ~town_roads state =
   let edges =

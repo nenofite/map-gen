@@ -373,9 +373,7 @@ let create_house = (house: house, region: Minecraft.Region.t) => {
   open Minecraft.Region;
 
   let {building, worksite} = house;
-  let template =
-    apply_worksite_to_house(worksite, ~house=building.building)
-    |> Minecraft_template.normalize_on_origin;
+  let template = apply_worksite_to_house(worksite, ~house=building.building);
 
   let x = building.block.min_x;
   let z = building.block.min_z;

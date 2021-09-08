@@ -10,8 +10,12 @@ let bedroom_1_t =
         ("D", Filled(Oak_door(N, Upper))),
         ("d", Filled(Oak_door(N, Lower))),
         ("W", Marked(`Worksite, Filled(Air))),
+        ("1", Marked(`Road, Empty)),
       ],
     {|
+. . . . . . .
+. . . . . . .
+. . . . . . .
 X X X X X X X
 X - - - - - X
 X - i - - - X
@@ -20,6 +24,9 @@ X - - - - - X
 X - - - - - X
 X X X X X X X
 
+. . . . . . .
+. . . . . . .
+. . . . . . .
 X X X X X X X
 X = = = = - X
 X = = = = - X
@@ -28,6 +35,9 @@ X = = = = - X
 X = = = = ^ X
 X X X X X X X
 
+. . . . . . .
+. . . . . . .
+. . . . . . .
 X X X X X X X
 X - - - - - X
 X - - - - - X
@@ -36,6 +46,9 @@ X - - - - ^ X
 X - - s - X X
 X X X X X X X
 
+. . . . . . .
+. . . . . . .
+. . . . . . .
 X X X D X X X
 X - - - - - X
 X - - - - - X
@@ -44,6 +57,9 @@ X - - - - X X
 X - - - - - X
 X X X X X X X
 
+. . . . . . .
+. . . . . . .
+. . . . . . .
 X X X d X X X
 X - - - - - X
 X B - - - ^ X
@@ -52,6 +68,9 @@ X - - - - - X
 X - W - - - X
 X X X X X X X
 
+. . . 1 . . .
+. . . 1 . . .
+. . . . . . .
 X X X X X X X
 X = = = = = X
 X = = = = = X
@@ -60,7 +79,8 @@ X = = = = = X
 X = = = = = X
 X X X X X X X
     |},
-  );
+  )
+  |> Minecraft_template.normalize_on_origin;
 let bedroom_1 = {template: bedroom_1_t};
 
 let houses = [bedroom_1];

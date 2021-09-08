@@ -345,7 +345,8 @@ let rotate_90_cw_once = template => {
   of_blocks(
     List.map(template.blocks, ~f=rotate_block),
     ~marks=List.map(template.marks, ~f=rotate_mark),
-  );
+  )
+  |> normalize_on_origin;
 };
 
 let rec rotate_90_cw = (template, ~times) =>
@@ -394,6 +395,18 @@ let set_at =
 let get_mark = (t: t('a), ~mark: 'a) => {
   Core_kernel.(
     List.find_map(t.marks, ~f=((x, y, z, m)) =>
+      if (Poly.(m == mark)) {
+        Some((x, y, z));
+      } else {
+        None;
+      }
+    )
+  );
+};
+
+let get_marks = (t: t('a), ~mark: 'a) => {
+  Core_kernel.(
+    List.filter_map(t.marks, ~f=((x, y, z, m)) =>
       if (Poly.(m == mark)) {
         Some((x, y, z));
       } else {

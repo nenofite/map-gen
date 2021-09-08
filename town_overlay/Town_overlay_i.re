@@ -21,7 +21,7 @@ type worksite =
   | Shepherd;
 
 [@deriving bin_io]
-type marks = [ | `Worksite | `Front_door];
+type marks = [ | `Worksite | `Road];
 
 [@deriving bin_io]
 type building = {template: Minecraft_template.t(marks)};
