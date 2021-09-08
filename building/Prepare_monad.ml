@@ -103,7 +103,7 @@ let with_pos_applied ~x ~y ~z f : 'a t =
   let%map x, y, z = apply_pos ~x ~y ~z in
   f ~x ~y ~z
 
-let place_template (t : Minecraft_template.t) ~x ~y:_ ~z : unit t =
+let place_template (t : _ Minecraft_template.t) ~x ~y:_ ~z : unit t =
   let open Let_syntax in
   List.fold t.footprint ~init:nop ~f:(fun m (fx, fz) ->
       let%bind () = m in

@@ -51,7 +51,7 @@ let height_at ~x ~z : int t =
     ~prepare:(Prepare_monad.with_pos_applied ~x ~y:0 ~z get_elev)
     ~apply:(Apply_monad.height_at ~x ~z)
 
-let place_template (t : Minecraft_template.t) ~x ~y ~z : unit t =
+let place_template (t : _ Minecraft_template.t) ~x ~y ~z : unit t =
   parallel
     ~prepare:(Prepare_monad.place_template t ~x ~y ~z)
     ~apply:(Apply_monad.place_template t ~x ~y ~z)

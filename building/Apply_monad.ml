@@ -43,7 +43,7 @@ let height_at ~x ~z : int t =
   let x, _, z = Pos.apply pos ~x ~y:0 ~z in
   Minecraft.Region.height_at ~x ~z region
 
-let place_template (t : Minecraft_template.t) ~x ~y ~z : unit t =
+let place_template (t : _ Minecraft_template.t) ~x ~y ~z : unit t =
   let open Let_syntax in
   List.fold t.blocks ~init:nop ~f:(fun m (dx, dy, dz, mat) ->
       let%bind () = m in

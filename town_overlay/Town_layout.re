@@ -123,8 +123,6 @@ let draw = (input: input, output: output, file) => {
 
 let rotate_building_cw = (b: building, ~times: int): building => {
   template: Minecraft_template.rotate_90_cw(b.template, ~times),
-  worksite_offset:
-    Mg_util.Geometry.Vec3i.rotate_cw(b.worksite_offset, ~times),
 };
 
 let random_worksite = () => {

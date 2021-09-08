@@ -5,12 +5,13 @@ open! Core_kernel;
   tree
  */
 [@deriving (eq, bin_io)]
-type t = {
+type t('a) = {
   blocks: list((int, int, int, Minecraft.Block.material)),
   bounds_x: (int, int),
   bounds_y: (int, int),
   bounds_z: (int, int),
   footprint: list((int, int)),
+  marks: list((int, int, int, 'a)),
 };
 
 type mark = (int, int) => int;
@@ -65,6 +66,7 @@ let translate = (base, x, y, z) => {
     bounds_y: (miny, maxy),
     bounds_z: (minz, maxz),
     footprint,
+    marks,
   } = base;
   let blocks =
     List.map(
@@ -75,7 +77,9 @@ let translate = (base, x, y, z) => {
   let bounds_y = (miny + y, maxy + y);
   let bounds_z = (minz + z, maxz + z);
   let footprint = List.map(~f=((dx, dz)) => (x + dx, z + dz), footprint);
-  {blocks, bounds_x, bounds_y, bounds_z, footprint};
+  let marks =
+    List.map(marks, ~f=((dx, dy, dz, m)) => (x + dx, y + dy, z + dz, m));
+  {blocks, bounds_x, bounds_y, bounds_z, footprint, marks};
 };
 
 let combine_all = pieces => {
@@ -84,6 +88,7 @@ let combine_all = pieces => {
       List.concat_map(pieces, ~f=t => t.blocks),
       ~compare=compare_coord_block,
     );
+  let marks = List.concat_map(pieces, ~f=p => p.marks);
   let bounds_x =
     List.map(pieces, ~f=t => t.bounds_x) |> List.reduce_exn(~f=combine_bounds);
   let bounds_y =
@@ -93,7 +98,7 @@ let combine_all = pieces => {
   let footprint =
     List.map(pieces, ~f=t => t.footprint)
     |> List.reduce_exn(~f=combine_footprints);
-  {blocks, bounds_x, bounds_y, bounds_z, footprint};
+  {blocks, bounds_x, bounds_y, bounds_z, footprint, marks};
 };
 
 /**
@@ -276,7 +281,7 @@ let align_with_origin' = (a, ~x, ~y, ~z) => {
 let normalize_on_origin = a =>
   align_with_origin(a, ~my=(X(min), Y(zero), Z(min)));
 
-let of_blocks = (blocks: _): t => {
+let of_blocks = (blocks, ~marks) => {
   /* Get starter values */
   let (sx, sy, sz, _) = List.hd_exn(blocks);
   let bounds_x =
@@ -313,7 +318,7 @@ let of_blocks = (blocks: _): t => {
       ~init=(sz, sz),
     );
   let footprint = calc_footprint(blocks);
-  {blocks, bounds_x, bounds_y, bounds_z, footprint};
+  {blocks, bounds_x, bounds_y, bounds_z, footprint, marks};
 };
 
 let flip_y = template => {
@@ -322,17 +327,25 @@ let flip_y = template => {
     List.map(template.blocks, ~f=((x, y, z, block)) =>
       (x, max_y - y, z, block)
     );
-  {...template, blocks};
+  let marks =
+    List.map(template.marks, ~f=((x, y, z, mark)) =>
+      (x, max_y - y, z, mark)
+    );
+  {...template, blocks, marks};
 };
 
 let rotate_90_cw_once = template => {
-  let map_coord = ((x, y, z, m)) => (
+  let rotate_block = ((x, y, z, block)) => (
     - z,
     y,
     x,
-    Minecraft.Block.rotate_cw(m, ~times=1),
+    Minecraft.Block.rotate_cw(block, ~times=1),
   );
-  of_blocks(List.map(template.blocks, ~f=map_coord));
+  let rotate_mark = ((x, y, z, mark)) => (- z, y, x, mark);
+  of_blocks(
+    List.map(template.blocks, ~f=rotate_block),
+    ~marks=List.map(template.marks, ~f=rotate_mark),
+  );
 };
 
 let rec rotate_90_cw = (template, ~times) =>
@@ -342,7 +355,7 @@ let rec rotate_90_cw = (template, ~times) =>
     template;
   };
 
-let rect = (material, ~xs, ~ys, ~zs) => {
+let rect = (material, ~xs, ~ys, ~zs): t(_) => {
   let blocks =
     Mg_util.Range.(
       map(0, zs - 1, z =>
@@ -351,28 +364,45 @@ let rect = (material, ~xs, ~ys, ~zs) => {
     )
     |> List.concat
     |> List.concat;
-  of_blocks(blocks);
+  of_blocks(blocks, ~marks=[]);
 };
 
-let at = (t: t, ~x: int, ~y: int, ~z: int) => {
+let at = (t: t(_), ~x: int, ~y: int, ~z: int) => {
   List.find(t.blocks, ~f=((hx, hy, hz, _)) => hx == x && hy == y && hz == z)
   |> Option.map(~f=((_, _, _, b)) => b);
 };
 
-let clear_at = (t, ~x, ~y, ~z) => {
+let clear_at = (t, ~x, ~y, ~z): t(_) => {
   let blocks =
     List.filter(t.blocks, ~f=((hx, hy, hz, _)) =>
       !(hx == x && hy == y && hz == z)
     );
-  of_blocks(blocks);
+  of_blocks(blocks, ~marks=t.marks);
 };
 
 let set_at =
-    (t: t, ~x: int, ~y: int, ~z: int, ~block: Minecraft.Block.material) => {
+    (t: t(_), ~x: int, ~y: int, ~z: int, ~block: Minecraft.Block.material)
+    : t(_) => {
   let blocks =
     List.filter(t.blocks, ~f=((hx, hy, hz, _)) =>
       !(hx == x && hy == y && hz == z)
     );
   let blocks = [(x, y, z, block), ...blocks];
-  of_blocks(blocks);
+  of_blocks(blocks, ~marks=t.marks);
+};
+
+let get_mark = (t: t('a), ~mark: 'a) => {
+  Core_kernel.(
+    List.find_map(t.marks, ~f=((x, y, z, m)) =>
+      if (Poly.(m == mark)) {
+        Some((x, y, z));
+      } else {
+        None;
+      }
+    )
+  );
+};
+
+let strip_marks = (t: t(_)): t(_) => {
+  {...t, marks: []};
 };

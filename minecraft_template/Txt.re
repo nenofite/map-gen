@@ -69,7 +69,7 @@ let parse_line = (~palette, ~y, ~z, blocks, marks, line) => {
   (blocks^, marks^);
 };
 
-let parse_template_with_marks = (~palette=[], s) => {
+let parse_template = (~palette=[], s) => {
   let palette = palette @ default_palette;
   let rec go = (~y, ~z, blocks, marks, lines) => {
     switch (lines) {
@@ -88,38 +88,7 @@ let parse_template_with_marks = (~palette=[], s) => {
     |> String.split_on_chars(~on=['\n'])
     |> List.map(~f=Caml.String.trim);
   let (blocks, marks) = go(~y=0, ~z=0, [], [], lines);
-  let template = Core.of_blocks(blocks) |> Core.flip_y;
-  let height = Core.y_size_of(template);
-  let marks =
-    Core_kernel.List.map(marks, ~f=((x, y, z, m)) =>
-      (x, height - y - 1, z, m)
-    );
-  (template, marks);
-};
-
-let parse_template = (~palette=?, s) => {
-  open Core_kernel;
-  let (template, marks) = parse_template_with_marks(~palette?, s);
-  if (!List.is_empty(marks)) {
-    raise(
-      Template_txt_failure(
-        "Template contains marks, please use parse_template_with_marks",
-      ),
-    );
-  };
-  template;
-};
-
-let get_mark = (marks: marks('a), ~mark: 'a) => {
-  Core_kernel.(
-    List.find_map(marks, ~f=((x, y, z, m)) =>
-      if (Poly.(m == mark)) {
-        Some((x, y, z));
-      } else {
-        None;
-      }
-    )
-  );
+  Core.of_blocks(blocks, ~marks) |> Core.flip_y;
 };
 
 let%expect_test "parse a template with marks" = {
@@ -131,8 +100,7 @@ let%expect_test "parse a template with marks" = {
       ("*", Marked(`Foo, Filled(Bedrock))),
       ("&", Marked(`Bar, Empty)),
     ];
-  let (template, marks) =
-    parse_template_with_marks(~palette, {|
+  let template = parse_template(~palette, {|
 - -
 & -
 
@@ -159,11 +127,11 @@ let%expect_test "parse a template with marks" = {
   (Bedrock)
   |};
 
-  let (fx, fy, fz) = Option.value_exn(get_mark(marks, ~mark=`Foo));
+  let (fx, fy, fz) = Option.value_exn(Core.get_mark(template, ~mark=`Foo));
   Printf.printf("%d %d %d\n", fx, fy, fz);
   %expect
   "0 0 1";
-  let (bx, by, bz) = Option.value_exn(get_mark(marks, ~mark=`Bar));
+  let (bx, by, bz) = Option.value_exn(Core.get_mark(template, ~mark=`Bar));
   Printf.printf("%d %d %d\n", bx, by, bz);
   %expect
   "0 1 1";

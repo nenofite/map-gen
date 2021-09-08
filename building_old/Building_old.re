@@ -20,7 +20,7 @@ let xz_of_direction = direction =>
   };
 
 type piece = {
-  template: Minecraft_template.t,
+  template: Minecraft_template.t(unit),
   open_sides: list(direction),
   usage,
 };
@@ -185,7 +185,8 @@ let apply_assembly = (region: Minecraft.Region.t, assembly): unit => {
 };
 
 let apply_template_y =
-    (region: Minecraft.Region.t, ~x, ~z, template: Minecraft_template.t): int => {
+    (region: Minecraft.Region.t, ~x, ~z, template: Minecraft_template.t(_))
+    : int => {
   /* Flatten the footprint and get an elevation */
   let y = flatten_footprint(region, ~x, ~z, template.footprint);
   /* Apply at the given elevation */

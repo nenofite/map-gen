@@ -1,8 +1,8 @@
 open! Core_kernel;
 open Town_overlay_i;
 
-let (bedroom_1_t, bedroom_1_m) =
-  Minecraft_template.Txt.parse_template_with_marks(
+let bedroom_1_t =
+  Minecraft_template.Txt.parse_template(
     ~palette=
       Minecraft_template.Txt.Palette_incl.[
         ("B", Filled(Orange_bed(N, Head))),
@@ -61,12 +61,6 @@ X = = = = = X
 X X X X X X X
     |},
   );
-let bedroom_1 = {
-  template: bedroom_1_t,
-  worksite_offset:
-    Option.value_exn(
-      Minecraft_template.Txt.get_mark(bedroom_1_m, ~mark=`Worksite),
-    ),
-};
+let bedroom_1 = {template: bedroom_1_t};
 
 let houses = [bedroom_1];

@@ -350,18 +350,23 @@ let worksite_material = (worksite: worksite) => {
 };
 
 let apply_worksite_to_house = (~house: building, worksite: option(worksite)) => {
-  switch (worksite) {
-  | None => house.template
-  | Some(worksite) =>
-    let (x, y, z) = house.worksite_offset;
-    Minecraft_template.set_at(
-      ~x,
-      ~y,
-      ~z,
-      ~block=worksite_material(worksite),
-      house.template,
-    );
-  };
+  Core_kernel.(
+    switch (worksite) {
+    | None => house.template
+    | Some(worksite) =>
+      let (x, y, z) =
+        Option.value_exn(
+          Minecraft_template.get_mark(house.template, ~mark=`Worksite),
+        );
+      Minecraft_template.set_at(
+        ~x,
+        ~y,
+        ~z,
+        ~block=worksite_material(worksite),
+        house.template,
+      );
+    }
+  );
 };
 
 let create_house = (house: house, region: Minecraft.Region.t) => {
