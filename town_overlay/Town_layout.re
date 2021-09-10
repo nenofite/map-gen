@@ -640,6 +640,8 @@ let test = () => {
 module Test_helpers = {
   open Core_kernel;
 
+  type text_grid = Grid.Mut.t(string);
+
   let show_grid =
       (
         ~side,
@@ -649,42 +651,90 @@ module Test_helpers = {
         ~radius=side,
         (),
       )
-      : unit => {
+      : text_grid => {
     let (cx, cz) = center;
     let min_x = Int.clamp_exn(cx - radius, ~min=0, ~max=side - 1);
     let max_x = Int.clamp_exn(cx + radius, ~min=0, ~max=side - 1);
     let min_z = Int.clamp_exn(cz - radius, ~min=0, ~max=side - 1);
     let max_z = Int.clamp_exn(cz + radius, ~min=0, ~max=side - 1);
-    for (z in min_z to max_z) {
-      for (x in min_x to max_x) {
-        show_cell(get(x, z));
+    Grid.Mut.init(
+      ~side=max(max_x - min_x + 1, max_z - min_z + 1),
+      ~f=
+        (~x, ~z) => {
+          let x = x + min_x;
+          let z = z + min_z;
+          if (min_x <= x && x <= max_x && min_z <= z && z <= max_z) {
+            show_cell(get(x, z));
+          } else {
+            "";
+          };
+        },
+      "",
+    );
+  };
+
+  let diff_grid =
+      (
+        ~side,
+        ~get,
+        ~show_cell,
+        ~center=(side / 2, side / 2),
+        ~radius=side,
+        old_grid: text_grid,
+      )
+      : text_grid => {
+    let (cx, cz) = center;
+    let min_x = Int.clamp_exn(cx - radius, ~min=0, ~max=side - 1);
+    let max_x = Int.clamp_exn(cx + radius, ~min=0, ~max=side - 1);
+    let min_z = Int.clamp_exn(cz - radius, ~min=0, ~max=side - 1);
+    let max_z = Int.clamp_exn(cz + radius, ~min=0, ~max=side - 1);
+    Grid.Mut.init(
+      ~side=max(max_x - min_x, max_z - min_z),
+      ~f=
+        (~x, ~z) =>
+          if (min_x <= x && x <= max_x && min_z <= z && z <= max_z) {
+            let old_val = Grid.Mut.get(~x, ~z, old_grid);
+            let new_val = show_cell(get(x, z));
+            if (String.(new_val != old_val)) {
+              new_val;
+            } else {
+              "";
+            };
+          } else {
+            "";
+          },
+      "",
+    );
+  };
+
+  let print_grid = (grid: text_grid): unit => {
+    let side = Grid.Mut.side(grid);
+    for (z in 0 to side - 1) {
+      for (x in 0 to side - 1) {
+        Out_channel.output_string(stdout, Grid.Mut.get(~x, ~z, grid));
         Out_channel.output_char(stdout, ' ');
       };
       Out_channel.newline(stdout);
     };
   };
 
-  let show_elevation = (~radius=?, ~center=?, elevation: Grid.t(int)): unit => {
+  let show_elevation = (~radius=?, ~center=?, elevation: Grid.t(int)) => {
     show_grid(
       ~radius?,
       ~center?,
       ~side=Grid.side(elevation),
       ~get=(x, z) => Grid.get(x, z, elevation),
-      ~show_cell=Caml.print_int,
+      ~show_cell=Int.to_string,
       (),
     );
   };
 
-  let show_obstacles =
-      (~radius=?, ~center=?, obstacles: Sparse_grid.t(unit)): unit => {
+  let show_obstacles = (~radius=?, ~center=?, obstacles: Sparse_grid.t(unit)) => {
     let show_cell = o =>
-      Out_channel.output_char(
-        stdout,
-        switch (o) {
-        | None => ' '
-        | Some () => 'X'
-        },
-      );
+      switch (o) {
+      | None => " "
+      | Some () => "X"
+      };
     show_grid(
       ~radius?,
       ~center?,
@@ -700,10 +750,10 @@ let%expect_test "creates a town from input" = {
   open Core_kernel;
   open Test_helpers;
   let input = make_input();
-  show_obstacles(~radius=5, input.obstacles);
+  show_obstacles(~radius=5, input.obstacles) |> print_grid;
   %expect
   "";
-  show_elevation(~radius=5, input.elevation);
+  show_elevation(~radius=5, input.elevation) |> print_grid;
   %expect
   "
     89 89 89 89 89 89 87 86 85 84 83
@@ -721,7 +771,7 @@ let%expect_test "creates a town from input" = {
 
   let output = run(input);
   ignore([%expect.output]);
-  show_obstacles(output.obstacles);
+  show_obstacles(output.obstacles) |> print_grid;
   %expect
   "
                                                                               X X X X X X X X X X X X X X X X X X X X X
