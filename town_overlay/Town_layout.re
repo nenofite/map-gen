@@ -307,12 +307,14 @@ let rec fit_block = (state, ~side_x, ~side_z) => {
 
 let outlets_of_block = block => {
   let {min_x, max_x, min_z, max_z} = block;
+  let cx = (max_x + min_x) / 2;
+  let cz = (max_z + min_z) / 2;
   let m = 3;
   let top_bottom =
-    Mg_util.Range.map(min_x, max_x, x => [(x, min_z - m), (x, max_z + m)])
+    Mg_util.Range.map(cx - 1, cx + 1, x => [(x, min_z - m), (x, max_z + m)])
     |> List.concat;
   let left_right =
-    Mg_util.Range.map(min_z, max_z, z => [(min_x - m, z), (max_x + m, z)])
+    Mg_util.Range.map(cz - 1, cz + 1, z => [(min_x - m, z), (max_x + m, z)])
     |> List.concat;
   left_right
   @ top_bottom
@@ -822,9 +824,9 @@ let%expect_test "creates a town from input" = {
                                                                                   X X X X X X X X X X X X X X X X X X                 X X X X X X X
                                                                                                                                       X X X X X X X   X X X
                                                                                                                                       X X X X X X X X X X X
-                                                                                        X X X                                         X X X X X X X X X X X
-                                                                                        X X X                                         X X X X X X X X X X X
-                                                                                        X X X                                         X X X X X X X   X X X
+                                                                                            X X X X                                   X X X X X X X X X X X
+                                                                                            X X X X                                   X X X X X X X X X X X
+                                                                                            X X X X                                   X X X X X X X   X X X
                                                                                         X X X X X X X                                 X X X X X X X   X X X
                                                         X X X X X X X X X X X X X X X X X X X X X X X X X X                                           X X X
                                                         X X X X X X X X X X X X X X X X X X X X X X X X X X X X X                             X X X X X X X
@@ -838,18 +840,18 @@ let%expect_test "creates a town from input" = {
     X X X X X X X X X X X X X X X X X X X X           X X X X X X X X X X X           X X X X X X X                       X X X X X X X   X X X       X X X X X X X X X X X
     X X X X X X X X X X X X X X X X X X X X           X X X X X X X X X X X           X X X X X X X                       X X X X X X X   X X X       X X X X X X X   X X X
     X X X X X X X X X X X X X X X X X X X X           X X X   X X X X X X X                                               X X X X X X X   X X X       X X X X X X X   X X X
-    X X X X X X X X X X X X X X X X X X X X                   X X X X X X X                                               X X X X X X X   X X X                       X X X       X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X X                                         X X X X X X X                         X X X X X X X   X X X X X X X X X X X X X X X X X X     X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X X                                         X X X X X X X                                         X X X X X X X X X X X X X X X X X X     X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X X                                         X X X X X X X                                         X X X X X X X X X X X X X X X X X X     X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X X                                         X X X X X X X                                         X X X                                   X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X X                                         X X X X X X X                                         X X X                                   X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X X                                         X X X X X X X                                         X X X                                   X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X X                                         X X X X X X X                       X X X X X X X X X X X X                                   X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X X                                             X X X                           X X X X X X X X X X X X                                   X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X X                                             X X X X X X           X X X X X X X X X X X X X X X X X                                   X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X X                                         X X X X X X X X X X X X X X X X X X X X X             X X X                                   X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X X                                       X X X X X X X X X X X X X X X X X X X X X X         X X X X X X X                               X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X           X X X   X X X X X X X                                               X X X X X X X   X X X                       X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X           X X X                         X X X X X X X                         X X X X X X X   X X X X X X X X X X X X X X X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X           X X X                         X X X X X X X                                         X X X X X X X X X X X X X X X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X           X X X                         X X X X X X X                                         X X X X X X X X X X X X X X X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X           X X X                         X X X X X X X                                         X X X                       X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X   X X X X X X X                         X X X X X X X                                         X X X                       X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X   X X X X X X X                         X X X X X X X                                         X X X                       X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X   X X X X X X X                         X X X X X X X                       X X X X X X X X X X X X                       X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X                                             X X X                           X X X X X X X X X X X X                       X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X                                             X X X X X X           X X X X X X X X X X X X X X X X X                       X X X X     X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X                                         X X X X X X X X X X X X X X X X X X X X X             X X X                       X X X X     X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X                                       X X X X X X X X X X X X X X X X X X X X X X         X X X X X X X                   X X X X     X X X X X X X X X X X X X X X X X X X
     X X X X X X X X X X X X X X X X X X X X     X X X X X X X                     X X X X X X   X X X X X X X X X                     X X X X X X X                               X X X X X X X X X X X X X X X X X X X
     X X X X X X X X X X X X X X X X X X X X     X X X X X X X                     X X X X       X X X X X X X X X                     X X X X X X X                               X X X X X X X X X X X X X X X X X X X
     X X X X X X X X X X X X X X X X X X X X     X X X X X X X X X X X           X X X X         X X X X X X X X X                     X X X X X X X                               X X X X X X X X X X X X X X X X X X X
@@ -858,11 +860,11 @@ let%expect_test "creates a town from input" = {
     X X X X X X X X X X X X X X X X X X X X     X X X X X X X   X X X X X X X X X X X           X X X X X X X X X X                   X X X X X X X                               X X X X X X X X X X X X X X X X X X X
     X X X X X X X X X X X X X X X X X X X X     X X X X X X X   X X X X X X X X X X X           X X X X X X X X X X                                                               X X X X X X X X X X X X X X X X X X X
     X X X X X X X X X X X X X X X X X X X X                     X X X X X X X X                               X X X                                                               X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X X       X X X X X X X X X X X X X X                                 X X X                                                               X X X X X X X X X X X X X X X X X X X
-                                                X X X X X X X X X X X X X X X   X X X X X X X                 X X X                                                               X X X X X X X X X X X X X X X X X X X
-                                          X X X X X X X X X X X X X X X X X X   X X X X X X X                 X X X                                                               X X X X X X X X X X X X X X X X X X X
-                                          X X X X X X X                 X X X X X X X X X X X                 X X X   X X X X X X X
-                                          X X X X X X                   X X X X X X X X X X X                 X X X   X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X                   X X X X X X X X                                 X X X                                                               X X X X X X X X X X X X X X X X X X X
+                                                              X X X X X X X X   X X X X X X X                 X X X                                                               X X X X X X X X X X X X X X X X X X X
+                                                              X X X X X X X X   X X X X X X X                 X X X                                                               X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X                 X X X   X X X X X X X
+                                                                        X X X X X X X X X X X                 X X X   X X X X X X X
                                                                         X X X X X X X X X X X                 X X X X X X X X X X X
                                                                                 X X X X X X X                 X X X X X X X X X X X
                                                                                 X X X X X X X                 X X X X X X X X X X X       X X X X X X X X X X X X X X X X X X X X X X X X
@@ -875,14 +877,14 @@ let%expect_test "creates a town from input" = {
                                                                                             X X X X X X X     X X X                       X X X X X X X X X X X X X X X X X X X X X X X X
                                     X X X X X X X X X X X X X X X X X X X X X X X X         X X X X X X X     X X X                       X X X X X X X X X X X X X X X X X X X X X X X X
                                     X X X X X X X X X X X X X X X X X X X X X X X X         X X X X X X X     X X X                       X X X X X X X X X X X X X X X X X X X X X X X X
-                                    X X X X X X X X X X X X X X X X X X X X X X X X             X X X         X X X                       X X X X X X X X X X X X X X X X X X X X X X X X
-                                    X X X X X X X X X X X X X X X X X X X X X X X X     X X X X X X X X X X X X X X                       X X X X X X X X X X X X X X X X X X X X X X X X
-                                    X X X X X X X X X X X X X X X X X X X X X X X X     X X X X X X X X X X X X X X                       X X X X X X X X X X X X X X X X X X X X X X X X
-                                    X X X X X X X X X X X X X X X X X X X X X X X X     X X X X X X X X X X X X X X X X X X               X X X X X X X X X X X X X X X X X X X X X X X X
-                                    X X X X X X X X X X X X X X X X X X X X X X X X                           X X X X X X X X             X X X X X X X X X X X X X X X X X X X X X X X X
-                                    X X X X X X X X X X X X X X X X X X X X X X X X                           X X X X X X X X X           X X X X X X X X X X X X X X X X X X X X X X X X
-                                    X X X X X X X X X X X X X X X X X X X X X X X X                                   X X X X X X         X X X X X X X X X X X X X X X X X X X X X X X X
-                                    X X X X X X X X X X X X X X X X X X X X X X X X                                     X X X X X X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X             X X X         X X X               X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X           X X X X X X X X X X X               X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X       X X X X X X X X X X X X X               X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X       X X X X X X X X X X X X X X X X X       X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X     X X X X X X           X X X X X X X X     X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X     X X X X               X X X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X     X X X X                       X X X X X X X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X     X X X                           X X X X X X X X   X X X X X X X X X X X X X X X X X X X X X X X X
                                     X X X X X X X X X X X X X X X X X X X X X X X X                                       X X X X X X X   X X X X X X X X X X X X X X X X X X X X X X X X
                                     X X X X X X X X X X X X X X X X X X X X X X X X                                         X X X X X X
                                     X X X X X X X X X X X X X X X X X X X X X X X X                                         X X X X X X
@@ -892,7 +894,8 @@ let%expect_test "creates a town from input" = {
                                     X X X X X X X X X X X X X X X X X X X X X X X X
                                     X X X X X X X X X X X X X X X X X X X X X X X X
                                     X X X X X X X X X X X X X X X X X X X X X X X X
-                                    X X X X X X X X X X X X X X X X X X X X X X X X";
+                                    X X X X X X X X X X X X X X X X X X X X X X X X
+  ";
 };
 
 let%expect_test "builds up" = {
@@ -1000,12 +1003,12 @@ let%expect_test "builds up" = {
   diff(show_layout_state(state)) |> print_grid;
   %expect
   "
-                              O O O
-                              O O O
-                              O O O
-                              O O O
-                              O O O
-
+                          O O O O O
+                        O O O O O O
+                      O O O O O O O
+                      O O O O O
+                      O O O O
+                      O O O
 
     X X X X X X X X X X X X X X X X X X
     X X X X X X X X X X X X X X X X X X
@@ -1052,11 +1055,11 @@ let%expect_test "builds up" = {
     X X X X X X X X X X X X X X X X X X                                                     X X X X X X X X X X X X X X X X X X X X X X X X
                                                                                             X X X X X X X X X X X X X X X X X X X X X X X X
                                                                                   O O O     X X X X X X X X X X X X X X X X X X X X X X X X
-                                    O O O                                         O O O     X X X X X X X X X X X X X X X X X X X X X X X X
-                                    O O O                                         O O O     X X X X X X X X X X X X X X X X X X X X X X X X
-                                    O O O                                                   X X X X X X X X X X X X X X X X X X X X X X X X
-                                    O O O                                                   X X X X X X X X X X X X X X X X X X X X X X X X
-                                    O O O                                                   X X X X X X X X X X X X X X X X X X X X X X X X
+                  O O O                                                           O O O     X X X X X X X X X X X X X X X X X X X X X X X X
+                  O O O                                                           O O O     X X X X X X X X X X X X X X X X X X X X X X X X
+                  O O O                                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+                  O O O                                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+                  O O O                                                                     X X X X X X X X X X X X X X X X X X X X X X X X
                                                                                             X X X X X X X X X X X X X X X X X X X X X X X X
                                                                                             X X X X X X X X X X X X X X X X X X X X X X X X
                                                                                             X X X X X X X X X X X X X X X X X X X X X X X X
@@ -1091,7 +1094,7 @@ let%expect_test "builds up" = {
 
 
 
-                                                                                              O O O
+                                                                          O O O
 
 
                                                       X X X X X X X X X X X X X X X X X X X X X X X X
