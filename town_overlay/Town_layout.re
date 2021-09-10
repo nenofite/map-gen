@@ -484,6 +484,7 @@ let place_buildings =
   let buildings = Mg_util.shuffle(buildings);
   let rec go = (state, buildings, amount, result) => {
     switch (buildings) {
+    | _ when amount <= 0 => (state, result)
     | [] => (state, result)
     | [building, ...buildings] =>
       switch (fit_building(state, ~building)) {
@@ -585,8 +586,15 @@ let prepare_bell = (state: layout_state) => {
     ~new_paths=bell_paths,
     state.pathing_state,
   );
-  (bell, state);
+  (state, bell);
 };
+
+let prepare_houses = (num_houses: int, state: layout_state) =>
+  place_buildings(
+    state,
+    ~buildings=Town_templates.houses,
+    ~amount=num_houses,
+  );
 
 let run = (input': input): output => {
   let target_population =
@@ -596,15 +604,8 @@ let run = (input': input): output => {
   let num_houses = target_population;
 
   let state = init_state_and_centers(input');
-  let (bell, state) = prepare_bell(state);
-
-  /* Grab houses */
-  let (state, houses) =
-    place_buildings(
-      state,
-      ~buildings=Town_templates.houses,
-      ~amount=num_houses,
-    );
+  let (state, bell) = prepare_bell(state);
+  let (state, houses) = prepare_houses(num_houses, state);
 
   /* Grab farms */
   let (state, farms) =
@@ -781,105 +782,91 @@ let%expect_test "creates a town from input" = {
   show_obstacles(output.obstacles) |> print_grid;
   %expect
   "
-                                                                                          X X X X X X X X X
-                                                                                      X X X X X X X X X X X
-                                                                                    X X X X X X X X X X X X
-                                                                                    X X X X X X       X X X
-        X X X X X X X X X X X X X X X X X X X X X X X                               X X X X       X X X X X X X
-        X X X X X X X X X X X X X X X X X X X X X X X                       X X X X X X X         X X X X X X X                               X X X X X X X
-        X X X X X X X X X X X X X X X X X X X X X X X                       X X X X X X X         X X X X X X X                               X X X X X X X   X X X
-        X X X X X X X X X X X X X X X X X X X X X X X                       X X X X X X X         X X X X X X X                               X X X X X X X X X X X
-        X X X X X X X X X X X X X X X X X X X X X X X                       X X X                 X X X X X X X                               X X X X X X X X X X X
-        X X X X X X X X X X X X X X X X X X X X X X X                       X X X                 X X X X X X X                               X X X X X X X X X X X
-        X X X X X X X X X X X X X X X X X X X X X X X                       X X X                 X X X X X X X                               X X X X X X X   X X X
-        X X X X X X X X X X X X X X X X X X X X X X X                       X X X                                                             X X X X X X X   X X X
-        X X X X X X X X X X X X X X X X X X X X X X X                       X X X                                                                             X X X                                         X X X X X X X X X X X X X X X X X X X
-        X X X X X X X X X X X X X X X X X X X X X X X                       X X X                                                                             X X X                                         X X X X X X X X X X X X X X X X X X X
-        X X X X X X X X X X X X X X X X X X X X X X X                       X X X                                                                             X X X                                         X X X X X X X X X X X X X X X X X X X
-        X X X X X X X X X X X X X X X X X X X X X X X                       X X X                                                                             X X X                                         X X X X X X X X X X X X X X X X X X X
-        X X X X X X X X X X X X X X X X X X X X X X X       X X X X X X X X X X X                                                                             X X X                                         X X X X X X X X X X X X X X X X X X X
-        X X X X X X X X X X X X X X X X X X X X X X X       X X X X X X X X X X X                                                                             X X X                                         X X X X X X X X X X X X X X X X X X X
-        X X X X X X X X X X X X X X X X X X X X X X X     X X X X X X X X X X X X               X X X X X X X                                                 X X X                                         X X X X X X X X X X X X X X X X X X X
-        X X X X X X X X X X X X X X X X X X X X X X X     X X X X           X X X               X X X X X X X                                                 X X X                                         X X X X X X X X X X X X X X X X X X X
-        X X X X X X X X X X X X X X X X X X X X X X X     X X X X       X X X X X X X           X X X X X X X                                                 X X X                                         X X X X X X X X X X X X X X X X X X X
-        X X X X X X X X X X X X X X X X X X X X X X X       X X X       X X X X X X X           X X X X X X X                       X X X X X X X             X X X                                         X X X X X X X X X X X X X X X X X X X
-                                                            X X X       X X X X X X X           X X X X X X X                       X X X X X X X             X X X                                         X X X X X X X X X X X X X X X X X X X
-                                                            X X X       X X X X X X X           X X X X X X X                       X X X X X X X X X X X     X X X                                         X X X X X X X X X X X X X X X X X X X
-                                                            X X X       X X X X X X X           X X X X X X X                       X X X X X X X X X X X     X X X                                         X X X X X X X X X X X X X X X X X X X
-                                                        X X X X X       X X X X X X X                                               X X X X X X X X X X X     X X X                                         X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X         X X X X X X X X       X X X X X X X                                               X X X X X X X   X X X X X X X X X X X X X X X X X X X X X               X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X         X X X X X X X X                             X X X X X X X                         X X X X X X X   X X X X X X X X X X X X X X X X X X X X X               X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X         X X X X X X                                 X X X X X X X                                         X X X X X X X X X X X X X X X X X X X X X               X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X         X X X                                       X X X X X X X                                       X X X X                               X X X               X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X         X X X                                       X X X X X X X                                     X X X X X               X X X X X X X   X X X X X X X X     X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X         X X X                                       X X X X X X X                                     X X X X X               X X X X X X X   X X X X X X X X     X X X X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X         X X X                                       X X X X X X X                                   X X X X X                 X X X X X X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X         X X X                                       X X X X X X X                             X X X X X X X                   X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X         X X X                                           X X X                                 X X X X X X X                   X X X X X X X X X X X
-    X X X X X X X X X X X X X X X X X X X         X X X                                           X X X X X X                           X X X X X X                     X X X X X X X   X X X
-    X X X X X X X X X X X X X X X X X X X         X X X                                           X X X X X X X X X X X X X             X X X                           X X X X X X X   X X X
-    X X X X X X X X X X X X X X X X X X X         X X X                                           X X X X X X X X X X X X X             X X X   X X X X X X X                           X X X
-    X X X X X X X X X X X X X X X X X X X         X X X   X X X X X X X                           X X X   X X X X X X X X X             X X X   X X X X X X X                           X X X
-    X X X X X X X X X X X X X X X X X X X         X X X   X X X X X X X                           X X X   X X X X X X X X X X X X X X X X X X X X X X X X X X                           X X X
-    X X X X X X X X X X X X X X X X X X X         X X X X X X X X X X X                           X X X   X X X X X X X X X X X X X X X X X X X X X X X X X X                           X X X
-    X X X X X X X X X X X X X X X X X X X         X X X X X X X X X X X                           X X X   X X X X X X X X X X X X X X X X X X X X X X X X X X                           X X X
-    X X X X X X X X X X X X X X X X X X X         X X X X X X X X X X X                           X X X   X X X X X X X X X                     X X X X X X X                           X X X
-    X X X X X X X X X X X X X X X X X X X     X X X X X   X X X X X X X         X X X X X X X X X X X X   X X X X X X X X X X X X               X X X X X X X                           X X X
-    X X X X X X X X X X X X X X X X X X X     X X X X X   X X X X X X X         X X X X X X X X X X X X   X X X X X X X X X X X X X                                                     X X X
-                                              X X X X X                         X X X X X X X X X X X X                 X X X X X X                                                     X X X
-                                                  X X X X X X X X X X X X X X X X X X X       X X X                         X X X X X X                                               X X X X
-                                                  X X X X X X X X X X X X X X X X X X X   X X X X X X X                       X X X X X         X X X X X X X                         X X X X
-                                                  X X X X X X X X X X X X X X X X X X X   X X X X X X X                       X X X X X X       X X X X X X X                         X X X X
-                                                                                  X X X   X X X X X X X                           X X X X X X   X X X X X X X                         X X X
-                                                                                  X X X   X X X X X X X                           X X X X X X   X X X X X X X                     X X X X X X X
-                                                                                  X X X   X X X X X X X                             X X X X X   X X X X X X X                     X X X X X X X
-                                                                                  X X X   X X X X X X X                                 X X X   X X X X X X X                     X X X X X X X
-                                                                                  X X X   X X X X X X X                                 X X X   X X X X X X X                     X X X X X X X
-                                                                                  X X X                                 X X X X X X X   X X X                                     X X X X X X X
-                                                                                  X X X X X X                           X X X X X X X   X X X                                     X X X X X X X
-                                                                                  X X X X X X         X X X X X X X     X X X X X X X X X X X X X X X X X X X X X X X X X X X     X X X X X X X
-                                                                                  X X X X X X         X X X X X X X     X X X X X X X X X X X X X X X X X X X X X X X X X X X
-                                                                                        X X X X X X X X X X X X X X     X X X X X X X X X X X X X X X X X X X X X X X X X X X
-                                                                                        X X X X X X X X X X X X X X     X X X X X X X                                 X X X
-                                                                                        X X X X X X X X X X X X X X     X X X X X X X                             X X X X X X X
-                                                                                        X X X X X X   X X X X X X X                                               X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X             X X X   X X X X X X X                                               X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X             X X X                                                               X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X             X X X                                                               X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X             X X X           X X X X X X X                                       X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X             X X X           X X X X X X X                                       X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X     X X X X X X X X X X X X X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X     X X X X X X X X X X X X X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X     X X X X X X X X X X X X X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X                 X X X       X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X                 X X X       X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X                 X X X
-                                            X X X X X X X X X X X X X X X X X X X                 X X X
-                                            X X X X X X X X X X X X X X X X X X X                 X X X
-                                            X X X X X X X X X X X X X X X X X X X                 X X X   X X X X X X X X X X X X X X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X                         X X X X X X X X X X X X X X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X                         X X X X X X X X X X X X X X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X                         X X X X X X X X X X X X X X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X                         X X X X X X X X X X X X X X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X                         X X X X X X X X X X X X X X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X                         X X X X X X X X X X X X X X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X                         X X X X X X X X X X X X X X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X                         X X X X X X X X X X X X X X X X X X X X
-                                            X X X X X X X X X X X X X X X X X X X                         X X X X X X X X X X X X X X X X X X X X
-                                                                                                          X X X X X X X X X X X X X X X X X X X X
-                                                                                                          X X X X X X X X X X X X X X X X X X X X
-                                                                                                          X X X X X X X X X X X X X X X X X X X X
-                                                                                                          X X X X X X X X X X X X X X X X X X X X
-                                                                                                          X X X X X X X X X X X X X X X X X X X X
-                                                                                                          X X X X X X X X X X X X X X X X X X X X
-                                                                                                          X X X X X X X X X X X X X X X X X X X X
-                                                                                                          X X X X X X X X X X X X X X X X X X X X
-                                                                                                          X X X X X X X X X X X X X X X X X X X X
-                                                                                                          X X X X X X X X X X X X X X X X X X X X
-                                                                                                          X X X X X X X X X X X X X X X X X X X X
-                                                                                                          X X X X X X X X X X X X X X X X X X X X
-                                                                                                          X X X X X X X X X X X X X X X X X X X X
-                                                                                                          X X X X X X X X X X X X X X X X X X X X"
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X                                         X X X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X                                         X X X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X                                         X X X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X X X X X X X X X                                         X X X X X X X X X X X X X X X X X X X X X
+                                                              X X X     X X X X X X X X X X X X X X X X X X X                                         X X X X X X X X X X X X X X X X X X X X X
+                                                            X X X X     X X X X X X X X X X X X X X X X X X X                                         X X X X X X X X X X X X X X X X X X X X X
+                                                            X X X X                                                                                   X X X X X X X X X X X X X X X X X X X X X
+                                        X X X X X X X X X X X X X X                                                                                   X X X X X X X X X X X X X X X X X X X X X
+                                        X X X X X X X X X X X X X                                                                                     X X X X X X X X X X X X X X X X X X X X X
+                                        X X X X X X X X X X X X X           X X X X X X X                                                             X X X X X X X X X X X X X X X X X X X X X
+                                        X X X           X X X               X X X X X X X                                                             X X X X X X X X X X X X X X X X X X X X X
+                                        X X X       X X X X X X X           X X X X X X X                                                             X X X X X X X X X X X X X X X X X X X X X
+                                        X X X       X X X X X X X           X X X X X X X                       X X X X X X X                         X X X X X X X X X X X X X X X X X X X X X
+                                        X X X       X X X X X X X           X X X X X X X                       X X X X X X X                         X X X X X X X X X X X X X X X X X X X X X
+                                        X X X       X X X X X X X           X X X X X X X                       X X X X X X X X X X X                 X X X X X X X X X X X X X X X X X X X X X
+                                        X X X       X X X X X X X           X X X X X X X                       X X X X X X X X X X X                 X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X       X X X X X X X                                               X X X X X X X X X X X                 X X X X X X X X X X X X X X X X X X X X X
+                              X X X X X X X X       X X X X X X X                                               X X X X X X X   X X X     X X X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X X X X X X                             X X X X X X X                         X X X X X X X   X X X     X X X X X
+                              X X X X X X                                 X X X X X X X                                         X X X     X X X X X
+                              X X X                                       X X X X X X X                                       X X X X X X X X X
+                              X X X                                       X X X X X X X                                     X X X X X X X X X X     X X X X X X X X X X X X X X X X X X X X X
+                              X X X                                       X X X X X X X                                     X X X X X X X X X X     X X X X X X X X X X X X X X X X X X X X X
+                              X X X                                       X X X X X X X                                   X X X X X       X X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X                                       X X X X X X X                             X X X X X X X         X X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X                                           X X X                                 X X X X X X X         X X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X                                           X X X X X X                           X X X X X X             X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X                                           X X X X X X X X X X X X X             X X X                   X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X                                           X X X X X X X X X X X X X             X X X   X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X   X X X X X X X                           X X X   X X X X X X X X X             X X X   X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X   X X X X X X X                           X X X   X X X X X X X X X X X X X X X X X X X X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X X X X X X X X X                           X X X   X X X X X X X X X X X X X X X X X X X X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X X X X X X X X X                           X X X   X X X X X X X X X X X X X X X X X X X X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X X X X X X X X X                           X X X   X X X X X X X X X                     X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X   X X X X X X X         X X X X X X X X X X X X   X X X X X X X X X X X X               X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X   X X X X X X X         X X X X X X X X X X X X   X X X X X X X X X X X X X                             X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X                         X X X X X X X X X X X X                 X X X X X X                             X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X X X X X X X X X X X X X X X X X       X X X                         X X X X X X                         X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X X X X X X X X X X X X X X X X X   X X X X X X X                       X X X X X         X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X
+                              X X X X X X X X X X X X X X X X X X X   X X X X X X X                       X X X X X X       X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X
+                                                              X X X   X X X X X X X                           X X X X X X   X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X
+                                                              X X X   X X X X X X X                           X X X X X X   X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                 X X X   X X X X X X X                             X X X X X   X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                 X X X   X X X X X X X                                 X X X   X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                 X X X   X X X X X X X                                 X X X   X X X X X X X   X X X
+    X X X X X X X X X X X X X X X X X X X X X                 X X X                                 X X X X X X X   X X X                   X X X
+    X X X X X X X X X X X X X X X X X X X X X                 X X X X X X                           X X X X X X X   X X X                   X X X
+    X X X X X X X X X X X X X X X X X X X X X                 X X X X X X         X X X X X X X     X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                 X X X X X X         X X X X X X X     X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                       X X X X X X X X X X X X X X     X X X X X X X X X X X               X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                       X X X X X X X X X X X X X X     X X X X X X X                       X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                       X X X X X X X X X X X X X X     X X X X X X X                       X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                       X X X X X X   X X X X X X X                                         X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                             X X X   X X X X X X X                                         X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                             X X X                                                         X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                             X X X                                                         X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                             X X X           X X X X X X X                                 X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                             X X X           X X X X X X X                                 X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                             X X X X X X X X X X X X X X X                                 X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                             X X X X X X X X X X X X X X X                                 X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X X                             X X X X X X X X X X X X X X X                                 X X X X X X X X X X X X X X X X X X X X X
+                                                                                          X X X X X X X                                 X X X X X X X X X X X X X X X X X X X X X
+                                                                                          X X X X X X X                                 X X X X X X X X X X X X X X X X X X X X X
+                                                                                                                                        X X X X X X X X X X X X X X X X X X X X X
+                                                                                                                                        X X X X X X X X X X X X X X X X X X X X X
+                                                                                                                                        X X X X X X X X X X X X X X X X X X X X X
+                                                                                                                                        X X X X X X X X X X X X X X X X X X X X X
+                                                                                                                                        X X X X X X X X X X X X X X X X X X X X X
+                                                                                                                                        X X X X X X X X X X X X X X X X X X X X X"
 };
 
 let%expect_test "builds up" = {
@@ -911,7 +898,7 @@ let%expect_test "builds up" = {
 
                             #
   ";
-  let (_, state) = prepare_bell(state);
+  let (state, _) = prepare_bell(state);
   diff(show_layout_state(state)) |> print_grid;
   %expect
   "
@@ -924,4 +911,51 @@ let%expect_test "builds up" = {
     O O O O O O O O O
     O O O O O O O O O
     O O O O O O O O O";
+  let (state, _) = prepare_houses(1, state);
+  ignore([%expect.output]);
+  diff(show_layout_state(state)) |> print_grid;
+  %expect
+  "
+                O O O O
+                O O O O
+                O O O O
+    O O O O O O O O O O
+    O O O O O O O O O O
+    O O O O O O O O O
+    O O O
+    O O O   X X X X X X X
+    O O O   X X X X X X X
+    O O O O X X X X X X X
+    O O O O X X X X X X X
+    O O O O X X X X X X X
+            X X X X X X X
+            X X X X X X X";
+  let (state, _) = prepare_houses(3, state);
+  ignore([%expect.output]);
+  diff(show_layout_state(state)) |> print_grid;
+  %expect
+  "
+                            X X X X X X X
+                            X X X X X X X
+                            X X X X X X X
+                            X X X X X X X
+                            X X X X X X X
+                            X X X X X X X
+                            X X X X X X X
+                                O O O
+                                O O O
+                                O O O
+                                O O O
+                                O O O
+        O O O O O O O O O       O O O
+        O O O O O O O O O O     O O O
+        O O O O O O O O O O     O O O
+        O O O       O O O O     O O O
+    X X X X X X X     O O O     O O O
+    X X X X X X X     O
+    X X X X X X X     O
+    X X X X X X X
+    X X X X X X X
+    X X X X X X X
+    X X X X X X X"
 };
