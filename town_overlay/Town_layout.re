@@ -621,6 +621,17 @@ let prepare_farms = (num_farms: int, state: layout_state) => {
   (state, farms);
 };
 
+let assign_jobs_to_houses = (houses, ~num_farms) => {
+  let (farm_houses, prof_houses) = Mg_util.take_both(num_farms, houses);
+  let houses =
+    List.map(~f=building => {building, worksite: None}, farm_houses)
+    @ List.map(
+        ~f=building => {building, worksite: Some(random_worksite())},
+        prof_houses,
+      );
+  houses;
+};
+
 let run = (input': input): output => {
   let target_population =
     min_population + Random.int(max_population - min_population);
@@ -632,16 +643,10 @@ let run = (input': input): output => {
   let (state, bell) = prepare_bell(state);
   let (state, houses) = prepare_houses(num_houses, state);
   let (state, farms) = prepare_farms(num_farms, state);
-
-  /* Assign jobs */
-  let (farm_houses, prof_houses) =
-    Mg_util.take_both(List.length(farms), houses);
-  let houses =
-    List.map(~f=building => {building, worksite: None}, farm_houses)
-    @ List.map(
-        ~f=building => {building, worksite: Some(random_worksite())},
-        prof_houses,
-      );
+  // Fix-up number of farms based on how many plots we could actually place,
+  // rather than the target
+  let num_farms = List.length(farms);
+  let houses = assign_jobs_to_houses(houses, ~num_farms);
 
   let {elevation: _, obstacles, road_obstacles: _, centers: _, pathing_state} = state;
   let roads = Roads.get_paths_list(pathing_state);
@@ -949,7 +954,7 @@ let%expect_test "builds up" = {
             X X X X X X X
             X X X X X X X
             X X X X X X X";
-  let (state, _) = prepare_houses(3, state);
+  let (state, houses) = prepare_houses(3, state);
   ignore([%expect.output]);
   diff(show_layout_state(state)) |> print_grid;
   %expect
@@ -1110,5 +1115,14 @@ let%expect_test "builds up" = {
                                                       X X X X X X X X X X X X X X X X X X X X X X X X
                                                       X X X X X X X X X X X X X X X X X X X X X X X X
                                                       X X X X X X X X X X X X X X X X X X X X X X X X
-  "
+  ";
+
+  let houses = assign_jobs_to_houses(houses, ~num_farms=1);
+  print_s(
+    [%sexp_of: list(option(worksite))](
+      List.map(houses, ~f=h => h.worksite),
+    ),
+  );
+  %expect
+  "(() (Shepherd) (Butcher))";
 };

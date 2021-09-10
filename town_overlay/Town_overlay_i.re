@@ -1,6 +1,6 @@
 open! Core_kernel;
 
-[@deriving bin_io]
+[@deriving (bin_io, sexp)]
 type block_no_elevation = {
   min_x: int,
   max_x: int,
@@ -8,31 +8,31 @@ type block_no_elevation = {
   max_z: int,
 };
 
-[@deriving bin_io]
+[@deriving (bin_io, sexp)]
 type block = {
   xz: block_no_elevation,
   elevation: int,
 };
 
-[@deriving bin_io]
+[@deriving (bin_io, sexp)]
 type worksite =
   | Butcher
   | Fisherman
   | Shepherd;
 
-[@deriving bin_io]
+[@deriving (bin_io, sexp)]
 type marks = [ | `Worksite | `Road];
 
-[@deriving bin_io]
-type building = {template: Minecraft_template.t(marks)};
+[@deriving (bin_io, sexp)]
+type building = {template: [@sexp.opaque] Minecraft_template.t(marks)};
 
-[@deriving bin_io]
+[@deriving (bin_io, sexp)]
 type fitted_building = {
   building,
   block: block_no_elevation,
 };
 
-[@deriving bin_io]
+[@deriving (bin_io, sexp)]
 type house = {
   building: fitted_building,
   worksite: option(worksite),
