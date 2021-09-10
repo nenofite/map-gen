@@ -208,7 +208,7 @@ let prepare_town =
       town_min_z,
     ) => {
   let input = extract_input(canon, town_min_x, town_min_z);
-  let {bell, houses, farms, roads} = Town_layout.run(input);
+  let {bell, houses, farms, roads, obstacles} = Town_layout.run(input);
 
   let roads =
     Core_kernel.List.map(
@@ -236,6 +236,8 @@ let prepare_town =
     List.map(h => {...h, building: translate_building(h.building)}, houses);
   let farms = List.map(translate_block, farms);
 
+  // TODO
+  ignore(obstacles);
   let updated_obstacles =
     canon_obstacles
     |> add_block_to_obstacles(bell.xz)
@@ -254,6 +256,7 @@ let prepare_town =
       houses,
       farms,
       roads,
+      obstacles,
     },
   };
 
@@ -491,7 +494,7 @@ let illuminate_town = (~x, ~z, ~blocks, region): unit => {
 
 let apply_region = ((towns, _canon): t, region: Minecraft.Region.t) => {
   List.iter(
-    ({x, z, town: {bell, farms, houses, roads} as town}) =>
+    ({x, z, town: {bell, farms, houses, roads, obstacles: _} as town}) =>
       if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
         // TODO
         ignore(roads);

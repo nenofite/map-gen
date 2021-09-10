@@ -44,6 +44,7 @@ type output = {
   farms: list(block),
   houses: list(house),
   roads: list(Roads.Rules.t),
+  obstacles: Sparse_grid.t(unit),
 };
 
 [@deriving bin_io]
