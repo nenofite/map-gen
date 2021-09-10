@@ -549,20 +549,14 @@ let place_blocks = (state, ~min_side, ~max_side, ~amount) => {
     };
   go(state, ~amount, ~blocks=[]);
 };
-let run = (input': input): output => {
+
+let init_state_and_centers = (input': input) => {
   open Core_kernel;
   let {obstacles, elevation}: input = input';
-  let town_side = side;
-  let town_center = (town_side / 2, town_side / 2);
-  let target_population =
-    min_population + Random.int(max_population - min_population);
-  Tale.logf("Target population = %d", target_population);
-  let num_farms = target_population / pop_per_farm;
-  let num_houses = target_population;
-
+  let town_center = (side / 2, side / 2);
   /* Use a point cloud for block centers */
   let centers =
-    Point_cloud.make_list(~side=town_side, ~spacing=block_center_spacing, ())
+    Point_cloud.make_list(~side, ~spacing=block_center_spacing, ())
     |> List.map(~f=((x, z)) => Mg_util.Floats.(~~x, ~~z))
     /* Sort block centers by how close they are to the center plaza */
     |> sort_by_distance_to_center(town_center);
@@ -573,7 +567,11 @@ let run = (input': input): output => {
     road_obstacles: obstacles,
     pathing_state: Roads.init_state(),
   };
+  state;
+};
 
+let prepare_bell = (state: layout_state) => {
+  open Core_kernel;
   let bell_side = 9;
   let (state, bell) =
     Option.value_exn(
@@ -592,6 +590,19 @@ let run = (input': input): output => {
     ~new_paths=bell_paths,
     state.pathing_state,
   );
+  (bell, state);
+};
+
+let run = (input': input): output => {
+  open Core_kernel;
+  let target_population =
+    min_population + Random.int(max_population - min_population);
+  Tale.logf("Target population = %d", target_population);
+  let num_farms = target_population / pop_per_farm;
+  let num_houses = target_population;
+
+  let state = init_state_and_centers(input');
+  let (bell, state) = prepare_bell(state);
 
   /* Grab houses */
   let (state, houses) =
@@ -708,6 +719,25 @@ module Test_helpers = {
     };
   };
 
+  let show_layout_state = (state: layout_state): text_grid => {
+    let show_at = (x, z) =>
+      if (Sparse_grid.has(state.road_obstacles, x, z)) {
+        "X";
+      } else if (Sparse_grid.has(state.obstacles, x, z)) {
+        "O";
+      } else if (List.mem(~equal=Poly.equal, state.centers, (x, z))) {
+        "#";
+      } else {
+        " ";
+      };
+    show_grid(
+      ~side=Grid.side(state.elevation),
+      ~get=show_at,
+      ~show_cell=s => s,
+      (),
+    );
+  };
+
   let show_elevation = (~radius=?, ~center=?, elevation: Grid.t(int)) => {
     show_grid(
       ~radius?,
@@ -734,38 +764,28 @@ module Test_helpers = {
       (),
     );
   };
+
+  let make_running_diff = () => {
+    let previous = ref(None);
+    (new_grid: text_grid) => {
+      let to_show =
+        switch (previous^) {
+        | Some(base) => diff_grid(new_grid, ~base)
+        | None => new_grid
+        };
+      previous := Some(new_grid);
+      to_show;
+    };
+  };
 };
 
 let%expect_test "creates a town from input" = {
   open Core_kernel;
   open Test_helpers;
   let input = make_input();
-  let starting_obstacles = show_obstacles(input.obstacles);
-  print_grid(starting_obstacles);
-  %expect
-  "";
-  let starting_elevation = show_elevation(input.elevation);
-  print_grid(~radius=5, starting_elevation);
-  %expect
-  "
-    89 89 89 89 89 89 87 86 85 84 83
-    89 89 89 89 89 89 87 86 85 85 83
-    89 89 89 89 89 89 87 86 85 85 84
-    89 89 89 89 89 89 87 87 85 85 84
-    89 89 89 89 89 89 88 87 86 85 84
-    89 89 89 89 89 89 88 87 86 85 84
-    89 89 89 89 89 89 88 87 86 85 84
-    89 89 89 89 89 89 88 87 86 85 84
-    89 89 89 89 89 89 88 87 86 85 85
-    89 89 89 89 89 89 88 87 86 86 86
-    89 89 89 89 89 89 88 87 86 86 86
-  ";
-
   let output = run(input);
   ignore([%expect.output]);
-  show_obstacles(output.obstacles)
-  |> diff_grid(~base=starting_obstacles)
-  |> print_grid;
+  show_obstacles(output.obstacles) |> print_grid;
   %expect
   "
                                                                               X X X X X X X X X X X X X X X X X X X X X
@@ -864,4 +884,41 @@ let%expect_test "creates a town from input" = {
             X X X X X X X X X X X X X X X X X X X X X X X                                                         X X X X X X X X X X X X X X X X X X X X X X
             X X X X X X X X X X X X X X X X X X X X X X X                                                         X X X X X X X X X X X X X X X X X X X X X X
             X X X X X X X X X X X X X X X X X X X X X X X";
+};
+
+let%expect_test "builds up" = {
+  open Core_kernel;
+  open Test_helpers;
+  let diff = make_running_diff();
+  let input = make_input();
+  let state = init_state_and_centers(input);
+  diff(show_layout_state(state)) |> print_grid(~radius=10);
+  %expect
+  "
+    #
+                  #
+
+
+
+
+
+
+
+
+      #
+                          #
+  ";
+  let (_, state) = prepare_bell(state);
+  diff(show_layout_state(state)) |> print_grid;
+  %expect
+  "
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O"
 };
