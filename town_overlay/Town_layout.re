@@ -707,10 +707,16 @@ module Test_helpers = {
     );
   };
 
-  let print_grid = (grid: text_grid): unit => {
+  let print_grid = (~center=?, ~radius=?, grid: text_grid): unit => {
     let side = Grid.Mut.side(grid);
-    for (z in 0 to side - 1) {
-      for (x in 0 to side - 1) {
+    let (cx, cz) = Option.value(center, ~default=(side / 2, side / 2));
+    let radius = Option.value(radius, ~default=side);
+    let min_x = Int.clamp_exn(cx - radius, ~min=0, ~max=side - 1);
+    let max_x = Int.clamp_exn(cx + radius, ~min=0, ~max=side - 1);
+    let min_z = Int.clamp_exn(cz - radius, ~min=0, ~max=side - 1);
+    let max_z = Int.clamp_exn(cz + radius, ~min=0, ~max=side - 1);
+    for (z in min_z to max_z) {
+      for (x in min_x to max_x) {
         Out_channel.output_string(stdout, Grid.Mut.get(~x, ~z, grid));
         Out_channel.output_char(stdout, ' ');
       };
@@ -750,10 +756,10 @@ let%expect_test "creates a town from input" = {
   open Core_kernel;
   open Test_helpers;
   let input = make_input();
-  show_obstacles(~radius=5, input.obstacles) |> print_grid;
+  show_obstacles(input.obstacles) |> print_grid;
   %expect
   "";
-  show_elevation(~radius=5, input.elevation) |> print_grid;
+  show_elevation(input.elevation) |> print_grid(~radius=5);
   %expect
   "
     89 89 89 89 89 89 87 86 85 84 83
