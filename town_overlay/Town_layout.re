@@ -673,36 +673,20 @@ module Test_helpers = {
     );
   };
 
-  let diff_grid =
-      (
-        ~side,
-        ~get,
-        ~show_cell,
-        ~center=(side / 2, side / 2),
-        ~radius=side,
-        old_grid: text_grid,
-      )
-      : text_grid => {
-    let (cx, cz) = center;
-    let min_x = Int.clamp_exn(cx - radius, ~min=0, ~max=side - 1);
-    let max_x = Int.clamp_exn(cx + radius, ~min=0, ~max=side - 1);
-    let min_z = Int.clamp_exn(cz - radius, ~min=0, ~max=side - 1);
-    let max_z = Int.clamp_exn(cz + radius, ~min=0, ~max=side - 1);
+  let diff_grid = (new_grid: text_grid, ~base: text_grid): text_grid => {
+    assert(Grid.Mut.side(new_grid) == Grid.Mut.side(base));
     Grid.Mut.init(
-      ~side=max(max_x - min_x, max_z - min_z),
+      ~side=Grid.Mut.side(new_grid),
       ~f=
-        (~x, ~z) =>
-          if (min_x <= x && x <= max_x && min_z <= z && z <= max_z) {
-            let old_val = Grid.Mut.get(~x, ~z, old_grid);
-            let new_val = show_cell(get(x, z));
-            if (String.(new_val != old_val)) {
-              new_val;
-            } else {
-              "";
-            };
+        (~x, ~z) => {
+          let old_val = Grid.Mut.get(~x, ~z, base);
+          let new_val = Grid.Mut.get(~x, ~z, new_grid);
+          if (String.(new_val != old_val)) {
+            new_val;
           } else {
-            "";
-          },
+            " ";
+          };
+        },
       "",
     );
   };
@@ -756,10 +740,12 @@ let%expect_test "creates a town from input" = {
   open Core_kernel;
   open Test_helpers;
   let input = make_input();
-  show_obstacles(input.obstacles) |> print_grid;
+  let starting_obstacles = show_obstacles(input.obstacles);
+  print_grid(starting_obstacles);
   %expect
   "";
-  show_elevation(input.elevation) |> print_grid(~radius=5);
+  let starting_elevation = show_elevation(input.elevation);
+  print_grid(~radius=5, starting_elevation);
   %expect
   "
     89 89 89 89 89 89 87 86 85 84 83
@@ -777,7 +763,9 @@ let%expect_test "creates a town from input" = {
 
   let output = run(input);
   ignore([%expect.output]);
-  show_obstacles(output.obstacles) |> print_grid;
+  show_obstacles(output.obstacles)
+  |> diff_grid(~base=starting_obstacles)
+  |> print_grid;
   %expect
   "
                                                                               X X X X X X X X X X X X X X X X X X X X X
