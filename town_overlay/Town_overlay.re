@@ -1,3 +1,4 @@
+open! Core_kernel;
 include Town_overlay_i;
 open Mg_util;
 
@@ -16,7 +17,6 @@ let roads = t => t.roads;
 let town_color = (255, 255, 0);
 
 let apply_progress_view = ((towns, delta: Overlay.Canon.delta)) => {
-  open Core_kernel;
   let side = Overlay.Canon.require().side;
   let obs =
     switch (delta.Overlay.Canon.obstacles) {
@@ -131,9 +131,10 @@ let rec first_suitable_towns = (canon, remaining, coords, selected) => {
   | [(x, z) as untweaked_coord, ...coords] =>
     let too_close =
       List.exists(
-        other_coord =>
-          Mg_util.distance_int(untweaked_coord, other_coord)
-          < min_dist_between_towns,
+        ~f=
+          other_coord =>
+            Mg_util.distance_int(untweaked_coord, other_coord)
+            < min_dist_between_towns,
         selected,
       );
     if (!too_close) {
@@ -211,7 +212,7 @@ let prepare_town =
   let {bell, houses, farms, roads, obstacles} = Town_layout.run(input);
 
   let roads =
-    Core_kernel.List.map(
+    List.map(
       roads,
       ~f=Roads.Rules.Coord.translate(~dx=town_min_x, ~dz=town_min_z),
     );
@@ -233,8 +234,11 @@ let prepare_town =
   };
   let bell = translate_block(bell);
   let houses =
-    List.map(h => {...h, building: translate_building(h.building)}, houses);
-  let farms = List.map(translate_block, farms);
+    List.map(
+      ~f=h => {...h, building: translate_building(h.building)},
+      houses,
+    );
+  let farms = List.map(~f=translate_block, farms);
 
   // TODO
   ignore(obstacles);
@@ -242,11 +246,15 @@ let prepare_town =
     canon_obstacles
     |> add_block_to_obstacles(bell.xz)
     |> List.fold_left(
-         (o, b: house) => add_block_to_obstacles(b.building.block, o),
-         _,
+         ~f=(o, b: house) => add_block_to_obstacles(b.building.block, o),
+         ~init=_,
          houses,
        )
-    |> List.fold_left((o, b) => add_block_to_obstacles(b.xz, o), _, farms);
+    |> List.fold_left(
+         ~f=(o, b) => add_block_to_obstacles(b.xz, o),
+         ~init=_,
+         farms,
+       );
 
   let town = {
     x: town_min_x,
@@ -288,14 +296,15 @@ let prepare = (): t => {
   /* Pick and tweak town sites from this list */
   Tale.log("Finding suitable towns");
   let towns = first_suitable_towns(canon, num_towns, river_coords, []);
-  List.iter(((x, z)) => Tale.logf("town at %d, %d", x, z), towns);
+  List.iter(~f=((x, z)) => Tale.logf("town at %d, %d", x, z), towns);
   let (towns, obs, spawn_points) =
     List.fold_left(
-      ((towns, obs, spawn_points), (x, z)) => {
-        let (town, obs, spawn_point) = prepare_town(canon, obs, x, z);
-        ([town, ...towns], obs, [spawn_point, ...spawn_points]);
-      },
-      ([], Grid.make(~side=canon.side, Overlay.Canon.Clear), []),
+      ~f=
+        ((towns, obs, spawn_points), (x, z)) => {
+          let (town, obs, spawn_point) = prepare_town(canon, obs, x, z);
+          ([town, ...towns], obs, [spawn_point, ...spawn_points]);
+        },
+      ~init=([], Grid.make(~side=canon.side, Overlay.Canon.Clear), []),
       towns,
     );
   (
@@ -353,27 +362,24 @@ let worksite_material = (worksite: worksite) => {
 };
 
 let apply_worksite_to_house = (~house: building, worksite: option(worksite)) => {
-  Core_kernel.(
-    switch (worksite) {
-    | None => house.template
-    | Some(worksite) =>
-      let (x, y, z) =
-        Option.value_exn(
-          Minecraft_template.get_mark(house.template, ~mark=`Worksite),
-        );
-      Minecraft_template.set_at(
-        ~x,
-        ~y,
-        ~z,
-        ~block=worksite_material(worksite),
-        house.template,
+  switch (worksite) {
+  | None => house.template
+  | Some(worksite) =>
+    let (x, y, z) =
+      Option.value_exn(
+        Minecraft_template.get_mark(house.template, ~mark=`Worksite),
       );
-    }
-  );
+    Minecraft_template.set_at(
+      ~x,
+      ~y,
+      ~z,
+      ~block=worksite_material(worksite),
+      house.template,
+    );
+  };
 };
 
 let create_house = (house: house, region: Minecraft.Region.t) => {
-  open Core_kernel;
   open Minecraft.Region;
 
   let {building, worksite} = house;
@@ -454,7 +460,6 @@ let create_farm = (farm: block, region: Minecraft.Region.t) => {
  adds torches to the town with min-corner x, z
  */
 let illuminate_town = (~x, ~z, ~blocks, region): unit => {
-  open Core_kernel;
   let dist_to_nearest_block = (~x, ~z) => {
     let n =
       List.map(blocks, ~f=b => {
@@ -503,17 +508,18 @@ let illuminate_town = (~x, ~z, ~blocks, region): unit => {
 let apply_town = (~x, ~z, town: output, region: Minecraft.Region.t): unit => {
   let {bell, farms, houses, roads: _, obstacles: _} = town;
   create_bell(bell, region);
-  List.iter(house => create_house(house, region), houses);
-  List.iter(farm => create_farm(farm, region), farms);
+  List.iter(~f=house => create_house(house, region), houses);
+  List.iter(~f=farm => create_farm(farm, region), farms);
   illuminate_town(~x, ~z, ~blocks=Town_layout.all_blocks(town), region);
 };
 
 let apply_region = ((towns, _canon): t, region: Minecraft.Region.t): unit => {
   List.iter(
-    ({x, z, town}) =>
-      if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
-        apply_town(~x, ~z, town, region);
-      },
+    ~f=
+      ({x, z, town}) =>
+        if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
+          apply_town(~x, ~z, town, region);
+        },
     towns,
   );
 };
