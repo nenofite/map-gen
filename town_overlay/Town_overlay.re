@@ -521,3 +521,57 @@ let (require, prepare, apply) =
     bin_reader_t,
     bin_writer_t,
   );
+
+module Test_helpers = {
+  include Test_helpers;
+
+  let show_farm = (r: Minecraft.Region.t) => {
+    show_region_top_down(
+      ~show_block=
+        fun
+        | Air => None
+        | Grass_block => Some(".")
+        | Water => Some("~")
+        | Wheat(_) => Some("$")
+        | Composter => Some("X")
+        | _ => Some("?"),
+      r,
+    );
+  };
+};
+
+let%expect_test "applying a farm" = {
+  open Test_helpers;
+
+  let diff = make_running_diff();
+  let r = Minecraft.Region.create(~rx=0, ~rz=0);
+  build_test_region(r);
+  diff(show_farm(r)) |> ignore;
+
+  create_farm(
+    {
+      xz: {
+        min_x: 1,
+        max_x: 10,
+        min_z: 2,
+        max_z: 12,
+      },
+      elevation: 50,
+    },
+    r,
+  );
+  diff(show_farm(r)) |> print_grid;
+  %expect
+  "
+                    X
+    $ $ $ $ $ $ $ $
+    ~ ~ ~ ~ ~ ~ ~ ~
+    $ $ $ $ $ $ $ $
+    ~ ~ ~ ~ ~ ~ ~ ~
+    $ $ $ $ $ $ $ $
+    ~ ~ ~ ~ ~ ~ ~ ~
+    $ $ $ $ $ $ $ $
+    ~ ~ ~ ~ ~ ~ ~ ~
+    $ $ $ $ $ $ $ $
+  ";
+};
