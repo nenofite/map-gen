@@ -1,6 +1,6 @@
 open! Core_kernel;
 
-[@deriving bin_io]
+[@deriving (bin_io, sexp)]
 type block_no_elevation = {
   min_x: int,
   max_x: int,
@@ -8,21 +8,33 @@ type block_no_elevation = {
   max_z: int,
 };
 
-[@deriving bin_io]
+[@deriving (bin_io, sexp)]
 type block = {
   xz: block_no_elevation,
   elevation: int,
 };
 
-[@deriving bin_io]
+[@deriving (bin_io, sexp)]
 type worksite =
   | Butcher
   | Fisherman
   | Shepherd;
 
-[@deriving bin_io]
+[@deriving (bin_io, sexp)]
+type marks = [ | `Worksite | `Road | `Villager];
+
+[@deriving (bin_io, sexp)]
+type building = {template: [@sexp.opaque] Minecraft_template.t(marks)};
+
+[@deriving (bin_io, sexp)]
+type fitted_building = {
+  building,
+  block: block_no_elevation,
+};
+
+[@deriving (bin_io, sexp)]
 type house = {
-  block,
+  building: fitted_building,
   worksite: option(worksite),
 };
 
@@ -32,6 +44,7 @@ type output = {
   farms: list(block),
   houses: list(house),
   roads: list(Roads.Rules.t),
+  obstacles: Sparse_grid.t(unit),
 };
 
 [@deriving bin_io]

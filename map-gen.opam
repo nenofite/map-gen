@@ -18,6 +18,7 @@ depends: [
     "core"
     "parmap"
     "ppx_sexp_conv"
+    "ppx_sexp_value"
     "ppx_deriving"
     "ppx_hash"
     "ppx_bin_prot"

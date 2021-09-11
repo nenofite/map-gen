@@ -20,7 +20,7 @@ let xz_of_direction = direction =>
   };
 
 type piece = {
-  template: Minecraft_template.t,
+  template: Minecraft_template.t(unit),
   open_sides: list(direction),
   usage,
 };
@@ -185,7 +185,8 @@ let apply_assembly = (region: Minecraft.Region.t, assembly): unit => {
 };
 
 let apply_template_y =
-    (region: Minecraft.Region.t, ~x, ~z, template: Minecraft_template.t): int => {
+    (region: Minecraft.Region.t, ~x, ~z, template: Minecraft_template.t(_))
+    : int => {
   /* Flatten the footprint and get an elevation */
   let y = flatten_footprint(region, ~x, ~z, template.footprint);
   /* Apply at the given elevation */
@@ -280,7 +281,7 @@ let rec lay_stairs =
 
 /** checks whether a call to {!lay_stairs} would terminate within [max_distance] */
 let rec would_stairs_fit = (elevation, ~x, ~y, ~z, ~dx, ~dz, ~max_distance) =>
-  if (max_distance <= 0) {
+  if (max_distance <= 0 || !Grid.is_within(x, z, elevation)) {
     false;
   } else {
     let here_elev = Grid.get(x, z, elevation);

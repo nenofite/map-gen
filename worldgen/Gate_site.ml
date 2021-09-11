@@ -1,6 +1,7 @@
 open! Core_kernel
 
-type t = {rotation_cw: int; template: Minecraft_template.t} [@@deriving bin_io]
+type t = {rotation_cw: int; template: unit Minecraft_template.t}
+[@@deriving bin_io]
 
 let max_stair_distance = 20
 

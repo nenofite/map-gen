@@ -17,6 +17,7 @@
   Point_cloud
   Roads
   Sparse_grid
+  Test_helpers
   Building
   Meta_overlay
   bin_prot)

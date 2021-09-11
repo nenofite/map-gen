@@ -1,3 +1,4 @@
+open! Core_kernel;
 include Town_overlay_i;
 open Mg_util;
 
@@ -16,7 +17,6 @@ let roads = t => t.roads;
 let town_color = (255, 255, 0);
 
 let apply_progress_view = ((towns, delta: Overlay.Canon.delta)) => {
-  open Core_kernel;
   let side = Overlay.Canon.require().side;
   let obs =
     switch (delta.Overlay.Canon.obstacles) {
@@ -131,9 +131,10 @@ let rec first_suitable_towns = (canon, remaining, coords, selected) => {
   | [(x, z) as untweaked_coord, ...coords] =>
     let too_close =
       List.exists(
-        other_coord =>
-          Mg_util.distance_int(untweaked_coord, other_coord)
-          < min_dist_between_towns,
+        ~f=
+          other_coord =>
+            Mg_util.distance_int(untweaked_coord, other_coord)
+            < min_dist_between_towns,
         selected,
       );
     if (!too_close) {
@@ -155,7 +156,7 @@ let rec first_suitable_towns = (canon, remaining, coords, selected) => {
 };
 
 let add_block_to_obstacles = (block, obstacles) => {
-  let {xz: {min_x, max_x, min_z, max_z}, elevation: _} = block;
+  let {min_x, max_x, min_z, max_z} = block;
   Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
     Range.fold(min_x, max_x, obstacles, (obstacles, x) =>
       Overlay.Canon.Obstacles.set(x, z, Impassable, obstacles)
@@ -208,38 +209,52 @@ let prepare_town =
       town_min_z,
     ) => {
   let input = extract_input(canon, town_min_x, town_min_z);
-  let {bell, houses, farms, roads} = Town_layout.run(input);
+  let {bell, houses, farms, roads, obstacles} = Town_layout.run(input);
 
   let roads =
-    Core_kernel.List.map(
+    List.map(
       roads,
       ~f=Roads.Rules.Coord.translate(~dx=town_min_x, ~dz=town_min_z),
     );
 
   /* Translate blocks into global coords */
+  let translate_block_no_elevation = (b: block_no_elevation) => {
+    min_x: b.min_x + town_min_x,
+    max_x: b.max_x + town_min_x,
+    min_z: b.min_z + town_min_z,
+    max_z: b.max_z + town_min_z,
+  };
   let translate_block = (b: block) => {
-    xz: {
-      min_x: b.xz.min_x + town_min_x,
-      max_x: b.xz.max_x + town_min_x,
-      min_z: b.xz.min_z + town_min_z,
-      max_z: b.xz.max_z + town_min_z,
-    },
+    xz: translate_block_no_elevation(b.xz),
     elevation: b.elevation,
+  };
+  let translate_building = (b: fitted_building) => {
+    ...b,
+    block: translate_block_no_elevation(b.block),
   };
   let bell = translate_block(bell);
   let houses =
-    List.map(h => {...h, block: translate_block(h.block)}, houses);
-  let farms = List.map(translate_block, farms);
+    List.map(
+      ~f=h => {...h, building: translate_building(h.building)},
+      houses,
+    );
+  let farms = List.map(~f=translate_block, farms);
 
+  // TODO
+  ignore(obstacles);
   let updated_obstacles =
     canon_obstacles
-    |> add_block_to_obstacles(bell)
+    |> add_block_to_obstacles(bell.xz)
     |> List.fold_left(
-         (o, b: house) => add_block_to_obstacles(b.block, o),
-         _,
+         ~f=(o, b: house) => add_block_to_obstacles(b.building.block, o),
+         ~init=_,
          houses,
        )
-    |> List.fold_left((o, b) => add_block_to_obstacles(b, o), _, farms);
+    |> List.fold_left(
+         ~f=(o, b) => add_block_to_obstacles(b.xz, o),
+         ~init=_,
+         farms,
+       );
 
   let town = {
     x: town_min_x,
@@ -249,6 +264,7 @@ let prepare_town =
       houses,
       farms,
       roads,
+      obstacles,
     },
   };
 
@@ -280,14 +296,15 @@ let prepare = (): t => {
   /* Pick and tweak town sites from this list */
   Tale.log("Finding suitable towns");
   let towns = first_suitable_towns(canon, num_towns, river_coords, []);
-  List.iter(((x, z)) => Tale.logf("town at %d, %d", x, z), towns);
+  List.iter(~f=((x, z)) => Tale.logf("town at %d, %d", x, z), towns);
   let (towns, obs, spawn_points) =
     List.fold_left(
-      ((towns, obs, spawn_points), (x, z)) => {
-        let (town, obs, spawn_point) = prepare_town(canon, obs, x, z);
-        ([town, ...towns], obs, [spawn_point, ...spawn_points]);
-      },
-      ([], Grid.make(~side=canon.side, Overlay.Canon.Clear), []),
+      ~f=
+        ((towns, obs, spawn_points), (x, z)) => {
+          let (town, obs, spawn_point) = prepare_town(canon, obs, x, z);
+          ([town, ...towns], obs, [spawn_point, ...spawn_points]);
+        },
+      ~init=([], Grid.make(~side=canon.side, Overlay.Canon.Clear), []),
       towns,
     );
   (
@@ -344,213 +361,55 @@ let worksite_material = (worksite: worksite) => {
   );
 };
 
+let apply_worksite_to_house = (~house: building, worksite: option(worksite)) => {
+  switch (worksite) {
+  | None => house.template
+  | Some(worksite) =>
+    let (x, y, z) =
+      Option.value_exn(
+        Minecraft_template.get_mark(house.template, ~mark=`Worksite),
+      );
+    Minecraft_template.set_at(
+      ~x,
+      ~y,
+      ~z,
+      ~block=worksite_material(worksite),
+      house.template,
+    );
+  };
+};
+
 let create_house = (house: house, region: Minecraft.Region.t) => {
   open Minecraft.Region;
-  open Minecraft.Block;
-  let floor_material = Oak_planks;
-  let lower_edge_material = Cobblestone;
-  let wall_material = Oak_planks;
-  let wall_post_material = Log(Oak_log, Y);
-  let wall_ns_beam_material = Log(Oak_log, Z);
-  let wall_ew_beam_material = Log(Oak_log, X);
-  let ceiling_material = Oak_planks;
 
-  let {block: {xz: {min_x, max_x, min_z, max_z}, elevation}, worksite} = house;
+  let {building, worksite} = house;
+  let template = apply_worksite_to_house(worksite, ~house=building.building);
 
-  /* Foundation and floor */
-  for (x in min_x to max_x) {
-    for (z in min_z to max_z) {
-      Building_old.raise_lower_elev_match(region, x, z, elevation);
-      set_block(~x, ~y=elevation, ~z, floor_material, region);
-    };
-  };
+  let x = building.block.min_x;
+  let z = building.block.min_z;
+  let y = Building_old.flatten_footprint(region, ~x, ~z, template.footprint);
+  Minecraft_template.place_overwrite(template, ~x, ~y, ~z, region);
 
-  /* Lower edge of walls */
-  for (y in elevation to elevation + 1) {
-    for (x in min_x to max_x) {
-      set_block(~x, ~y, ~z=min_z, lower_edge_material, region);
-      set_block(~x, ~y, ~z=max_z, lower_edge_material, region);
-    };
-    for (z in min_z to max_z) {
-      set_block(~x=min_x, ~y, ~z, lower_edge_material, region);
-      set_block(~x=max_x, ~y, ~z, lower_edge_material, region);
-    };
-  };
-
-  /* Walls */
-  for (y in elevation + 2 to elevation + wall_height) {
-    for (x in min_x to max_x) {
-      set_block(~x, ~y, ~z=min_z, wall_material, region);
-      set_block(~x, ~y, ~z=max_z, wall_material, region);
-    };
-    for (z in min_z to max_z) {
-      set_block(~x=min_x, ~y, ~z, wall_material, region);
-      set_block(~x=max_x, ~y, ~z, wall_material, region);
-    };
-  };
-
-  /* Wall beams */
-  /* east-west */
-  for (x in min_x + 1 to max_x - 1) {
-    set_block(
-      ~x,
-      ~y=elevation + wall_height,
-      ~z=min_z,
-      wall_ew_beam_material,
-      region,
+  let (vx, vy, vz) =
+    Option.value_exn(
+      Minecraft_template.get_mark(
+        building.building.template,
+        ~mark=`Villager,
+      ),
     );
-    set_block(
-      ~x,
-      ~y=elevation + wall_height,
-      ~z=max_z,
-      wall_ew_beam_material,
-      region,
-    );
-  };
-  /* north-south */
-  for (z in min_z + 1 to max_z - 1) {
-    set_block(
-      ~x=min_x,
-      ~y=elevation + wall_height,
-      ~z,
-      wall_ns_beam_material,
-      region,
-    );
-    set_block(
-      ~x=max_x,
-      ~y=elevation + wall_height,
-      ~z,
-      wall_ns_beam_material,
-      region,
-    );
-  };
 
-  /* Wall posts - clockwise order */
-  for (y in elevation to elevation + wall_height) {
-    set_block(~x=min_x, ~y, ~z=min_z, wall_post_material, region);
-    set_block(~x=max_x, ~y, ~z=min_z, wall_post_material, region);
-    set_block(~x=max_x, ~y, ~z=max_z, wall_post_material, region);
-    set_block(~x=min_x, ~y, ~z=max_z, wall_post_material, region);
-  };
-
-  /* Ceiling */
-  for (x in min_x + 1 to max_x - 1) {
-    for (z in min_z + 1 to max_z - 1) {
-      set_block(~x, ~y=elevation + wall_height, ~z, ceiling_material, region);
-    };
-  };
-
-  /* Torch on the inside center of each wall */
-  /* N wall */
-  set_block(
-    Minecraft.Block.(Wall_torch(S)),
-    ~x=(min_x + max_x) / 2,
-    ~y=elevation + 2,
-    ~z=min_z + 1,
-    region,
-  );
-  /* E wall */
-  set_block(
-    Minecraft.Block.(Wall_torch(W)),
-    ~x=max_x - 1,
-    ~y=elevation + 2,
-    ~z=(min_z + max_z) / 2,
-    region,
-  );
-  /* S wall */
-  set_block(
-    Minecraft.Block.(Wall_torch(N)),
-    ~x=(min_x + max_x) / 2,
-    ~y=elevation + 2,
-    ~z=max_z - 1,
-    region,
-  );
-  /* W wall */
-  set_block(
-    Minecraft.Block.(Wall_torch(E)),
-    ~x=min_x + 1,
-    ~y=elevation + 2,
-    ~z=(min_z + max_z) / 2,
-    region,
-  );
-
-  /* Door on N wall */
-  let door_x = min_x + 1;
-  let door_z = min_z;
-  let door_y = elevation + 1;
-  set_block(
-    Minecraft.Block.(Oak_door(S, Lower)),
-    ~x=door_x,
-    ~y=door_y,
-    ~z=door_z,
-    region,
-  );
-  set_block(
-    Minecraft.Block.(Oak_door(S, Upper)),
-    ~x=door_x,
-    ~y=door_y + 1,
-    ~z=door_z,
-    region,
-  );
-  /* 2x3 empty space in front of door */
-  for (z in door_z - 2 to door_z - 1) {
-    for (x in door_x - 1 to door_x + 1) {
-      Building_old.raise_lower_elev_match(region, x, z, elevation);
-    };
-  };
-
-  /* Torch on outside wall next to door */
-  set_block(
-    Minecraft.Block.(Wall_torch(N)),
-    ~x=min_x,
-    ~y=elevation + 2,
-    ~z=min_z - 1,
-    region,
-  );
-
-  /* Bed in NE corner */
-  let bed_x = max_x - 1;
-  let bed_z = min_z + 1;
-  let bed_y = elevation + 1;
-  set_block(
-    Minecraft.Block.(Orange_bed(E, Head)),
-    ~x=bed_x,
-    ~y=bed_y,
-    ~z=bed_z,
-    region,
-  );
-  set_block(
-    Minecraft.Block.(Orange_bed(E, Foot)),
-    ~x=bed_x - 1,
-    ~y=bed_y,
-    ~z=bed_z,
-    region,
-  );
-
-  /* Only add worksite and villager when one is specified */
   switch (worksite) {
   | None => ()
-  | Some(worksite) =>
-    /* Worksite in SE corner */
-    set_block(
-      worksite_material(worksite),
-      ~x=max_x - 1,
-      ~y=elevation + 1,
-      ~z=max_z - 1,
-      region,
-    );
-    /* Villager at foot of bed */
+  | Some(_) =>
     add_entity(
-      Mg_util.Floats.(
-        Minecraft.Entity.{
-          id: "villager",
-          x: ~.(bed_x - 2),
-          y: ~.bed_y,
-          z: ~.bed_z,
-        }
-      ),
+      Minecraft.Entity.{
+        id: "villager",
+        x: Float.of_int(x + vx),
+        y: Float.of_int(y + vy),
+        z: Float.of_int(z + vz),
+      },
       region,
-    );
+    )
   };
 };
 
@@ -559,7 +418,6 @@ let create_farm = (farm: block, region: Minecraft.Region.t) => {
   open Minecraft.Block;
 
   let {xz: {min_x, max_x, min_z, max_z}, elevation} = farm;
-  let elevation = elevation + 1;
 
   /* Foundation */
   for (x in min_x to max_x) {
@@ -602,11 +460,10 @@ let create_farm = (farm: block, region: Minecraft.Region.t) => {
  adds torches to the town with min-corner x, z
  */
 let illuminate_town = (~x, ~z, ~blocks, region): unit => {
-  open Core_kernel;
   let dist_to_nearest_block = (~x, ~z) => {
     let n =
       List.map(blocks, ~f=b => {
-        Town_layout.distance_to_block_edge(~x, ~z, b.xz)
+        Town_layout.distance_to_block_edge(~x, ~z, b)
       })
       |> List.min_elt(~compare=Int.compare);
     Option.value(n, ~default=Town_layout.side);
@@ -648,22 +505,21 @@ let illuminate_town = (~x, ~z, ~blocks, region): unit => {
   Torching.illuminate(~volume=over_town, region);
 };
 
-let apply_region = ((towns, _canon): t, region: Minecraft.Region.t) => {
+let apply_town = (~x, ~z, town: output, region: Minecraft.Region.t): unit => {
+  let {bell, farms, houses, roads: _, obstacles: _} = town;
+  create_bell(bell, region);
+  List.iter(~f=house => create_house(house, region), houses);
+  List.iter(~f=farm => create_farm(farm, region), farms);
+  illuminate_town(~x, ~z, ~blocks=Town_layout.all_blocks(town), region);
+};
+
+let apply_region = ((towns, _canon): t, region: Minecraft.Region.t): unit => {
   List.iter(
-    ({x, z, town: {bell, farms, houses, roads} as town}) =>
-      if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
-        // TODO
-        ignore(roads);
-        create_bell(bell, region);
-        List.iter(house => create_house(house, region), houses);
-        List.iter(farm => create_farm(farm, region), farms);
-        illuminate_town(
-          ~x,
-          ~z,
-          ~blocks=Town_layout.all_blocks(town),
-          region,
-        );
-      },
+    ~f=
+      ({x, z, town}) =>
+        if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
+          apply_town(~x, ~z, town, region);
+        },
     towns,
   );
 };
@@ -677,3 +533,120 @@ let (require, prepare, apply) =
     bin_reader_t,
     bin_writer_t,
   );
+
+module Test_helpers = {
+  include Test_helpers;
+
+  let show_block = (b: Minecraft.Block.material) =>
+    switch (b) {
+    | Air => None
+    | Grass_block => Some(".")
+    | Water => Some("~")
+    | Wheat(_) => Some("$")
+    | Composter => Some("X")
+    | Cobblestone => Some("#")
+    | Oak_planks => Some("=")
+    | _ => Some("?")
+    };
+  let show_td = show_region_top_down(~show_block);
+  let show_sn = show_region_south_north(~show_block);
+};
+
+let%expect_test "applying a farm" = {
+  open Test_helpers;
+
+  let td_diff = make_running_diff();
+  let sn_diff = make_running_diff();
+  let r = build_test_region();
+  td_diff(show_td(r)) |> ignore;
+  sn_diff(show_sn(r)) |> ignore;
+
+  create_farm(
+    {
+      xz: {
+        min_x: 1,
+        max_x: 10,
+        min_z: 2,
+        max_z: 12,
+      },
+      elevation: 41,
+    },
+    r,
+  );
+  td_diff(show_td(r)) |> print_grid;
+  %expect
+  "
+                    X
+    $ $ $ $ $ $ $ $
+    ~ ~ ~ ~ ~ ~ ~ ~
+    $ $ $ $ $ $ $ $
+    ~ ~ ~ ~ ~ ~ ~ ~
+    $ $ $ $ $ $ $ $
+    ~ ~ ~ ~ ~ ~ ~ ~
+    $ $ $ $ $ $ $ $
+    ~ ~ ~ ~ ~ ~ ~ ~
+    $ $ $ $ $ $ $ $
+  ";
+
+  sn_diff(show_sn(r)) |> print_grid;
+  %expect
+  "
+      $ $ $ $ $ $ $ $ X
+    . . . . . . . . . .
+  ";
+
+  show_entities(r);
+  %expect
+  "(((id villager) (x 9) (y 44) (z 2)))";
+};
+
+let%expect_test "applying a house" = {
+  open Test_helpers;
+
+  let td_diff = make_running_diff();
+  let sn_diff = make_running_diff();
+  let r = build_test_region();
+  td_diff(show_td(r)) |> ignore;
+  sn_diff(show_sn(r)) |> ignore;
+
+  let house = {
+    worksite: Some(Butcher),
+    building: {
+      building:
+        Town_templates.bedroom_1 |> Town_layout.rotate_building_cw(~times=1),
+      block: {
+        min_x: 1,
+        max_x: 10,
+        min_z: 2,
+        max_z: 12,
+      },
+    },
+  };
+  create_house(house, r);
+
+  td_diff(show_td(r)) |> print_grid;
+  %expect
+  "
+    # # # # # # #
+    # = = = = = #
+    # = = = ? = #
+    # = = = = = #
+    # = = = = = #
+    # ? ? ? ? = #
+    # # # # # # #
+  ";
+
+  sn_diff(show_sn(r)) |> print_grid;
+  %expect
+  "
+    # # # # # # #
+    # # # # # # #
+    # # # # # # #
+    # # # # # # #
+    # # # # # # #
+  ";
+
+  show_entities(r);
+  %expect
+  "(((id villager) (x 4) (y 41) (z 5)))";
+};

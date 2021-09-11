@@ -101,3 +101,53 @@ let bridge = (~length, ~rotation) => {
   combine_all([start_piece, connector, end_piece])
   |> rotate_90_cw(~times=rotation);
 };
+
+module Test_helpers = {
+  include Test_helpers;
+
+  let show_block = (b: Minecraft.Block.material) =>
+    switch (b) {
+    | Air => Some(".")
+    | Stone_bricks => Some("#")
+    | Chiseled_stone_bricks => Some("O")
+    | Stairs(Stone_brick_stairs, dir) =>
+      switch (dir) {
+      | N => Some("^")
+      | E => Some(">")
+      | S => Some("v")
+      | W => Some("<")
+      | Nd
+      | Ed
+      | Sd
+      | Wd => Some("x")
+      }
+    | _ => Some("?")
+    };
+};
+
+let%expect_test "creating a bridge template" = {
+  open Test_helpers;
+  let b = bridge(~length=10, ~rotation=1);
+
+  Printf.printf("%d\n", Minecraft_template.x_size_of(b));
+  %expect
+  "10";
+
+  show_template_top_down(~show_block, b) |> print_grid;
+  %expect
+  "
+    O                 O
+    > > > # # # # < < <
+    > > > # # # # < < <
+    > > > # # # # < < <
+    O                 O
+  ";
+
+  show_template_south_north(~show_block, b) |> print_grid;
+  %expect
+  "
+    O   > # # # # <   O
+    # > x         x < #
+    # x             x #
+  ";
+};

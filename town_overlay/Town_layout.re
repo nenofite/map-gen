@@ -1,3 +1,4 @@
+open! Core_kernel;
 open Town_overlay_i;
 
 type input = {
@@ -31,7 +32,11 @@ let pop_per_farm = 2;
 let num_plazas = 3;
 
 let all_blocks = t => {
-  Core_kernel.([t.bell] @ t.farms @ List.map(t.houses, ~f=h => h.block));
+  Core_kernel.(
+    [t.bell.xz]
+    @ List.map(t.farms, ~f=f => f.xz)
+    @ List.map(t.houses, ~f=h => h.building.block)
+  );
 };
 
 let make_input = () => {
@@ -45,18 +50,7 @@ let make_input = () => {
     |> Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.(line() **> avg))
     |> Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.(line() **> avg));
 
-  /* Roads to the center */
-  let center_x = elevation.side / 2;
-  let center_z = elevation.side / 2;
-  /* Start with boring roads */
-  let obstacles =
-    Sparse_grid.make(elevation.side)
-    |> Mg_util.Range.fold(0, elevation.side - 1, _, (roads, z) => {
-         Sparse_grid.put(roads, center_x, z, ())
-       })
-    |> Mg_util.Range.fold(0, elevation.side - 1, _, (roads, x) => {
-         Sparse_grid.put(roads, x, center_z, ())
-       });
+  let obstacles = Sparse_grid.make(elevation.side);
 
   {elevation, obstacles};
 };
@@ -91,10 +85,11 @@ let draw = (input: input, output: output, file) => {
 
   let draw_blocks = (color, blocks) => {
     List.iter(
-      block => {
-        let {xz: {min_x, max_x, min_z, max_z}, elevation: _} = block;
-        draw_rect(img, min_x, max_x, min_z, max_z, color);
-      },
+      ~f=
+        block => {
+          let {min_x, max_x, min_z, max_z} = block;
+          draw_rect(img, min_x, max_x, min_z, max_z, color);
+        },
       blocks,
     );
   };
@@ -107,11 +102,18 @@ let draw = (input: input, output: output, file) => {
     img#set(x, y, road_color)
   });
 
-  draw_blocks({r: 0, g: 255, b: 0}, output.farms);
-  draw_blocks({r: 0, g: 0, b: 255}, output.houses |> List.map(h => h.block));
+  draw_blocks({r: 0, g: 255, b: 0}, output.farms |> List.map(~f=f => f.xz));
+  draw_blocks(
+    {r: 0, g: 0, b: 255},
+    output.houses |> List.map(~f=h => h.building.block),
+  );
 
   img#save(file, Some(Png), []);
   ();
+};
+
+let rotate_building_cw = (b: building, ~times: int): building => {
+  template: Minecraft_template.rotate_90_cw(b.template, ~times),
 };
 
 let random_worksite = () => {
@@ -223,9 +225,9 @@ let flatten_blocks = (state, ~blocks) => {
 let sort_by_distance_to_center = (center, block_centers) => {
   List.(
     block_centers
-    |> map(((x, z)) => (Mg_util.distance_int((x, z), center), x, z))
-    |> fast_sort(((a, _, _), (b, _, _)) => Int.compare(a, b))
-    |> map(((_dist, x, z)) => (x, z))
+    |> map(~f=((x, z)) => (Mg_util.distance_int((x, z), center), x, z))
+    |> Caml.List.fast_sort(((a, _, _), (b, _, _)) => Int.compare(a, b))
+    |> map(~f=((_dist, x, z)) => (x, z))
   );
 };
 
@@ -305,16 +307,18 @@ let rec fit_block = (state, ~side_x, ~side_z) => {
 
 let outlets_of_block = block => {
   let {min_x, max_x, min_z, max_z} = block;
+  let cx = (max_x + min_x) / 2;
+  let cz = (max_z + min_z) / 2;
   let m = 3;
   let top_bottom =
-    Mg_util.Range.map(min_x, max_x, x => [(x, min_z - m), (x, max_z + m)])
+    Mg_util.Range.map(cx - 1, cx + 1, x => [(x, min_z - m), (x, max_z + m)])
     |> List.concat;
   let left_right =
-    Mg_util.Range.map(min_z, max_z, z => [(min_x - m, z), (max_x + m, z)])
+    Mg_util.Range.map(cz - 1, cz + 1, z => [(min_x - m, z), (max_x + m, z)])
     |> List.concat;
   left_right
   @ top_bottom
-  |> List.filter(((x, z)) => 0 <= x && x < side && 0 <= z && z < side);
+  |> List.filter(~f=((x, z)) => 0 <= x && x < side && 0 <= z && z < side);
 };
 
 let outlets_of_bell = block => {
@@ -370,7 +374,25 @@ let get_road_obstacle_of_state = state => {
     };
 };
 
-let enroad = (state, ~block) => {
+let enroad_building = (state, ~roads) => {
+  Roads.clear_closest_paths(state.pathing_state);
+  let found_path =
+    Roads.enroad_gen(
+      ~get_elevation=get_elevation_of_state(state),
+      ~get_obstacle=get_road_obstacle_of_state(state),
+      ~outlets=roads,
+      ~add_outlets=true,
+      state.pathing_state,
+    );
+  if (found_path) {
+    Tale.log("Found path to building 💃");
+  } else {
+    Tale.log("No path to building 😪");
+  };
+  found_path;
+};
+
+let enroad_block = (state, ~block) => {
   Roads.clear_closest_paths(state.pathing_state);
   Roads.enroad_gen(
     ~get_elevation=get_elevation_of_state(state),
@@ -378,6 +400,122 @@ let enroad = (state, ~block) => {
     ~outlets=outlets_of_block(block),
     state.pathing_state,
   );
+};
+
+/**
+ Try to place a building in each possible rotation
+ */
+let fit_building =
+    (state: layout_state, ~building: building)
+    : (layout_state, option(fitted_building)) => {
+  let original_building =
+    rotate_building_cw(building, ~times=Random.int_incl(0, 3));
+  let rec go = (building, remaining_rots, state, remaining_centers) => {
+    let side_x = Minecraft_template.x_size_of(building.template);
+    let side_z = Minecraft_template.z_size_of(building.template);
+    switch (random_grab_one(remaining_centers)) {
+    | None => (state, None)
+    | Some((center, remaining_centers)) =>
+      let new_block = make_block_from_center(center, side_x, side_z);
+      let fits =
+        check_block_obstacles(
+          ~obstacles=state.obstacles,
+          pad_block(new_block, min_block_spacing),
+        );
+      if (fits) {
+        let fitted = {building, block: new_block};
+        let state = {
+          ...state,
+          centers: List.filter(state.centers, ~f=c => Poly.(c != center)),
+        };
+        (state, Some(fitted));
+      } else if (remaining_rots > 0) {
+        go(
+          rotate_building_cw(building, ~times=1),
+          remaining_rots - 1,
+          state,
+          remaining_centers,
+        );
+      } else {
+        // No rotation works at this center, so move on to the next one
+        go(
+          original_building,
+          3,
+          state,
+          remaining_centers,
+        );
+      };
+    };
+  };
+
+  go(original_building, 3, state, state.centers);
+};
+
+/**
+  Flatten elevation under a fitted building, add it to obstacles, and enroad it
+ */
+let place_building =
+    (state: layout_state, ~building: fitted_building): layout_state => {
+  let {building: _, block} = building;
+  let state =
+    set_block_into_elevation(state, ~block=flatten_block(state, ~block));
+  let obstacles = add_block_to_obstacles(~block, state.obstacles);
+  let road_obstacles = add_block_to_obstacles(~block, state.road_obstacles);
+  let state = {...state, obstacles, road_obstacles};
+  Roads.clear_closest_paths(state.pathing_state);
+  let found_path =
+    switch (
+      Minecraft_template.get_marks(building.building.template, ~mark=`Road)
+    ) {
+    | [] => enroad_block(state, ~block)
+    | roads =>
+      let roads =
+        List.map(
+          roads,
+          ~f=((x, _y, z)) => {
+            let x = block.min_x + x;
+            let z = block.min_z + z;
+            (x, z);
+          },
+        );
+      enroad_building(state, ~roads);
+    };
+  ignore(found_path: bool);
+  let obstacles =
+    add_roads_to_obstacles(
+      state.obstacles,
+      ~roads=Roads.get_paths_list(state.pathing_state),
+    );
+  let state = {...state, obstacles};
+  state;
+};
+
+/**
+  Fit and place a random selection of buildings from the list, up to a given amount
+ */
+let place_buildings =
+    (state: layout_state, ~buildings: list(building), ~amount: int)
+    : (layout_state, list(fitted_building)) => {
+  let buildings = Mg_util.shuffle(buildings);
+  let rec go = (state, buildings, amount, result) => {
+    switch (buildings) {
+    | _ when amount <= 0 => (state, result)
+    | [] => (state, result)
+    | [building, ...buildings] =>
+      switch (fit_building(state, ~building)) {
+      | (state, Some(fitted_building)) =>
+        let state = place_building(state, ~building=fitted_building);
+        go(
+          state,
+          buildings @ [building],
+          amount - 1,
+          [fitted_building, ...result],
+        );
+      | (state, None) => go(state, buildings, amount, result)
+      }
+    };
+  };
+  go(state, buildings, amount, []);
 };
 
 let place_plaza = (state, ~side_x, ~side_z) => {
@@ -397,7 +535,7 @@ let place_block = (state, ~side_x, ~side_z) => {
     let road_obstacles = add_block_to_obstacles(~block, state.road_obstacles);
     let state = {...state, obstacles, road_obstacles};
     Roads.clear_closest_paths(state.pathing_state);
-    enroad(state, ~block);
+    ignore(enroad_block(state, ~block): bool);
     let obstacles =
       add_roads_to_obstacles(
         state.obstacles,
@@ -410,7 +548,6 @@ let place_block = (state, ~side_x, ~side_z) => {
 };
 
 let place_blocks = (state, ~min_side, ~max_side, ~amount) => {
-  open Core_kernel;
   let rec go = (state, ~amount, ~blocks) =>
     if (amount > 0) {
       let side_x = Random.int_incl(min_side, max_side);
@@ -425,20 +562,13 @@ let place_blocks = (state, ~min_side, ~max_side, ~amount) => {
     };
   go(state, ~amount, ~blocks=[]);
 };
-let run = (input': input): output => {
-  open Core_kernel;
-  let {obstacles, elevation}: input = input';
-  let town_side = side;
-  let town_center = (town_side / 2, town_side / 2);
-  let target_population =
-    min_population + Random.int(max_population - min_population);
-  Tale.logf("Target population = %d", target_population);
-  let num_farms = target_population / pop_per_farm;
-  let num_houses = target_population;
 
+let init_state_and_centers = (input': input) => {
+  let {obstacles, elevation}: input = input';
+  let town_center = (side / 2, side / 2);
   /* Use a point cloud for block centers */
   let centers =
-    Point_cloud.make_list(~side=town_side, ~spacing=block_center_spacing, ())
+    Point_cloud.make_list(~side, ~spacing=block_center_spacing, ())
     |> List.map(~f=((x, z)) => Mg_util.Floats.(~~x, ~~z))
     /* Sort block centers by how close they are to the center plaza */
     |> sort_by_distance_to_center(town_center);
@@ -449,7 +579,10 @@ let run = (input': input): output => {
     road_obstacles: obstacles,
     pathing_state: Roads.init_state(),
   };
+  state;
+};
 
+let prepare_bell = (state: layout_state) => {
   let bell_side = 9;
   let (state, bell) =
     Option.value_exn(
@@ -468,17 +601,17 @@ let run = (input': input): output => {
     ~new_paths=bell_paths,
     state.pathing_state,
   );
+  (state, bell);
+};
 
-  /* Grab houses */
-  let (state, houses) =
-    place_blocks(
-      state,
-      ~min_side=min_house_side,
-      ~max_side=max_house_side,
-      ~amount=num_houses,
-    );
+let prepare_houses = (num_houses: int, state: layout_state) =>
+  place_buildings(
+    state,
+    ~buildings=Town_templates.houses,
+    ~amount=num_houses,
+  );
 
-  /* Grab farms */
+let prepare_farms = (num_farms: int, state: layout_state) => {
   let (state, farms) =
     place_blocks(
       state,
@@ -486,25 +619,40 @@ let run = (input': input): output => {
       ~max_side=max_farm_side,
       ~amount=num_farms,
     );
-
-  let houses = flatten_blocks(state, ~blocks=houses);
   let farms = flatten_blocks(state, ~blocks=farms);
+  (state, farms);
+};
 
-  /* Assign jobs */
-  let (farm_houses, prof_houses) =
-    Mg_util.take_both(List.length(farms), houses);
+let assign_jobs_to_houses = (houses, ~num_farms) => {
+  let (farm_houses, prof_houses) = Mg_util.take_both(num_farms, houses);
   let houses =
-    List.map(~f=block => {block, worksite: None}, farm_houses)
+    List.map(~f=building => {building, worksite: None}, farm_houses)
     @ List.map(
-        ~f=block => {block, worksite: Some(random_worksite())},
+        ~f=building => {building, worksite: Some(random_worksite())},
         prof_houses,
       );
+  houses;
+};
+
+let run = (input': input): output => {
+  let target_population =
+    min_population + Random.int(max_population - min_population);
+  Tale.logf("Target population = %d", target_population);
+  let num_farms = target_population / pop_per_farm;
+  let num_houses = target_population;
+
+  let state = init_state_and_centers(input');
+  let (state, bell) = prepare_bell(state);
+  let (state, houses) = prepare_houses(num_houses, state);
+  let (state, farms) = prepare_farms(num_farms, state);
+  // Fix-up number of farms based on how many plots we could actually place,
+  // rather than the target
+  let num_farms = List.length(farms);
+  let houses = assign_jobs_to_houses(houses, ~num_farms);
 
   let {elevation: _, obstacles, road_obstacles: _, centers: _, pathing_state} = state;
-  // TODO
-  ignore(obstacles);
   let roads = Roads.get_paths_list(pathing_state);
-  {bell, farms, houses, roads};
+  {bell, farms, houses, roads, obstacles};
 };
 
 let test = () => {
@@ -515,4 +663,390 @@ let test = () => {
     let path = Printf.sprintf("town_proto_%d.png", i);
     draw(input, output, path);
   };
+};
+
+module Test_helpers = {
+  include Test_helpers;
+
+  let show_layout_state = (state: layout_state): text_grid => {
+    let show_at = (x, z) =>
+      if (Sparse_grid.has(state.road_obstacles, x, z)) {
+        "X";
+      } else if (Sparse_grid.has(state.obstacles, x, z)) {
+        "O";
+      } else if (List.mem(~equal=Poly.equal, state.centers, (x, z))) {
+        "#";
+      } else {
+        " ";
+      };
+    show_grid(
+      ~side=Grid.side(state.elevation),
+      ~get=show_at,
+      ~show_cell=s => s,
+      (),
+    );
+  };
+
+  let show_elevation = (~radius=?, ~center=?, elevation: Grid.t(int)) => {
+    show_grid(
+      ~radius?,
+      ~center?,
+      ~side=Grid.side(elevation),
+      ~get=(x, z) => Grid.get(x, z, elevation),
+      ~show_cell=Int.to_string,
+      (),
+    );
+  };
+
+  let show_obstacles = (~radius=?, ~center=?, obstacles: Sparse_grid.t(unit)) => {
+    let show_cell = o =>
+      switch (o) {
+      | None => " "
+      | Some () => "X"
+      };
+    show_grid(
+      ~radius?,
+      ~center?,
+      ~side=Sparse_grid.side(obstacles),
+      ~get=(x, z) => Sparse_grid.at(obstacles, x, z),
+      ~show_cell,
+      (),
+    );
+  };
+};
+
+let%expect_test "creates a town from input" = {
+  open Test_helpers;
+  Random.init(1234);
+  Caml.Random.init(1234);
+  let input = make_input();
+  let output = run(input);
+  ignore([%expect.output]);
+  show_obstacles(output.obstacles) |> print_grid;
+  %expect
+  "
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X
+                                                                                  X X X X X X X X X X X X X X X X X X                 X X X X X X X
+                                                                                                                                      X X X X X X X   X X X
+                                                                                                                                      X X X X X X X X X X X
+                                                                                            X X X X                                   X X X X X X X X X X X
+                                                                                            X X X X                                   X X X X X X X X X X X
+                                                                                            X X X X                                   X X X X X X X   X X X
+                                                                                        X X X X X X X                                 X X X X X X X   X X X
+                                                        X X X X X X X X X X X X X X X X X X X X X X X X X X                                           X X X
+                                                        X X X X X X X X X X X X X X X X X X X X X X X X X X X X X                             X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X                           X X X X X X X X
+                                                      X X X X                             X X X       X X X X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X                         X X X X X X X         X X X X X X X X X X X X X X X X X X X X
+                                                      X X X                           X X X X X X X         X X X X X X X X X X X X X X X X X X X     X X X X X X X
+                                                      X X X   X X X X X X X           X X X X X X X                           X X X       X X X       X X X X X X X
+                                                      X X X   X X X X X X X           X X X X X X X                       X X X X X X X   X X X       X X X X X X X X X X X
+                                                      X X X X X X X X X X X           X X X X X X X                       X X X X X X X   X X X       X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X           X X X X X X X X X X X           X X X X X X X                       X X X X X X X   X X X       X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X           X X X X X X X X X X X           X X X X X X X                       X X X X X X X   X X X       X X X X X X X   X X X
+    X X X X X X X X X X X X X X X X X X X X           X X X   X X X X X X X                                               X X X X X X X   X X X       X X X X X X X   X X X
+    X X X X X X X X X X X X X X X X X X X X           X X X   X X X X X X X                                               X X X X X X X   X X X                       X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X           X X X                         X X X X X X X                         X X X X X X X   X X X X X X X X X X X X X X X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X           X X X                         X X X X X X X                                         X X X X X X X X X X X X X X X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X           X X X                         X X X X X X X                                         X X X X X X X X X X X X X X X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X           X X X                         X X X X X X X                                         X X X                       X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X   X X X X X X X                         X X X X X X X                                         X X X                       X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X   X X X X X X X                         X X X X X X X                                         X X X                       X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X   X X X X X X X                         X X X X X X X                       X X X X X X X X X X X X                       X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X                                             X X X                           X X X X X X X X X X X X                       X X X       X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X                                             X X X X X X           X X X X X X X X X X X X X X X X X                       X X X X     X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X                                         X X X X X X X X X X X X X X X X X X X X X             X X X                       X X X X     X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X                                       X X X X X X X X X X X X X X X X X X X X X X         X X X X X X X                   X X X X     X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X     X X X X X X X                     X X X X X X   X X X X X X X X X                     X X X X X X X                               X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X     X X X X X X X                     X X X X       X X X X X X X X X                     X X X X X X X                               X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X     X X X X X X X X X X X           X X X X         X X X X X X X X X                     X X X X X X X                               X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X     X X X X X X X X X X X           X X X X         X X X X X X X X X                     X X X X X X X                               X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X     X X X X X X X X X X X     X X X X X X X         X X X X X X X X X                     X X X X X X X                               X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X     X X X X X X X   X X X X X X X X X X X           X X X X X X X X X X                   X X X X X X X                               X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X     X X X X X X X   X X X X X X X X X X X           X X X X X X X X X X                                                               X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X                     X X X X X X X X                               X X X                                                               X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X X X                   X X X X X X X X                                 X X X                                                               X X X X X X X X X X X X X X X X X X X
+                                                              X X X X X X X X   X X X X X X X                 X X X                                                               X X X X X X X X X X X X X X X X X X X
+                                                              X X X X X X X X   X X X X X X X                 X X X                                                               X X X X X X X X X X X X X X X X X X X
+                                                                        X X X X X X X X X X X                 X X X   X X X X X X X
+                                                                        X X X X X X X X X X X                 X X X   X X X X X X X
+                                                                        X X X X X X X X X X X                 X X X X X X X X X X X
+                                                                                X X X X X X X                 X X X X X X X X X X X
+                                                                                X X X X X X X                 X X X X X X X X X X X       X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                                              X X X   X X X X X X X       X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                                              X X X   X X X X X X X       X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                            X X X X X X X     X X X                       X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                            X X X X X X X     X X X                       X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                            X X X X X X X     X X X                       X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                            X X X X X X X     X X X                       X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                            X X X X X X X     X X X                       X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X         X X X X X X X     X X X                       X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X         X X X X X X X     X X X                       X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X             X X X         X X X               X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X           X X X X X X X X X X X               X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X       X X X X X X X X X X X X X               X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X       X X X X X X X X X X X X X X X X X       X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X     X X X X X X           X X X X X X X X     X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X     X X X X               X X X X X X X X X   X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X     X X X X                       X X X X X X X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X     X X X                           X X X X X X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X                                       X X X X X X X   X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X                                         X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X                                         X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X                                           X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X                                             X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X
+                                    X X X X X X X X X X X X X X X X X X X X X X X X
+  ";
+};
+
+let%expect_test "builds up" = {
+  open Test_helpers;
+  Random.init(789);
+  Caml.Random.init(789);
+  let diff = make_running_diff();
+  let input = make_input();
+  let state = init_state_and_centers(input);
+  diff(show_layout_state(state)) |> print_grid(~radius=10);
+  %expect
+  "
+                #
+
+
+
+
+    #                         #
+
+                #
+
+
+
+
+
+
+
+
+
+
+          #
+  ";
+  let (state, _) = prepare_bell(state);
+  diff(show_layout_state(state)) |> print_grid;
+  %expect
+  "
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O";
+  let (state, _) = prepare_houses(1, state);
+  ignore([%expect.output]);
+  diff(show_layout_state(state)) |> print_grid;
+  %expect
+  "
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O O O O O O O
+    O O O       O O O
+    O O O   X X X X X X X
+    O O O   X X X X X X X
+        O   X X X X X X X
+        O   X X X X X X X
+            X X X X X X X
+            X X X X X X X
+            X X X X X X X";
+  let (state, houses) = prepare_houses(3, state);
+  ignore([%expect.output]);
+  diff(show_layout_state(state)) |> print_grid;
+  %expect
+  "
+    O O O O O O O O O O O O O O O O O O
+    O O O O O O O O O O O O O O O O O O
+    O O O O O O O O O O O O O O O O O O
+    O O O
+    O O O   X X X X X X X
+    O O O   X X X X X X X
+    O O O O X X X X X X X
+    O O O O X X X X X X X                                 O
+    O O O O X X X X X X X                                 O
+    O O O   X X X X X X X                             O O O O O
+            X X X X X X X                             O O O O O O O
+                                                      O O O O O O O O O O
+                                                          O O O O O O O O
+                                                              O O O O O O O
+                                                                    O O O O O O
+                                                                    O O O O O O
+                                                                      O O O O O O
+                                                                          O O O O O O O O
+                                                                          O O O O O O O O
+                                    X X X X X X X                           O O O O O O O
+                                    X X X X X X X                                   O O O
+                                    X X X X X X X                                   O O O
+                                    X X X X X X X                                   O O O
+                                    X X X X X X X                   X X X X X X X   O O O
+                                    X X X X X X X                   X X X X X X X   O O O
+                                    X X X X X X X                   X X X X X X X   O O O
+                                        O O O                       X X X X X X X   O O O
+                                        O O O                       X X X X X X X   O O O
+                                        O O O                       X X X X X X X   O O O
+                                      O O O O O O O O               X X X X X X X   O O O
+                                      O O O O O O O O                   O O O       O O O
+                                      O O O O O O O O O O O O O O O O O O O O O O O O O O
+                                                O O O O O O O O O O O O O O O O O O O O O
+                                                O O O O O O O O O O O O O O O O O O O O O
+  ";
+
+  let (state, _) = prepare_farms(1, state);
+  ignore([%expect.output]);
+  diff(show_layout_state(state)) |> print_grid;
+  %expect
+  "
+                          O O O O O
+                        O O O O O O
+                      O O O O O O O
+                      O O O O O
+                      O O O O
+                      O O O
+
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+  ";
+  let (state, _) = prepare_farms(3, state);
+  ignore([%expect.output]);
+  diff(show_layout_state(state)) |> print_grid;
+  %expect
+  "
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+    X X X X X X X X X X X X X X X X X X                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                            X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                  O O O     X X X X X X X X X X X X X X X X X X X X X X X X
+                  O O O                                                           O O O     X X X X X X X X X X X X X X X X X X X X X X X X
+                  O O O                                                           O O O     X X X X X X X X X X X X X X X X X X X X X X X X
+                  O O O                                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+                  O O O                                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+                  O O O                                                                     X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                            X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                            X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                            X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                            X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                            X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                            X X X X X X X X X X X X X X X X X X X X X X X X
+                                                                                            X X X X X X X X X X X X X X X X X X X X X X X X
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                          O O O
+
+
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+                                                      X X X X X X X X X X X X X X X X X X X X X X X X
+  ";
+
+  let houses = assign_jobs_to_houses(houses, ~num_farms=1);
+  print_s(
+    [%sexp_of: list(option(worksite))](
+      List.map(houses, ~f=h => h.worksite),
+    ),
+  );
+  %expect
+  "(() (Shepherd) (Butcher))";
 };
