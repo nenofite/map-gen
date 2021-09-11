@@ -373,6 +373,7 @@ let apply_worksite_to_house = (~house: building, worksite: option(worksite)) => 
 };
 
 let create_house = (house: house, region: Minecraft.Region.t) => {
+  open Core_kernel;
   open Minecraft.Region;
 
   let {building, worksite} = house;
@@ -383,15 +384,23 @@ let create_house = (house: house, region: Minecraft.Region.t) => {
   let y = Building_old.flatten_footprint(region, ~x, ~z, template.footprint);
   Minecraft_template.place_overwrite(template, ~x, ~y, ~z, region);
 
+  let (vx, vy, vz) =
+    Option.value_exn(
+      Minecraft_template.get_mark(
+        building.building.template,
+        ~mark=`Villager,
+      ),
+    );
+
   switch (worksite) {
   | None => ()
   | Some(_) =>
     add_entity(
       Minecraft.Entity.{
         id: "villager",
-        x: Float.of_int(x + 1),
-        y: Float.of_int(y + 11),
-        z: Float.of_int(z + 1),
+        x: Float.of_int(x + vx),
+        y: Float.of_int(y + vy),
+        z: Float.of_int(z + vz),
       },
       region,
     )
@@ -633,5 +642,5 @@ let%expect_test "applying a house" = {
 
   show_entities(r);
   %expect
-  "(((id villager) (x 2) (y 51) (z 3)))";
+  "(((id villager) (x 4) (y 41) (z 5)))";
 };

@@ -11,6 +11,7 @@ let bedroom_1_t =
         ("d", Filled(Oak_door(N, Lower))),
         ("W", Marked(`Worksite, Filled(Air))),
         ("1", Marked(`Road, Empty)),
+        ("V", Marked(`Villager, Filled(Air))),
       ],
     {|
 . . . . . . .
@@ -63,7 +64,7 @@ X X X X X X X
 X X X d X X X
 X - - - - - X
 X B - - - ^ X
-X b - - - X X
+X b - V - X X
 X - - - - - X
 X - W - - - X
 X X X X X X X

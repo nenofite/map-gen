@@ -21,7 +21,7 @@ type worksite =
   | Shepherd;
 
 [@deriving (bin_io, sexp)]
-type marks = [ | `Worksite | `Road];
+type marks = [ | `Worksite | `Road | `Villager];
 
 [@deriving (bin_io, sexp)]
 type building = {template: [@sexp.opaque] Minecraft_template.t(marks)};
