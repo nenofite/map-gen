@@ -531,6 +531,8 @@ module Test_helpers = {
     | Water => Some("~")
     | Wheat(_) => Some("$")
     | Composter => Some("X")
+    | Cobblestone => Some("#")
+    | Oak_planks => Some("=")
     | _ => Some("?")
     };
   let show_td = show_region_top_down(~show_block);
@@ -593,7 +595,8 @@ let%expect_test "applying a house" = {
   let house = {
     worksite: Some(Butcher),
     building: {
-      building: Town_templates.bedroom_1,
+      building:
+        Town_templates.bedroom_1 |> Town_layout.rotate_building_cw(~times=1),
       block: {
         min_x: 1,
         max_x: 10,
@@ -607,22 +610,22 @@ let%expect_test "applying a house" = {
   td_diff(show_td(r)) |> print_grid;
   %expect
   "
-    ? ? ? ? ? ? ?
-    ? ? ? ? ? ? ?
-    ? ? ? ? ? ? ?
-    ? ? ? ? ? ? ?
-    ? ? ? ? ? ? ?
-    ? ? ? ? ? ? ?
-    ? ? ? ? ? ? ?
+    # # # # # # #
+    # = = = = = #
+    # = = = ? = #
+    # = = = = = #
+    # = = = = = #
+    # ? ? ? ? = #
+    # # # # # # #
   ";
 
   sn_diff(show_sn(r)) |> print_grid;
   %expect
   "
-    ? ? ? ? ? ? ?
-    ? ? ? ? ? ? ?
-    ? ? ? ? ? ? ?
-    ? ? ? ? ? ? ?
-    ? ? ? ? ? ? ?
+    # # # # # # #
+    # # # # # # #
+    # # # # # # #
+    # # # # # # #
+    # # # # # # #
   ";
 };
