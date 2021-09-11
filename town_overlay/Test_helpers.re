@@ -129,6 +129,12 @@ let show_region_south_north =
   );
 };
 
+let show_entities = (r: Minecraft.Region.t): unit => {
+  print_s(
+    [%sexp_of: list(Minecraft.Entity.t)](Minecraft.Region.all_entities(r)),
+  );
+};
+
 let cached_region = ref(None: option(Minecraft.Region.t));
 
 let build_test_region = (~rx=0, ~rz=0, ()) => {

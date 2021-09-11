@@ -581,6 +581,10 @@ let%expect_test "applying a farm" = {
       $ $ $ $ $ $ $ $ X
     . . . . . . . . . .
   ";
+
+  show_entities(r);
+  %expect
+  "(((id villager) (x 9) (y 44) (z 2)))";
 };
 
 let%expect_test "applying a house" = {
@@ -628,4 +632,8 @@ let%expect_test "applying a house" = {
     # # # # # # #
     # # # # # # #
   ";
+
+  show_entities(r);
+  %expect
+  "(((id villager) (x 2) (y 51) (z 3)))";
 };
