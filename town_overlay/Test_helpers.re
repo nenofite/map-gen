@@ -73,3 +73,40 @@ let make_running_diff = () => {
     to_show;
   };
 };
+
+let show_region_top_down =
+    (~show_block, ~resolve_multi=List.hd_exn, r: Minecraft.Region.t)
+    : text_grid => {
+  let top_down_at = (~x, ~z) => {
+    let matches =
+      Mg_util.Range.map(0, Minecraft.Region.block_per_region_vertical - 1, y =>
+        show_block(Minecraft.Region.get_block(~x, ~y, ~z, r))
+      )
+      |> List.filter_map(~f=opt => opt);
+    switch (matches) {
+    | [] => " "
+    | [single] => single
+    | multi => resolve_multi(multi)
+    };
+  };
+  Grid.Mut.init(
+    ~side=Minecraft.Region.block_per_region_side,
+    ~f=top_down_at,
+    "",
+  );
+};
+
+let build_test_region = (r: Minecraft.Region.t): unit => {
+  open Minecraft.Region;
+  let elevation = 40;
+  iter_region_xz(
+    r,
+    ~f=(~x, ~z) => {
+      set_block(~x, ~y=0, ~z, Bedrock, r);
+      for (y in 1 to elevation - 1) {
+        set_block(~x, ~y, ~z, Dirt, r);
+      };
+      set_block(~x, ~y=elevation, ~z, Grass_block, r);
+    },
+  );
+};
