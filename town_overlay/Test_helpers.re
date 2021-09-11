@@ -77,7 +77,10 @@ let make_running_diff = () => {
 let show_region_top_down =
     (~show_block, ~resolve_multi=List.hd_exn, r: Minecraft.Region.t)
     : text_grid => {
+  let (ox, oz) = Minecraft.Region.region_offset(r);
   let top_down_at = (~x, ~z) => {
+    let x = x + ox;
+    let z = z + oz;
     let matches =
       Mg_util.Range.map(0, Minecraft.Region.block_per_region_vertical - 1, y =>
         show_block(Minecraft.Region.get_block(~x, ~y, ~z, r))
@@ -92,6 +95,36 @@ let show_region_top_down =
   Grid.Mut.init(
     ~side=Minecraft.Region.block_per_region_side,
     ~f=top_down_at,
+    "",
+  );
+};
+
+let show_region_south_north =
+    (~show_block, ~resolve_multi=List.hd_exn, r: Minecraft.Region.t)
+    : text_grid => {
+  let (ox, oz) = Minecraft.Region.region_offset(r);
+  let south_north_at = (~x, ~z as y) => {
+    let x = x + ox;
+    let y = Minecraft.Region.block_per_region_vertical - y - 1;
+    if (y < 0) {
+      " ";
+    } else {
+      let matches =
+        Mg_util.Range.map(
+          oz, oz + Minecraft.Region.block_per_region_side - 1, z =>
+          show_block(Minecraft.Region.get_block(~x, ~y, ~z, r))
+        )
+        |> List.filter_map(~f=opt => opt);
+      switch (matches) {
+      | [] => " "
+      | [single] => single
+      | multi => resolve_multi(multi)
+      };
+    };
+  };
+  Grid.Mut.init(
+    ~side=Minecraft.Region.block_per_region_side,
+    ~f=south_north_at,
     "",
   );
 };

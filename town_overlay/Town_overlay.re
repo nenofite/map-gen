@@ -403,7 +403,6 @@ let create_farm = (farm: block, region: Minecraft.Region.t) => {
   open Minecraft.Block;
 
   let {xz: {min_x, max_x, min_z, max_z}, elevation} = farm;
-  let elevation = elevation + 1;
 
   /* Foundation */
   for (x in min_x to max_x) {
@@ -525,28 +524,28 @@ let (require, prepare, apply) =
 module Test_helpers = {
   include Test_helpers;
 
-  let show_farm = (r: Minecraft.Region.t) => {
-    show_region_top_down(
-      ~show_block=
-        fun
-        | Air => None
-        | Grass_block => Some(".")
-        | Water => Some("~")
-        | Wheat(_) => Some("$")
-        | Composter => Some("X")
-        | _ => Some("?"),
-      r,
-    );
-  };
+  let show_block = (b: Minecraft.Block.material) =>
+    switch (b) {
+    | Air => None
+    | Grass_block => Some(".")
+    | Water => Some("~")
+    | Wheat(_) => Some("$")
+    | Composter => Some("X")
+    | _ => Some("?")
+    };
+  let show_td = show_region_top_down(~show_block);
+  let show_sn = show_region_south_north(~show_block);
 };
 
 let%expect_test "applying a farm" = {
   open Test_helpers;
 
-  let diff = make_running_diff();
+  let td_diff = make_running_diff();
+  let sn_diff = make_running_diff();
   let r = Minecraft.Region.create(~rx=0, ~rz=0);
   build_test_region(r);
-  diff(show_farm(r)) |> ignore;
+  td_diff(show_td(r)) |> ignore;
+  sn_diff(show_sn(r)) |> ignore;
 
   create_farm(
     {
@@ -556,11 +555,11 @@ let%expect_test "applying a farm" = {
         min_z: 2,
         max_z: 12,
       },
-      elevation: 50,
+      elevation: 41,
     },
     r,
   );
-  diff(show_farm(r)) |> print_grid;
+  td_diff(show_td(r)) |> print_grid;
   %expect
   "
                     X
@@ -573,5 +572,12 @@ let%expect_test "applying a farm" = {
     $ $ $ $ $ $ $ $
     ~ ~ ~ ~ ~ ~ ~ ~
     $ $ $ $ $ $ $ $
+  ";
+
+  sn_diff(show_sn(r)) |> print_grid;
+  %expect
+  "
+      $ $ $ $ $ $ $ $ X
+    . . . . . . . . . .
   ";
 };
