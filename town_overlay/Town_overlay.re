@@ -542,8 +542,7 @@ let%expect_test "applying a farm" = {
 
   let td_diff = make_running_diff();
   let sn_diff = make_running_diff();
-  let r = Minecraft.Region.create(~rx=0, ~rz=0);
-  build_test_region(r);
+  let r = build_test_region();
   td_diff(show_td(r)) |> ignore;
   sn_diff(show_sn(r)) |> ignore;
 
@@ -587,10 +586,9 @@ let%expect_test "applying a house" = {
 
   let td_diff = make_running_diff();
   let sn_diff = make_running_diff();
-  let r = Minecraft.Region.create(~rx=0, ~rz=0);
-  build_test_region(r);
-  // td_diff(show_td(r)) |> ignore;
-  // sn_diff(show_sn(r)) |> ignore;
+  let r = build_test_region();
+  td_diff(show_td(r)) |> ignore;
+  sn_diff(show_sn(r)) |> ignore;
 
   let house = {
     worksite: Some(Butcher),

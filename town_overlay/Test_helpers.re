@@ -129,8 +129,21 @@ let show_region_south_north =
   );
 };
 
-let build_test_region = (r: Minecraft.Region.t): unit => {
+let cached_region = ref(None: option(Minecraft.Region.t));
+
+let build_test_region = (~rx=0, ~rz=0, ()) => {
   open Minecraft.Region;
+  let r =
+    switch (cached_region^) {
+    | Some(r) =>
+      reset(~rx, ~rz, r);
+      r;
+    | None =>
+      let r = create(~rx, ~rz);
+      cached_region := Some(r);
+      r;
+    };
+
   let elevation = 40;
   iter_region_xz(
     r,
@@ -142,4 +155,5 @@ let build_test_region = (r: Minecraft.Region.t): unit => {
       set_block(~x, ~y=elevation, ~z, Grass_block, r);
     },
   );
+  r;
 };
