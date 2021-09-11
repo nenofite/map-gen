@@ -491,21 +491,19 @@ let illuminate_town = (~x, ~z, ~blocks, region): unit => {
   Torching.illuminate(~volume=over_town, region);
 };
 
-let apply_region = ((towns, _canon): t, region: Minecraft.Region.t) => {
+let apply_town = (~x, ~z, town: output, region: Minecraft.Region.t): unit => {
+  let {bell, farms, houses, roads: _, obstacles: _} = town;
+  create_bell(bell, region);
+  List.iter(house => create_house(house, region), houses);
+  List.iter(farm => create_farm(farm, region), farms);
+  illuminate_town(~x, ~z, ~blocks=Town_layout.all_blocks(town), region);
+};
+
+let apply_region = ((towns, _canon): t, region: Minecraft.Region.t): unit => {
   List.iter(
-    ({x, z, town: {bell, farms, houses, roads, obstacles: _} as town}) =>
+    ({x, z, town}) =>
       if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
-        // TODO
-        ignore(roads);
-        create_bell(bell, region);
-        List.iter(house => create_house(house, region), houses);
-        List.iter(farm => create_farm(farm, region), farms);
-        illuminate_town(
-          ~x,
-          ~z,
-          ~blocks=Town_layout.all_blocks(town),
-          region,
-        );
+        apply_town(~x, ~z, town, region);
       },
     towns,
   );
