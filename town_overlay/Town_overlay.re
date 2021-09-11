@@ -581,3 +581,50 @@ let%expect_test "applying a farm" = {
     . . . . . . . . . .
   ";
 };
+
+let%expect_test "applying a house" = {
+  open Test_helpers;
+
+  let td_diff = make_running_diff();
+  let sn_diff = make_running_diff();
+  let r = Minecraft.Region.create(~rx=0, ~rz=0);
+  build_test_region(r);
+  // td_diff(show_td(r)) |> ignore;
+  // sn_diff(show_sn(r)) |> ignore;
+
+  let house = {
+    worksite: Some(Butcher),
+    building: {
+      building: Town_templates.bedroom_1,
+      block: {
+        min_x: 1,
+        max_x: 10,
+        min_z: 2,
+        max_z: 12,
+      },
+    },
+  };
+  create_house(house, r);
+
+  td_diff(show_td(r)) |> print_grid;
+  %expect
+  "
+    ? ? ? ? ? ? ?
+    ? ? ? ? ? ? ?
+    ? ? ? ? ? ? ?
+    ? ? ? ? ? ? ?
+    ? ? ? ? ? ? ?
+    ? ? ? ? ? ? ?
+    ? ? ? ? ? ? ?
+  ";
+
+  sn_diff(show_sn(r)) |> print_grid;
+  %expect
+  "
+    ? ? ? ? ? ? ?
+    ? ? ? ? ? ? ?
+    ? ? ? ? ? ? ?
+    ? ? ? ? ? ? ?
+    ? ? ? ? ? ? ?
+  ";
+};
