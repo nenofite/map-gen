@@ -392,6 +392,10 @@ let set_at =
   of_blocks(blocks, ~marks=t.marks);
 };
 
+let find_blocks = (t: t(_), ~f) => {
+  List.filter(t.blocks, ~f);
+};
+
 let get_mark = (t: t('a), ~mark: 'a) => {
   Core_kernel.(
     List.find_map(t.marks, ~f=((x, y, z, m)) =>
