@@ -145,9 +145,9 @@ let neighbors = (~get_elevation, ~get_obstacle, {x, y, z, structure}) => {
     if (dy == 0) {
       [({x: nx, y: ny, z: nz, structure: Road}, flat_ground_cost), ...list];
     } else if (dy == 1) {
-      /* stairs should only generate on the lower block of a slope, so
-         forcefully lower the y */
       [
+        /* stairs should only generate on the lower block of a slope, so
+           forcefully lower the y */
         (
           {
             x: nx,
