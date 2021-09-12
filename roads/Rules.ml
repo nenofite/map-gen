@@ -194,11 +194,15 @@ let neighbors ~get_elevation ~get_obstacle {x; y; z; structure} =
   | Bridge dir ->
       bridge_neighbors ~x ~y ~z dir
 
+let put_roads_onto_sparse_grid (roads : t list) ~grid =
+  List.fold roads ~init:grid ~f:(fun grid road ->
+      Sparse_grid.put grid road.x road.z road )
+
 (**
   widen_path makes Paved roads three blocks wide. Each block is the highest
   elevation and nicest niceness of any road it touches.
  *)
-let widen_road (roads : t Sparse_grid.t) =
+let widen_roads (roads : t Sparse_grid.t) =
   let roads_lo_to_hi =
     Sparse_grid.fold roads (fun coord road ls -> (coord, road) :: ls) []
     |> List.stable_sort ~compare:(fun (_, a) (_, b) ->
