@@ -7,7 +7,13 @@ let pillar = {
   stack(base, cap);
 };
 
-let endpiece_going_north = {
+let short_endpiece_going_north = {
+  open Minecraft_template;
+  let stairs = rect(Stairs(Stone_brick_stairs, N), ~xs=3, ~ys=1, ~zs=1);
+  stairs |> align_with_origin'(~x=center, ~y=min, ~z=shift(max, ~by=-1));
+};
+
+let long_endpiece_going_north = {
   open Minecraft_template;
   let stairs = rect(Stairs(Stone_brick_stairs, N), ~xs=3, ~ys=1, ~zs=1);
   let inv_stairs = rect(Stairs(Stone_brick_stairs, Sd), ~xs=3, ~ys=1, ~zs=1);
@@ -76,13 +82,12 @@ let connector = length => {
   Minecraft_template.(rect(Stone_bricks, ~xs=3, ~ys=1, ~zs=length));
 };
 
-let bridge = (~length, ~rotation) => {
+let short_bridge = (~length) => {
   open Minecraft_template;
-  let length = length - 2 * z_size_of(endpiece_going_north);
-  assert(length > 0);
-  let start_piece = endpiece_going_north;
+  let start_piece = short_endpiece_going_north;
+  let connector_length = max(length - 2, 0);
   let connector =
-    connector(length)
+    connector(connector_length)
     |> align_with'(
          ~other=start_piece,
          ~x=(center, center),
@@ -90,7 +95,7 @@ let bridge = (~length, ~rotation) => {
          ~z=(max, min),
        );
   let end_piece =
-    endpiece_going_north
+    short_endpiece_going_north
     |> rotate_90_cw(~times=2)
     |> align_with'(
          ~other=connector,
@@ -98,8 +103,42 @@ let bridge = (~length, ~rotation) => {
          ~y=(max, max),
          ~z=(max, min),
        );
-  combine_all([start_piece, connector, end_piece])
-  |> rotate_90_cw(~times=rotation);
+  combine_all([start_piece, connector, end_piece]);
+};
+
+let long_bridge = (~mid_length) => {
+  open Minecraft_template;
+  let start_piece = long_endpiece_going_north;
+  let connector =
+    connector(mid_length)
+    |> align_with'(
+         ~other=start_piece,
+         ~x=(center, center),
+         ~y=(max, max),
+         ~z=(max, min),
+       );
+  let end_piece =
+    long_endpiece_going_north
+    |> rotate_90_cw(~times=2)
+    |> align_with'(
+         ~other=connector,
+         ~x=(center, center),
+         ~y=(max, max),
+         ~z=(max, min),
+       );
+  combine_all([start_piece, connector, end_piece]);
+};
+
+let bridge = (~length, ~rotation) => {
+  open Minecraft_template;
+  let mid_length = length - 2 * z_size_of(long_endpiece_going_north);
+  let t =
+    if (mid_length > 0) {
+      long_bridge(~mid_length);
+    } else {
+      short_bridge(~length);
+    };
+  rotate_90_cw(t, ~times=rotation);
 };
 
 module Test_helpers = {
@@ -149,5 +188,29 @@ let%expect_test "creating a bridge template" = {
     O   > # # # # <   O
     # > x         x < #
     # x             x #
+  ";
+};
+
+let%expect_test "short bridges" = {
+  open Test_helpers;
+  let b = bridge(~length=4, ~rotation=2);
+
+  Printf.printf("%d\n", Minecraft_template.z_size_of(b));
+  %expect
+  "4";
+
+  show_template_top_down(~show_block, b) |> print_grid;
+  %expect
+  "
+    v v v
+    # # #
+    # # #
+    ^ ^ ^
+  ";
+
+  show_template_south_north(~show_block, b) |> print_grid;
+  %expect
+  "
+    ^ ^ ^
   ";
 };
