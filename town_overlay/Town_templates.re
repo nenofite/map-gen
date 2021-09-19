@@ -1,7 +1,9 @@
 open! Core_kernel;
 open Town_overlay_i;
 
-let bedroom_1_t =
+let make = t => {template: Minecraft_template.normalize_on_origin(t)};
+
+let house_1 =
   Minecraft_template.Txt.parse_template(
     ~palette=
       Minecraft_template.Txt.Palette_incl.[
@@ -81,7 +83,80 @@ X = = = = = X
 X X X X X X X
     |},
   )
-  |> Minecraft_template.normalize_on_origin;
-let bedroom_1 = {template: bedroom_1_t};
+  |> make;
 
-let houses = [bedroom_1];
+let house_2 =
+  Minecraft_template.Txt.parse_template(
+    ~palette=
+      Minecraft_template.Txt.Palette_incl.[
+        ("B", Filled(Orange_bed(N, Head))),
+        ("b", Filled(Orange_bed(N, Foot))),
+        ("D", Filled(Oak_door(N, Upper))),
+        ("d", Filled(Oak_door(N, Lower))),
+        ("#", Filled(Glass)),
+        ("O", Filled(Log(Oak_log, Y))),
+        ("~", Filled(Log(Oak_log, X))),
+        ("I", Filled(Log(Oak_log, Z))),
+        ("W", Marked(`Worksite, Filled(Air))),
+        ("1", Marked(`Road, Empty)),
+        ("V", Marked(`Villager, Filled(Air))),
+      ],
+    {|
+
+. . . . . . . . . . .
+. . . . . . . . . . .
+. . . . . . . . . . .
+O = = O . . . O = = O
+= - - = . . . = - - =
+# - - O = = = O - - #
+# - - - - - - - - - #
+# - - - - - - - - - #
+= - - - - - - - - - =
+O = # = # # # = # = O
+
+. . . . . . . . . . .
+. . . . . . . . . . .
+. . . . . . . . . . .
+O = = O . . . O = = O
+= - - = . . . = - - =
+= - - O = D = O - - =
+= - - - - - - - - - =
+= - - - - - - - - - =
+= - - - - - - - - - =
+O = = = = = = = = = O
+
+. . . . . . . . . . .
+. . . . . . . . . . .
+. . . . . . . . . . .
+O ~ ~ O . . . O ~ ~ O
+I - - I . . . I - - I
+I - - O ~ d ~ O - - I
+I - - - - - - - - - I
+I - - - V - - - - - I
+I - - - - W - - - - I
+O ~ ~ ~ ~ ~ ~ ~ ~ ~ O
+
+. . . . . 1 . . . . .
+. . . . . 1 . . . . .
+. . . . . 1 . . . . .
+X X X X . 1 . X X X X
+X = = X . . . X = = X
+X = = X X X X X = = X
+X = = = = = = = = = X
+X = = = = = = = = = X
+X = = = = = = = = = X
+X X X X X X X X X X X
+    |},
+  )
+  |> make;
+
+let house_3 = {
+  open Minecraft_template;
+  open Minecraft_template.Rect;
+  let b = rect(~xs=14, ~ys=5, ~zs=21);
+  let f = floor(b) |> fill(~material=Cobblestone);
+  let c = columns(b) |> fill(~material=Log(Oak_log, Y));
+  combine_all([f, c]) |> add_mark(~x=7, ~y=1, ~z=20, ~mark=`Villager) |> make;
+};
+
+let houses = [/*house_1, house_2,*/ house_3];

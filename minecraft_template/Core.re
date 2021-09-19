@@ -420,6 +420,10 @@ let get_marks = (t: t('a), ~mark: 'a) => {
   );
 };
 
+let add_mark = (t: t('a), ~x, ~y, ~z, ~mark: 'a) => {
+  {...t, marks: [(x, y, z, mark), ...t.marks]};
+};
+
 let strip_marks = (t: t(_)): t(_) => {
   {...t, marks: []};
 };

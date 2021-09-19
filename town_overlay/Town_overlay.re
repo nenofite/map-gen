@@ -367,6 +367,7 @@ let apply_worksite_to_house = (~house: building, worksite: option(worksite)) => 
   | Some(worksite) =>
     let (x, y, z) =
       Option.value_exn(
+        ~message="House must contain worksite mark",
         Minecraft_template.get_mark(house.template, ~mark=`Worksite),
       );
     Minecraft_template.set_at(
@@ -392,6 +393,7 @@ let create_house = (house: house, region: Minecraft.Region.t) => {
 
   let (vx, vy, vz) =
     Option.value_exn(
+      ~message="House must contain villager mark",
       Minecraft_template.get_mark(
         building.building.template,
         ~mark=`Villager,
@@ -613,7 +615,7 @@ let%expect_test "applying a house" = {
     worksite: Some(Butcher),
     building: {
       building:
-        Town_templates.bedroom_1 |> Town_layout.rotate_building_cw(~times=1),
+        Town_templates.house_1 |> Town_layout.rotate_building_cw(~times=1),
       block: {
         min_x: 1,
         max_x: 10,
