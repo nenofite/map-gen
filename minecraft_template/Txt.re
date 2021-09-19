@@ -25,23 +25,7 @@ type marks('a) = list((int, int, int, 'a));
 exception Template_txt_failure(string);
 
 let default_palette: palette('a) =
-  Minecraft.Block.[
-    (".", Empty),
-    ("-", Filled(Air)),
-    ("X", Filled(Cobblestone)),
-    ("=", Filled(Oak_planks)),
-    ("#", Filled(Glass)),
-    ("O", Filled(Log(Oak_log, Y))),
-    ("v", Filled(Stairs(Stone_stairs, N))),
-    ("<", Filled(Stairs(Stone_stairs, E))),
-    ("^", Filled(Stairs(Stone_stairs, S))),
-    (">", Filled(Stairs(Stone_stairs, W))),
-    ("s", Filled(Wall_torch(N))),
-    ("w", Filled(Wall_torch(E))),
-    ("n", Filled(Wall_torch(S))),
-    ("e", Filled(Wall_torch(W))),
-    ("i", Filled(Torch)),
-  ];
+  Minecraft.Block.[(".", Empty), ("-", Filled(Air))];
 
 let eval_space = (space: space('a), ~x: int, ~y: int, ~z: int) => {
   let rec go = (space, marks) =>

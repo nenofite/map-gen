@@ -7,6 +7,11 @@ let house_1 =
   Minecraft_template.Txt.parse_template(
     ~palette=
       Minecraft_template.Txt.Palette_incl.[
+        ("X", Filled(Cobblestone)),
+        ("^", Filled(Stairs(Stone_stairs, S))),
+        ("=", Filled(Oak_planks)),
+        ("i", Filled(Torch)),
+        ("s", Filled(Wall_torch(N))),
         ("B", Filled(Orange_bed(N, Head))),
         ("b", Filled(Orange_bed(N, Foot))),
         ("D", Filled(Oak_door(N, Upper))),
@@ -89,6 +94,9 @@ let house_2 =
   Minecraft_template.Txt.parse_template(
     ~palette=
       Minecraft_template.Txt.Palette_incl.[
+        ("X", Filled(Cobblestone)),
+        ("=", Filled(Oak_planks)),
+        ("i", Filled(Torch)),
         ("B", Filled(Orange_bed(N, Head))),
         ("b", Filled(Orange_bed(N, Foot))),
         ("D", Filled(Oak_door(N, Upper))),
