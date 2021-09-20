@@ -8,7 +8,7 @@ let house_1 =
     ~palette=
       Minecraft_template.Txt.Palette_incl.[
         ("X", Filled(Cobblestone)),
-        ("v", Filled(Stairs(Stone_stairs, S))),
+        ("v", Filled(Stairs(Oak_stairs, S))),
         ("=", Filled(Oak_planks)),
         ("i", Filled(Torch)),
         ("s", Filled(Wall_torch(N))),
@@ -16,6 +16,10 @@ let house_1 =
         ("b", Filled(Orange_bed(N, Foot))),
         ("D", Filled(Oak_door(N, Upper))),
         ("d", Filled(Oak_door(N, Lower))),
+        ("~", Filled(Log(Oak_log, X))),
+        ("O", Filled(Log(Oak_log, Y))),
+        ("I", Filled(Log(Oak_log, Z))),
+        ("#", Filled(Stone_bricks)),
         ("W", Marked(`Worksite, Filled(Air))),
         ("1", Marked(`Road, Empty)),
         ("V", Marked(`Villager, Filled(Air))),
@@ -24,57 +28,57 @@ let house_1 =
 . . . . . . .
 . . . . . . .
 . . . . . . .
-X X X X X X X
-X - - - - - X
-X - i - - - X
-X - - - - - X
-X - - - - - X
-X - - - - - X
-X X X X X X X
+O = = = = = O
+= - - - - - =
+= - i - - - =
+= - - - - - =
+= - - - - - =
+= - - - - - =
+O = = = = = O
 
 . . . . . . .
 . . . . . . .
 . . . . . . .
-X X X X X X X
-X = = = = - X
-X = = = = - X
-X = = = = - X
-X = = = = - X
-X = = = = v X
-X X X X X X X
+O ~ ~ ~ ~ ~ O
+I = = = = - I
+I = = = = - I
+I = = = = - I
+I = = = = - I
+I = = = = v I
+O ~ ~ ~ ~ ~ O
 
 . . . . . . .
 . . . . . . .
 . . . . . . .
-X X X X X X X
-X - - - - - X
-X - - - - - X
-X - - - - - X
-X - - - - v X
-X - - s - X X
-X X X X X X X
+O = # # # = O
+~ - - - - - ~
+= - - - - - =
+= - - - - - =
+= - - - - v =
+~ - - s - - ~
+O I = = = I O
 
 . . . . . . .
 . . . . . . .
 . . . . . . .
-X X X D X X X
-X - - - - - X
-X - - - - - X
-X - - - - v X
-X - - - - X X
-X - - - - - X
-X X X X X X X
+O = # D # = O
+= - - - - - =
+= - - - - - =
+= - - - - v =
+= - - - - - =
+= - - - - - =
+O = = = = = O
 
 . . . . . . .
 . . . . . . .
 . . . . . . .
-X X X d X X X
+O X # d # X O
 X - - - - - X
 X B - - - v X
-X b - V - X X
+X b - V - - X
 X - - - - - X
 X - W - - - X
-X X X X X X X
+O X X X X X O
 
 . . . 1 . . .
 . . . 1 . . .
@@ -118,13 +122,13 @@ let house_2 =
 ...........
 ...........
 ...........
-O==O...O==O
-=--=...=--=
-#--O===O--#
-#---------#
-#---------#
-=---------=
-O=#=###=#=O
+I==I...I==I
+I==I...I==I
+~~~~~~~~~~~
+I====I====I
+I====I====I
+I====I====I
+~~~~~~~~~~~
 
 ...........
 ...........
@@ -206,13 +210,88 @@ XXXXXXXXXXX
   )
   |> make;
 
-let house_3 = {
-  open Minecraft_template;
-  open Minecraft_template.Rect;
-  let b = rect(~xs=14, ~ys=5, ~zs=21);
-  let f = floor(b) |> fill(~material=Cobblestone);
-  let c = columns(b) |> fill(~material=Log(Oak_log, Y));
-  combine_all([f, c]) |> add_mark(~x=7, ~y=1, ~z=20, ~mark=`Villager) |> make;
-};
+let house_3 =
+  Minecraft_template.Txt.parse_template(
+    ~palette=
+      Minecraft_template.Txt.Palette_incl.[
+        ("X", Filled(Cobblestone)),
+        ("=", Filled(Oak_planks)),
+        ("^", Filled(Stairs(Oak_stairs, N))),
+        (">", Filled(Stairs(Oak_stairs, E))),
+        ("v", Filled(Stairs(Oak_stairs, S))),
+        ("i", Filled(Torch)),
+        ("B", Filled(Orange_bed(W, Head))),
+        ("b", Filled(Orange_bed(W, Foot))),
+        ("D", Filled(Oak_door(N, Upper))),
+        ("d", Filled(Oak_door(N, Lower))),
+        ("#", Filled(Glass)),
+        ("O", Filled(Log(Oak_log, Y))),
+        ("~", Filled(Log(Oak_log, X))),
+        ("I", Filled(Log(Oak_log, Z))),
+        ("W", Marked(`Worksite, Filled(Air))),
+        ("1", Marked(`Road, Empty)),
+        ("V", Marked(`Villager, Filled(Air))),
+      ],
+    ~has_spaces=false,
+    {|
 
-let houses = [house_1, house_2 /*house_3*/];
+I=====I=====I=====I=====I
+I=====I=====I=====I=====I
+I=====I=====I=====I=====I
+~~~~~~~~~~~~~~~~~~~~~~~~~
+I=====I=====I=====I=====I
+I=====I=====I=====I=====I
+I=====I=====I=====I=====I
+
+O=====O=====O=====O=====O
+=-----=-----------=-----=
+=-----=-----------=-----=
+=-----=-----------=-----=
+=-----=-----------=-----=
+=-----------------=-----=
+O=====O=====O=====O=====O
+
+O=====O=====O=====O=====O
+=-----=-----------=-----=
+=-----=-----------=-----=
+=-----=-----------=-----=
+=-----=-----------=-----=
+=-----------------=-----=
+O=====O=====O=====O=====O
+
+I=====I=====O=====I=====I
+I=====I-----------I====-I
+I=====I-----------I====-I
+I=====I-----------I====-I
+I=====I-----------I====vI
+I=====Iv----------I=====I
+I=====I=====O=====I=====I
+
+O=====O====DO=====O=====O
+=-----=-----------=-----=
+=-----------------=-----=
+=-----=----------------v=
+=-----=v----------=-----=
+=-----=-----------=-----=
+O=====O====DO=====O=====O
+
+XXXXXXXXXXXdXXXXXXXXXXXXX
+X-----=-----------=-----X
+X-----------------=----vX
+X-----=v---VW-----------X
+X-----=-----------=-----X
+XBb---=-----------=-----X
+XXXXXXXXXXXdXXXXXXXXXXXXX
+
+XXXXXXXXXXXXXXXXXXXXXXXXX
+X=====XXXXXXXXXXXXX=====X
+X=====XXXXXXXXXXXXX=====X
+X=====XXXXXXXXXXXXX=====X
+X=====XXXXXXXXXXXXX=====X
+X=====XXXXXXXXXXXXX=====X
+XXXXXXXXXXXXXXXXXXXXXXXXX
+    |},
+  )
+  |> make;
+
+let houses = [house_1, house_2, house_3];
