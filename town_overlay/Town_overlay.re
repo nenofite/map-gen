@@ -367,6 +367,7 @@ let apply_worksite_to_house = (~house: building, worksite: option(worksite)) => 
   | Some(worksite) =>
     let (x, y, z) =
       Option.value_exn(
+        ~message="House must contain worksite mark",
         Minecraft_template.get_mark(house.template, ~mark=`Worksite),
       );
     Minecraft_template.set_at(
@@ -392,6 +393,7 @@ let create_house = (house: house, region: Minecraft.Region.t) => {
 
   let (vx, vy, vz) =
     Option.value_exn(
+      ~message="House must contain villager mark",
       Minecraft_template.get_mark(
         building.building.template,
         ~mark=`Villager,
@@ -544,9 +546,14 @@ module Test_helpers = {
     | Water => Some("~")
     | Wheat(_) => Some("$")
     | Composter => Some("X")
-    | Cobblestone => Some("#")
+    | Cobblestone => Some("%")
     | Oak_planks => Some("=")
-    | _ => Some("?")
+    | Log(_, Y) => Some("O")
+    | Log(_, X | Z) => Some("~")
+    | Stairs(_, _) => Some("v")
+    | Stone_bricks => Some("#")
+    | Torch => Some("i")
+    | _ => Some(Sexp.to_string(Minecraft.Block.sexp_of_material(b)))
     };
   let show_td = show_region_top_down(~show_block);
   let show_sn = show_region_south_north(~show_block);
@@ -613,7 +620,7 @@ let%expect_test "applying a house" = {
     worksite: Some(Butcher),
     building: {
       building:
-        Town_templates.bedroom_1 |> Town_layout.rotate_building_cw(~times=1),
+        Town_templates.house_1 |> Town_layout.rotate_building_cw(~times=1),
       block: {
         min_x: 1,
         max_x: 10,
@@ -627,23 +634,23 @@ let%expect_test "applying a house" = {
   td_diff(show_td(r)) |> print_grid;
   %expect
   "
-    # # # # # # #
-    # = = = = = #
-    # = = = ? = #
-    # = = = = = #
-    # = = = = = #
-    # ? ? ? ? = #
-    # # # # # # #
+    O = = = = = O
+    = = = = = = =
+    = = = = i = =
+    = = = = = = =
+    = = = = = = =
+    = v v v v = =
+    O = = = = = O
   ";
 
   sn_diff(show_sn(r)) |> print_grid;
   %expect
   "
-    # # # # # # #
-    # # # # # # #
-    # # # # # # #
-    # # # # # # #
-    # # # # # # #
+    O = = = = = O
+    O ~ ~ ~ ~ ~ O
+    O ~ = = = ~ O
+    O = = = = = O
+    O % % % % % O
   ";
 
   show_entities(r);

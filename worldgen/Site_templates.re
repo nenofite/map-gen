@@ -2,6 +2,13 @@ let cavern_entrance =
   Minecraft_template.Txt.parse_template(
     ~palette=
       Minecraft_template.Txt.Palette_incl.[
+        ("X", Filled(Cobblestone)),
+        ("#", Filled(Glass)),
+        ("s", Filled(Wall_torch(N))),
+        ("w", Filled(Wall_torch(E))),
+        ("n", Filled(Wall_torch(S))),
+        ("e", Filled(Wall_torch(W))),
+        ("i", Filled(Torch)),
         ("Q", Filled(Smooth_stone)),
         ("O", Filled(Stone_bricks)),
         ("U", Filled(Chiseled_stone_bricks)),
@@ -77,6 +84,13 @@ let cavern_entrance_tube =
   Minecraft_template.Txt.parse_template(
     ~palette=
       Minecraft_template.Txt.Palette_incl.[
+        ("X", Filled(Cobblestone)),
+        ("#", Filled(Glass)),
+        ("s", Filled(Wall_torch(N))),
+        ("w", Filled(Wall_torch(E))),
+        ("n", Filled(Wall_torch(S))),
+        ("e", Filled(Wall_torch(W))),
+        ("i", Filled(Torch)),
         ("Q", Filled(Smooth_stone)),
         ("O", Filled(Stone_bricks)),
         ("U", Filled(Chiseled_stone_bricks)),
@@ -132,6 +146,13 @@ let cavern_entrance_base =
   Minecraft_template.Txt.parse_template(
     ~palette=
       Minecraft_template.Txt.Palette_incl.[
+        ("X", Filled(Cobblestone)),
+        ("#", Filled(Glass)),
+        ("s", Filled(Wall_torch(N))),
+        ("w", Filled(Wall_torch(E))),
+        ("n", Filled(Wall_torch(S))),
+        ("e", Filled(Wall_torch(W))),
+        ("i", Filled(Torch)),
         ("N", Filled(Stairs(Cobblestone_stairs, Nd))),
         ("E", Filled(Stairs(Cobblestone_stairs, Ed))),
         ("S", Filled(Stairs(Cobblestone_stairs, Sd))),

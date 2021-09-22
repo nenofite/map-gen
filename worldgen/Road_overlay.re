@@ -64,12 +64,7 @@ let starts_of_poi = ((poi_x, poi_z)) => {
   |> List.concat;
 };
 
-let prepare = () => {
-  let canon = Overlay.Canon.require();
-  let (towns, _) = Town_overlay.require();
-  Tale.log("Pathfinding roads");
-  module Cs = Roads.Rules.Coord.Set;
-  let pathing_state = Roads.init_state();
+let connect_all_towns = (towns: Town_overlay.t', ~pathing_state): unit => {
   let num_towns = List.length(towns);
   List.iteri(towns, ~f=(i, town) => {
     Tale.blockf(
@@ -82,10 +77,21 @@ let prepare = () => {
       },
     )
   });
-  let roads = Roads.get_paths_list(pathing_state);
-  let roads = place_road(canon, Sparse_grid.make(canon.side), roads);
+};
+
+let prepare = () => {
+  let canon = Overlay.Canon.require();
+  let (towns, _) = Town_overlay.require();
+  let pathing_state = Roads.init_state();
+  connect_all_towns(towns, ~pathing_state);
+
   Tale.log("Widening roads and adding steps");
-  let roads = Roads.Rules.widen_road(roads);
+  let roads =
+    Roads.get_paths_list(pathing_state)
+    |> Roads.Rules.put_roads_onto_sparse_grid(
+         ~grid=Sparse_grid.make(canon.side),
+       )
+    |> Roads.Rules.widen_roads;
   let bridges = Roads.get_bridges_list(pathing_state);
   let obstacles =
     Sparse_grid.(
@@ -164,7 +170,7 @@ let apply_region = ((state, _canon), region: Minecraft.Region.t) => {
       switch (structure) {
       | Road => place_road_block(region, x, y, z)
       | Stair(dir) => place_stair_block(region, x, y, z, ~dir)
-      | Bridge(_) => /* TODO */ ()
+      | Bridge(_) => ()
       };
     }
   );

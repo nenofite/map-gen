@@ -25,23 +25,7 @@ type marks('a) = list((int, int, int, 'a));
 exception Template_txt_failure(string);
 
 let default_palette: palette('a) =
-  Minecraft.Block.[
-    (".", Empty),
-    ("-", Filled(Air)),
-    ("X", Filled(Cobblestone)),
-    ("=", Filled(Oak_planks)),
-    ("#", Filled(Glass)),
-    ("O", Filled(Log(Oak_log, Y))),
-    ("v", Filled(Stairs(Stone_stairs, N))),
-    ("<", Filled(Stairs(Stone_stairs, E))),
-    ("^", Filled(Stairs(Stone_stairs, S))),
-    (">", Filled(Stairs(Stone_stairs, W))),
-    ("s", Filled(Wall_torch(N))),
-    ("w", Filled(Wall_torch(E))),
-    ("n", Filled(Wall_torch(S))),
-    ("e", Filled(Wall_torch(W))),
-    ("i", Filled(Torch)),
-  ];
+  Minecraft.Block.[(".", Empty), ("-", Filled(Air))];
 
 let eval_space = (space: space('a), ~x: int, ~y: int, ~z: int) => {
   let rec go = (space, marks) =>
@@ -57,7 +41,7 @@ let parse_line = (~palette, ~y, ~z, blocks, marks, line) => {
   open Core_kernel;
   let marks = ref(marks);
   let blocks = ref(blocks);
-  List.iteri(String.split_on_chars(line, ~on=[' ']), ~f=(x, sym) =>
+  List.iteri(line, ~f=(x, sym) =>
     switch (List.Assoc.find(palette, ~equal=String.equal, sym)) {
     | None => raise(Template_txt_failure("Unknown template symbol: " ++ sym))
     | Some(space) =>
@@ -69,12 +53,12 @@ let parse_line = (~palette, ~y, ~z, blocks, marks, line) => {
   (blocks^, marks^);
 };
 
-let parse_template = (~palette=[], s) => {
+let parse_template = (~palette, ~has_spaces=true, s) => {
   let palette = palette @ default_palette;
   let rec go = (~y, ~z, blocks, marks, lines) => {
     switch (lines) {
     | [] => (blocks, marks)
-    | ["", ...lines] => go(~y=y + 1, ~z=0, blocks, marks, lines)
+    | [[""] | [], ...lines] => go(~y=y + 1, ~z=0, blocks, marks, lines)
     | [line, ...lines] =>
       let (blocks, marks) =
         parse_line(~palette, ~y, ~z, blocks, marks, line);
@@ -82,11 +66,16 @@ let parse_template = (~palette=[], s) => {
     };
   };
 
+  let split_chars =
+    has_spaces
+      ? String.split(~on=' ')
+      : (s => String.to_list(s) |> List.map(~f=String.of_char));
+
   let lines =
     s
     |> Caml.String.trim
     |> String.split_on_chars(~on=['\n'])
-    |> List.map(~f=Caml.String.trim);
+    |> List.map(~f=ln => Caml.String.trim(ln) |> split_chars);
   let (blocks, marks) = go(~y=0, ~z=0, [], [], lines);
   Core.of_blocks(blocks, ~marks) |> Core.flip_y;
 };

@@ -41,6 +41,10 @@ let z_size_of = template => {
   max - min + 1;
 };
 
+let x_bounds_of = t => t.bounds_x;
+let y_bounds_of = t => t.bounds_y;
+let z_bounds_of = t => t.bounds_z;
+
 let height_of = y_size_of;
 
 let compare_coord_block = ((ax, ay, az, _), (bx, by, bz, _)) =>
@@ -345,8 +349,7 @@ let rotate_90_cw_once = template => {
   of_blocks(
     List.map(template.blocks, ~f=rotate_block),
     ~marks=List.map(template.marks, ~f=rotate_mark),
-  )
-  |> normalize_on_origin;
+  );
 };
 
 let rec rotate_90_cw = (template, ~times) =>
@@ -418,6 +421,10 @@ let get_marks = (t: t('a), ~mark: 'a) => {
       }
     )
   );
+};
+
+let add_mark = (t: t('a), ~x, ~y, ~z, ~mark: 'a) => {
+  {...t, marks: [(x, y, z, mark), ...t.marks]};
 };
 
 let strip_marks = (t: t(_)): t(_) => {
