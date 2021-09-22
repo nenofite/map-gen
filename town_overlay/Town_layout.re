@@ -113,7 +113,9 @@ let draw = (input: input, output: output, file) => {
 };
 
 let rotate_building_cw = (b: building, ~times: int): building => {
-  template: Minecraft_template.rotate_90_cw(b.template, ~times),
+  template:
+    Minecraft_template.rotate_90_cw(b.template, ~times)
+    |> Minecraft_template.normalize_on_origin,
 };
 
 let random_worksite = () => {

@@ -6,7 +6,11 @@ let show_template_top_down =
     : text_grid => {
   let side =
     max(Minecraft_template.x_size_of(t), Minecraft_template.z_size_of(t));
+  let (min_x, _) = Minecraft_template.x_bounds_of(t);
+  let (min_z, _) = Minecraft_template.z_bounds_of(t);
   let top_down_at = (~x, ~z) => {
+    let x = x + min_x;
+    let z = z + min_z;
     let matches =
       Minecraft_template.find_blocks(t, ~f=((bx, _by, bz, _)) =>
         x == bx && z == bz
@@ -29,8 +33,11 @@ let show_template_south_north =
     : text_grid => {
   let side =
     max(Minecraft_template.x_size_of(t), Minecraft_template.y_size_of(t));
+  let (min_x, _) = Minecraft_template.x_bounds_of(t);
+  let (min_y, _) = Minecraft_template.y_bounds_of(t);
   let south_north_at = (~x, ~z as y) => {
-    let y = side - y - 1;
+    let x = x + min_x;
+    let y = side - y - min_y - 1;
     let matches =
       Minecraft_template.find_blocks(t, ~f=((bx, by, _bz, _)) =>
         x == bx && y == by

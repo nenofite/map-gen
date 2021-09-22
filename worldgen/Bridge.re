@@ -168,9 +168,16 @@ let%expect_test "creating a bridge template" = {
   open Test_helpers;
   let b = bridge(~length=10, ~rotation=1);
 
+  // Size should match length argument
   Printf.printf("%d\n", Minecraft_template.x_size_of(b));
   %expect
   "10";
+
+  // Should be centered
+  let (min, max) = Minecraft_template.z_bounds_of(b);
+  Printf.printf("%d %d\n", min, max);
+  %expect
+  "-2 2";
 
   show_template_top_down(~show_block, b) |> print_grid;
   %expect
@@ -195,9 +202,16 @@ let%expect_test "short bridges" = {
   open Test_helpers;
   let b = bridge(~length=4, ~rotation=2);
 
+  // Size should match length argument
   Printf.printf("%d\n", Minecraft_template.z_size_of(b));
   %expect
   "4";
+
+  // Should be centered
+  let (min, max) = Minecraft_template.x_bounds_of(b);
+  Printf.printf("%d %d\n", min, max);
+  %expect
+  "-1 1";
 
   show_template_top_down(~show_block, b) |> print_grid;
   %expect
