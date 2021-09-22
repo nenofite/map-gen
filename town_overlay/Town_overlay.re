@@ -463,26 +463,41 @@ let create_farm = (farm: block, region: Minecraft.Region.t) => {
 };
 
 let create_fences = (fences: list((int, int)), region): unit => {
+  let neither_air_nor_fence =
+    fun
+    | Minecraft.Block.Air
+    | Oak_fence(_) => false
+    | _ => true;
   let fence_height_at = (~x, ~z) => {
     let highest_neighbor =
       Mg_util.Range.map(z - 1, z + 1, z =>
         Mg_util.Range.map(x - 1, x + 1, x =>
-          Minecraft.Region.height_at(~x, ~z, region)
+          if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
+            Minecraft.Region.highest_such_block(
+              ~x,
+              ~z,
+              region,
+              neither_air_nor_fence,
+            )
+            |> Option.value(~default=0);
+          } else {
+            0;
+          }
         )
       )
       |> List.concat
-      |> List.reduce_exn(~f=min);
+      |> List.reduce_exn(~f=max);
     highest_neighbor + 1;
   };
-  let build_fence_to_height = (height, ~x, ~z) => {
-    let ground = Minecraft.Region.height_at(~x, ~z, region);
-    for (y in ground + 1 to height) {
-      Minecraft.Region.set_block(Oak_fence(Dry), ~x, ~y, ~z, region);
+  let create_fence_at = (~x, ~z) =>
+    if (Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
+      let height = fence_height_at(~x, ~z);
+      let ground = Minecraft.Region.height_at(~x, ~z, region);
+      for (y in ground + 1 to height) {
+        Minecraft.Region.set_block(Oak_fence(Dry), ~x, ~y, ~z, region);
+      };
     };
-  };
-  List.iter(fences, ~f=((x, z)) => {
-    build_fence_to_height(fence_height_at(~x, ~z), ~x, ~z)
-  });
+  List.iter(fences, ~f=((x, z)) => {create_fence_at(~x, ~z)});
 };
 
 /**
