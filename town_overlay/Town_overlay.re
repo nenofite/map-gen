@@ -462,6 +462,29 @@ let create_farm = (farm: block, region: Minecraft.Region.t) => {
   };
 };
 
+let create_fences = (fences: list((int, int)), region): unit => {
+  let fence_height_at = (~x, ~z) => {
+    let highest_neighbor =
+      Mg_util.Range.map(z - 1, z + 1, z =>
+        Mg_util.Range.map(x - 1, x + 1, x =>
+          Minecraft.Region.height_at(~x, ~z, region)
+        )
+      )
+      |> List.concat
+      |> List.reduce_exn(~f=min);
+    highest_neighbor + 1;
+  };
+  let build_fence_to_height = (height, ~x, ~z) => {
+    let ground = Minecraft.Region.height_at(~x, ~z, region);
+    for (y in ground + 1 to height) {
+      Minecraft.Region.set_block(Oak_fence(Dry), ~x, ~y, ~z, region);
+    };
+  };
+  List.iter(fences, ~f=((x, z)) => {
+    build_fence_to_height(fence_height_at(~x, ~z), ~x, ~z)
+  });
+};
+
 /**
  adds torches to the town with min-corner x, z
  */
@@ -516,7 +539,7 @@ let apply_town = (~x, ~z, town: output, region: Minecraft.Region.t): unit => {
   create_bell(bell, region);
   List.iter(~f=house => create_house(house, region), houses);
   List.iter(~f=farm => create_farm(farm, region), farms);
-  ignore(fences); // TODO
+  create_fences(fences, region);
   illuminate_town(~x, ~z, ~blocks=Town_layout.all_blocks(town), region);
 };
 
