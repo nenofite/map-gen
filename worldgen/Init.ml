@@ -2,7 +2,7 @@ open Core_kernel
 
 let side = 4096
 
-let init ~show_progress ~seed ~force_overlays =
+let init ~show_progress ~seed ~force_overlays ~max_regions =
   Tale.logf "Using seed %d" seed ;
   let s = "seed-" ^ Int.to_string seed in
   Config.Paths.overlays_base := Filename.concat s "overlays" ;
@@ -10,6 +10,7 @@ let init ~show_progress ~seed ~force_overlays =
     Filename.concat s (Filename.concat "worlds" s) ;
   Config.Paths.create_directories () ;
   Config.Force.set_force_overlays force_overlays ;
+  Config.Force.set_max_regions max_regions ;
   if show_progress then Progress_view.init () else Progress_view.init_ignore () ;
   Overlay.init seed ;
   Overlay.Canon.init ~side ;
@@ -63,8 +64,11 @@ let command =
       let%map_open seed = anon ("seed" %: int)
       and force_overlays =
         flag "-f" (listed string) ~doc:"overlay force an overlay to re-run"
-      and show_progress = flag "-p" no_arg ~doc:" display a progress view" in
+      and show_progress = flag "-p" no_arg ~doc:" display a progress view"
+      and max_regions =
+        flag "-r" (optional int) ~doc:"n only produce the nearest n regions"
+      in
       fun () ->
-        init ~show_progress ~seed ~force_overlays ;
+        init ~show_progress ~seed ~force_overlays ~max_regions ;
         prepare_all () ;
         if not show_progress then save ())
