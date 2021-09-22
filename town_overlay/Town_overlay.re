@@ -546,9 +546,14 @@ module Test_helpers = {
     | Water => Some("~")
     | Wheat(_) => Some("$")
     | Composter => Some("X")
-    | Cobblestone => Some("#")
+    | Cobblestone => Some("%")
     | Oak_planks => Some("=")
-    | _ => Some("?")
+    | Log(_, Y) => Some("O")
+    | Log(_, X | Z) => Some("~")
+    | Stairs(_, _) => Some("v")
+    | Stone_bricks => Some("#")
+    | Torch => Some("i")
+    | _ => Some(Sexp.to_string(Minecraft.Block.sexp_of_material(b)))
     };
   let show_td = show_region_top_down(~show_block);
   let show_sn = show_region_south_north(~show_block);
@@ -629,23 +634,23 @@ let%expect_test "applying a house" = {
   td_diff(show_td(r)) |> print_grid;
   %expect
   "
-    # # # # # # #
-    # = = = = = #
-    # = = = ? = #
-    # = = = = = #
-    # = = = = = #
-    # ? ? ? ? = #
-    # # # # # # #
+    O = = = = = O
+    = = = = = = =
+    = = = = i = =
+    = = = = = = =
+    = = = = = = =
+    = v v v v = =
+    O = = = = = O
   ";
 
   sn_diff(show_sn(r)) |> print_grid;
   %expect
   "
-    # # # # # # #
-    # # # # # # #
-    # # # # # # #
-    # # # # # # #
-    # # # # # # #
+    O = = = = = O
+    O ~ ~ ~ ~ ~ O
+    O ~ = = = ~ O
+    O = = = = = O
+    O % % % % % O
   ";
 
   show_entities(r);
