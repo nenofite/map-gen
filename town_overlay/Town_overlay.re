@@ -209,7 +209,8 @@ let prepare_town =
       town_min_z,
     ) => {
   let input = extract_input(canon, town_min_x, town_min_z);
-  let {bell, houses, farms, roads, obstacles} = Town_layout.run(input);
+  let {bell, houses, farms, roads, fences, obstacles} =
+    Town_layout.run(input);
 
   let roads =
     List.map(
@@ -239,6 +240,8 @@ let prepare_town =
       houses,
     );
   let farms = List.map(~f=translate_block, farms);
+  let translate_fence = ((x, z)) => (x + town_min_x, z + town_min_z);
+  let fences = List.map(~f=translate_fence, fences);
 
   // TODO
   ignore(obstacles);
@@ -264,6 +267,7 @@ let prepare_town =
       houses,
       farms,
       roads,
+      fences,
       obstacles,
     },
   };
@@ -508,10 +512,11 @@ let illuminate_town = (~x, ~z, ~blocks, region): unit => {
 };
 
 let apply_town = (~x, ~z, town: output, region: Minecraft.Region.t): unit => {
-  let {bell, farms, houses, roads: _, obstacles: _} = town;
+  let {bell, farms, houses, roads: _, fences, obstacles: _} = town;
   create_bell(bell, region);
   List.iter(~f=house => create_house(house, region), houses);
   List.iter(~f=farm => create_farm(farm, region), farms);
+  ignore(fences); // TODO
   illuminate_town(~x, ~z, ~blocks=Town_layout.all_blocks(town), region);
 };
 
