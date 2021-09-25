@@ -79,8 +79,7 @@ let%expect_test "parse a template with marks" = {
 
   let print_at = (~x, ~y, ~z) =>
     print_s(
-      sexp_of_option(
-        Minecraft.Block.sexp_of_material,
+      [%sexp_of: option(Minecraft.Block.material)](
         Core.at(template, ~x, ~y, ~z),
       ),
     );
