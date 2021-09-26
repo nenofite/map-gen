@@ -1,3 +1,5 @@
+open Minecraft;
+
 /**
   max_level is the maximum data that can be attached to water. It also
   determines the maximum distance that water will flow horizontally.

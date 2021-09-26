@@ -335,3 +335,14 @@ let iter_region_xz = (~f, r) => {
     };
   };
 };
+
+let iter_region_xyz = (~f, r) => {
+  let (x_off, z_off) = chunk_offset(~cx=0, ~cz=0, r);
+  for (z in 0 to pred(block_per_region_side)) {
+    for (x in 0 to pred(block_per_region_side)) {
+      for (y in 0 to pred(block_per_region_vertical)) {
+        f(~x=x + x_off, ~y, ~z=z + z_off);
+      };
+    };
+  };
+};
