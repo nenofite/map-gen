@@ -31,6 +31,8 @@ let random_grab_ahead = 5;
 let pop_per_farm = 2;
 let num_plazas = 3;
 
+let is_within_town = (x, z) => 0 <= x && x < side && 0 <= z && z < side;
+
 let all_blocks' = (~bell, ~farms, ~houses) => {
   [bell.xz]
   @ List.map(farms, ~f=f => f.xz)
@@ -323,7 +325,7 @@ let outlets_of_block = block => {
     |> List.concat;
   left_right
   @ top_bottom
-  |> List.filter(~f=((x, z)) => 0 <= x && x < side && 0 <= z && z < side);
+  |> List.filter(~f=((x, z)) => is_within_town(x, z));
 };
 
 let outlets_of_bell = block => {
@@ -642,7 +644,8 @@ let prepare_fences = (~blocks: list(block_no_elevation), state: layout_state) =>
     Mg_util.Range.map(min_x + 1, max_x, x => (x, min_z))
     @ Mg_util.Range.map(min_x, max_x - 1, x => (x, max_z))
     @ Mg_util.Range.map(min_z, max_z - 1, z => (min_x, z))
-    @ Mg_util.Range.map(min_z + 1, max_z, z => (max_x, z));
+    @ Mg_util.Range.map(min_z + 1, max_z, z => (max_x, z))
+    |> List.filter(~f=((x, z)) => is_within_town(x, z));
 
   let obstacles =
     List.fold(fences, ~init=state.obstacles, ~f=(obs, (x, z)) =>
