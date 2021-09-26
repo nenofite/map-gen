@@ -463,10 +463,13 @@ let create_farm = (farm: block, region: Minecraft.Region.t) => {
 };
 
 let create_fences = (fences: list((int, int)), region): unit => {
+  let fence_post =
+    Minecraft.Block.(Fence(Oak_fence, fence_extends_nowhere, Dry));
   let neither_air_nor_fence =
     fun
     | Minecraft.Block.Air
-    | Oak_fence(_) => false
+    | Fence(_)
+    | Fence_gate(_) => false
     | _ => true;
   let fence_height_at = (~x, ~z) => {
     let highest_neighbor =
@@ -494,7 +497,7 @@ let create_fences = (fences: list((int, int)), region): unit => {
       let height = fence_height_at(~x, ~z);
       let ground = Minecraft.Region.height_at(~x, ~z, region);
       for (y in ground + 1 to height) {
-        Minecraft.Region.set_block(Oak_fence(Dry), ~x, ~y, ~z, region);
+        Minecraft.Region.set_block(fence_post, ~x, ~y, ~z, region);
       };
     };
   List.iter(fences, ~f=((x, z)) => {create_fence_at(~x, ~z)});

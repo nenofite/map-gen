@@ -108,6 +108,21 @@ type fence_extends = {
   west: bool,
 };
 
+let make_fence_extends =
+    (~north=false, ~east=false, ~south=false, ~west=false, ()) => {
+  north,
+  east,
+  south,
+  west,
+};
+
+let fence_extends_nowhere = {
+  north: false,
+  east: false,
+  west: false,
+  south: false,
+};
+
 [@deriving (eq, ord, hash, sexp, bin_io)]
 type log_material =
   | Oak_log
