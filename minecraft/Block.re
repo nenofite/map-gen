@@ -1844,13 +1844,16 @@ let is_solid =
   | Cornflower
   | Lily_of_the_valley
   | Wheat(_)
-  | Fence_gate(_, _)
-  | Stairs(_, _)
+  | Fence_gate(_)
+  | Stairs(_, Nd | Ed | Sd | Wd)
   | Stone_brick_slab
   | Lava
+  | Torch
+  | Wall_torch(_)
   | Water
   | Flowing_water(_) => false
   /* All others are solid */
+  | Stairs(_, N | E | S | W)
   | _ => true;
 
 /** whether light passes through this block */
