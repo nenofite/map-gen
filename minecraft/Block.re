@@ -88,6 +88,26 @@ type stair_material =
   | Stone_stairs
   | Warped_stairs;
 
+[@deriving (eq, sexp, bin_io)]
+type fence_material =
+  | Acacia_fence
+  | Birch_fence
+  | Crimson_fence
+  | Dark_oak_fence
+  | Jungle_fence
+  | Nether_brick_fence
+  | Oak_fence
+  | Spruce_fence
+  | Warped_fence;
+
+[@deriving (eq, hash, sexp, bin_io)]
+type fence_extends = {
+  north: bool,
+  east: bool,
+  south: bool,
+  west: bool,
+};
+
 [@deriving (eq, ord, sexp, bin_io)]
 type log_material =
   | Oak_log
@@ -104,8 +124,6 @@ type material =
   /* Blocks */
   | Acacia_button
   | Acacia_door
-  | Acacia_fence_gate
-  | Acacia_fence
   | Acacia_leaves
   | Acacia_log
   | Acacia_planks
@@ -139,8 +157,6 @@ type material =
   | Bell
   | Birch_button
   | Birch_door
-  | Birch_fence_gate
-  | Birch_fence
   | Birch_leaves
   | Birch_log
   | Birch_planks
@@ -252,8 +268,6 @@ type material =
   | Creeper_wall_head
   | Crimson_button
   | Crimson_door
-  | Crimson_fence_gate
-  | Crimson_fence
   | Crimson_fungus
   | Crimson_hyphae
   | Crimson_nylium
@@ -286,8 +300,6 @@ type material =
   | Dandelion
   | Dark_oak_button
   | Dark_oak_door
-  | Dark_oak_fence_gate
-  | Dark_oak_fence
   | Dark_oak_leaves
   | Dark_oak_log
   | Dark_oak_planks
@@ -348,6 +360,8 @@ type material =
   | End_stone_bricks
   | Ender_chest
   | Farmland
+  | Fence(fence_material, fence_extends, waterlogged)
+  | Fence_gate(fence_material, dir)
   | Fern
   | Fire
   | Fire_coral
@@ -422,8 +436,6 @@ type material =
   | Jukebox
   | Jungle_button
   | Jungle_door
-  | Jungle_fence_gate
-  | Jungle_fence
   | Jungle_leaves
   | Jungle_log
   | Jungle_planks
@@ -511,7 +523,6 @@ type material =
   | Moving_piston
   | Mushroom_stem
   | Mycelium
-  | Nether_brick_fence
   | Nether_brick_slab
   | Nether_brick_wall
   | Nether_bricks
@@ -526,8 +537,6 @@ type material =
   | Note_block
   | Oak_button
   | Oak_door(dir, door_part)
-  | Oak_fence_gate
-  | Oak_fence(waterlogged)
   | Oak_leaves
   | Oak_planks
   | Oak_pressure_plate
@@ -716,8 +725,6 @@ type material =
   | Sponge
   | Spruce_button
   | Spruce_door
-  | Spruce_fence_gate
-  | Spruce_fence
   | Spruce_leaves
   | Spruce_planks
   | Spruce_pressure_plate
@@ -779,8 +786,6 @@ type material =
   | Wall_torch(dir)
   | Warped_button
   | Warped_door
-  | Warped_fence_gate
-  | Warped_fence
   | Warped_fungus
   | Warped_hyphae
   | Warped_nylium
@@ -858,8 +863,8 @@ let namespace =
   | Flowing_water(_) => "minecraft:flowing_water"
   | Acacia_button => "minecraft:acacia_button"
   | Acacia_door => "minecraft:acacia_door"
-  | Acacia_fence_gate => "minecraft:acacia_fence_gate"
-  | Acacia_fence => "minecraft:acacia_fence"
+  | Fence_gate(Acacia_fence, _) => "minecraft:acacia_fence_gate"
+  | Fence(Acacia_fence, _, _) => "minecraft:acacia_fence"
   | Acacia_leaves => "minecraft:acacia_leaves"
   | Acacia_log => "minecraft:acacia_log"
   | Acacia_planks => "minecraft:acacia_planks"
@@ -895,8 +900,8 @@ let namespace =
   | Bell => "minecraft:bell"
   | Birch_button => "minecraft:birch_button"
   | Birch_door => "minecraft:birch_door"
-  | Birch_fence_gate => "minecraft:birch_fence_gate"
-  | Birch_fence => "minecraft:birch_fence"
+  | Fence_gate(Birch_fence, _) => "minecraft:birch_fence_gate"
+  | Fence(Birch_fence, _, _) => "minecraft:birch_fence"
   | Birch_leaves => "minecraft:birch_leaves"
   | Birch_log => "minecraft:birch_log"
   | Birch_planks => "minecraft:birch_planks"
@@ -1012,8 +1017,8 @@ let namespace =
   | Creeper_wall_head => "minecraft:creeper_wall_head"
   | Crimson_button => "minecraft:crimson_button"
   | Crimson_door => "minecraft:crimson_door"
-  | Crimson_fence_gate => "minecraft:crimson_fence_gate"
-  | Crimson_fence => "minecraft:crimson_fence"
+  | Fence_gate(Crimson_fence, _) => "minecraft:crimson_fence_gate"
+  | Fence(Crimson_fence, _, _) => "minecraft:crimson_fence"
   | Crimson_fungus => "minecraft:crimson_fungus"
   | Crimson_hyphae => "minecraft:crimson_hyphae"
   | Crimson_nylium => "minecraft:crimson_nylium"
@@ -1047,8 +1052,8 @@ let namespace =
   | Dandelion => "minecraft:dandelion"
   | Dark_oak_button => "minecraft:dark_oak_button"
   | Dark_oak_door => "minecraft:dark_oak_door"
-  | Dark_oak_fence_gate => "minecraft:dark_oak_fence_gate"
-  | Dark_oak_fence => "minecraft:dark_oak_fence"
+  | Fence_gate(Dark_oak_fence, _) => "minecraft:dark_oak_fence_gate"
+  | Fence(Dark_oak_fence, _, _) => "minecraft:dark_oak_fence"
   | Dark_oak_leaves => "minecraft:dark_oak_leaves"
   | Dark_oak_log => "minecraft:dark_oak_log"
   | Dark_oak_planks => "minecraft:dark_oak_planks"
@@ -1188,8 +1193,8 @@ let namespace =
   | Jukebox => "minecraft:jukebox"
   | Jungle_button => "minecraft:jungle_button"
   | Jungle_door => "minecraft:jungle_door"
-  | Jungle_fence_gate => "minecraft:jungle_fence_gate"
-  | Jungle_fence => "minecraft:jungle_fence"
+  | Fence_gate(Jungle_fence, _) => "minecraft:jungle_fence_gate"
+  | Fence(Jungle_fence, _, _) => "minecraft:jungle_fence"
   | Jungle_leaves => "minecraft:jungle_leaves"
   | Jungle_log => "minecraft:jungle_log"
   | Jungle_planks => "minecraft:jungle_planks"
@@ -1279,7 +1284,8 @@ let namespace =
   | Moving_piston => "minecraft:moving_piston"
   | Mushroom_stem => "minecraft:mushroom_stem"
   | Mycelium => "minecraft:mycelium"
-  | Nether_brick_fence => "minecraft:nether_brick_fence"
+  | Fence_gate(Nether_brick_fence, _) => failwith("No nether brick fences") // TODO
+  | Fence(Nether_brick_fence, _, _) => "minecraft:nether_brick_fence"
   | Nether_brick_slab => "minecraft:nether_brick_slab"
   | Stairs(Nether_brick_stairs, _) => "minecraft:nether_brick_stairs"
   | Nether_brick_wall => "minecraft:nether_brick_wall"
@@ -1295,8 +1301,8 @@ let namespace =
   | Note_block => "minecraft:note_block"
   | Oak_button => "minecraft:oak_button"
   | Oak_door(_, _) => "minecraft:oak_door"
-  | Oak_fence_gate => "minecraft:oak_fence_gate"
-  | Oak_fence(_) => "minecraft:oak_fence"
+  | Fence_gate(Oak_fence, _) => "minecraft:oak_fence_gate"
+  | Fence(Oak_fence, _, _) => "minecraft:oak_fence"
   | Oak_leaves => "minecraft:oak_leaves"
   | Log(Oak_log, _) => "minecraft:oak_log"
   | Oak_planks => "minecraft:oak_planks"
@@ -1502,8 +1508,8 @@ let namespace =
   | Sponge => "minecraft:sponge"
   | Spruce_button => "minecraft:spruce_button"
   | Spruce_door => "minecraft:spruce_door"
-  | Spruce_fence_gate => "minecraft:spruce_fence_gate"
-  | Spruce_fence => "minecraft:spruce_fence"
+  | Fence_gate(Spruce_fence, _) => "minecraft:spruce_fence_gate"
+  | Fence(Spruce_fence, _, _) => "minecraft:spruce_fence"
   | Spruce_leaves => "minecraft:spruce_leaves"
   | Log(Spruce_log, _) => "minecraft:spruce_log"
   | Spruce_planks => "minecraft:spruce_planks"
@@ -1568,8 +1574,8 @@ let namespace =
   | Wall_torch(_) => "minecraft:wall_torch"
   | Warped_button => "minecraft:warped_button"
   | Warped_door => "minecraft:warped_door"
-  | Warped_fence_gate => "minecraft:warped_fence_gate"
-  | Warped_fence => "minecraft:warped_fence"
+  | Fence_gate(Warped_fence, _) => "minecraft:warped_fence_gate"
+  | Fence(Warped_fence, _, _) => "minecraft:warped_fence"
   | Warped_fungus => "minecraft:warped_fungus"
   | Warped_hyphae => "minecraft:warped_hyphae"
   | Warped_nylium => "minecraft:warped_nylium"
@@ -1668,6 +1674,11 @@ let rotate_cw = (mat, ~times) => {
   };
 };
 
+let nbt_of_bool =
+  fun
+  | true => Nbt.Node.String("true")
+  | false => Nbt.Node.String("false");
+
 let data_of_waterlogged = w =>
   Nbt.Node.(
     "waterlogged"
@@ -1678,6 +1689,14 @@ let data_of_waterlogged = w =>
          },
        )
   );
+
+let data_of_fence_extends = (e: fence_extends) =>
+  Nbt.Node.[
+    "north" >: nbt_of_bool(e.north),
+    "east" >: nbt_of_bool(e.east),
+    "south" >: nbt_of_bool(e.south),
+    "west" >: nbt_of_bool(e.west),
+  ];
 
 let data = block => {
   open Nbt.Node;
@@ -1695,7 +1714,11 @@ let data = block => {
              },
            ),
       ]
-    | Oak_fence(waterlogged) => [data_of_waterlogged(waterlogged)]
+    | Fence(_, extends, waterlogged) => [
+        data_of_waterlogged(waterlogged),
+        ...data_of_fence_extends(extends),
+      ]
+    | Fence_gate(_, dir) => ["facing" >: String(string_of_dir(dir))]
     | Log(_, axis) => ["axis" >: String(string_of_axis(axis))]
     | Orange_bed(dir, part) => [
         "facing" >: String(string_of_dir(dir)),
@@ -1806,6 +1829,7 @@ let is_solid =
   | Cornflower
   | Lily_of_the_valley
   | Wheat(_)
+  | Fence_gate(_, _)
   | Stairs(_, _)
   | Stone_brick_slab
   | Lava
@@ -1824,7 +1848,8 @@ let is_transparent =
   | Bell
   /* TODO other woods */
   | Oak_door(_, _)
-  | Oak_fence(_)
+  | Fence(_, _, _)
+  | Fence_gate(_, _)
   | Dandelion
   | Poppy
   | Blue_orchid
@@ -1850,5 +1875,5 @@ let is_wet =
   fun
   | Water
   | Flowing_water(_)
-  | Oak_fence(Waterlogged) => true
+  | Fence(_, _, Waterlogged) => true
   | _ => false;
