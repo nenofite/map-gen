@@ -384,7 +384,7 @@ let get_road_obstacle_of_state = state => {
 let enroad_building = (state, ~roads) => {
   Roads.clear_closest_paths(state.pathing_state);
   let found_path =
-    Roads.enroad_gen(
+    Roads.enroad_outlets(
       ~get_elevation=get_elevation_of_state(state),
       ~get_obstacle=get_road_obstacle_of_state(state),
       ~outlets=roads,
@@ -401,7 +401,7 @@ let enroad_building = (state, ~roads) => {
 
 let enroad_block = (state, ~block) => {
   Roads.clear_closest_paths(state.pathing_state);
-  Roads.enroad_gen(
+  Roads.enroad_outlets(
     ~get_elevation=get_elevation_of_state(state),
     ~get_obstacle=get_road_obstacle_of_state(state),
     ~outlets=outlets_of_block(block),

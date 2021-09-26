@@ -280,10 +280,9 @@ let put_roads_onto_sparse_grid = (roads: list(t), ~grid) =>
   );
 
 /**
-  widen_path makes Paved roads three blocks wide. Each block is the highest
-  elevation and nicest niceness of any road it touches.
+  Makes roads three blocks wide. Each block is the highest elevation of any road
+  it touches.
  */
-
 let widen_roads = (roads: Sparse_grid.t(t)) => {
   let roads_lo_to_hi =
     Sparse_grid.fold(
@@ -320,6 +319,20 @@ let widen_roads = (roads: Sparse_grid.t(t)) => {
     | Bridge(_) => Sparse_grid.put(g, x, z, coord)
     }
   );
+};
+
+let widen_roads_list = (roads: list(t)) => {
+  let side =
+    List.fold(roads, ~init=0, ~f=(acc, coord) =>
+      max(acc, max(coord.x, coord.z))
+    )
+    + 3;
+  let grid =
+    List.fold(roads, ~init=Sparse_grid.make(side), ~f=(grid, coord) =>
+      Sparse_grid.put(grid, coord.x, coord.z, coord)
+    );
+  let widened = widen_roads(grid);
+  Sparse_grid.fold(widened, (_, coord, ls) => [coord, ...ls], []);
 };
 
 let extract_bridges = paths => {

@@ -120,11 +120,11 @@ let get_closest_path = (~from_paths, state) =>
   |> Option.bind(~f=cp => cp.parent)
   |> Option.map(~f=parent => reconstruct_path(parent, ~state));
 
-let enroad_gen =
+let enroad_outlets =
     (~add_outlets=false, ~get_elevation, ~get_obstacle, ~outlets, state) => {
   let edges = Rules.neighbors(~get_elevation, ~get_obstacle);
   update_closest_paths(~edges, state);
-  let town_paths =
+  let outlet_paths =
     List.map(
       outlets,
       ~f=((x, z)) => {
@@ -134,11 +134,16 @@ let enroad_gen =
     );
 
   let found_path =
-    switch (get_closest_path(state, ~from_paths=town_paths)) {
+    switch (get_closest_path(state, ~from_paths=outlet_paths)) {
     | Some(new_path) =>
-      if (add_outlets) {
-        add_paths(~should_place=true, ~new_paths=town_paths, state);
-      };
+      let new_path =
+        Rules.widen_roads_list(
+          if (add_outlets) {
+            outlet_paths @ new_path;
+          } else {
+            new_path;
+          },
+        );
       add_paths(~should_place=true, ~new_paths=new_path, state);
       true;
     | None => false
@@ -147,7 +152,7 @@ let enroad_gen =
   found_path;
 };
 
-let enroad = (~town_roads, state) => {
+let enroad_roads = (~roads, state) => {
   let edges =
     Rules.(
       neighbors(
@@ -158,12 +163,12 @@ let enroad = (~town_roads, state) => {
 
   update_closest_paths(~edges, state);
   let new_path =
-    town_roads
+    roads
     @ (
-      switch (get_closest_path(state, ~from_paths=town_roads)) {
+      switch (get_closest_path(state, ~from_paths=roads)) {
       | Some(path) =>
         Tale.log("Found path");
-        path;
+        Rules.widen_roads_list(path);
       | None =>
         Tale.log("No path");
         [];

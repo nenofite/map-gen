@@ -73,7 +73,7 @@ let connect_all_towns = (towns: Town_overlay.t', ~pathing_state): unit => {
       num_towns,
       ~f=() => {
         let town_roads = Town_overlay.roads(town.town);
-        Roads.enroad(pathing_state, ~town_roads);
+        Roads.enroad_roads(pathing_state, ~roads=town_roads);
       },
     )
   });
@@ -90,8 +90,7 @@ let prepare = () => {
     Roads.get_paths_list(pathing_state)
     |> Roads.Rules.put_roads_onto_sparse_grid(
          ~grid=Sparse_grid.make(canon.side),
-       )
-    |> Roads.Rules.widen_roads;
+       );
   let bridges = Roads.get_bridges_list(pathing_state);
   let obstacles =
     Sparse_grid.(
