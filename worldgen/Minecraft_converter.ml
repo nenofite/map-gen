@@ -51,11 +51,11 @@ let segment_grid_by_region ~(side : int) ~spawn ?sub () =
       && rz < min_rz + len_rz )
 
 (** fills the region with blocks from the grid *)
-let convert_region ~region ~apply_overlays =
+let convert_region ~region ~apply_overlays : unit =
   apply_overlays region ;
   Tale.logf "Flowing water" ;
   Out_channel.flush stdout ;
-  Minecraft.Water.flow_water region
+  Minecraft_postprocessing.run_all region
 
 (** save creates a Minecraft world with the given heightmap *)
 let save ~(side : int) ~(spawn : int * int * int)
