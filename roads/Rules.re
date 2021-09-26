@@ -279,6 +279,15 @@ let put_roads_onto_sparse_grid = (roads: list(t), ~grid) =>
     Sparse_grid.put(grid, road.x, road.z, road)
   );
 
+/** When on a sparse grid, the grid coordinates take precedence over the road coords */
+let extract_roads_from_sparse_grid = (grid: Sparse_grid.t(t)) => {
+  Sparse_grid.fold(
+    grid,
+    ((x, z), coord, ls) => [{...coord, x, z}, ...ls],
+    [],
+  );
+};
+
 /**
   Makes roads three blocks wide. Each block is the highest elevation of any road
   it touches.
@@ -328,11 +337,9 @@ let widen_roads_list = (roads: list(t)) => {
     )
     + 3;
   let grid =
-    List.fold(roads, ~init=Sparse_grid.make(side), ~f=(grid, coord) =>
-      Sparse_grid.put(grid, coord.x, coord.z, coord)
-    );
-  let widened = widen_roads(grid);
-  Sparse_grid.fold(widened, (_, coord, ls) => [coord, ...ls], []);
+    put_roads_onto_sparse_grid(roads, ~grid=Sparse_grid.make(side))
+    |> widen_roads;
+  extract_roads_from_sparse_grid(grid);
 };
 
 let extract_bridges = paths => {

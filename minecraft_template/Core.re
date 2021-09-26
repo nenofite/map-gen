@@ -22,6 +22,17 @@ type y_mark =
 type z_mark =
   | Z(mark);
 
+let empty = {
+  blocks: [],
+  bounds_x: (0, 0),
+  bounds_y: (0, 0),
+  bounds_z: (0, 0),
+  footprint: [],
+  marks: [],
+};
+
+let is_empty = t => List.is_empty(t.blocks);
+
 let center = (a, b) => (a + b) / 2;
 let zero = (_, _) => 0;
 let shift = (mark, ~by, a, b) => mark(a, b) + by;
@@ -285,45 +296,48 @@ let align_with_origin' = (a, ~x, ~y, ~z) => {
 let normalize_on_origin = a =>
   align_with_origin(a, ~my=(X(min), Y(zero), Z(min)));
 
-let of_blocks = (blocks, ~marks) => {
-  /* Get starter values */
-  let (sx, sy, sz, _) = List.hd_exn(blocks);
-  let bounds_x =
-    List.fold(
-      blocks,
-      ~f=
-        ((amin, amax), (x, _y, _z, _b)) => {
-          let amin = min(amin, x);
-          let amax = max(amax, x);
-          (amin, amax);
-        },
-      ~init=(sx, sx),
-    );
-  let bounds_y =
-    List.fold(
-      blocks,
-      ~f=
-        ((amin, amax), (_x, y, _z, _b)) => {
-          let amin = min(amin, y);
-          let amax = max(amax, y);
-          (amin, amax);
-        },
-      ~init=(sy, sy),
-    );
-  let bounds_z =
-    List.fold_left(
-      blocks,
-      ~f=
-        ((amin, amax), (_x, _y, z, _b)) => {
-          let amin = min(amin, z);
-          let amax = max(amax, z);
-          (amin, amax);
-        },
-      ~init=(sz, sz),
-    );
-  let footprint = calc_footprint(blocks);
-  {blocks, bounds_x, bounds_y, bounds_z, footprint, marks};
-};
+let of_blocks = (blocks, ~marks) =>
+  if (List.is_empty(blocks)) {
+    empty;
+  } else {
+    /* Get starter values */
+    let (sx, sy, sz, _) = List.hd_exn(blocks);
+    let bounds_x =
+      List.fold(
+        blocks,
+        ~f=
+          ((amin, amax), (x, _y, _z, _b)) => {
+            let amin = min(amin, x);
+            let amax = max(amax, x);
+            (amin, amax);
+          },
+        ~init=(sx, sx),
+      );
+    let bounds_y =
+      List.fold(
+        blocks,
+        ~f=
+          ((amin, amax), (_x, y, _z, _b)) => {
+            let amin = min(amin, y);
+            let amax = max(amax, y);
+            (amin, amax);
+          },
+        ~init=(sy, sy),
+      );
+    let bounds_z =
+      List.fold_left(
+        blocks,
+        ~f=
+          ((amin, amax), (_x, _y, z, _b)) => {
+            let amin = min(amin, z);
+            let amax = max(amax, z);
+            (amin, amax);
+          },
+        ~init=(sz, sz),
+      );
+    let footprint = calc_footprint(blocks);
+    {blocks, bounds_x, bounds_y, bounds_z, footprint, marks};
+  };
 
 let flip_y = template => {
   let (_, max_y) = template.bounds_y;

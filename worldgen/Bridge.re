@@ -130,15 +130,17 @@ let long_bridge = (~mid_length) => {
 };
 
 let bridge = (~length, ~rotation) => {
-  open Minecraft_template;
-  let mid_length = length - 2 * z_size_of(long_endpiece_going_north);
+  let mid_length =
+    length - 2 * Minecraft_template.z_size_of(long_endpiece_going_north);
   let t =
-    if (mid_length > 0) {
+    if (length < 2) {
+      Minecraft_template.empty;
+    } else if (mid_length > 0) {
       long_bridge(~mid_length);
     } else {
       short_bridge(~length);
     };
-  rotate_90_cw(t, ~times=rotation);
+  Minecraft_template.rotate_90_cw(t, ~times=rotation);
 };
 
 module Test_helpers = {
@@ -227,4 +229,10 @@ let%expect_test "short bridges" = {
   "
     ^ ^ ^
   ";
+};
+
+let%test "empty bridges" = {
+  let b = bridge(~length=1, ~rotation=3);
+
+  Minecraft_template.is_empty(b);
 };
