@@ -4,7 +4,7 @@ open Minecraft;
 let should_extend_to = (~x, ~y, ~z, r: Region.t) => {
   switch (Region.get_block_opt(~x, ~y, ~z, r)) {
   | Some(Fence(_) | Fence_gate(_)) => true
-  | Some(_)
+  | Some(b) => Block.is_solid(b)
   | None => false
   };
 };
@@ -32,7 +32,7 @@ let connect_single_fence = (~x, ~y, ~z, r: Region.t): unit => {
   };
 };
 
-/** Adjusts all fences in the region so they extend to adjacent fences and gates */
+/** Adjusts all fences in the region so they extend to adjacent fences, gates, and solid blocks */
 let connect_fences = (r: Region.t): unit => {
   Region.iter_region_xyz(r, ~f=(~x, ~y, ~z) =>
     if (is_fence(Region.get_block(~x, ~y, ~z, r))) {
@@ -74,7 +74,8 @@ let%expect_test "connects fences" = {
     Minecraft.Block.(Fence(Oak_fence, fence_extends_nowhere, Dry));
 
   let r = build_test_region();
-  let y = Region.height_at(~x=10, ~z=10, r);
+  let y = Region.height_at(~x=10, ~z=10, r) + 1;
+  Region.set_block(Stone, ~x=10, ~y, ~z=8, r);
   Region.set_block(fence_post, ~x=10, ~y, ~z=9, r);
   Region.set_block(fence_post, ~x=10, ~y, ~z=10, r);
   Region.set_block(fence_post, ~x=11, ~y, ~z=10, r);
@@ -92,7 +93,7 @@ let%expect_test "connects fences" = {
   show(r) |> print_grid;
   %expect
   {|
-    v
+    |
     L - <
   |};
 };
