@@ -51,11 +51,11 @@ let segment_grid_by_region ~(side : int) ~spawn ?sub () =
       && rz < min_rz + len_rz )
 
 (** fills the region with blocks from the grid *)
-let convert_region ~region ~apply_overlays =
+let convert_region ~region ~apply_overlays : unit =
   apply_overlays region ;
   Tale.logf "Flowing water" ;
   Out_channel.flush stdout ;
-  Minecraft.Water.flow_water region
+  Minecraft_postprocessing.run_all region
 
 (** save creates a Minecraft world with the given heightmap *)
 let save ~(side : int) ~(spawn : int * int * int)
@@ -70,16 +70,20 @@ let save ~(side : int) ~(spawn : int * int * int)
         List.take all_regions n
   in
   let make_region (rx, rz) =
-    Minecraft.World.make_region ~rx ~rz builder (fun region ->
-        let min_x, min_z = Minecraft.Region.region_offset region in
-        Progress_view.fit
-          ~title:(Printf.sprintf "region r.%d.%d" rx rz)
-          (let open Minecraft.Region in
-          ( min_x
-          , min_x + block_per_region_side
-          , min_z
-          , min_z + block_per_region_side )) ;
-        convert_region ~region ~apply_overlays )
+    try
+      Minecraft.World.make_region ~rx ~rz builder (fun region ->
+          let min_x, min_z = Minecraft.Region.region_offset region in
+          Progress_view.fit
+            ~title:(Printf.sprintf "region r.%d.%d" rx rz)
+            (let open Minecraft.Region in
+            ( min_x
+            , min_x + block_per_region_side
+            , min_z
+            , min_z + block_per_region_side )) ;
+          convert_region ~region ~apply_overlays )
+    with exn ->
+      Printexc.print_backtrace stderr ;
+      raise exn
   in
   Parmap.pariter ~ncores:4 ~chunksize:1 make_region (L regions) ;
   Tale.log "Finished parallel apply" ;

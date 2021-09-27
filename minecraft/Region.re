@@ -10,6 +10,7 @@ type t = {
   sections: array(section),
   mutable entities: list(Entity.t),
   biomes: array(array(Biome.t)),
+  cache: Block_cache.t,
 };
 
 /*
@@ -52,10 +53,10 @@ let create = (~rx, ~rz) => {
     Array.init(chunk_per_region_side * chunk_per_region_side, ~f=_i =>
       Array.create(~len=biome_per_chunk_volume, Biome.Forest)
     );
-  {rx, rz, sections, entities: [], biomes};
+  {rx, rz, sections, entities: [], biomes, cache: Block_cache.create()};
 };
 
-let reset = (~rx, ~rz, r) => {
+let reset = (~rx, ~rz, r): unit => {
   Array.iter(r.sections, ~f=s => {
     Array.fill(s, ~pos=0, ~len=Array.length(s), Block.Air)
   });
@@ -65,7 +66,8 @@ let reset = (~rx, ~rz, r) => {
   r.rx = rx;
   r.rz = rz;
   r.entities = [];
-  ();
+  // TODO is it worth clearing?
+  // Block_cache.clear(r.cache);
 };
 
 let get_region_coords = r => (r.rx, r.rz);
@@ -208,7 +210,7 @@ let set_block = (material, ~x, ~y, ~z, r) => {
   let lz = localize_z(z, r);
   let si = section_i(~lx, ~ly, ~lz);
   let bi = block_i(~lx, ~ly, ~lz);
-  r.sections[si][bi] = material;
+  r.sections[si][bi] = Block_cache.memo(material, ~cache=r.cache);
 };
 
 let set_block_opt = (material, ~x, ~y, ~z, r) =>
@@ -330,6 +332,17 @@ let iter_region_xz = (~f, r) => {
   for (z in 0 to pred(block_per_region_side)) {
     for (x in 0 to pred(block_per_region_side)) {
       f(~x=x + x_off, ~z=z + z_off);
+    };
+  };
+};
+
+let iter_region_xyz = (~f, r) => {
+  let (x_off, z_off) = chunk_offset(~cx=0, ~cz=0, r);
+  for (z in 0 to pred(block_per_region_side)) {
+    for (x in 0 to pred(block_per_region_side)) {
+      for (y in 0 to pred(block_per_region_vertical)) {
+        f(~x=x + x_off, ~y, ~z=z + z_off);
+      };
     };
   };
 };

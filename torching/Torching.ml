@@ -5,9 +5,10 @@ module Geometry = Mg_util.Geometry
 let torch_light_level = 14
 
 (* Common blocks that take memory *)
-let dry_fence = Minecraft.Block.Oak_fence Dry
+let dry_fence = Minecraft.Block.(Fence (Oak_fence, fence_extends_nowhere, Dry))
 
-let waterlogged_fence = Minecraft.Block.Oak_fence Waterlogged
+let waterlogged_fence =
+  Minecraft.Block.(Fence (Oak_fence, fence_extends_nowhere, Waterlogged))
 
 (* Helpers *)
 let is_air = Minecraft.Block.is_air

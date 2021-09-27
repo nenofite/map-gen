@@ -44,6 +44,7 @@ type output = {
   farms: list(block),
   houses: list(house),
   roads: list(Roads.Rules.t),
+  fences: list((int, int)),
   obstacles: Sparse_grid.t(unit),
 };
 

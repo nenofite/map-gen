@@ -37,47 +37,27 @@ let eval_space = (space: space('a), ~x: int, ~y: int, ~z: int) => {
   go(space, []);
 };
 
-let parse_line = (~palette, ~y, ~z, blocks, marks, line) => {
-  open Core_kernel;
-  let marks = ref(marks);
-  let blocks = ref(blocks);
-  List.iteri(line, ~f=(x, sym) =>
-    switch (List.Assoc.find(palette, ~equal=String.equal, sym)) {
-    | None => raise(Template_txt_failure("Unknown template symbol: " ++ sym))
-    | Some(space) =>
-      let (new_blocks, new_marks) = eval_space(space, ~x, ~y, ~z);
-      marks := new_marks @ marks^;
-      blocks := new_blocks @ blocks^;
-    }
-  );
-  (blocks^, marks^);
-};
-
 let parse_template = (~palette, ~has_spaces=true, s) => {
   let palette = palette @ default_palette;
-  let rec go = (~y, ~z, blocks, marks, lines) => {
-    switch (lines) {
-    | [] => (blocks, marks)
-    | [[""] | [], ...lines] => go(~y=y + 1, ~z=0, blocks, marks, lines)
-    | [line, ...lines] =>
-      let (blocks, marks) =
-        parse_line(~palette, ~y, ~z, blocks, marks, line);
-      go(~y, ~z=z + 1, blocks, marks, lines);
-    };
-  };
 
-  let split_chars =
-    has_spaces
-      ? String.split(~on=' ')
-      : (s => String.to_list(s) |> List.map(~f=String.of_char));
-
-  let lines =
-    s
-    |> Caml.String.trim
-    |> String.split_on_chars(~on=['\n'])
-    |> List.map(~f=ln => Caml.String.trim(ln) |> split_chars);
-  let (blocks, marks) = go(~y=0, ~z=0, [], [], lines);
-  Core.of_blocks(blocks, ~marks) |> Core.flip_y;
+  let grid = Mg_util.Parse_grid.parse_3d(~has_spaces, s);
+  let blocks = ref([]);
+  let marks = ref([]);
+  List.iteri(grid, ~f=(y, layer) => {
+    List.iteri(layer, ~f=(z, line) => {
+      List.iteri(line, ~f=(x, sym) => {
+        switch (List.Assoc.find(palette, ~equal=String.equal, sym)) {
+        | None =>
+          raise(Template_txt_failure("Unknown template symbol: " ++ sym))
+        | Some(space) =>
+          let (new_blocks, new_marks) = eval_space(space, ~x, ~y, ~z);
+          marks := new_marks @ marks^;
+          blocks := new_blocks @ blocks^;
+        }
+      })
+    })
+  });
+  Core.of_blocks(blocks^, ~marks=marks^) |> Core.flip_y;
 };
 
 let%expect_test "parse a template with marks" = {
@@ -99,8 +79,7 @@ let%expect_test "parse a template with marks" = {
 
   let print_at = (~x, ~y, ~z) =>
     print_s(
-      sexp_of_option(
-        Minecraft.Block.sexp_of_material,
+      [%sexp_of: option(Minecraft.Block.material)](
         Core.at(template, ~x, ~y, ~z),
       ),
     );
