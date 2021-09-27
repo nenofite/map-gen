@@ -636,12 +636,19 @@ let prepare_fences = (~blocks: list(block_no_elevation), state: layout_state) =>
     (List.map(blocks, ~f=b => b.min_z) |> List.reduce_exn(~f=min)) - margin;
   let max_z =
     (List.map(blocks, ~f=b => b.max_z) |> List.reduce_exn(~f=max)) + margin;
+
+  let min_open = side / 2 - 5;
+  let max_open = side / 2 + 5;
   let fences =
     Mg_util.Range.map(min_x + 1, max_x, x => (x, min_z))
     @ Mg_util.Range.map(min_x, max_x - 1, x => (x, max_z))
     @ Mg_util.Range.map(min_z, max_z - 1, z => (min_x, z))
     @ Mg_util.Range.map(min_z + 1, max_z, z => (max_x, z))
-    |> List.filter(~f=((x, z)) => is_within_town(x, z));
+    |> List.filter(~f=((x, z)) =>
+         is_within_town(x, z)
+         && (x < min_open || x > max_open)
+         && (z < min_open || z > max_open)
+       );
 
   let obstacles =
     List.fold(fences, ~init=state.obstacles, ~f=(obs, (x, z)) =>
@@ -686,9 +693,9 @@ let run = (input': input): output => {
   let (state, fences) =
     prepare_fences(~blocks=all_blocks'(~bell, ~houses, ~farms), state);
 
-  let {elevation: _, obstacles, road_obstacles: _, centers: _, pathing_state} = state;
+  let {elevation: _, obstacles: _, road_obstacles, centers: _, pathing_state} = state;
   let roads = Roads.get_paths_list(pathing_state);
-  {bell, farms, houses, roads, fences, obstacles};
+  {bell, farms, houses, roads, fences, obstacles: road_obstacles};
 };
 
 let test = () => {

@@ -243,21 +243,19 @@ let prepare_town =
   let translate_fence = ((x, z)) => (x + town_min_x, z + town_min_z);
   let fences = List.map(~f=translate_fence, fences);
 
-  // TODO
-  ignore(obstacles);
   let updated_obstacles =
-    canon_obstacles
-    |> add_block_to_obstacles(bell.xz)
-    |> List.fold_left(
-         ~f=(o, b: house) => add_block_to_obstacles(b.building.block, o),
-         ~init=_,
-         houses,
-       )
-    |> List.fold_left(
-         ~f=(o, b) => add_block_to_obstacles(b.xz, o),
-         ~init=_,
-         farms,
-       );
+    Sparse_grid.fold(
+      obstacles,
+      ((x, z), (), obs) => {
+        Overlay.Canon.Obstacles.set(
+          x + town_min_x,
+          z + town_min_z,
+          Overlay.Canon.Impassable,
+          obs,
+        )
+      },
+      canon_obstacles,
+    );
 
   let town = {
     x: town_min_x,
