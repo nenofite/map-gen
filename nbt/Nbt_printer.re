@@ -163,29 +163,80 @@ let print_nbt_f = (~memory=?, ~gzip=?, f: out_channel, node: Node.t): unit => {
 };
 
 /** test prints every possible tag type to make sure it works */
-let test = () => {
-  let n =
-    Node.(
-      ""
-      >: Compound([
-           "compound"
-           >: Compound([
-                "byte" >: Byte(37),
-                "short" >: Short(427),
-                "int" >: Int(3030l),
-                "long" >: Long(12345L),
-                "float" >: Float(1.3),
-                "double" >: Double(1.4),
-                "byte array" >: Byte_array([1, 2, 3]),
-                "string" >: String("hello world"),
-                "list" >: List([String("a"), String("b"), String("c")]),
-                "int array" >: Int_array([4l, 5l, 6l]),
-                "long array" >: Long_array([7L, 8L, 9L]),
-                "empty list" >: List([]),
-              ]),
-         ])
-    );
-  let f = open_out("test.nbt");
-  print_nbt_f(f, n);
-  close_out(f);
+let test =
+  Node.(
+    ""
+    >: Compound([
+         "compound"
+         >: Compound([
+              "byte" >: Byte(37),
+              "short" >: Short(427),
+              "int" >: Int(3030l),
+              "long" >: Long(12345L),
+              "float" >: Float(1.3),
+              "double" >: Double(1.4),
+              "byte array" >: Byte_array([1, 2, 3]),
+              "string" >: String("hello world"),
+              "list" >: List([String("a"), String("b"), String("c")]),
+              "int array" >: Int_array([4l, 5l, 6l]),
+              "long array" >: Long_array([7L, 8L, 9L]),
+              "empty list" >: List([]),
+            ]),
+       ])
+  );
+
+let%expect_test "printing" = {
+  let print_hex = buffer => {
+    Buffer.to_seqi(buffer)
+    |> Seq.iter(((i, c)) => {
+         if (i mod 12 == 0) {
+           print_newline();
+         };
+         Printf.printf("%02x ", Char.code(c));
+       });
+    flush(stdout);
+  };
+
+  print_nbt(~gzip=false, test) |> print_hex;
+  %expect
+  "
+    78 01 e3 62 60 e0 62 e0 48 ce cf 2d
+    c8 2f cd 4b 61 64 60 49 aa 2c 49 55
+    65 62 60 2d ce c8 2f 2a 61 5c cd cc
+    c0 9c 99 57 c2 c0 c0 7d 8d 85 81 25
+    27 3f 2f 9d 01 0c 0c 2c 59 19 58 d3
+    72 f2 13 4b ec 97 a5 a5 b1 31 b0 a5
+    e4 97 26 e5 a4 da 7f 4b 03 03 76 06
+    2e 90 39 0a 89 45 45 89 95 40 e5 cc
+    8c 4c cc 1c 0c 6c c5 25 45 99 40 13
+    b8 33 52 73 72 f2 15 ca f3 8b 72 52
+    38 81 a6 66 16 97 70 80 14 31 30 26
+    32 30 26 31 30 26 73 33 70 02 2d 45
+    e8 06 62 16 20 66 05 62 36 1e 06 2e
+    90 33 50 24 41 80 1d 42 31 80 4c 02
+    01 4e 4e 06 ae d4 dc 82 92 4a 05 90
+    f9 10 31 06 00 cf d9 30 8b
+  ";
+
+  print_nbt(~gzip=true, test) |> print_hex;
+  %expect
+  "
+    1f 8b 08 00 00 00 00 01 00 03 e3 62
+    60 e0 62 e0 48 ce cf 2d c8 2f cd 4b
+    61 64 60 49 aa 2c 49 55 65 62 60 2d
+    ce c8 2f 2a 61 5c cd cc c0 9c 99 57
+    c2 c0 c0 7d 8d 85 81 25 27 3f 2f 9d
+    01 0c 0c 2c 59 19 58 d3 72 f2 13 4b
+    ec 97 a5 a5 b1 31 b0 a5 e4 97 26 e5
+    a4 da 7f 4b 03 03 76 06 2e 90 39 0a
+    89 45 45 89 95 40 e5 cc 8c 4c cc 1c
+    0c 6c c5 25 45 99 40 13 b8 33 52 73
+    72 f2 15 ca f3 8b 72 52 38 81 a6 66
+    16 97 70 80 14 31 30 26 32 30 26 31
+    30 26 73 33 70 02 2d 45 e8 06 62 16
+    20 66 05 62 36 1e 06 2e 90 33 50 24
+    41 80 1d 42 31 80 4c 02 01 4e 4e 06
+    ae d4 dc 82 92 4a 05 90 f9 10 31 06
+    00 4a cd ff 1d ee 00 00 00
+  ";
 };
