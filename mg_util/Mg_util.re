@@ -104,6 +104,15 @@ let read_file = (path, f) => {
   result;
 };
 
+let copy_file = (src: string, ~dest: string): unit =>
+  if (Sys.os_type == "Win32") {
+    let cmd = Filename.quote_command("copy", ["/y", src, dest]);
+    Unix.system(cmd) |> ignore;
+  } else {
+    let cmd = Filename.quote_command("cp", ["-f", src, dest]);
+    Unix.system(cmd) |> ignore;
+  };
+
 let distance = ((ax, ay), (bx, by)): float => {
   sqrt((ax -. bx) ** 2. +. (ay -. by) ** 2.);
 };
