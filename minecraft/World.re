@@ -268,7 +268,7 @@ let sector_bytes = 4096;
   - One byte describing the version. We currently only use 2, which means Zlib-compressed NBT.
   - [length - 1] bytes of compressed chunk NBT data.
 */
-let save_region = (memory, region_path, r: Region.t) => {
+let save_region = (memory, region_path, r: Region.t): string => {
   let Region.{rx, rz, _} = r;
 
   let region_file_path =
@@ -360,6 +360,7 @@ let save_region = (memory, region_path, r: Region.t) => {
       output_bytes(f, chunk_offset_sizes);
     },
   );
+  region_file_path;
 };
 
 let make =
@@ -374,6 +375,7 @@ let make =
   Mg_util.write_file(session_lock_path, f => {
     Mg_util.output_int64_be(f, Mg_util.time_ms())
   });
+  Config.Install.install_path(session_lock_path);
 
   /* Create level.dat */
   let level_dat_path = Filename.concat(level_path, "level.dat");
@@ -381,6 +383,7 @@ let make =
   Mg_util.write_file(level_dat_path, f => {
     Nbt.Nbt_printer.print_nbt_f(f, level_dat_nbt)
   });
+  Config.Install.install_path(level_dat_path);
 
   /* Create the region directory */
   let region_path = Filename.concat(level_path, "region");
@@ -412,12 +415,14 @@ let make_region = (~rx: int, ~rz: int, builder: builder, fn) => {
           r;
         };
       let result = fn(r);
-      save_region(builder.memory, builder.path, r);
+      let path = save_region(builder.memory, builder.path, r);
 
       let elapsed_time =
         Int64.sub(Mg_util.time_ms(), start_time) |> Int64.to_float;
       Tale.logf("Finished (%d, %d) in %fs", rx, rz, elapsed_time /. 1000.);
       Stats.recordf(`Region_time, elapsed_time);
+
+      Config.Install.install_path(path);
 
       result;
     },
