@@ -157,8 +157,14 @@ let update =
     ) => {
   apply_optionals(zoom, center, fit, title);
   with_state(s => {
-    Layer.update(~state, ~draw_dense?, ~draw_sparse?, layer, s.stack);
-    update_window();
+    Tale.block(
+      ~always_close=true,
+      "Layer update",
+      ~f=() => {
+        Layer.update(~state, ~draw_dense?, ~draw_sparse?, layer, s.stack);
+        update_window();
+      },
+    )
   });
 };
 

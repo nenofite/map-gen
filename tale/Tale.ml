@@ -1,8 +1,17 @@
+(* Need to bypass Core_kernel *)
+let gettimeofday = Unix.gettimeofday
+
 open Core_kernel
 
-type level = {title: string; indents: int; needs_closer: bool}
+type level = {title: string; indents: int; needs_closer: bool; start_ms: float}
 
 let current : level list ref = ref []
+
+let show_times = ref true
+
+let time_ms () = gettimeofday () *. 1000.
+
+let prev_log_ms = ref (time_ms ())
 
 let current_indents () =
   match !current with {indents; _} :: _ -> indents | [] -> 0
@@ -19,11 +28,25 @@ let rec print_indents i =
     print_string "  " ;
     print_indents (i - 1) )
 
-let print_line s =
+let print_line_no_time s =
   print_indents (current_indents ()) ;
   print_endline s ;
   Out_channel.flush stdout ;
   mark_level_needs_closer ()
+
+let time_ms_when_needed () = if !show_times then time_ms () else 0.0
+
+let print_line s =
+  let s_with_time =
+    if !show_times then (
+      let now_ms = time_ms () in
+      let prev_ms = !prev_log_ms in
+      prev_log_ms := now_ms ;
+      let elapsed_sec = (now_ms -. prev_ms) /. 1000. in
+      Printf.sprintf "+%.2fs| %s" elapsed_sec s )
+    else s
+  in
+  print_line_no_time s_with_time
 
 let pop_level () =
   match !current with
@@ -36,12 +59,21 @@ let pop_level () =
 let open_level ?(always_close = false) (title : string) =
   print_line title ;
   current :=
-    {title; indents= current_indents () + 1; needs_closer= always_close}
+    { title
+    ; indents= current_indents () + 1
+    ; needs_closer= always_close
+    ; start_ms= time_ms_when_needed () }
     :: !current
 
 let close_level () =
   let l = pop_level () in
-  if l.needs_closer then print_line ("/ " ^ l.title)
+  if l.needs_closer then
+    if !show_times then (
+      let now_ms = time_ms () in
+      let duration_sec = (now_ms -. l.start_ms) /. 1000. in
+      prev_log_ms := now_ms ;
+      print_line_no_time (Printf.sprintf "/ =%.2fs| %s" duration_sec l.title) )
+    else print_line ("/ " ^ l.title)
 
 (* Public *)
 
