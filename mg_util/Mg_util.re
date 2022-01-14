@@ -92,9 +92,11 @@ let print_progress = (title: string, f: unit => 'a): 'a => {
 /** mkdir creates all directories in path, using the shell command [mkdir -p <path>] */
 let mkdir = (path: string): unit =>
   if (Sys.os_type == "Win32") {
-    Unix.system("mkdir " ++ path) |> ignore;
+    let cmd = Filename.quote_command("mkdir", [path]);
+    Unix.system(cmd) |> ignore;
   } else {
-    Unix.system("mkdir -p " ++ path) |> ignore;
+    let cmd = Filename.quote_command("mkdir", ["-p", path]);
+    Unix.system(cmd) |> ignore;
   };
 
 let read_file = (path, f) => {
