@@ -1,17 +1,22 @@
 type color = (int, int, int);
 
-type draw_sparse('s) = ('s, (~size: int, int, int, color) => unit) => unit;
-type draw_dense('s) = ('s, int, int) => option(color);
+type draw_sparse = ((~size: int, int, int, color) => unit) => unit;
+type draw_dense = (int, int) => option(color);
 
-type layer_i =
-  | Layer('s, draw_sparse('s), draw_dense('s)): layer_i;
+type layer_i = {
+  draw_sparse,
+  draw_dense,
+};
 type layer = ref(layer_i);
 
 type stack = {mutable layers: list(layer)};
 
-let default_draw_sparse = (_s, _f) => ();
-let default_draw_dense = (_s, _x, _z) => None;
-let empty_layer = Layer((), default_draw_sparse, default_draw_dense);
+let default_draw_sparse = _f => ();
+let default_draw_dense = (_x, _z) => None;
+let empty_layer = {
+  draw_sparse: default_draw_sparse,
+  draw_dense: default_draw_dense,
+};
 
 let make_layer_stack = () => {layers: []};
 
@@ -38,13 +43,13 @@ let remove_after_layer = (layer: layer, stack: stack) => {
 
 let update =
     (
-      ~draw_sparse=default_draw_sparse,
-      ~draw_dense=default_draw_dense,
+      ~draw_sparse=_ => default_draw_sparse,
+      ~draw_dense=_ => default_draw_dense,
       ~state: 's,
       layer: layer,
       _stack: stack,
     ) => {
-  layer := Layer(state, draw_sparse, draw_dense);
+  layer := {draw_dense: draw_dense(state), draw_sparse: draw_sparse(state)};
 };
 
 let draw_all_layers =
@@ -68,20 +73,20 @@ let draw_all_layers =
       };
     };
   };
-  let draw_one = ({contents: Layer(state, draw_sparse, draw_dense)}) => {
+  let draw_one = ({contents: {draw_sparse, draw_dense}}) => {
     let zsteps = (max_z - min_z) / zoom;
     let xsteps = (max_x - min_x) / zoom;
     for (z in 0 to zsteps) {
       let z = z * zoom + min_z;
       for (x in 0 to xsteps) {
         let x = x * zoom + min_x;
-        switch (draw_dense(state, x, z)) {
+        switch (draw_dense(x, z)) {
         | Some(c) => set_coord(x, z, c)
         | None => ()
         };
       };
     };
-    draw_sparse(state, draw_point);
+    draw_sparse(draw_point);
   };
   List.iter(draw_one, List.rev(stack.layers));
   ();
