@@ -123,13 +123,13 @@ let get_obstacle dirt biome =
       Clear
 
 let temperature_at ~x ~z =
+  let open Float in
   let side = (Overlay.Canon.require ()).side in
   let offset =
-    Float.(Perlin.at ~x:(of_int x / 256.) ~y:0. ~z:(of_int z / 256.) * 10.)
-    |> Int.of_float
+    Perlin.at ~x:(of_int x / 256.) ~y:0. ~z:(of_int z / 256.) * 25.
   in
   (* range 0 to 50 degrees Celsius *)
-  (z * 50 / side) + offset
+  (Float.of_int z * 50. / Float.of_int side) + offset |> Int.of_float
 
 let fold_scale_factor ~mx ~mz ~init ~f =
   Range.fold (mz * scale_factor)
