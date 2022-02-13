@@ -35,7 +35,7 @@ let update ~(zoom : int) ~(center_x : int) ~(center_z : int) (title : string)
          zoom:int
       -> x:int * int
       -> z:int * int
-      -> (int -> int -> int * int * int -> unit)
+      -> (int -> int -> color:int -> unit)
       -> unit ) (w : t) =
   let {pixels_per_tile; width; height; renderer; window} = w in
   let view =
@@ -47,7 +47,8 @@ let update ~(zoom : int) ~(center_x : int) ~(center_z : int) (title : string)
     Sdl.Rect.create ~x:0 ~y:0 ~w:pixels_per_tile ~h:pixels_per_tile
   in
   let draw_tile =
-    View.apply_to_draw view ~draw:(fun ~wx ~wy ~color:(r, g, b) ->
+    View.apply_to_draw view ~draw:(fun ~wx ~wy ~color ->
+        let r, g, b = Mg_util.Color.split_rgb color in
         Sdl.set_render_draw_color renderer r g b 255 |> ok_or_sdl ;
         Sdl.Rect.set_x tile_rect wx ;
         Sdl.Rect.set_y tile_rect wy ;
@@ -65,8 +66,8 @@ let manual_test () =
   let draw ~zoom:_ ~x:(min_x, max_x) ~z:(min_z, max_z) set_coord =
     for z = min_z to max_z do
       for x = min_x to max_x do
-        if x mod 3 = 0 then set_coord x z (0, 0, 255) ;
-        if x = z then set_coord x z (255, 0, 0)
+        if x mod 3 = 0 then set_coord x z ~color:0x0000FF ;
+        if x = z then set_coord x z ~color:0xFF0000
       done
     done
   in

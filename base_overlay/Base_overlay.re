@@ -88,7 +88,7 @@ let color_at = (~x, ~z, base) => {
   let elevation = elevation_at(~x, ~z, base);
   let gray = gray_of_elevation(elevation);
   let color = water_at(~x, ~z, base) |> color_of_water;
-  Mg_util.Color.split_rgb(Mg_util.Color.blend(0, color, gray));
+  Mg_util.Color.blend(0, color, gray);
 };
 
 let apply_progress_view = (state: t) => {
@@ -158,11 +158,7 @@ let prepare = () => {
     ~draw_dense=
       ((), x, z) =>
         if (Grid.Mut.is_within(~x, ~z, grid)) {
-          Some(
-            Grid.Mut.get(~x, ~z, grid)
-            |> Heightmap.colorize
-            |> Mg_util.Color.split_rgb,
-          );
+          Some(Grid.Mut.get(~x, ~z, grid) |> Heightmap.colorize);
         } else {
           None;
         },

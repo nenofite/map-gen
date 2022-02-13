@@ -44,7 +44,7 @@ let calculate =
 
 let apply_to_draw = (~draw, view) => {
   let {min_x, min_z, zoom, pixels_per_tile, _} = view;
-  let draw_tile = (x, z, color) => {
+  let draw_tile = (x, z, ~color) => {
     let wx = (x - min_x) / zoom * pixels_per_tile;
     let wy = (z - min_z) / zoom * pixels_per_tile;
     draw(~wx, ~wy, ~color);

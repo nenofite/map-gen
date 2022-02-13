@@ -185,8 +185,10 @@ let apply_region = ((state, _canon), region: Minecraft.Region.t) => {
 let apply_progress_view = state => {
   let ({roads, _}, _) = state;
   let draw_sparse = ((), d) => {
-    let white = (255, 255, 255);
-    Sparse_grid.iter(roads, ((x, z), _) => {d(~size=1, x, z, white)});
+    let white = 0xFFFFFF;
+    Sparse_grid.iter(roads, ((x, z), _) => {
+      d(~size=1, ~color=white, x, z)
+    });
   };
   let side = Overlay.Canon.require().side;
   let layer = Progress_view.push_layer();

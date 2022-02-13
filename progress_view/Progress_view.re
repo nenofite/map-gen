@@ -193,8 +193,8 @@ let save = (~side, ~img_side=1024, ~format=Images.Png, file) => {
           ~zoom,
           ~x=(0, side - 1),
           ~z=(0, side - 1),
-          (x, z, color) => {
-            let (r, g, b) = color;
+          (x, z, ~color) => {
+            let (r, g, b) = Mg_util.Color.split_rgb(color);
             img#set(x / zoom, z / zoom, {r, g, b});
           },
         );

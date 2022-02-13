@@ -81,10 +81,10 @@ let apply_progress_view sites =
   Progress_view.update ~title:"Sites!"
     ~draw_sparse:(fun () d ->
       let {entrances; gates} = sites in
-      let red = (255, 0, 0) in
-      List.iter entrances ~f:(fun (_, x, z) -> d ~size:1 x z red) ;
-      let black = (0, 0, 0) in
-      List.iter gates ~f:(fun (_, x, z) -> d ~size:1 x z black) )
+      let red = 0xFF0000 in
+      List.iter entrances ~f:(fun (_, x, z) -> d ~size:1 ~color:red x z) ;
+      let black = 0 in
+      List.iter gates ~f:(fun (_, x, z) -> d ~size:1 ~color:black x z) )
     ~state:() l ;
   ()
 

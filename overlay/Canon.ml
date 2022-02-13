@@ -151,7 +151,7 @@ let draw_obstacles () =
       if Grid.is_within x z s.obstacles then
         match Grid.get x z s.obstacles with
         | Impassable ->
-            Some (255, 0, 0)
+            Some 0xFF0000
         | Bridgeable | Clear ->
             None
       else None )
