@@ -73,6 +73,17 @@ let update =
       layer: layer,
       _stack: stack,
     ) => {
+  layer := {draw_dense: draw_dense(state), draw_sparse: draw_sparse(state)};
+};
+
+let update_deprecated =
+    (
+      ~draw_sparse=_ => default_draw_sparse,
+      ~draw_dense=_ => default_draw_dense,
+      ~state: 's,
+      layer: layer,
+      _stack: stack,
+    ) => {
   layer :=
     {
       draw_dense: convert_deprecated_dense(draw_dense(state)),
@@ -125,9 +136,15 @@ let%expect_test "draw two layers" = {
   let a = push_layer(stack);
   let a_dense = (i, x, z) => Some((i, x, z));
   let a_sparse = (i, f) => f(~size=1, 3, 0, (i + 22, 3, 0));
-  update(~draw_dense=a_dense, ~draw_sparse=a_sparse, ~state=0, a, stack);
+  update_deprecated(
+    ~draw_dense=a_dense,
+    ~draw_sparse=a_sparse,
+    ~state=0,
+    a,
+    stack,
+  );
   let b = push_layer(stack);
-  update(
+  update_deprecated(
     ~draw_sparse=
       (i, f) => {
         f(~size=1, 0, 0, (i, 0, 0));
@@ -137,7 +154,13 @@ let%expect_test "draw two layers" = {
     b,
     stack,
   );
-  update(~state=1, ~draw_dense=a_dense, ~draw_sparse=a_sparse, a, stack);
+  update_deprecated(
+    ~state=1,
+    ~draw_dense=a_dense,
+    ~draw_sparse=a_sparse,
+    a,
+    stack,
+  );
 
   let set_coord = (x, z, ~color as rgb) =>
     Printf.printf("set %d,%d to 0x%06x\n", x, z, rgb);

@@ -179,7 +179,7 @@ let draw_cells moisture =
     if Grid.is_within_side ~x ~y:z (Point_cloud.side moisture) then
       let here = Point_cloud.nearest_int moisture x z in
       let g = here * 255 / 100 in
-      Some (g, g, g)
+      Some (g * 0x010101)
     else None
   in
   let l = Progress_view.push_layer () in
@@ -359,9 +359,7 @@ let apply_progress_view (state : t) =
       else
         let here_biome = biome_at ~x ~z biome in
         let gray = Base_overlay.gray_at ~x ~z base in
-        Some
-          ( Mg_util.Color.blend 0 (colorize_biome here_biome) gray
-          |> Mg_util.Color.split_rgb )
+        Some (Mg_util.Color.blend 0 (colorize_biome here_biome) gray)
     else None
   in
   Progress_view.update ~fit:(0, side, 0, side) ~draw_dense ~state:() layer ;

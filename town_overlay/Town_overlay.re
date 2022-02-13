@@ -14,7 +14,7 @@ let torch_margin = 10;
 
 let roads = t => t.roads;
 
-let town_color = (255, 255, 0);
+let town_color = Mg_util.Color.unsplit_rgb(255, 255, 0);
 
 let apply_progress_view = ((towns, delta: Overlay.Canon.delta)) => {
   let side = Overlay.Canon.require().side;
