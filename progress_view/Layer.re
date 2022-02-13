@@ -1,7 +1,11 @@
-type color = (int, int, int);
+type color_deprecated = (int, int, int);
 
-type draw_sparse = ((~size: int, int, int, color) => unit) => unit;
-type draw_dense = (int, int) => option(color);
+type draw_sparse_deprecated =
+  ((~size: int, int, int, color_deprecated) => unit) => unit;
+type draw_dense_deprecated = (int, int) => option(color_deprecated);
+
+type draw_sparse = ((~size: int, ~color: int, int, int) => unit) => unit;
+type draw_dense = (int, int) => option(int);
 
 type layer_i = {
   draw_sparse,
@@ -41,6 +45,26 @@ let remove_after_layer = (layer: layer, stack: stack) => {
   );
 };
 
+let convert_deprecated_dense =
+    (draw_dense: (int, int) => option(color_deprecated), x: int, z: int) => {
+  switch (draw_dense(x, z)) {
+  | Some((r, g, b)) => Some(Mg_util.Color.unsplit_rgb(r, g, b))
+  | None => None
+  };
+};
+
+let convert_deprecated_sparse =
+    (
+      draw_sparse: ((~size: int, int, int, color_deprecated) => unit) => unit,
+      f: (~size: int, ~color: int, int, int) => unit,
+    ) => {
+  let f_deprecated = (~size, x, z, color) => {
+    let (r, g, b) = color;
+    f(~size, ~color=Mg_util.Color.unsplit_rgb(r, g, b), x, z);
+  };
+  draw_sparse(f_deprecated);
+};
+
 let update =
     (
       ~draw_sparse=_ => default_draw_sparse,
@@ -49,7 +73,11 @@ let update =
       layer: layer,
       _stack: stack,
     ) => {
-  layer := {draw_dense: draw_dense(state), draw_sparse: draw_sparse(state)};
+  layer :=
+    {
+      draw_dense: convert_deprecated_dense(draw_dense(state)),
+      draw_sparse: convert_deprecated_sparse(draw_sparse(state)),
+    };
 };
 
 let draw_all_layers =
@@ -58,17 +86,17 @@ let draw_all_layers =
       ~zoom: int,
       ~x: (int, int),
       ~z: (int, int),
-      set_coord: (int, int, color) => unit,
+      set_coord: (int, int, ~color: int) => unit,
     ) => {
   let (min_x, max_x) = x;
   let (min_z, max_z) = z;
-  let draw_point = (~size, x, z, c) => {
+  let draw_point = (~size, ~color, x, z) => {
     let minx = x - size / 2;
     let minz = z - size / 2;
     for (z in minz to minz + size - 1) {
       for (x in minx to minx + size - 1) {
         if (min_x <= x && x <= max_x && min_z <= z && z <= max_z) {
-          set_coord(x, z, c);
+          set_coord(x, z, ~color);
         };
       };
     };
@@ -81,7 +109,7 @@ let draw_all_layers =
       for (x in 0 to xsteps) {
         let x = x * zoom + min_x;
         switch (draw_dense(x, z)) {
-        | Some(c) => set_coord(x, z, c)
+        | Some(color) => set_coord(x, z, ~color)
         | None => ()
         };
       };
@@ -111,17 +139,17 @@ let%expect_test "draw two layers" = {
   );
   update(~state=1, ~draw_dense=a_dense, ~draw_sparse=a_sparse, a, stack);
 
-  let set_coord = (x, z, (r, g, b)) =>
-    Printf.printf("set %d,%d to %d,%d,%d\n", x, z, r, g, b);
+  let set_coord = (x, z, ~color as rgb) =>
+    Printf.printf("set %d,%d to 0x%06x\n", x, z, rgb);
   draw_all_layers(stack, ~zoom=1, ~x=(0, 3), ~z=(0, 0), set_coord);
 
   %expect
   {|
-  set 0,0 to 1,0,0
-  set 1,0 to 1,1,0
-  set 2,0 to 1,2,0
-  set 3,0 to 1,3,0
-  set 3,0 to 23,3,0
-  set 0,0 to 10,0,0
+  set 0,0 to 0x010000
+  set 1,0 to 0x010100
+  set 2,0 to 0x010200
+  set 3,0 to 0x010300
+  set 3,0 to 0x170300
+  set 0,0 to 0x0a0000
   |};
 };
