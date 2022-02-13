@@ -168,36 +168,6 @@ let update =
   });
 };
 
-let update_deprecated =
-    (
-      ~zoom=?,
-      ~center=?,
-      ~fit=?,
-      ~title=?,
-      ~draw_sparse=?,
-      ~draw_dense=?,
-      ~state,
-      layer,
-    ) => {
-  apply_optionals(zoom, center, fit, title);
-  with_state(s => {
-    Tale.block(
-      ~always_close=true,
-      "Layer update",
-      ~f=() => {
-        Layer.update_deprecated(
-          ~state,
-          ~draw_dense?,
-          ~draw_sparse?,
-          layer,
-          s.stack,
-        );
-        update_window();
-      },
-    )
-  });
-};
-
 let center = (~zoom=?, ~title=?, center) => {
   apply_optionals(zoom, Some(center), None, title);
   update_window();
