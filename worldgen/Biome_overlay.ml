@@ -172,7 +172,7 @@ let wind_direction_at ~mx ~mz =
   ignore mx ;
   if mz * scale_factor / 512 mod 2 = 0 then east_wind else west_wind
 
-let mountain_threshold_at ~x ~z dirt = 90 + Grid.get x z dirt
+let mountain_threshold_at ~x ~z dirt = 90 + Grid.Mut.get ~x ~z dirt
 
 let draw_cells moisture =
   let draw_dense () x z =
@@ -339,8 +339,8 @@ let prepare () =
   let categories = [|b0; b1; b2; b3; b4; b5; b6; b7; b8|] in
   let biomes = {precipitation; categories} in
   let biome_obstacles =
-    Overlay.Canon.Obstacles.init ~side:(Grid.side dirt) (fun (x, z) ->
-        let here_dirt = Grid.get x z dirt in
+    Overlay.Canon.Obstacles.init ~side:(Grid.Mut.side dirt) (fun (x, z) ->
+        let here_dirt = Grid.Mut.get ~x ~z dirt in
         let here_biome = biome_at ~x ~z biomes in
         get_obstacle here_dirt here_biome )
   in
@@ -407,7 +407,7 @@ let apply (state, _canon) (region : Minecraft.Region.t) =
       let biome = biome_at ~x ~z state in
       set_biome_column ~x ~z (to_minecraft_biome biome) region ;
       let elev = height_at ~x ~z region in
-      let dirt_depth = Grid.Compat.at dirt x z in
+      let dirt_depth = Grid.Mut.get ~x ~z dirt in
       match biome with
       | Plain _ | Forest _ | Savanna | Pine_forest ->
           (* Dirt (will become grass in Plant_overlay) *)

@@ -1,11 +1,9 @@
 open Core_kernel;
 
-module Dirt_grid = Grid.Make0(Int);
-
 let max_depth = 9;
 
 [@deriving bin_io]
-type t = Grid.t(int);
+type t = Grid.Mut.t(int);
 
 let prepare = () => {
   Tale.block("Making dirt heights", ~f=() => {
@@ -26,7 +24,7 @@ let prepare = () => {
       Grid.Subdivide_mut.subdivide_with_fill(m, ~fill=line_fill);
     };
     assert(Grid.Mut.side(m) == side);
-    Dirt_grid.of_mut(m);
+    m;
   });
 };
 
