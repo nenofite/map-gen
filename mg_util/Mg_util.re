@@ -23,7 +23,7 @@ module Color = {
 
     let (ar, ag, ab) = split_rgb(a);
     let (br, bg, bb) = split_rgb(b);
-    let fraction = min(1., max(0., fraction));
+    let fraction = Float.min(1., Float.max(0., fraction));
 
     let r = ~~(~.ar *. (1. -. fraction) +. ~.br *. fraction);
     let g = ~~(~.ag *. (1. -. fraction) +. ~.bg *. fraction);

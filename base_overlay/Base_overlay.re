@@ -7,16 +7,10 @@ type water =
   | River(int)
   | Ocean;
 
-module Water_grid =
-  Grid.Make0({
-    type t = water;
-    let (==) = equal_water;
-  });
-
 [@deriving bin_io]
 type x = {
-  water: Grid.t(water),
-  elevation: Grid.t(int),
+  water: Grid.Mut.t(water),
+  elevation: Grid.Mut.t(int),
 };
 
 [@deriving bin_io]
@@ -25,11 +19,11 @@ type t = (x, Overlay.Canon.t);
 let overlay = Overlay.make_overlay("base", bin_reader_t, bin_writer_t);
 
 let elevation_at = (~x, ~z, base) => {
-  Grid.get(x, z, base.elevation);
+  Grid.Mut.get(~x, ~z, base.elevation);
 };
 
 let water_at = (~x, ~z, base) => {
-  Grid.get(x, z, base.water);
+  Grid.Mut.get(~x, ~z, base.water);
 };
 
 let any_water_at = (~x, ~z, base) => {
@@ -71,7 +65,7 @@ let oceanside_at = (~x, ~z, base) => {
   );
 };
 
-let side = base => Grid.side(base.elevation);
+let side = base => Grid.Mut.side(base.elevation);
 
 let gray_of_elevation = e => Float.(of_int(e) / 200.);
 
@@ -111,20 +105,19 @@ let apply_progress_view = (state: t) => {
 };
 
 let to_obstacles = base => {
-  Overlay.Canon.Obstacles.map(
-    base.water,
-    ~f=
-      fun
-      | No_water => Clear
-      | River(_) => Bridgeable
-      | Ocean => Impassable,
+  Overlay.Canon.Obstacles.map_of_mut(base.water, ~f=(~x as _, ~z as _, w) =>
+    switch (w) {
+    | No_water => Clear
+    | River(_) => Bridgeable
+    | Ocean => Impassable
+    }
   );
 };
 
 let extract_canonical = (base: x) =>
   Overlay.Canon.{
     side: side(base),
-    elevation: base.elevation,
+    elevation: Grid.Int.of_mut(base.elevation),
     obstacles: to_obstacles(base),
     spawn_points: [],
   };
@@ -132,18 +125,26 @@ let extract_canonical = (base: x) =>
 let of_river_state = state => {
   let side = River.side(state);
   let elevation =
-    Grid.Int.init(~side, ((x, z)) =>
-      River.elevation_at(~x, ~z, state) / Constants.precision_coef
+    Grid.Mut.init(
+      ~side,
+      ~f=
+        (~x, ~z) =>
+          River.elevation_at(~x, ~z, state) / Constants.precision_coef,
+      0,
     );
   let water =
-    Water_grid.init(~side, ((x, z)) =>
-      if (River.ocean_at(~x, ~z, state)) {
-        Ocean;
-      } else if (River.river_at(~x, ~z, state)) {
-        River(River.river_depth_at(~x, ~z, state));
-      } else {
-        No_water;
-      }
+    Grid.Mut.init(
+      ~side,
+      ~f=
+        (~x, ~z) =>
+          if (River.ocean_at(~x, ~z, state)) {
+            Ocean;
+          } else if (River.river_at(~x, ~z, state)) {
+            River(River.river_depth_at(~x, ~z, state));
+          } else {
+            No_water;
+          },
+      Ocean,
     );
   {elevation, water};
 };

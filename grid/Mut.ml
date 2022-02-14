@@ -4,7 +4,7 @@
 open Core_kernel
 
 module T = struct
-  type 'a t = {mutable side: int; data: 'a array}
+  type 'a t = {mutable side: int; data: 'a array} [@@deriving bin_io]
 end
 
 include T
