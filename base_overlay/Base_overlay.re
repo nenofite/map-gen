@@ -105,7 +105,7 @@ let apply_progress_view = (state: t) => {
 };
 
 let to_obstacles = base => {
-  Overlay.Canon.Obstacles.map_of_mut(base.water, ~f=(~x as _, ~z as _, w) =>
+  Grid.Mut.map(base.water, ~f=(~x as _, ~z as _, w) =>
     switch (w) {
     | No_water => Overlay.Canon.Clear
     | River(_) => Bridgeable
@@ -117,7 +117,7 @@ let to_obstacles = base => {
 let extract_canonical = (base: x) =>
   Overlay.Canon.{
     side: side(base),
-    elevation: Grid.Int.of_mut(base.elevation),
+    elevation: Grid.Mut.copy(base.elevation),
     obstacles: to_obstacles(base),
     spawn_points: [],
   };

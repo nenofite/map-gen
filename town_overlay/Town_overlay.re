@@ -72,7 +72,7 @@ let has_obstacle = (obstacles, x, z) =>
   );
 
 let acceptable_elevations = (elevations, x, z) => {
-  let start_elev = Grid.Compat.at(elevations, x, z);
+  let start_elev = Grid.Mut.get(elevations, ~x, ~z);
   let (emin, emax) =
     Range.fold(
       z,
@@ -84,7 +84,7 @@ let acceptable_elevations = (elevations, x, z) => {
         x + Town_layout.side - 1,
         (emin, emax),
         ((emin, emax), x) => {
-          let here_elev = Grid.Compat.at(elevations, x, z);
+          let here_elev = Grid.Mut.get(elevations, ~x, ~z);
           let emin = min(emin, here_elev);
           let emax = max(emax, here_elev);
           (emin, emax);
@@ -155,15 +155,6 @@ let rec first_suitable_towns = (canon, remaining, coords, selected) => {
   };
 };
 
-let add_block_to_obstacles = (block, obstacles) => {
-  let {min_x, max_x, min_z, max_z} = block;
-  Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
-    Range.fold(min_x, max_x, obstacles, (obstacles, x) =>
-      Overlay.Canon.Obstacles.set(x, z, Overlay.Canon.Impassable, obstacles)
-    )
-  );
-};
-
 let spawn_point_of_block = block => {
   let {xz: {min_x, max_x, min_z, max_z}, elevation: block_y} = block;
   let x = (min_x + max_x) / 2;
@@ -175,7 +166,7 @@ let spawn_point_of_block = block => {
 let extract_input = (canon: Overlay.Canon.t, town_min_x, town_min_z) => {
   let side = Town_layout.side;
   let elevation =
-    Grid.Int.init(~side, ((tx, tz)) => {
+    Grid.Mut.init_exact(~side, ~f=(~x as tx, ~z as tz) => {
       Grid.get(tx + town_min_x, tz + town_min_z, canon.elevation)
     });
   let obstacles =
@@ -243,19 +234,15 @@ let prepare_town =
   let translate_fence = ((x, z)) => (x + town_min_x, z + town_min_z);
   let fences = List.map(~f=translate_fence, fences);
 
-  let updated_obstacles =
-    Sparse_grid.fold(
-      obstacles,
-      ((x, z), (), obs) => {
-        Overlay.Canon.Obstacles.set(
-          x + town_min_x,
-          z + town_min_z,
-          Overlay.Canon.Impassable,
-          obs,
-        )
-      },
-      canon_obstacles,
-    );
+  let updated_obstacles = Grid.Mut.copy(canon_obstacles);
+  Sparse_grid.iter(obstacles, ((x, z), ()) => {
+    Grid.Mut.set(
+      ~x=x + town_min_x,
+      ~z=z + town_min_z,
+      Overlay.Canon.Impassable,
+      updated_obstacles,
+    )
+  });
 
   let town = {
     x: town_min_x,

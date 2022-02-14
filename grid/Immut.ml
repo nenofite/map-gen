@@ -32,9 +32,9 @@ let make ~side init = Mut.create ~side init
 include Container.Make (struct
   type 'a t = 'a grid
 
-  let fold t ~init ~f =
+  let fold t ~init:acc ~f =
     let side = Mut.side t in
-    Mg_util.Range.fold 0 (side - 1) init (fun acc z ->
+    Mg_util.Range.fold 0 (side - 1) acc (fun acc z ->
         Mg_util.Range.fold 0 (side - 1) acc (fun acc x ->
             let here = Mut.get ~x ~z t in
             f acc here ) )
@@ -53,9 +53,9 @@ module With_coords_impl = struct
 
   include T
 
-  let fold (type a) (T t : a t) ~init ~(f : _ -> a -> _) =
+  let fold (type a) (T t : a t) ~init:acc ~(f : _ -> a -> _) =
     let side = Mut.side t in
-    Mg_util.Range.fold 0 (side - 1) init (fun acc z ->
+    Mg_util.Range.fold 0 (side - 1) acc (fun acc z ->
         Mg_util.Range.fold 0 (side - 1) acc (fun acc x ->
             let here = Mut.get ~x ~z t in
             f acc (x, z, here) ) )
@@ -77,9 +77,9 @@ module Scan_impl = struct
 
   include T
 
-  let fold (type a) (T t : a t) ~init ~(f : _ -> a -> _) =
+  let fold (type a) (T t : a t) ~init:acc ~(f : _ -> a -> _) =
     let side = Mut.side t in
-    Mg_util.Range.fold 0 (side - 1) init (fun acc z ->
+    Mg_util.Range.fold 0 (side - 1) acc (fun acc z ->
         let acc =
           Mg_util.Range.fold 0 (side - 2) acc (fun acc x ->
               let here = Mut.get ~x ~z t in
@@ -102,9 +102,12 @@ end
 
 let init ~side f = Mut.init ~side ~f:(fun ~x ~z -> f (x, z)) (f (0, 0))
 
-let set x y new_v t = Mut.set ~x ~z:y new_v t ; t
+let set x y new_v t =
+  let t = Mut.copy t in
+  Mut.set ~x ~z:y new_v t ; t
 
 let update x y ~f t =
+  let t = Mut.copy t in
   let n = f (Mut.get ~x ~z:y t) in
   Mut.set ~x ~z:y n t ; t
 
@@ -146,6 +149,7 @@ module Poly = Make (struct
   type 'a t = 'a
 end)
 
+include Poly
 module Int = Make0 (Int)
 
 let to_mut ?alloc_side ?fill t =

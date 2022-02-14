@@ -5,9 +5,7 @@ type state =
 
 let put_obstacle_into_state state ~x ~z =
   let {obstacles; _} = state in
-  let obstacles =
-    Overlay.Canon.Obstacles.set x z Overlay.Canon.Obstacle.Impassable obstacles
-  in
+  let obstacles = Grid.set x z Overlay.Canon.Obstacle.Impassable obstacles in
   {state with obstacles}
 
 type 'a result = Ok of 'a * state | Failed of string Lazy.t

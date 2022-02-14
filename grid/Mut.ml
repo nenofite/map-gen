@@ -32,6 +32,12 @@ let init ~side ?(alloc_side = side) ~f outside_value =
   in
   {side; data= Array.init (alloc_side * alloc_side) ~f:init_f}
 
+let get ~x ~z t =
+  Griddable.Helpers.assert_within_side ~x ~z t.side ;
+  t.data.(i_of_xz ~x ~z t.side)
+
+let copy t = {side= t.side; data= Array.copy t.data}
+
 module Grid_ops = struct
   include T
   open Griddable.Helpers
@@ -40,9 +46,7 @@ module Grid_ops = struct
 
   let side t = t.side
 
-  let get ~x ~z t =
-    assert_within_side ~x ~z t.side ;
-    t.data.(i_of_xz ~x ~z t.side)
+  let get = get
 
   let set ~x ~z v t =
     assert_within_side ~x ~z t.side ;

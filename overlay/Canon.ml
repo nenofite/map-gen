@@ -30,8 +30,6 @@ end
 type obstacle = Obstacle.t = Clear | Bridgeable | Impassable
 [@@deriving eq, ord, bin_io]
 
-module Obstacles = Grid.Make0 (Obstacle)
-
 type obstacles = obstacle Grid.t [@@deriving bin_io]
 
 type delta =
@@ -56,7 +54,7 @@ let empty_delta = make_delta ()
 (** wherever there is an obstacle in a, it will be added to onto *)
 let add_obstacles (a : obstacles) ~(onto : obstacles) =
   let f a onto = if compare_obstacle a onto > 0 then a else onto in
-  Obstacles.zip_map a onto ~f
+  Grid.zip_map a onto ~f
 
 (** applies the changes described by delta to get a new, full overlay *)
 let apply_delta (delta : delta) ~(onto : t) =

@@ -29,8 +29,8 @@ type t = (x, Overlay.Canon.delta);
 let town_goal_side = Town_overlay.town_side;
 
 let edge_cost = (canon: Overlay.Canon.t, (ax, ay), (bx, by)) => {
-  let a_elev = Grid.Compat.at(canon.elevation, ax, ay);
-  let b_elev = Grid.Compat.at(canon.elevation, bx, by);
+  let a_elev = Grid.Mut.get(canon.elevation, ~x=ax, ~z=ay);
+  let b_elev = Grid.Mut.get(canon.elevation, ~x=bx, ~z=by);
   let elev_diff = abs(a_elev - b_elev);
   let b_obs = !Overlay.Canon.can_build_on(Grid.get(bx, by, canon.obstacles));
   if (!b_obs && elev_diff <= 1) {

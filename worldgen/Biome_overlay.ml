@@ -339,7 +339,7 @@ let prepare () =
   let categories = [|b0; b1; b2; b3; b4; b5; b6; b7; b8|] in
   let biomes = {precipitation; categories} in
   let biome_obstacles =
-    Overlay.Canon.Obstacles.init ~side:(Grid.Mut.side dirt) (fun (x, z) ->
+    Grid.Mut.init_exact ~side:(Grid.Mut.side dirt) ~f:(fun ~x ~z ->
         let here_dirt = Grid.Mut.get ~x ~z dirt in
         let here_biome = biome_at ~x ~z biomes in
         get_obstacle here_dirt here_biome )
