@@ -130,7 +130,7 @@ struct
 
   let of_mut m = init ~side:(Mut.side m) (fun (x, z) -> Mut.get ~x ~z m)
 
-  let map_of_mut = map
+  let map_of_mut = Mut.map
 end
 
 module Make0 (Args : sig

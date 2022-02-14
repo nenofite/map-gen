@@ -20,7 +20,7 @@ let draw_with_colorizer = (~title=?, ~colorize, grid, side, layer) => {
 /** creates a Phase_chain phase that updates the Progress_view */
 let phase = (~title=?, layer, colorize) => {
   Phase_chain.phase("preview", grid => {
-    draw_with_colorizer(~title?, ~colorize, grid, grid.Grid.side, layer);
+    draw_with_colorizer(~title?, ~colorize, grid, Grid.side(grid), layer);
     grid;
   });
 };

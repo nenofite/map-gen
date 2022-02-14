@@ -159,7 +159,7 @@ let add_block_to_obstacles = (block, obstacles) => {
   let {min_x, max_x, min_z, max_z} = block;
   Range.fold(min_z, max_z, obstacles, (obstacles, z) =>
     Range.fold(min_x, max_x, obstacles, (obstacles, x) =>
-      Overlay.Canon.Obstacles.set(x, z, Impassable, obstacles)
+      Overlay.Canon.Obstacles.set(x, z, Overlay.Canon.Impassable, obstacles)
     )
   );
 };

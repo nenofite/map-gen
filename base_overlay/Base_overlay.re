@@ -107,7 +107,7 @@ let apply_progress_view = (state: t) => {
 let to_obstacles = base => {
   Overlay.Canon.Obstacles.map_of_mut(base.water, ~f=(~x as _, ~z as _, w) =>
     switch (w) {
-    | No_water => Clear
+    | No_water => Overlay.Canon.Clear
     | River(_) => Bridgeable
     | Ocean => Impassable
     }
