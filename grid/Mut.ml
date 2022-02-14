@@ -19,6 +19,10 @@ let create ~side ?(alloc_side = side) value =
   assert (alloc_side >= side) ;
   {side; data= Array.create ~len:(alloc_side * alloc_side) value}
 
+let init_exact ~side ~f =
+  let init_f i = f ~x:(x_of_i ~i side) ~z:(z_of_i ~i side) in
+  {side; data= Array.init (side * side) ~f:init_f}
+
 let init ~side ?(alloc_side = side) ~f outside_value =
   assert (alloc_side >= side) ;
   let after_grid_i = side * side in
@@ -91,3 +95,8 @@ let expand_for_subdivide t =
       (* TODO set old index to a given "empty" value? *)
     done
   done
+
+let map ~f t =
+  init_exact ~side:t.side ~f:(fun ~x ~z ->
+      let from = get ~x ~z t in
+      f ~x ~z from )

@@ -46,7 +46,7 @@ let fold = (grid, acc, f) =>
   );
 
 let map = (grid, f) => {
-  let init = make(~side=grid.side, f(0, 0, at(grid, 0, 0)));
+  let init = make(~side=Mut.side(grid), f(0, 0, at(grid, 0, 0)));
   With_coords.fold(With_coords.T(grid), ~init, ~f=(accum, (x, y, n)) =>
     set(x, y, f(x, y, n), accum)
   );
@@ -68,7 +68,7 @@ let zip_map = (a, b, f) => zip_map(a, b, ~f);
 let zip = (grid_a, grid_b) => zip_map(grid_a, grid_b, (a, b) => (a, b));
 
 let multizip = grids => {
-  let side = List.hd_exn(grids).side;
+  let side = Mut.side(List.hd_exn(grids));
   if (List.exists(~f=g => g.side != side, grids)) {
     raise(Invalid_argument("grids don't all have same side"));
   };
@@ -85,10 +85,10 @@ let noop_row_f = _y => ();
 
 let rec scan_fold' = (grid, acc, row_f, f, x, y) =>
   switch (x, y) {
-  | (x, y) when x >= grid.side =>
+  | (x, y) when x >= Mut.side(grid) =>
     let acc = row_f(acc, y);
     scan_fold'(grid, acc, row_f, f, 0, y + 1);
-  | (_x, y) when y >= grid.side => acc
+  | (_x, y) when y >= Mut.side(grid) => acc
   | (x, y) =>
     let here = at(grid, x, y);
     let acc = f(acc, x, y, here);
