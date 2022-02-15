@@ -1,3 +1,5 @@
+let at_w = (g, x, y) => Mut.get_wrap(~x, ~z=y, g);
+
 let subdivide_with_fill = (old_grid: Immut.t('a), fill): Immut.t('a) => {
   open Compat;
 
@@ -87,12 +89,12 @@ let subdivide_with_fill = (old_grid: Immut.t('a), fill): Immut.t('a) => {
 
 let overwrite_subdivide_with_fill = (old_grid: Immut.t('a), fill) => {
   let grid = subdivide_with_fill(old_grid, fill);
-  Compat.map(grid, (x, y, here) =>
+  Mut.map(grid, ~f=(~x, ~z as y, here) =>
     if (x mod 2 == 0 && y mod 2 == 0) {
-      let n = Compat.at_w(grid, x, y - 1);
-      let e = Compat.at_w(grid, x + 1, y);
-      let s = Compat.at_w(grid, x, y + 1);
-      let w = Compat.at_w(grid, x - 1, y);
+      let n = at_w(grid, x, y - 1);
+      let e = at_w(grid, x + 1, y);
+      let s = at_w(grid, x, y + 1);
+      let w = at_w(grid, x - 1, y);
       fill(n, e, s, w);
     } else {
       here;

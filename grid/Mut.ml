@@ -83,6 +83,10 @@ let intf0 (type elt) (_t : elt t) =
 
 let set ~x ~z v t = ignore (set ~x ~z v t)
 
+let copy_set ~x ~z v t =
+  let t = copy t in
+  set ~x ~z v t ; t
+
 let raw_set_side t ~side =
   assert (side * side <= Array.length t.data) ;
   t.side <- side
@@ -99,6 +103,8 @@ let expand_for_subdivide t =
       (* TODO set old index to a given "empty" value? *)
     done
   done
+
+let map_in_place ~f t = iter t ~f:(fun ~x ~z here -> set ~x ~z (f ~x ~z here) t)
 
 let map ~f t =
   init_exact ~side:t.side ~f:(fun ~x ~z ->

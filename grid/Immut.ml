@@ -102,68 +102,20 @@ end
 
 let init ~side f = Mut.init ~side ~f:(fun ~x ~z -> f (x, z)) (f (0, 0))
 
-let set x y new_v t =
-  let t = Mut.copy t in
-  Mut.set ~x ~z:y new_v t ; t
-
 let update x y ~f t =
   let t = Mut.copy t in
   let n = f (Mut.get ~x ~z:y t) in
   Mut.set ~x ~z:y n t ; t
 
-module Make (Args : sig
-  type 'a t
-end) =
-struct
-  type 'a data = 'a Args.t
+let map ~f t = Mut.map ~f:(fun ~x:_ ~z:_ v -> f v) t
 
-  let set = set
-
-  let init = init
-
-  let map ~f t = Mut.map ~f:(fun ~x:_ ~z:_ v -> f v) t
-
-  let zip_map ~f a b =
-    if Mut.side a <> Mut.side b then
-      failwithf "grid sides must match to zip: %d vs %d" a.side b.side () ;
-    Mut.init_exact ~side:(Mut.side a) ~f:(fun ~x ~z ->
-        let la = Mut.get ~x ~z a in
-        let lb = Mut.get ~x ~z b in
-        f la lb )
-
-  let of_mut m = init ~side:(Mut.side m) (fun (x, z) -> Mut.get ~x ~z m)
-
-  let map_of_mut = Mut.map
-end
-
-module Make0 (Args : sig
-  type t
-end) =
-Make (struct
-  include Args
-
-  type _ t = Args.t
-end)
-
-module Poly = Make (struct
-  type 'a t = 'a
-end)
-
-include Poly
-module Int = Make0 (Int)
-
-let to_mut ?alloc_side ?fill t =
-  let fill = match fill with Some f -> f | None -> get 0 0 t in
-  let m = Mut.create ~side:(side t) ?alloc_side fill in
-  With_coords.iter (With_coords.T t) ~f:(fun (x, z, v) -> Mut.set ~x ~z v m) ;
-  m
-
-let map_to_mut ?alloc_side ?fill ~f t =
-  let fill = match fill with Some f -> f | None -> f ~x:0 ~z:0 (get 0 0 t) in
-  let m = Mut.create ~side:(side t) ?alloc_side fill in
-  With_coords.iter (With_coords.T t) ~f:(fun (x, z, v) ->
-      Mut.set ~x ~z (f ~x ~z v) m ) ;
-  m
+let zip_map ~f a b =
+  if Mut.side a <> Mut.side b then
+    failwithf "grid sides must match to zip: %d vs %d" a.side b.side () ;
+  Mut.init_exact ~side:(Mut.side a) ~f:(fun ~x ~z ->
+      let la = Mut.get ~x ~z a in
+      let lb = Mut.get ~x ~z b in
+      f la lb )
 
 let wrap_coord t x y = (x % Mut.side t, y % Mut.side t)
 
@@ -183,58 +135,3 @@ let%expect_test "inits and gets correct elements" =
   print @@ get 7 7 g ;
   print @@ get 6 7 g ;
   [%expect "\n    0, 0\n    1, 0\n    0, 1\n    3, 4\n    7, 7\n    6, 7\n  "]
-
-let%expect_test "set and compact" =
-  let module Int_grid = Int in
-  let open Int_grid in
-  (* Ensure init compacts into a single leaf *)
-  let g = Int_grid.init ~side:8 (fun _ -> 0) in
-  print g ~f:string_of_int ;
-  print_endline "" ;
-  let g = g |> set 1 2 10 |> set 6 7 20 |> set 6 7 21 in
-  print g ~f:string_of_int ;
-  print_endline "" ;
-  let g = g |> set 1 2 0 |> set 6 7 0 in
-  print g ~f:string_of_int ;
-  print_endline "" ;
-  let g = g |> set 1 2 0 in
-  print g ~f:string_of_int ;
-  print_endline "" ;
-  [%expect
-    {|
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 10 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 21 0
-
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-    0 0 0 0 0 0 0 0
-     |}]

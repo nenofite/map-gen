@@ -1,7 +1,6 @@
 open Core_kernel;
 
 include Immut;
-include Immut.Poly;
 
 let init = (side, f) => init(~side, ((x, y)) => f(x, y));
 
@@ -13,27 +12,6 @@ let at = (grid, x, y) => get(x, y, grid);
 
 let update = (grid, x, y, f) => update(x, y, ~f, grid);
 
-let put = (grid, x, y, n) => set(x, y, n, grid);
-
-/*
-  Wrapped index accessors
- */
-
-let at_w = (grid, x, y) => {
-  let (x, y) = wrap_coord(grid, x, y);
-  at(grid, x, y);
-};
-
-let update_w = (grid, x, y, f) => {
-  let (x, y) = wrap_coord(grid, x, y);
-  update(grid, x, y, f);
-};
-
-let put_w = (grid, x, y, n) => {
-  let (x, y) = wrap_coord(grid, x, y);
-  put(grid, x, y, n);
-};
-
 /*
   Folding and mapping
  */
@@ -44,13 +22,6 @@ let fold = (grid, acc, f) =>
     ~f=(a, (x, y, n)) => f(a, x, y, n),
     With_coords.T(grid),
   );
-
-let map = (grid, f) => {
-  let init = make(~side=Mut.side(grid), f(0, 0, at(grid, 0, 0)));
-  With_coords.fold(With_coords.T(grid), ~init, ~f=(accum, (x, y, n)) =>
-    set(x, y, f(x, y, n), accum)
-  );
-};
 
 let filter_map = (grid, f) =>
   With_coords.fold(With_coords.T(grid), ~init=[], ~f=(acc, (x, y, n)) =>
@@ -73,7 +44,7 @@ let multizip = grids => {
     raise(Invalid_argument("grids don't all have same side"));
   };
   /* Probably a more efficient way to do this, oh well */
-  Poly.init(~side, ((x, y)) => List.map(~f=g => at(g, x, y), grids));
+  Immut.init(~side, ((x, y)) => List.map(~f=g => at(g, x, y), grids));
 };
 
 /*
@@ -148,13 +119,16 @@ let eight_directions = [
 
 /** neighbors returns the 8 neighbors starting with northwest and going clockwise */
 let neighbors = (grid, x, y) => {
-  List.map(~f=((dx, dy)) => at_w(grid, x + dx, y + dy), eight_directions);
+  List.map(
+    ~f=((dx, dy)) => Mut.get_wrap(~x=x + dx, ~z=y + dy, grid),
+    eight_directions,
+  );
 };
 
 /** neighbors_xy returns the 8 neighbors paired with their relative offset, starting with northwest and going clockwise */
 let neighbors_xy = (grid, x, y) => {
   List.map(
-    ~f=((dx, dy)) => (at_w(grid, x + dx, y + dy), dx, dy),
+    ~f=((dx, dy)) => (Mut.get_wrap(grid, ~x=x + dx, ~z=y + dy), dx, dy),
     eight_directions,
   );
 };
@@ -175,7 +149,7 @@ let test_print = grid => {
 };
 
 let%expect_test "init" = {
-  let grid = Poly.init(~side=4, ((x, y)) => Printf.sprintf("%d:%d", x, y));
+  let grid = Immut.init(~side=4, ((x, y)) => Printf.sprintf("%d:%d", x, y));
   test_print(grid);
 
   %expect
@@ -187,25 +161,8 @@ let%expect_test "init" = {
   |};
 };
 
-let%expect_test "map" = {
-  let grid =
-    Poly.init(~side=4, ident)
-    |> map(_, (x, y, (hx, hy)) =>
-         Printf.sprintf("%d:%d::%d:%d", x, y, hx, hy)
-       );
-  test_print(grid);
-
-  %expect
-  {|
-    0:0::0:0,1:0::1:0,2:0::2:0,3:0::3:0,
-    0:1::0:1,1:1::1:1,2:1::2:1,3:1::3:1,
-    0:2::0:2,1:2::1:2,2:2::2:2,3:2::3:2,
-    0:3::0:3,1:3::1:3,2:3::2:3,3:3::3:3,
-  |};
-};
-
 let%expect_test "neighbors" = {
-  let grid = Poly.init(~side=4, ((x, y)) => Printf.sprintf("%d:%d", x, y));
+  let grid = Immut.init(~side=4, ((x, y)) => Printf.sprintf("%d:%d", x, y));
   neighbors(grid, 1, 2) |> List.iter(~f=print_endline, _);
 
   %expect
@@ -222,7 +179,7 @@ let%expect_test "neighbors" = {
 };
 
 let%expect_test "neighbors_xy" = {
-  let grid = Poly.init(~side=4, ((x, y)) => Printf.sprintf("%d:%d", x, y));
+  let grid = Immut.init(~side=4, ((x, y)) => Printf.sprintf("%d:%d", x, y));
   neighbors_xy(grid, 1, 2)
   |> List.iter(
        ~f=((coord, dx, dy)) => Printf.printf("%s::%d:%d\n", coord, dx, dy),

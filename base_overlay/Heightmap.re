@@ -239,10 +239,9 @@ let phase = tectonic =>
       |> Point_cloud.subdivide_interpolate4(~spacing=2)
       |> Point_cloud.subdivide(~spacing=4);
     Grid.Mut.raw_set_side(elevation_grid, ~side=Point_cloud.side(points));
-    Grid.Mut.map(elevation_grid, ~f=(~x, ~z, _) =>
+    Grid.Mut.map_in_place(elevation_grid, ~f=(~x, ~z, _) =>
       Point_cloud.nearest_int(points, x, z)
-    )
-    |> ignore;
+    );
     Grid.Subdivide_mut.overwrite_subdivide_with_fill(
       ~fill=Grid.Fill.random_avg,
       elevation_grid,
