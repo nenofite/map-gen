@@ -56,7 +56,7 @@ let can_build_template template ~x ~z =
   let minz, maxz = template.bounds_z in
   Range.for_all (z + minz) (z + maxz) (fun z ->
       Range.for_all (x + minx) (x + maxx) (fun x ->
-          Overlay.Canon.can_build_on (Grid.get x z canon.obstacles) ) )
+          Overlay.Canon.can_build_on (Grid.get ~x ~z canon.obstacles) ) )
 
 let prepare ~x ~z =
   let rotation_cw = Random.int_incl 0 3 in

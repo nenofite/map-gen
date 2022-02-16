@@ -34,8 +34,8 @@ let is_near_river_at ~x ~z base =
   let result = ref false in
   for z = z - r to z + r do
     for x = x - r to x + r do
-      if Grid.is_within_side ~x ~y:z side && Base_overlay.river_at ~x ~z base
-      then result := true
+      if Grid.is_within_side ~x ~z side && Base_overlay.river_at ~x ~z base then
+        result := true
     done
   done ;
   !result
@@ -48,7 +48,7 @@ let is_near_ocean_at ~x ~z base =
     let result = ref false in
     for z = z - r to z + r do
       for x = x - r to x + r do
-        if Grid.is_within_side ~x ~y:z side && Base_overlay.ocean_at ~x ~z base
+        if Grid.is_within_side ~x ~z side && Base_overlay.ocean_at ~x ~z base
         then result := true
       done
     done ;
@@ -176,7 +176,7 @@ let mountain_threshold_at ~x ~z dirt = 90 + Grid.Mut.get ~x ~z dirt
 
 let draw_cells moisture =
   let draw_dense x z =
-    if Grid.is_within_side ~x ~y:z (Point_cloud.side moisture) then
+    if Grid.is_within_side ~x ~z (Point_cloud.side moisture) then
       let here = Point_cloud.nearest_int moisture x z in
       let g = here * 255 / 100 in
       Some (g * 0x010101)
@@ -353,7 +353,7 @@ let apply_progress_view (state : t) =
   let side = Base_overlay.side base in
   let layer = Progress_view.push_layer () in
   let draw_dense x z =
-    if Grid.is_within_side ~x ~y:z side then
+    if Grid.is_within_side ~x ~z side then
       if Base_overlay.any_water_at ~x ~z base then
         Some (Base_overlay.color_at ~x ~z base)
       else

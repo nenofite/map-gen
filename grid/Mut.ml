@@ -19,6 +19,8 @@ let create ~side ?(alloc_side = side) value =
   assert (alloc_side >= side) ;
   {side; data= Array.create ~len:(alloc_side * alloc_side) value}
 
+let make = create
+
 let init_exact ~side ~f =
   let init_f i = f ~x:(x_of_i ~i side) ~z:(z_of_i ~i side) in
   {side; data= Array.init (side * side) ~f:init_f}
@@ -62,6 +64,7 @@ end
 
 module Intf = Griddable.Make (Grid_ops)
 include Intf
+include Griddable.Helpers
 
 module Intf0 (E : sig
   type elt
@@ -110,3 +113,11 @@ let map ~f t =
   init_exact ~side:t.side ~f:(fun ~x ~z ->
       let from = get ~x ~z t in
       f ~x ~z from )
+
+let zip_map ~f a b =
+  if side a <> side b then
+    failwithf "grid sides must match to zip: %d vs %d" a.side b.side () ;
+  init_exact ~side:(side a) ~f:(fun ~x ~z ->
+      let la = get ~x ~z a in
+      let lb = get ~x ~z b in
+      f ~x ~z la lb )

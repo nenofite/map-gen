@@ -30,7 +30,7 @@ let can_build_cavern_entrance (canon : Overlay.Canon.t) ~x ~z =
   let minz, maxz = top.bounds_z in
   let y =
     y_of_top_piece_at
-      (fun ~x ~z -> Grid.get x z canon.elevation)
+      (fun ~x ~z -> Grid.get ~x ~z canon.elevation)
       ~minx:(minx + x) ~maxx:(maxx + x) ~minz:(minz + z) ~maxz:(maxz + z)
   in
   Building_old.would_stair_foundation_fit canon.elevation ~minx:(minx + x)
@@ -43,7 +43,7 @@ let can_build_cavern_entrance (canon : Overlay.Canon.t) ~x ~z =
          Range.for_all
            (x + minx - max_stair_distance)
            (x + maxx + max_stair_distance)
-           (fun x -> Overlay.Canon.can_build_on (Grid.get x z canon.obstacles))
+           (fun x -> Overlay.Canon.can_build_on (Grid.get ~x ~z canon.obstacles))
          )
 
 let prepare ~x ~z =

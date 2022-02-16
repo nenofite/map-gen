@@ -32,7 +32,8 @@ let edge_cost = (canon: Overlay.Canon.t, (ax, ay), (bx, by)) => {
   let a_elev = Grid.Mut.get(canon.elevation, ~x=ax, ~z=ay);
   let b_elev = Grid.Mut.get(canon.elevation, ~x=bx, ~z=by);
   let elev_diff = abs(a_elev - b_elev);
-  let b_obs = !Overlay.Canon.can_build_on(Grid.get(bx, by, canon.obstacles));
+  let b_obs =
+    !Overlay.Canon.can_build_on(Grid.get(~x=bx, ~z=by, canon.obstacles));
   if (!b_obs && elev_diff <= 1) {
     Some(Mg_util.Floats.(~.elev_diff +. 1.));
   } else {

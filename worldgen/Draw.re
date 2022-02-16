@@ -10,7 +10,7 @@ let draw_grid = (colorize: 'a => int, file: string, grid: Grid.t('a)): unit => {
     ~title=file,
     ~draw_dense=
       (x, z) =>
-        if (Grid.is_within(x, z, grid)) {
+        if (Grid.is_within(~x, ~z, grid)) {
           Some(colorize(Grid.Mut.get(~x, ~z, grid)));
         } else {
           None;

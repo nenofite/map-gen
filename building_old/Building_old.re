@@ -281,10 +281,10 @@ let rec lay_stairs =
 
 /** checks whether a call to {!lay_stairs} would terminate within [max_distance] */
 let rec would_stairs_fit = (elevation, ~x, ~y, ~z, ~dx, ~dz, ~max_distance) =>
-  if (max_distance <= 0 || !Grid.is_within(x, z, elevation)) {
+  if (max_distance <= 0 || !Grid.is_within(~x, ~z, elevation)) {
     false;
   } else {
-    let here_elev = Grid.get(x, z, elevation);
+    let here_elev = Grid.get(~x, ~z, elevation);
     if (y <= here_elev) {
       true;
     } else {

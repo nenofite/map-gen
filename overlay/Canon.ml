@@ -53,7 +53,7 @@ let empty_delta = make_delta ()
 
 (** wherever there is an obstacle in a, it will be added to onto *)
 let add_obstacles (a : obstacles) ~(onto : obstacles) =
-  let f a onto = if compare_obstacle a onto > 0 then a else onto in
+  let f ~x:_ ~z:_ a onto = if compare_obstacle a onto > 0 then a else onto in
   Grid.zip_map a onto ~f
 
 (** applies the changes described by delta to get a new, full overlay *)
@@ -146,8 +146,8 @@ let draw_obstacles () =
   let l = Progress_view.push_layer () in
   Progress_view.update
     ~draw_dense:(fun x z ->
-      if Grid.is_within x z s.obstacles then
-        match Grid.get x z s.obstacles with
+      if Grid.is_within ~x ~z s.obstacles then
+        match Grid.get ~x ~z s.obstacles with
         | Impassable ->
             Some 0xFF0000
         | Bridgeable | Clear ->

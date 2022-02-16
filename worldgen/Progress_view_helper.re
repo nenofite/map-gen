@@ -1,7 +1,7 @@
 /** turns a grid colorizer into a callback for Progress_view */
 let dense = (colorizer, grid, x, y) =>
-  if (Grid.is_within(x, y, grid)) {
-    let rgb: int = colorizer(Grid.get(x, y, grid));
+  if (Grid.is_within(~x, ~z=y, grid)) {
+    let rgb: int = colorizer(Grid.get(~x, ~z=y, grid));
     Some(rgb);
   } else {
     None;

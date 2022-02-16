@@ -85,7 +85,7 @@ let apply_ground_cover =
           ~default=0,
         );
       let can_build =
-        Overlay.Canon.can_build_on(Grid.get(x, z, canon.obstacles));
+        Overlay.Canon.can_build_on(Grid.get(~x, ~z, canon.obstacles));
       let top = get_block(region, ~x, ~y, ~z);
       let biome = Biome_overlay.biome_at(~x, ~z, biomes);
       switch (biome) {

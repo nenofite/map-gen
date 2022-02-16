@@ -25,8 +25,8 @@ let apply_progress_view = ((towns, delta: Overlay.Canon.delta)) => {
     };
 
   let draw_dense = (x, z) =>
-    if (Grid.is_within(x, z, obs)) {
-      if (!Overlay.Canon.can_build_on(Grid.get(x, z, obs))) {
+    if (Grid.is_within(~x, ~z, obs)) {
+      if (!Overlay.Canon.can_build_on(Grid.get(~x, ~z, obs))) {
         Some(town_color);
       } else {
         None;
@@ -56,12 +56,12 @@ let within_region_boundaries = (~canon_side, min_x, min_z) => {
 };
 
 let obstacle_at = (~x, ~z, obstacles) =>
-  !Overlay.Canon.can_build_on(Grid.get(x, z, obstacles));
+  !Overlay.Canon.can_build_on(Grid.get(~x, ~z, obstacles));
 
 let has_obstacle = (obstacles, x, z) =>
   Range.exists(z, z + Town_layout.side - 1, z =>
     Range.exists(x, x + Town_layout.side - 1, x =>
-      Grid.is_within(x, z, obstacles) && obstacle_at(~x, ~z, obstacles)
+      Grid.is_within(~x, ~z, obstacles) && obstacle_at(~x, ~z, obstacles)
     )
   );
 
@@ -161,7 +161,7 @@ let extract_input = (canon: Overlay.Canon.t, town_min_x, town_min_z) => {
   let side = Town_layout.side;
   let elevation =
     Grid.Mut.init_exact(~side, ~f=(~x as tx, ~z as tz) => {
-      Grid.get(tx + town_min_x, tz + town_min_z, canon.elevation)
+      Grid.get(~x=tx + town_min_x, ~z=tz + town_min_z, canon.elevation)
     });
   let obstacles =
     Mg_util.Range.(
@@ -173,7 +173,7 @@ let extract_input = (canon: Overlay.Canon.t, town_min_x, town_min_z) => {
           (town_obs, tx) => {
             let x = tx + town_min_x;
             let z = tz + town_min_z;
-            let obs = Grid.get(x, z, canon.obstacles);
+            let obs = Grid.get(~x, ~z, canon.obstacles);
             if (!Overlay.Canon.can_build_on(obs)) {
               Sparse_grid.put(town_obs, tx, tz, ());
             } else {
