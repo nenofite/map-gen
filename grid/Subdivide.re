@@ -1,8 +1,6 @@
 let at_w = (g, x, y) => Mut.get_wrap(~x, ~z=y, g);
 
-let subdivide_with_fill = (old_grid: Immut.t('a), fill): Immut.t('a) => {
-  open Compat;
-
+let subdivide_with_fill = (old_grid: Mut.t('a), fill): Mut.t('a) => {
   /*
      old_grid:
      1-2-3-
@@ -38,31 +36,31 @@ let subdivide_with_fill = (old_grid: Immut.t('a), fill): Immut.t('a) => {
    */
 
   let diamonds =
-    init(
-      old_grid.side,
-      (x, y) => {
-        let nw = at_w(old_grid, x, y);
-        let ne = at_w(old_grid, x + 1, y);
-        let se = at_w(old_grid, x + 1, y + 1);
-        let sw = at_w(old_grid, x, y + 1);
+    Mut.init_exact(
+      ~side=old_grid.side,
+      ~f=(~x, ~z) => {
+        let nw = at_w(old_grid, x, z);
+        let ne = at_w(old_grid, x + 1, z);
+        let se = at_w(old_grid, x + 1, z + 1);
+        let sw = at_w(old_grid, x, z + 1);
         fill(nw, ne, se, sw);
       },
     );
   let offset_squares =
-    init(
-      old_grid.side,
-      (x, y) => {
-        let n = at_w(diamonds, x, y - 1);
-        let e = at_w(old_grid, x + 1, y);
-        let s = at_w(diamonds, x, y);
-        let w = at_w(old_grid, x, y);
+    Mut.init_exact(
+      ~side=old_grid.side,
+      ~f=(~x, ~z) => {
+        let n = at_w(diamonds, x, z - 1);
+        let e = at_w(old_grid, x + 1, z);
+        let s = at_w(diamonds, x, z);
+        let w = at_w(old_grid, x, z);
         fill(n, e, s, w);
       },
     );
   let center_squares =
-    init(
-      old_grid.side,
-      (x, y) => {
+    Mut.init_exact(
+      ~side=old_grid.side,
+      ~f=(~x, ~z as y) => {
         let n = at_w(old_grid, x, y);
         let e = at_w(diamonds, x, y);
         let s = at_w(old_grid, x, y + 1);
@@ -71,23 +69,23 @@ let subdivide_with_fill = (old_grid: Immut.t('a), fill): Immut.t('a) => {
       },
     );
   let combined =
-    init(
-      old_grid.side * 2,
-      (x, y) => {
+    Mut.init_exact(
+      ~side=old_grid.side * 2,
+      ~f=(~x, ~z) => {
         let x' = x / 2;
-        let y' = y / 2;
-        switch (x mod 2 == 0, y mod 2 == 0) {
-        | (true, true) => at(old_grid, x', y')
-        | (false, true) => at(offset_squares, x', y')
-        | (false, false) => at(diamonds, x', y')
-        | (true, false) => at(center_squares, x', y')
+        let z' = z / 2;
+        switch (x mod 2 == 0, z mod 2 == 0) {
+        | (true, true) => Mut.get(old_grid, ~x=x', ~z=z')
+        | (false, true) => Mut.get(offset_squares, ~x=x', ~z=z')
+        | (false, false) => Mut.get(diamonds, ~x=x', ~z=z')
+        | (true, false) => Mut.get(center_squares, ~x=x', ~z=z')
         };
       },
     );
   combined;
 };
 
-let overwrite_subdivide_with_fill = (old_grid: Immut.t('a), fill) => {
+let overwrite_subdivide_with_fill = (old_grid: Mut.t('a), fill) => {
   let grid = subdivide_with_fill(old_grid, fill);
   Mut.map(grid, ~f=(~x, ~z as y, here) =>
     if (x mod 2 == 0 && y mod 2 == 0) {
@@ -123,11 +121,11 @@ let%expect_test "subdivide_with_fill" = {
    12 13 14 15
    */
   let grid =
-    Compat.init(4, (x, y) => [string_of_int(x + y * 4)])
+    Mut.init_exact(~side=4, ~f=(~x, ~z) => [string_of_int(x + z * 4)])
     |> subdivide_with_fill(_, (a, b, c, d) => a @ b @ c @ d);
 
   /* Old tile */
-  print_list(Compat.at(grid, 0, 0));
+  print_list(Mut.get(grid, ~x=0, ~z=0));
   %expect
   {| 0 |};
 
@@ -137,7 +135,7 @@ let%expect_test "subdivide_with_fill" = {
       X
     4   5
    */
-  print_list(Compat.at(grid, 1, 1));
+  print_list(Mut.get(grid, ~x=1, ~z=1));
   %expect
   {| 0, 1, 5, 4 |};
 
@@ -147,7 +145,7 @@ let%expect_test "subdivide_with_fill" = {
     0 X 1
       =
    */
-  print_list(Compat.at(grid, 1, 0));
+  print_list(Mut.get(grid, ~x=1, ~z=0));
   %expect
   {| 12, 13, 1, 0, 1, 0, 1, 5, 4, 0 |};
 
@@ -157,7 +155,7 @@ let%expect_test "subdivide_with_fill" = {
    = X =
      4
    */
-  print_list(Compat.at(grid, 0, 1));
+  print_list(Mut.get(grid, ~x=0, ~z=1));
   %expect
   {| 0, 0, 1, 5, 4, 4, 3, 0, 4, 7 |};
 };
