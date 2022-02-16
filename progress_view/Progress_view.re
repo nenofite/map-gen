@@ -178,30 +178,35 @@ let fit = (~title=?, fit) => {
   update_window();
 };
 
-let save = (~side, ~img_side=1024, ~format=Images.Png, file) => {
+let save = (~side, ~img_side=128, ~format=Images.Png, file) => {
   Images.(
-    OImages.(
-      with_state(s => {
-        let file =
-          Config.Paths.drawing(file ++ "." ++ Images.extension(format));
+    with_state(s => {
+      let file =
+        Config.Paths.drawing(file ++ "." ++ Images.extension(format));
 
-        let zoom = max(1, side / img_side);
-        let img_side = side / zoom;
-        let img = (new rgb24)(img_side, img_side);
-        Layer.draw_all_layers(
-          s.stack,
-          ~zoom,
-          ~x=(0, side - 1),
-          ~z=(0, side - 1),
-          (x, z, ~color) => {
-            let (r, g, b) = Mg_util.Color.split_rgb(color);
-            img#set(x / zoom, z / zoom, {r, g, b});
-          },
-        );
-        img#save(file, Some(format), []);
-        img#destroy;
-        ();
-      })
-    )
+      Tale.blockf(
+        ~always_close=true,
+        "Saving %s",
+        file,
+        ~f=() => {
+          let zoom = max(1, side / img_side);
+          let img_side = side / zoom;
+          let img = Rgb24.create(img_side, img_side);
+          Layer.draw_all_layers(
+            s.stack,
+            ~zoom,
+            ~x=(0, side - 1),
+            ~z=(0, side - 1),
+            (x, z, ~color) => {
+              let (r, g, b) = Mg_util.Color.split_rgb(color);
+              Rgb24.set(img, x / zoom, z / zoom, {r, g, b});
+            },
+          );
+          save(file, Some(format), [], Rgb24(img));
+          Rgb24.destroy(img);
+          ();
+        },
+      );
+    })
   );
 };

@@ -3,50 +3,23 @@ let images_color_of_int = color => {
   Images.{r, g, b};
 };
 
-let draw =
-    (colorizer: (int, int) => int, width: int, height: int, file: string)
-    : unit => {
-  open Images;
-  open OImages;
-
-  let file = Config.Paths.drawing(file);
-
-  let img = (new rgb24)(width, height);
-  for (y in 0 to pred(height)) {
-    for (x in 0 to pred(width)) {
-      let rgb = colorizer(x, y);
-      let r = (rgb land 0xFF0000) lsr 16;
-      let g = (rgb land 0x00FF00) lsr 8;
-      let b = rgb land 0x0000FF;
-      img#set(x, y, {r, g, b});
-    };
-  };
-  img#save(file, Some(Bmp), []);
-  ();
-};
-
-let draw_griddable =
-    (
-      type t,
-      type elt,
-      module G: Grid.Griddable.S0 with type t = t and type elt = elt,
-      ~f: elt => int,
-      ~file: string,
-      grid: t,
-    )
-    : unit => {
-  let s = G.side(grid);
-  draw((x, y) => f(G.get(~x, ~z=y, grid)), s, s, file);
-};
-
 /** draw_grid creates a .PPM bitmap file with each pixel representing a tile on the grid */
-let draw_grid = (colorizer: 'a => int, file: string, grid: Grid.t('a)): unit => {
-  draw(
-    (x, y) => colorizer(Grid.Mut.get(grid, ~x, ~z=y)),
-    grid.side,
-    grid.side,
-    file,
+let draw_grid = (colorize: 'a => int, file: string, grid: Grid.t('a)): unit => {
+  let l = Progress_view.push_layer();
+  Progress_view.update(
+    ~title=file,
+    ~draw_dense=
+      ((), x, z) =>
+        if (Grid.is_within(x, z, grid)) {
+          Some(colorize(Grid.Mut.get(~x, ~z, grid)));
+        } else {
+          None;
+        },
+    ~state=(),
+    l,
   );
+  Progress_view.save(~side=Grid.side(grid), file);
+  Progress_view.remove_layer(l);
 };
 
 let phase = (file, colorize) => {
