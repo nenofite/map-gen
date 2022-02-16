@@ -123,9 +123,7 @@ let iter = (grid, f) => {
 
 /** creates a grid with the same dimensions as the sparse grid. Where the sparse grid is undefined, default is used. */
 let to_grid = (~default, t) => {
-  fold(
-    t,
-    ((x, y), n) => Grid.Poly.set(x, y, n),
-    Grid.make(~side=t.side, default),
-  );
+  let g = Grid.Mut.create(~side=t.side, default);
+  iter(t, ((x, y), n) => Grid.Mut.set(~x, ~z=y, n, g));
+  g;
 };

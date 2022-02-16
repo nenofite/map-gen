@@ -18,7 +18,7 @@ let colorize = (tile: int): int => {
 let empty_distance = Int.max_value - 10;
 
 let empty_distances_of_tectonic = (tectonic: Grid.t(Tectonic.tile)) => {
-  Grid.map_to_mut(tectonic, ~f=(~x as _, ~z as _, here) => {
+  Grid.Mut.map(tectonic, ~f=(~x as _, ~z as _, here) => {
     {
       tectonic: here,
       distance_to_ocean:
@@ -107,7 +107,7 @@ let spread_mountain = (grid, ~level as _, (x, z)) => {
   let next_distance = here.distance_to_mountain + 1;
   /* Spread in all 8 directions */
   List.fold(
-    Grid.Compat.eight_directions,
+    Grid.Griddable.eight_directions,
     ~init=(grid, []),
     ~f=((grid, updated_coords), (dx, dz)) =>
     spread_mountain_into(grid, updated_coords, x + dx, z + dz, next_distance)
@@ -144,7 +144,7 @@ let spread_ocean = (grid, ~level as _, (x, z)) => {
   let next_distance = here.distance_to_ocean + 1;
   /* Spread in all 8 directions */
   List.fold(
-    Grid.Compat.eight_directions,
+    Grid.Griddable.eight_directions,
     ~init=(grid, []),
     ~f=((grid, updated_coords), (dx, dz)) =>
     spread_ocean_into(grid, updated_coords, x + dx, z + dz, next_distance)
@@ -239,10 +239,9 @@ let phase = tectonic =>
       |> Point_cloud.subdivide_interpolate4(~spacing=2)
       |> Point_cloud.subdivide(~spacing=4);
     Grid.Mut.raw_set_side(elevation_grid, ~side=Point_cloud.side(points));
-    Grid.Mut.map(elevation_grid, ~f=(~x, ~z, _) =>
+    Grid.Mut.map_in_place(elevation_grid, ~f=(~x, ~z, _) =>
       Point_cloud.nearest_int(points, x, z)
-    )
-    |> ignore;
+    );
     Grid.Subdivide_mut.overwrite_subdivide_with_fill(
       ~fill=Grid.Fill.random_avg,
       elevation_grid,

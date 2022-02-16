@@ -89,25 +89,20 @@ let apply_progress_view = (state: t) => {
   let (world, _canon) = state;
   let side = side(world);
   let layer = Progress_view.push_layer();
-  let draw_dense = ((), x, z) =>
-    if (Grid.is_within_side(~x, ~y=z, side)) {
+  let draw_dense = (x, z) =>
+    if (Grid.Griddable.is_within_side(~x, ~z, side)) {
       Some(color_at(~x, ~z, world));
     } else {
       None;
     };
-  Progress_view.update(
-    ~fit=(0, side, 0, side),
-    ~draw_dense,
-    ~state=(),
-    layer,
-  );
+  Progress_view.update(~fit=(0, side, 0, side), ~draw_dense, layer);
   ();
 };
 
 let to_obstacles = base => {
-  Overlay.Canon.Obstacles.map_of_mut(base.water, ~f=(~x as _, ~z as _, w) =>
+  Grid.Mut.map(base.water, ~f=(~x as _, ~z as _, w) =>
     switch (w) {
-    | No_water => Clear
+    | No_water => Overlay.Canon.Clear
     | River(_) => Bridgeable
     | Ocean => Impassable
     }
@@ -117,7 +112,7 @@ let to_obstacles = base => {
 let extract_canonical = (base: x) =>
   Overlay.Canon.{
     side: side(base),
-    elevation: Grid.Int.of_mut(base.elevation),
+    elevation: Grid.Mut.copy(base.elevation),
     obstacles: to_obstacles(base),
     spawn_points: [],
   };
@@ -157,13 +152,12 @@ let prepare = () => {
   Progress_view.update(
     ~title="height",
     ~draw_dense=
-      ((), x, z) =>
+      (x, z) =>
         if (Grid.Mut.is_within(~x, ~z, grid)) {
           Some(Grid.Mut.get(~x, ~z, grid) |> Heightmap.colorize);
         } else {
           None;
         },
-    ~state=(),
     layer,
   );
   Progress_view.save(~side=Grid.Mut.side(grid), "height");

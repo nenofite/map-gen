@@ -50,8 +50,6 @@ module type S = sig
 
   val iter : f:(x:int -> z:int -> 'a elt -> unit) -> 'a t -> unit
 
-  val map : f:(x:int -> z:int -> 'a elt -> 'a elt) -> 'a t -> 'a t
-
   val neighbors : x:int -> z:int -> 'a t -> 'a elt list
 
   val neighbors_coords : x:int -> z:int -> 'a t -> ('a elt * int * int) list
@@ -106,12 +104,6 @@ struct
         f ~x ~z (get ~x ~z t)
       done
     done
-
-  let map ~f t =
-    let s = side t in
-    Mg_util.Range.fold 0 (s - 1) t (fun acc z ->
-        Mg_util.Range.fold 0 (s - 1) acc (fun acc x ->
-            set ~x ~z (f ~x ~z (get ~x ~z acc)) acc ) )
 
   let neighbors ~x ~z t =
     List.map eight_directions ~f:(fun (dx, dz) ->

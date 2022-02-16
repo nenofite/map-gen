@@ -46,7 +46,7 @@ let all_blocks = t => {
 
 let make_input = () => {
   let elevation =
-    Grid.Int.init(~side=4, _xy =>
+    Grid.Mut.init_exact(~side=4, ~f=(~x as _, ~z as _) =>
       Random.int(elevation_range) + base_elevation
     )
     |> Grid.Subdivide.subdivide
@@ -99,7 +99,7 @@ let draw = (input: input, output: output, file) => {
     );
   };
 
-  Grid.Compat.iter(input.elevation, (x, y, c) => {
+  Grid.Mut.iter(input.elevation, ~f=(~x, ~z as y, c) => {
     img#set(x, y, colorize_elevation(c))
   });
   let road_color = {r: 0, g: 0, b: 0};
@@ -196,7 +196,7 @@ let calc_average_elevation = (elevation, min_x, max_x, min_z, max_z) => {
         max_x,
         cur,
         (cur, x) => {
-          let here = Grid.get(x, z, elevation);
+          let here = Grid.get(~x, ~z, elevation);
           cur + here;
         },
       )
@@ -213,15 +213,14 @@ let flatten_block = (state, ~block) => {
 
 let set_block_into_elevation = (state, ~block) => {
   let {xz: {min_x, max_x, min_z, max_z}, elevation: block_elevation} = block;
-  let elevation = state.elevation;
-  let elevation =
-    Mg_util.Range.(
-      fold(min_z, max_z, elevation, (elevation, z) =>
-        fold(min_x, max_x, elevation, (elevation, x) =>
-          Grid.Int.set(x, z, block_elevation, elevation)
-        )
+  let elevation = Grid.Mut.copy(state.elevation);
+  Mg_util.Range.(
+    fold(min_z, max_z, (), ((), z) =>
+      fold(min_x, max_x, (), ((), x) =>
+        Grid.Mut.set(~x, ~z, block_elevation, elevation)
       )
-    );
+    )
+  );
   {...state, elevation};
 };
 
@@ -360,7 +359,7 @@ let add_roads_to_obstacles = (~roads, obstacles) => {
 
 let get_elevation_of_state = state => {
   let elevation = state.elevation;
-  (~x, ~z) => Grid.get(x, z, elevation);
+  (~x, ~z) => Grid.get(~x, ~z, elevation);
 };
 
 let get_road_obstacle_of_state = state => {
@@ -596,7 +595,7 @@ let prepare_bell = (state: layout_state) => {
   let bell_paths =
     outlets_of_bell(bell.xz)
     |> List.map(~f=((x, z)) => {
-         let y = Grid.get(x, z, state.elevation);
+         let y = Grid.get(~x, ~z, state.elevation);
          Roads.Rules.Coord.make_road(~x, ~y, ~z);
        });
   Roads.add_paths(
@@ -737,7 +736,7 @@ module Test_helpers = {
       ~radius?,
       ~center?,
       ~side=Grid.side(elevation),
-      ~get=(x, z) => Grid.get(x, z, elevation),
+      ~get=(x, z) => Grid.get(~x, ~z, elevation),
       ~show_cell=Int.to_string,
       (),
     );

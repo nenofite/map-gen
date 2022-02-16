@@ -84,7 +84,7 @@ let generate = target_size => {
         float_of_int(y),
       )
     });
-  Grid.Compat.init(size, (x, y) =>
+  Grid.Mut.init_exact(~side=size, ~f=(~x, ~z as y) =>
     Point_cloud.nearest_with_edge(
       plates,
       edge,
@@ -95,14 +95,14 @@ let generate = target_size => {
 };
 
 let convert_intermediate = (grid: Grid.t(intermediate)) => {
-  Grid.Compat.map(
+  Grid.Mut.map(
     grid,
-    (x, y, here) => {
+    ~f=(~x, ~z as y, here) => {
       let {direction, is_ocean, _} = here;
       let collision =
         List.exists(
           neigh => {are_opposed(direction, neigh.direction)},
-          Grid.Compat.neighbors(grid, x, y),
+          Grid.Mut.neighbors(grid, ~x, ~z=y),
         );
       if (collision) {
         if (is_ocean) {Trench} else {Mountain};

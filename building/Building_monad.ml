@@ -36,7 +36,7 @@ let set_block mat ~x ~y ~z : unit t =
 let elevation_at ~x ~z : int t =
   let get_elev ~x ~y:_ ~z =
     let canon = Overlay.Canon.require () in
-    Grid.get x z canon.elevation
+    Grid.get ~x ~z canon.elevation
   in
   parallel
     ~prepare:(Prepare_monad.with_pos_applied ~x ~y:0 ~z get_elev)
@@ -45,7 +45,7 @@ let elevation_at ~x ~z : int t =
 let height_at ~x ~z : int t =
   let get_elev ~x ~y:_ ~z =
     let canon = Overlay.Canon.require () in
-    Grid.get x z canon.elevation
+    Grid.get ~x ~z canon.elevation
   in
   parallel
     ~prepare:(Prepare_monad.with_pos_applied ~x ~y:0 ~z get_elev)

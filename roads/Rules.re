@@ -82,12 +82,12 @@ let add_margin = (get_obstacle, ~x, ~z) => {
 
 let get_canon_obstacle = (~x, ~z) => {
   let canon = Overlay.Canon.require();
-  Grid.get(x, z, canon.obstacles);
+  Grid.get(~x, ~z, canon.obstacles);
 };
 
 let get_canon_elevation = (~x, ~z) => {
   let elevation = Overlay.Canon.require().elevation;
-  Grid.get(x, z, elevation);
+  Grid.get(~x, ~z, elevation);
 };
 
 let two_neighbors_of_dir2 =

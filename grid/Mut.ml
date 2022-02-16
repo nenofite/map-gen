@@ -19,6 +19,12 @@ let create ~side ?(alloc_side = side) value =
   assert (alloc_side >= side) ;
   {side; data= Array.create ~len:(alloc_side * alloc_side) value}
 
+let make = create
+
+let init_exact ~side ~f =
+  let init_f i = f ~x:(x_of_i ~i side) ~z:(z_of_i ~i side) in
+  {side; data= Array.init (side * side) ~f:init_f}
+
 let init ~side ?(alloc_side = side) ~f outside_value =
   assert (alloc_side >= side) ;
   let after_grid_i = side * side in
@@ -28,6 +34,12 @@ let init ~side ?(alloc_side = side) ~f outside_value =
   in
   {side; data= Array.init (alloc_side * alloc_side) ~f:init_f}
 
+let get ~x ~z t =
+  Griddable.Helpers.assert_within_side ~x ~z t.side ;
+  t.data.(i_of_xz ~x ~z t.side)
+
+let copy t = {side= t.side; data= Array.copy t.data}
+
 module Grid_ops = struct
   include T
   open Griddable.Helpers
@@ -36,9 +48,7 @@ module Grid_ops = struct
 
   let side t = t.side
 
-  let get ~x ~z t =
-    assert_within_side ~x ~z t.side ;
-    t.data.(i_of_xz ~x ~z t.side)
+  let get = get
 
   let set ~x ~z v t =
     assert_within_side ~x ~z t.side ;
@@ -54,6 +64,7 @@ end
 
 module Intf = Griddable.Make (Grid_ops)
 include Intf
+include Griddable.Helpers
 
 module Intf0 (E : sig
   type elt
@@ -75,6 +86,10 @@ let intf0 (type elt) (_t : elt t) =
 
 let set ~x ~z v t = ignore (set ~x ~z v t)
 
+let copy_set ~x ~z v t =
+  let t = copy t in
+  set ~x ~z v t ; t
+
 let raw_set_side t ~side =
   assert (side * side <= Array.length t.data) ;
   t.side <- side
@@ -91,3 +106,18 @@ let expand_for_subdivide t =
       (* TODO set old index to a given "empty" value? *)
     done
   done
+
+let map_in_place ~f t = iter t ~f:(fun ~x ~z here -> set ~x ~z (f ~x ~z here) t)
+
+let map ~f t =
+  init_exact ~side:t.side ~f:(fun ~x ~z ->
+      let from = get ~x ~z t in
+      f ~x ~z from )
+
+let zip_map ~f a b =
+  if side a <> side b then
+    failwithf "grid sides must match to zip: %d vs %d" a.side b.side () ;
+  init_exact ~side:(side a) ~f:(fun ~x ~z ->
+      let la = get ~x ~z a in
+      let lb = get ~x ~z b in
+      f ~x ~z la lb )

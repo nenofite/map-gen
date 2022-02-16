@@ -6,7 +6,7 @@ type state =
 let put_obstacle_into_state state ~x ~z =
   let {obstacles; _} = state in
   let obstacles =
-    Overlay.Canon.Obstacles.set x z Overlay.Canon.Obstacle.Impassable obstacles
+    Grid.Mut.copy_set ~x ~z Overlay.Canon.Obstacle.Impassable obstacles
   in
   {state with obstacles}
 
@@ -90,8 +90,8 @@ let collide_obstacle ~x ~z =
   fun state _pos ->
     let canon = Overlay.Canon.require () in
     if
-      Grid.is_within x z canon.obstacles
-      && Overlay.Canon.can_build_on (Grid.get x z canon.obstacles)
+      Grid.is_within ~x ~z canon.obstacles
+      && Overlay.Canon.can_build_on (Grid.get ~x ~z canon.obstacles)
     then
       let state = put_obstacle_into_state state ~x ~z in
       Ok ((), state)

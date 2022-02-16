@@ -1,5 +1,4 @@
-include Immut
-module Compat = Compat
+include Mut
 module Griddable = Griddable
 module Mut = Mut
 module Subdivide = Subdivide

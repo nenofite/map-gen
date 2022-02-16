@@ -14,7 +14,7 @@ let prepare = () => {
       | Bridgeable => 0x0000FF
       | Impassable => 0xFFFFFF
     ),
-    "obstacles.bmp",
+    "obstacles",
     canon.obstacles,
   );
 };
