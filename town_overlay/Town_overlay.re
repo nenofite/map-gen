@@ -16,6 +16,17 @@ let roads = t => t.roads;
 
 let town_color = Mg_util.Color.unsplit_rgb(255, 255, 0);
 
+let draw_dense = (obs, x, z) =>
+  if (Grid.is_within(~x, ~z, obs)) {
+    if (!Overlay.Canon.can_build_on(Grid.get(~x, ~z, obs))) {
+      Some(town_color);
+    } else {
+      None;
+    };
+  } else {
+    None;
+  };
+
 let apply_progress_view = ((towns, delta: Overlay.Canon.delta)) => {
   let side = Overlay.Canon.require().side;
   let obs =
@@ -24,24 +35,18 @@ let apply_progress_view = ((towns, delta: Overlay.Canon.delta)) => {
     | _ => failwith("expected `Add obstacles")
     };
 
-  let draw_dense = (x, z) =>
-    if (Grid.is_within(~x, ~z, obs)) {
-      if (!Overlay.Canon.can_build_on(Grid.get(~x, ~z, obs))) {
-        Some(town_color);
-      } else {
-        None;
-      };
-    } else {
-      None;
-    };
-
   let town_centers =
     List.map(towns, ~f=town =>
       (town.x + Town_layout.side / 2, town.z + Town_layout.side / 2)
     );
   let town_center = List.hd(town_centers);
-  let l = Progress_view.push_layer();
-  Progress_view.update(~center=?town_center, ~title="towns", ~draw_dense, l);
+  let _ =
+    Progress_view.push_update(
+      ~center=?town_center,
+      ~title="towns",
+      ~draw_dense=draw_dense(obs),
+      (),
+    );
   Progress_view.save(~side, "towns");
 };
 
@@ -280,16 +285,25 @@ let prepare = (): t => {
   Tale.log("Finding suitable towns");
   let towns = first_suitable_towns(canon, num_towns, river_coords, []);
   List.iter(~f=((x, z)) => Tale.logf("town at %d, %d", x, z), towns);
+
+  let l = Progress_view.push_layer();
   let (towns, obs, spawn_points) =
     List.fold_left(
       ~f=
         ((towns, obs, spawn_points), (x, z)) => {
           let (town, obs, spawn_point) = prepare_town(canon, obs, x, z);
+          Progress_view.update(
+            ~title="towns",
+            ~center=Town_layout.town_center(town.x, town.z),
+            ~draw_dense=draw_dense(obs),
+            l,
+          );
           ([town, ...towns], obs, [spawn_point, ...spawn_points]);
         },
       ~init=([], Grid.make(~side=canon.side, Overlay.Canon.Clear), []),
       towns,
     );
+  Progress_view.remove_layer(l);
   (
     towns,
     Overlay.Canon.make_delta(

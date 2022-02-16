@@ -33,6 +33,8 @@ let num_plazas = 3;
 
 let is_within_town = (x, z) => 0 <= x && x < side && 0 <= z && z < side;
 
+let town_center = (min_x, min_z) => (min_x + side / 2, min_z + side / 2);
+
 let all_blocks' = (~bell, ~farms, ~houses) => {
   [bell.xz]
   @ List.map(farms, ~f=f => f.xz)

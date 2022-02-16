@@ -65,8 +65,22 @@ let starts_of_poi = ((poi_x, poi_z)) => {
   |> List.concat;
 };
 
+let draw_sparse_pathing_state = (state: Roads.pathing_state, side: int, d) => {
+  let roads =
+    Roads.Rules.put_roads_onto_sparse_grid(
+      Roads.get_paths_list(state),
+      ~grid=Sparse_grid.make(side),
+    );
+  let white = 0xFFFFFF;
+  Sparse_grid.iter(roads, ((x, z), _) => {d(~size=1, ~color=white, x, z)});
+};
+
 let connect_all_towns = (towns: Town_overlay.t', ~pathing_state): unit => {
+  let side = Overlay.Canon.require().side;
   let num_towns = List.length(towns);
+
+  let l = Progress_view.push_layer();
+
   List.iteri(towns, ~f=(i, town) => {
     Tale.blockf(
       "Enroading town %d of %d",
@@ -75,9 +89,16 @@ let connect_all_towns = (towns: Town_overlay.t', ~pathing_state): unit => {
       ~f=() => {
         let town_roads = Town_overlay.roads(town.town);
         Roads.enroad_roads(pathing_state, ~roads=town_roads);
+        Progress_view.update(
+          ~title="roads",
+          ~fit=(0, side, 0, side),
+          ~draw_sparse=draw_sparse_pathing_state(pathing_state, side),
+          l,
+        );
       },
     )
   });
+  Progress_view.remove_layer(l);
 };
 
 let prepare = () => {

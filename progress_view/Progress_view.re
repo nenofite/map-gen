@@ -167,6 +167,13 @@ let update =
   });
 };
 
+let push_update =
+    (~zoom=?, ~center=?, ~fit=?, ~title=?, ~draw_sparse=?, ~draw_dense=?, ()) => {
+  let l = push_layer();
+  update(~zoom?, ~center?, ~fit?, ~title?, ~draw_sparse?, ~draw_dense?, l);
+  l;
+};
+
 let center = (~zoom=?, ~title=?, center) => {
   apply_optionals(zoom, Some(center), None, title);
   update_window();
