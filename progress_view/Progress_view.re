@@ -152,7 +152,6 @@ let update =
       ~title=?,
       ~draw_sparse=?,
       ~draw_dense=?,
-      ~state,
       layer,
     ) => {
   apply_optionals(zoom, center, fit, title);
@@ -161,7 +160,7 @@ let update =
       ~always_close=true,
       "Layer update",
       ~f=() => {
-        Layer.update(~state, ~draw_dense?, ~draw_sparse?, layer, s.stack);
+        Layer.update(~draw_dense?, ~draw_sparse?, layer, s.stack);
         update_window();
       },
     )

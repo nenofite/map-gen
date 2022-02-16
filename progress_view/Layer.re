@@ -1,9 +1,3 @@
-type color_deprecated = (int, int, int);
-
-type draw_sparse_deprecated =
-  ((~size: int, int, int, color_deprecated) => unit) => unit;
-type draw_dense_deprecated = (int, int) => option(color_deprecated);
-
 type draw_sparse = ((~size: int, ~color: int, int, int) => unit) => unit;
 type draw_dense = (int, int) => option(int);
 
@@ -45,35 +39,14 @@ let remove_after_layer = (layer: layer, stack: stack) => {
   );
 };
 
-let convert_deprecated_dense =
-    (draw_dense: (int, int) => option(color_deprecated), x: int, z: int) => {
-  switch (draw_dense(x, z)) {
-  | Some((r, g, b)) => Some(Mg_util.Color.unsplit_rgb(r, g, b))
-  | None => None
-  };
-};
-
-let convert_deprecated_sparse =
-    (
-      draw_sparse: ((~size: int, int, int, color_deprecated) => unit) => unit,
-      f: (~size: int, ~color: int, int, int) => unit,
-    ) => {
-  let f_deprecated = (~size, x, z, color) => {
-    let (r, g, b) = color;
-    f(~size, ~color=Mg_util.Color.unsplit_rgb(r, g, b), x, z);
-  };
-  draw_sparse(f_deprecated);
-};
-
 let update =
     (
-      ~draw_sparse=_ => default_draw_sparse,
-      ~draw_dense=_ => default_draw_dense,
-      ~state: 's,
+      ~draw_sparse=default_draw_sparse,
+      ~draw_dense=default_draw_dense,
       layer: layer,
       _stack: stack,
     ) => {
-  layer := {draw_dense: draw_dense(state), draw_sparse: draw_sparse(state)};
+  layer := {draw_dense, draw_sparse};
 };
 
 let draw_all_layers =
@@ -122,19 +95,18 @@ let%expect_test "draw two layers" = {
   let a = push_layer(stack);
   let a_dense = (i, x, z) => Some(rgb(i, x, z));
   let a_sparse = (i, f) => f(~size=1, ~color=rgb(i + 22, 3, 0), 3, 0);
-  update(~draw_dense=a_dense, ~draw_sparse=a_sparse, ~state=0, a, stack);
+  update(~draw_dense=a_dense(0), ~draw_sparse=a_sparse(0), a, stack);
   let b = push_layer(stack);
   update(
     ~draw_sparse=
-      (i, f) => {
-        f(~size=1, 0, 0, ~color=rgb(i, 0, 0));
-        f(~size=1, 0, 1, ~color=rgb(i, 1, 0));
+      f => {
+        f(~size=1, 0, 0, ~color=rgb(10, 0, 0));
+        f(~size=1, 0, 1, ~color=rgb(10, 1, 0));
       },
-    ~state=10,
     b,
     stack,
   );
-  update(~state=1, ~draw_dense=a_dense, ~draw_sparse=a_sparse, a, stack);
+  update(~draw_dense=a_dense(1), ~draw_sparse=a_sparse(1), a, stack);
 
   let set_coord = (x, z, ~color as rgb) =>
     Printf.printf("set %d,%d to 0x%06x\n", x, z, rgb);

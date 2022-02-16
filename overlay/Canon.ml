@@ -145,7 +145,7 @@ let draw_obstacles () =
   let s = require () in
   let l = Progress_view.push_layer () in
   Progress_view.update
-    ~draw_dense:(fun () x z ->
+    ~draw_dense:(fun x z ->
       if Grid.is_within x z s.obstacles then
         match Grid.get x z s.obstacles with
         | Impassable ->
@@ -153,5 +153,5 @@ let draw_obstacles () =
         | Bridgeable | Clear ->
             None
       else None )
-    ~state:() l ;
+    l ;
   l

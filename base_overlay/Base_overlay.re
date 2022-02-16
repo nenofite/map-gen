@@ -89,18 +89,13 @@ let apply_progress_view = (state: t) => {
   let (world, _canon) = state;
   let side = side(world);
   let layer = Progress_view.push_layer();
-  let draw_dense = ((), x, z) =>
+  let draw_dense = (x, z) =>
     if (Grid.is_within_side(~x, ~y=z, side)) {
       Some(color_at(~x, ~z, world));
     } else {
       None;
     };
-  Progress_view.update(
-    ~fit=(0, side, 0, side),
-    ~draw_dense,
-    ~state=(),
-    layer,
-  );
+  Progress_view.update(~fit=(0, side, 0, side), ~draw_dense, layer);
   ();
 };
 
@@ -157,13 +152,12 @@ let prepare = () => {
   Progress_view.update(
     ~title="height",
     ~draw_dense=
-      ((), x, z) =>
+      (x, z) =>
         if (Grid.Mut.is_within(~x, ~z, grid)) {
           Some(Grid.Mut.get(~x, ~z, grid) |> Heightmap.colorize);
         } else {
           None;
         },
-    ~state=(),
     layer,
   );
   Progress_view.save(~side=Grid.Mut.side(grid), "height");

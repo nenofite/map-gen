@@ -11,8 +11,7 @@ let draw_with_colorizer = (~title=?, ~colorize, grid, side, layer) => {
   Progress_view.update(
     ~fit=(0, side, 0, side),
     ~title?,
-    ~draw_dense=dense(colorize),
-    ~state=grid,
+    ~draw_dense=dense(colorize, grid),
     layer,
   );
 };
@@ -40,8 +39,7 @@ module Make = (G: Grid.Griddable.S) => {
     Progress_view.update(
       ~fit=(0, s, 0, s),
       ~title?,
-      ~draw_dense=dense(~colorize),
-      ~state=grid,
+      ~draw_dense=dense(~colorize, grid),
       layer,
     );
   };

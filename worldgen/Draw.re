@@ -9,13 +9,12 @@ let draw_grid = (colorize: 'a => int, file: string, grid: Grid.t('a)): unit => {
   Progress_view.update(
     ~title=file,
     ~draw_dense=
-      ((), x, z) =>
+      (x, z) =>
         if (Grid.is_within(x, z, grid)) {
           Some(colorize(Grid.Mut.get(~x, ~z, grid)));
         } else {
           None;
         },
-    ~state=(),
     l,
   );
   Progress_view.save(~side=Grid.side(grid), file);

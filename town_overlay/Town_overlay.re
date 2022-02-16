@@ -24,7 +24,7 @@ let apply_progress_view = ((towns, delta: Overlay.Canon.delta)) => {
     | _ => failwith("expected `Add obstacles")
     };
 
-  let draw_dense = ((), x, z) =>
+  let draw_dense = (x, z) =>
     if (Grid.is_within(x, z, obs)) {
       if (!Overlay.Canon.can_build_on(Grid.get(x, z, obs))) {
         Some(town_color);
@@ -41,13 +41,7 @@ let apply_progress_view = ((towns, delta: Overlay.Canon.delta)) => {
     );
   let town_center = List.hd(town_centers);
   let l = Progress_view.push_layer();
-  Progress_view.update(
-    ~center=?town_center,
-    ~title="towns",
-    ~draw_dense,
-    ~state=(),
-    l,
-  );
+  Progress_view.update(~center=?town_center, ~title="towns", ~draw_dense, l);
   Progress_view.save(~side, "towns");
 };
 

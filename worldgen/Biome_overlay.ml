@@ -175,7 +175,7 @@ let wind_direction_at ~mx ~mz =
 let mountain_threshold_at ~x ~z dirt = 90 + Grid.Mut.get ~x ~z dirt
 
 let draw_cells moisture =
-  let draw_dense () x z =
+  let draw_dense x z =
     if Grid.is_within_side ~x ~y:z (Point_cloud.side moisture) then
       let here = Point_cloud.nearest_int moisture x z in
       let g = here * 255 / 100 in
@@ -183,7 +183,7 @@ let draw_cells moisture =
     else None
   in
   let l = Progress_view.push_layer () in
-  Progress_view.update ~draw_dense ~state:() l
+  Progress_view.update ~draw_dense l
 
 let prepare_flowers () =
   let side = (Overlay.Canon.require ()).side in
@@ -352,7 +352,7 @@ let apply_progress_view (state : t) =
   let biome, _canon = state in
   let side = Base_overlay.side base in
   let layer = Progress_view.push_layer () in
-  let draw_dense () x z =
+  let draw_dense x z =
     if Grid.is_within_side ~x ~y:z side then
       if Base_overlay.any_water_at ~x ~z base then
         Some (Base_overlay.color_at ~x ~z base)
@@ -362,7 +362,7 @@ let apply_progress_view (state : t) =
         Some (Mg_util.Color.blend 0 (colorize_biome here_biome) gray)
     else None
   in
-  Progress_view.update ~fit:(0, side, 0, side) ~draw_dense ~state:() layer ;
+  Progress_view.update ~fit:(0, side, 0, side) ~draw_dense layer ;
   Progress_view.save ~side ~format:Images.Png "biome" ;
   ()
 
