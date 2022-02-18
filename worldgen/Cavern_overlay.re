@@ -1,13 +1,10 @@
 open! Core_kernel;
 
 [@deriving bin_io]
-type tile = {
-  floor_elev: int,
-  ceiling_elev: int,
+type t = {
+  floor: Grid.t(int),
+  ceiling: Grid.t(int),
 };
-
-[@deriving bin_io]
-type t = Grid.t(tile);
 
 /*
    floor: 1 - 15
@@ -19,14 +16,25 @@ let min_dist_to_surface = 5;
 let pillar_meet_elev = 20;
 let magma_sea_elev = 3;
 
-let colorize = tile =>
-  if (tile.floor_elev >= tile.ceiling_elev) {
-    0;
-  } else if (tile.floor_elev <= magma_sea_elev) {
-    0xFF0000;
+let floor_elev_at = (t, ~x, ~z) => Grid.get(~x, ~z, t.floor);
+let ceiling_elev_at = (t, ~x, ~z) => Grid.get(~x, ~z, t.ceiling);
+
+let draw_dense = (t, x, z) =>
+  if (Grid.is_within(~x, ~z, t.floor)) {
+    let floor = floor_elev_at(~x, ~z, t);
+    let ceiling = ceiling_elev_at(~x, ~z, t);
+    let color =
+      if (floor >= ceiling) {
+        0;
+      } else if (floor <= magma_sea_elev) {
+        0xFF0000;
+      } else {
+        let frac = float_of_int(floor) /. 50.;
+        Mg_util.Color.blend(0x101010, 0xFFFFFF, frac);
+      };
+    Some(color);
   } else {
-    let frac = float_of_int(tile.floor_elev) /. 50.;
-    Mg_util.Color.blend(0x101010, 0xFFFFFF, frac);
+    None;
   };
 
 let add_floor_pillars = (pillar_cloud: Point_cloud.t(bool), floor) => {
@@ -162,14 +170,16 @@ let prepare = () => {
       ceiling;
     });
 
-  Tale.log("Combining floor and ceiling");
-  let combined =
-    Grid.zip_map(
-      floor, ceiling, ~f=(~x as _, ~z as _, floor_elev, ceiling_elev) =>
-      {floor_elev, ceiling_elev}
+  let t = {floor, ceiling};
+  let l =
+    Progress_view.push_update(
+      ~title="cavern",
+      ~draw_dense=draw_dense(t),
+      (),
     );
-  Draw.draw_grid(colorize, "cavern", combined);
-  combined;
+  Progress_view.save(~side=Grid.side(floor), "cavern");
+  Progress_view.remove_layer(l);
+  t;
 };
 
 let apply_region = (cavern, region: Minecraft.Region.t) => {
@@ -181,7 +191,8 @@ let apply_region = (cavern, region: Minecraft.Region.t) => {
       open Minecraft.Region;
 
       let surface_elev = Base_overlay.elevation_at(~x, ~z, world);
-      let {floor_elev, ceiling_elev} = Grid.get(cavern, ~x, ~z);
+      let floor_elev = Grid.get(~x, ~z, cavern.floor);
+      let ceiling_elev = Grid.get(~x, ~z, cavern.ceiling);
 
       /* Don't go above the maximum */
       let ceiling_elev =
