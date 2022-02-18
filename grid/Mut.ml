@@ -94,6 +94,8 @@ let raw_set_side t ~side =
   assert (side * side <= Array.length t.data) ;
   t.side <- side
 
+let update ~x ~z ~f t = ignore (update ~x ~z ~f t)
+
 let expand_for_subdivide t =
   let old_side = t.side in
   let new_side = t.side * 2 in

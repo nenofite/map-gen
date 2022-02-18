@@ -1,4 +1,4 @@
-open Bin_prot.Std;
+open! Core_kernel;
 
 [@deriving bin_io]
 type tile = {
@@ -30,42 +30,34 @@ let colorize = tile =>
   };
 
 let add_floor_pillars = (pillar_cloud: Point_cloud.t(bool), floor) => {
-  Sparse_grid.fold(
-    pillar_cloud.points,
-    (_, Point_cloud.{px: x, py: y, value}, floor) =>
-      if (value) {
-        Grid.update(
-          floor, ~x=int_of_float(x), ~z=int_of_float(y), ~f=old_elev =>
-          if (old_elev < pillar_meet_elev) {
-            pillar_meet_elev + 5;
-          } else {
-            old_elev;
-          }
-        );
-      } else {
-        floor;
-      },
-    floor,
+  Sparse_grid.iter(
+    pillar_cloud.points, (_, Point_cloud.{px: x, py: y, value}) =>
+    if (value) {
+      Grid.Mut.update(
+        floor, ~x=int_of_float(x), ~z=int_of_float(y), ~f=old_elev =>
+        if (old_elev < pillar_meet_elev) {
+          pillar_meet_elev + 5;
+        } else {
+          old_elev;
+        }
+      );
+    }
   );
 };
 
 let add_ceiling_pillars = (pillar_cloud: Point_cloud.t(bool), ceiling) => {
-  Sparse_grid.fold(
-    pillar_cloud.points,
-    (_, Point_cloud.{px: x, py: y, value}, ceiling) =>
-      if (value) {
-        Grid.update(
-          ceiling, ~x=int_of_float(x), ~z=int_of_float(y), ~f=old_elev =>
-          if (old_elev > pillar_meet_elev) {
-            pillar_meet_elev - 5;
-          } else {
-            old_elev;
-          }
-        );
-      } else {
-        ceiling;
-      },
-    ceiling,
+  Sparse_grid.iter(
+    pillar_cloud.points, (_, Point_cloud.{px: x, py: y, value}) =>
+    if (value) {
+      Grid.update(
+        ceiling, ~x=int_of_float(x), ~z=int_of_float(y), ~f=old_elev =>
+        if (old_elev > pillar_meet_elev) {
+          pillar_meet_elev - 5;
+        } else {
+          old_elev;
+        }
+      );
+    }
   );
 };
 
@@ -87,97 +79,97 @@ let prepare = () => {
     );
   let pillar_cloud =
     Point_cloud.init(~side=start_side * 4, ~spacing=8, (_, _) => true);
+
   let floor =
-    Phase_chain.(
-      run_all(
-        phase("Init floor", () =>
-          Grid.init_exact(~side=start_side, ~f=(~x, ~z) =>
-            if (Base_overlay.ocean_at(~x=x * r, ~z=z * r, world)) {
-              pillar_meet_elev + 5;
-            } else {
-              (
-                Point_cloud.interpolate(
-                  floor_cloud,
-                  float_of_int(x),
-                  float_of_int(z),
-                )
-                |> int_of_float
+    Tale.block("Creating floor", ~f=() => {
+      let floor =
+        Grid.init(
+          ~side=start_side,
+          ~alloc_side=start_side * Int.(2 ** 5),
+          0,
+          ~f=(~x, ~z) =>
+          if (Base_overlay.ocean_at(~x=x * r, ~z=z * r, world)) {
+            pillar_meet_elev + 5;
+          } else {
+            (
+              Point_cloud.interpolate(
+                floor_cloud,
+                float_of_int(x),
+                float_of_int(z),
               )
-              + Random.int(2);
-            }
-          )
-        )
-        @> phase_repeat(
-             2,
-             "Random avg subdivide",
-             Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.random_avg),
-           )
-        @> phase("Add pillars", add_floor_pillars(pillar_cloud))
-        @> phase_repeat(
-             2,
-             "Random avg subdivide",
-             Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.random_avg),
-           )
-        @> phase_repeat(
-             1,
-             "Line subdivide",
-             Grid.Subdivide.subdivide_with_fill(
-               _,
-               Grid.Fill.(line() **> avg),
-             ),
-           ),
-      )
-    );
+              |> int_of_float
+            )
+            + Random.int(2);
+          }
+        );
+      for (_ in 1 to 2) {
+        Grid.Subdivide_mut.subdivide_with_fill(
+          floor,
+          ~fill=Grid.Fill.random_avg,
+        );
+      };
+      add_floor_pillars(pillar_cloud, floor);
+      for (_ in 1 to 2) {
+        Grid.Subdivide_mut.subdivide_with_fill(
+          floor,
+          ~fill=Grid.Fill.random_avg,
+        );
+      };
+      Grid.Subdivide_mut.subdivide_with_fill(
+        floor,
+        ~fill=Grid.Fill.(line() **> avg),
+      );
+      floor;
+    });
+
   let ceiling =
-    Phase_chain.(
-      run_all(
-        phase("Init ceiling", () =>
-          Grid.init_exact(~side=start_side, ~f=(~x, ~z) =>
-            if (Base_overlay.ocean_at(~x=x * r, ~z=z * r, world)) {
-              pillar_meet_elev - 5;
-            } else {
-              (
-                Point_cloud.interpolate(
-                  ceiling_cloud,
-                  float_of_int(x),
-                  float_of_int(z),
-                )
-                |> int_of_float
+    Tale.block("Creating ceiling", ~f=() => {
+      let ceiling =
+        Grid.Mut.init(
+          ~side=start_side,
+          ~alloc_side=start_side * Int.(2 ** 5),
+          0,
+          ~f=(~x, ~z) =>
+          if (Base_overlay.ocean_at(~x=x * r, ~z=z * r, world)) {
+            pillar_meet_elev - 5;
+          } else {
+            (
+              Point_cloud.interpolate(
+                ceiling_cloud,
+                float_of_int(x),
+                float_of_int(z),
               )
-              + Random.int(3)
-              - 2;
-            }
-          )
-        )
-        @> phase_repeat(
-             2,
-             "Random avg subdivide",
-             Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.random_avg),
-           )
-        @> phase("Add pillars", add_ceiling_pillars(pillar_cloud))
-        @> phase_repeat(
-             2,
-             "Random avg subdivide",
-             Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.random_avg),
-           )
-        @> phase_repeat(
-             1,
-             "Rough subdivide",
-             Grid.Subdivide.subdivide_with_fill(_, Grid.Fill.random),
-           ),
-      )
+              |> int_of_float
+            )
+            + Random.int(3)
+            - 2;
+          }
+        );
+      for (_ in 1 to 2) {
+        Grid.Subdivide_mut.subdivide_with_fill(
+          ceiling,
+          ~fill=Grid.Fill.random_avg,
+        );
+      };
+      add_ceiling_pillars(pillar_cloud, ceiling);
+      for (_ in 1 to 2) {
+        Grid.Subdivide_mut.subdivide_with_fill(
+          ceiling,
+          ~fill=Grid.Fill.random_avg,
+        );
+      };
+      Grid.Subdivide_mut.subdivide_with_fill(ceiling, ~fill=Grid.Fill.random);
+      ceiling;
+    });
+
+  Tale.log("Combining floor and ceiling");
+  let combined =
+    Grid.zip_map(
+      floor, ceiling, ~f=(~x as _, ~z as _, floor_elev, ceiling_elev) =>
+      {floor_elev, ceiling_elev}
     );
-  Phase_chain.(
-    run_all(
-      phase("Combine", () =>
-        Grid.zip_map(
-          floor, ceiling, ~f=(~x as _, ~z as _, floor_elev, ceiling_elev) =>
-          {floor_elev, ceiling_elev}
-        )
-      )
-      @> Draw.phase("cavern.png", colorize),
-    )
-  );
+  Draw.draw_grid(colorize, "cavern", combined);
+  combined;
 };
 
 let apply_region = (cavern, region: Minecraft.Region.t) => {
