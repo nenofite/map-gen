@@ -1,17 +1,12 @@
 open! Core_kernel;
 
-let install_base =
-  Filename.concat(
-    Sys.getenv("HOME"),
-    "Library/Application Support/minecraft/saves/",
-  );
+let should_install_at = ref(None: option(string));
 
-let should_install = ref(false);
-
-let set_install_world = v => {
-  should_install := v;
-  if (v) {
-    Tale.logf("Will install to %s", install_base);
+let set_install_world_at = p => {
+  should_install_at := p;
+  switch (p) {
+  | Some(path) => Tale.logf("Will install to %s", path)
+  | None => ()
   };
 };
 
@@ -26,11 +21,13 @@ let install_path = (f: string) => {
     | _ => failwith("Cannot install empty path")
     };
   };
-  if (should_install^) {
+  switch (should_install_at^) {
+  | Some(install_base) =>
     let dest = Filename.concat(install_base, remove_seed_prefix(f));
     let dest_dir = Filename.dirname(dest);
     Tale.logf("Installing %s -> %s", f, dest);
     Mg_util.mkdir(dest_dir);
     Mg_util.copy_file(f, ~dest);
+  | None => ()
   };
 };

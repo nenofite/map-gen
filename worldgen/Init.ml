@@ -11,7 +11,7 @@ let init ~show_progress ~save_images ~seed ~force_overlays ~max_regions ~install
   Config.Paths.create_directories () ;
   Config.Force.set_force_overlays force_overlays ;
   Config.Force.set_max_regions max_regions ;
-  Config.Install.set_install_world install_world ;
+  Config.Install.set_install_world_at install_world ;
   if show_progress then Progress_view.init ~make_window:true 
   else if save_images then Progress_view.init ~make_window:false
    else Progress_view.init_ignore () ;
@@ -73,7 +73,7 @@ let command =
       and max_regions =
         flag "-r" (optional int) ~doc:"n only produce the nearest n regions"
       and install_world =
-        flag "-i" no_arg ~doc:" install world after generation succeeds"
+        flag "-i" (optional string) ~doc:"path install world after generation succeeds"
       in
       fun () ->
         init ~show_progress ~save_images ~seed ~force_overlays ~max_regions ~install_world ;
