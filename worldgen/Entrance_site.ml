@@ -53,14 +53,13 @@ let prepare ~x ~z =
     cavern_entrance_fits_within_region ~canon_side:canon.side ~x ~z
     && can_build_cavern_entrance canon ~x ~z
   then
-    match Grid.Mut.get cavern ~x ~z with
-    | {floor_elev; ceiling_elev}
-      when ceiling_elev > floor_elev
-           && floor_elev > Cavern_overlay.magma_sea_elev ->
-        Tale.logf "cavern entrance at %d, %d" x z ;
-        Some ({floor_elev}, x, z)
-    | _ ->
-        None
+    let floor_elev = Cavern_overlay.floor_elev_at ~x ~z cavern in
+    let ceiling_elev = Cavern_overlay.ceiling_elev_at ~x ~z cavern in
+    if ceiling_elev > floor_elev && floor_elev > Cavern_overlay.magma_sea_elev
+    then (
+      Tale.logf "cavern entrance at %d, %d" x z ;
+      Some ({floor_elev}, x, z) )
+    else None
   else None
 
 let put_obstacles t ~x ~z ~put =
