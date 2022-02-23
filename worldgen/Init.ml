@@ -2,7 +2,7 @@ open Core_kernel
 
 let side = 4096
 
-let init ~show_progress ~seed ~force_overlays ~max_regions ~install_world =
+let init ~show_progress ~save_images ~seed ~force_overlays ~max_regions ~install_world =
   Tale.logf "Using seed %d" seed ;
   let s = "seed-" ^ Int.to_string seed in
   Config.Paths.overlays_base := Filename.concat s "overlays" ;
@@ -12,7 +12,9 @@ let init ~show_progress ~seed ~force_overlays ~max_regions ~install_world =
   Config.Force.set_force_overlays force_overlays ;
   Config.Force.set_max_regions max_regions ;
   Config.Install.set_install_world install_world ;
-  if show_progress then Progress_view.init () else Progress_view.init_ignore () ;
+  if show_progress then Progress_view.init ~make_window:true 
+  else if save_images then Progress_view.init ~make_window:false
+   else Progress_view.init_ignore () ;
   Overlay.init seed ;
   Overlay.Canon.init ~side ;
   ()
@@ -65,13 +67,15 @@ let command =
       let%map_open seed = anon ("seed" %: int)
       and force_overlays =
         flag "-f" (listed string) ~doc:"overlay force an overlay to re-run"
-      and show_progress = flag "-p" no_arg ~doc:" display a progress view"
+      and show_progress = 
+      flag "-p" no_arg ~doc:" display a progress view"
+      and save_images = flag "-m" no_arg ~doc:" save progress images"
       and max_regions =
         flag "-r" (optional int) ~doc:"n only produce the nearest n regions"
       and install_world =
         flag "-i" no_arg ~doc:" install world after generation succeeds"
       in
       fun () ->
-        init ~show_progress ~seed ~force_overlays ~max_regions ~install_world ;
+        init ~show_progress ~save_images ~seed ~force_overlays ~max_regions ~install_world ;
         prepare_all () ;
         if not show_progress then save ())

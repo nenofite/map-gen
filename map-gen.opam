@@ -13,6 +13,7 @@ depends: [
     "dune" {>= "2.6.0"}
     "ANSITerminal"
     "bitstring"
+    "conf-libpng"
     "camlimages"
     "core_kernel"
     "core"

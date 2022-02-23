@@ -1,7 +1,9 @@
+open! Core_kernel;
+
 exception Not_init;
 
 type state = {
-  window: Window.t,
+  window: option(Window.t),
   stack: Layer.stack,
   mutable center_x: int,
   mutable center_z: int,
@@ -21,12 +23,17 @@ let global_state = ref(Uninit);
 
 type layer = Layer.layer;
 
-let init = () =>
+let init = (~make_window as w: bool) =>
   switch (global_state^) {
   | Uninit =>
     global_state :=
       Active({
-        window: Window.make_window(),
+        window:
+          if (w) {
+            Some(Window.make_window());
+          } else {
+            None;
+          },
         stack: Layer.make_layer_stack(),
         center_x: 0,
         center_z: 0,
@@ -60,26 +67,29 @@ let with_state_else = (~default, f) =>
 
 let close = () => {
   with_state(s => {
-    Window.close_window(s.window);
+    Option.iter(s.window, ~f=Window.close_window);
     global_state := Uninit;
   });
 };
 
 let update_window = () => {
   with_state(s => {
-    Window.update(
-      ~zoom=s.zoom,
-      ~center_x=s.center_x,
-      ~center_z=s.center_z,
-      s.title,
-      Layer.draw_all_layers(s.stack),
+    Option.iter(
       s.window,
+      ~f=
+        Window.update(
+          ~zoom=s.zoom,
+          ~center_x=s.center_x,
+          ~center_z=s.center_z,
+          s.title,
+          Layer.draw_all_layers(s.stack),
+        ),
     )
   });
 };
 
 let pump_events = () => {
-  with_state(s => {Window.pump_events(s.window)});
+  with_state(s => {Option.iter(s.window, ~f=Window.pump_events)});
 };
 
 /**
@@ -87,15 +97,19 @@ let pump_events = () => {
  * still fitting the whole box
  */
 let apply_fit = (s, ~minx, ~maxx, ~minz, ~maxz) => {
-  let center_x = (maxx + minx) / 2;
-  let center_z = (maxz + minz) / 2;
-  let width = maxx - minx;
-  let height = maxz - minz;
-  let zoom_x = (width - 1) / s.window.width + 1;
-  let zoom_z = (height - 1) / s.window.height + 1;
-  s.zoom = max(zoom_x, zoom_z);
-  s.center_x = center_x;
-  s.center_z = center_z;
+  switch (s.window) {
+  | Some(window) =>
+    let center_x = (maxx + minx) / 2;
+    let center_z = (maxz + minz) / 2;
+    let width = maxx - minx;
+    let height = maxz - minz;
+    let zoom_x = (width - 1) / window.width + 1;
+    let zoom_z = (height - 1) / window.height + 1;
+    s.zoom = max(zoom_x, zoom_z);
+    s.center_x = center_x;
+    s.center_z = center_z;
+  | None => ()
+  };
 };
 
 let apply_optionals = (zoom, center, fit, title) => {
