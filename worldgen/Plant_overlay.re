@@ -24,7 +24,7 @@ let apply_trees = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
         switch (Biome_overlay.biome_at(~x, ~z, biomes)) {
         | Forest(_) =>
           switch (block) {
-          | Grass_block =>
+          | Dirt =>
             Minecraft_template.place(
               Oak_tree.random_tree(),
               region,
@@ -37,7 +37,7 @@ let apply_trees = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
           }
         | Pine_forest =>
           switch (block) {
-          | Grass_block =>
+          | Dirt =>
             Minecraft_template.place(
               Spruce_tree.random_tree(),
               region,
@@ -71,10 +71,7 @@ let should_add_snow_despite_obstacle: Minecraft.Block.material => bool =
   | Grass => true
   | _ => false;
 
-let apply_ground_cover =
-    (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
-  let canon = Overlay.Canon.require();
-  /* Change dirt => grass and add snow */
+let apply_grass = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
   Minecraft_converter.iter_blocks(
     region,
     (~x, ~z) => {
@@ -84,8 +81,6 @@ let apply_ground_cover =
           highest_such_block(region, ~x, ~z, is_opaque_or_water),
           ~default=0,
         );
-      let can_build =
-        Overlay.Canon.can_build_on(Grid.get(~x, ~z, canon.obstacles));
       let top = get_block(region, ~x, ~y, ~z);
       let biome = Biome_overlay.biome_at(~x, ~z, biomes);
       switch (biome) {
@@ -93,15 +88,40 @@ let apply_ground_cover =
       | Forest(_)
       | Savanna
       | River
-      | Pine_forest =>
+      | Pine_forest
+      | Snow_mountain =>
         switch (top) {
         | Dirt => set_block(~x, ~y, ~z, Grass_block, region)
         | _ => ()
         }
+      | Ocean
+      | Barren_mountain
+      | Desert(_)
+      | Shore
+      | Stone_shore => ()
+      };
+    },
+  );
+};
+
+let apply_snow = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
+  Minecraft_converter.iter_blocks(
+    region,
+    (~x, ~z) => {
+      open Minecraft.Region;
+      let y = height_at(region, ~x, ~z);
+      let top = get_block(region, ~x, ~y, ~z);
+      let biome = Biome_overlay.biome_at(~x, ~z, biomes);
+      switch (biome) {
       | Snow_mountain =>
-        if (can_build || should_add_snow_despite_obstacle(top)) {
+        if (Minecraft.Block.should_receive_snow(top)) {
           set_block(~x, ~y=y + 1, ~z, Snow, region);
         }
+      | Plain(_)
+      | Forest(_)
+      | Savanna
+      | River
+      | Pine_forest
       | Ocean
       | Barren_mountain
       | Desert(_)
@@ -364,8 +384,9 @@ let apply_sandstone = (region: Minecraft.Region.t) => {
 
 let apply_region = ((), region: Minecraft.Region.t) => {
   let (biomes, _) = Biome_overlay.require();
-  apply_ground_cover(biomes, region);
+  apply_grass(biomes, region);
   apply_trees(biomes, region);
+  apply_snow(biomes, region);
   apply_flowers(biomes, region);
   apply_cactus(biomes, region);
   apply_tallgrass(biomes, region);

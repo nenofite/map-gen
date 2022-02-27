@@ -1823,12 +1823,17 @@ let is_air =
   | Air => true
   | _ => false;
 
-/** whether you can stand on this block and the _full_ cube will stop you falling.
-  For example, torches can place on top of it. */
-let is_solid =
+/**
+ * whether this is a plain old block, that is:
+ *  - it renders as a full, opaque cube
+ *  - it blocks light
+ *  - it blocks movement
+ *  - it blocks water
+ *  - it doesn't fall (like sand or water)
+ *  - you can build on its top, sides, and bottom
+ */
+let is_plain_block =
   fun
-  /* Non-solids */
-  /* TODO not exhaustive */
   | Air
   | Grass
   | Dandelion
@@ -1845,20 +1850,40 @@ let is_solid =
   | Lily_of_the_valley
   | Wheat(_)
   | Fence_gate(_)
-  | Stairs(_, Nd | Ed | Sd | Wd)
+  | Stairs(_, _)
   | Stone_brick_slab
   | Lava
   | Torch
   | Wall_torch(_)
   | Water
+  | Bell
+  | Oak_door(_, _)
+  | Fence(_, _, _)
+  | Farmland
+  | Orange_bed(_, _)
+  | Smooth_stone_slab(_)
+  | Snow
   | Flowing_water(_) => false
-  /* All others are solid */
-  | Stairs(_, N | E | S | W)
   | _ => true;
+
+/** whether you can stand on this block and the _full_ cube will stop you falling.
+  For example, torches can place on top of it. */
+let is_solid =
+  fun
+  | x when is_plain_block(x) => true
+  | Stairs(_, Nd | Ed | Sd | Wd)
+  | Acacia_leaves
+  | Birch_leaves
+  | Dark_oak_leaves
+  | Jungle_leaves
+  | Oak_leaves
+  | Spruce_leaves => true
+  | _ => false;
 
 /** whether light passes through this block */
 let is_transparent =
   fun
+  | x when is_plain_block(x) => false
   | Air
   | Grass
   | Torch
@@ -1894,4 +1919,9 @@ let is_wet =
   | Water
   | Flowing_water(_)
   | Fence(_, _, Waterlogged) => true
+  | _ => false;
+
+let should_receive_snow =
+  fun
+  | x when is_plain_block(x) || is_solid(x) => true
   | _ => false;

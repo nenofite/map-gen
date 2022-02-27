@@ -198,7 +198,7 @@ let fit = (~title=?, fit) => {
   update_window();
 };
 
-let save = (~side, ~img_side=128, ~format=Images.Png, file) => {
+let save = (~side, ~img_side=512, ~format=Images.Png, file) => {
   Images.(
     with_state(s => {
       let file =
