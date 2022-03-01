@@ -5,6 +5,7 @@ module Floats = {
 
 module Geometry = Geometry;
 module Parse_grid = Parse_grid;
+module Perlin = Perlin;
 
 module Color = {
   let split_rgb = color => {

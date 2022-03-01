@@ -91,6 +91,12 @@ let place_river_tile = (state, ~x as cx, ~z as cz, ~elev, ~radius) => {
   };
 };
 
+let radius_offset_at = (~x, ~z) => {
+  Mg_util.Perlin.at_with_freq(~freq=2., ~x=float(x), ~y=0., ~z=float(z))
+  |> Float.round_nearest
+  |> Float.to_int;
+};
+
 let place_river = (path, ~state) => {
   Tale.logf("Placing river with length %d", List.length(path));
   let rec add_params = (rest, ls, ~elapsed, ~radius) =>
@@ -108,9 +114,14 @@ let place_river = (path, ~state) => {
     };
   let path_with_params =
     add_params(path, [], ~elapsed=0, ~radius=1) |> List.rev;
-  List.iter(path_with_params, ~f=((x, z, elev, radius)) => {
-    place_river_tile(state, ~x, ~z, ~elev, ~radius)
-  });
+  List.iter(
+    path_with_params,
+    ~f=((x, z, elev, radius)) => {
+      let radius = radius + Random.int(2);
+      /* radius_offset_at(~x, ~z); */
+      place_river_tile(state, ~x, ~z, ~elev, ~radius);
+    },
+  );
 };
 
 let incr_inflow = (~x, ~z, state) =>
