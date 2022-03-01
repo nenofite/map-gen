@@ -12,6 +12,8 @@ type t =
   | Stone_shore
   | Wooded_mountains
   | Savanna
+  | Snowy_plains
+  | Snowy_taiga
 [@@deriving eq, ord, bin_io]
 
 let id = function
@@ -37,3 +39,7 @@ let id = function
       34l
   | Savanna ->
       35l
+  | Snowy_plains ->
+      3l
+  | Snowy_taiga ->
+      15l

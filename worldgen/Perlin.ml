@@ -69,3 +69,14 @@ let at ~x ~y ~z =
            (lerp u
               ~a:(grad p.(ab + 1) ~xi ~yi:(yi -. 1.) ~zi:(zi -. 1.))
               ~b:(grad p.(bb + 1) ~xi:(xi -. 1.) ~yi:(yi -. 1.) ~zi:(zi -. 1.)) ) )
+
+let at_with_freq ~freq ~x ~y ~z = at ~x:(x /. freq) ~y:(y /. freq) ~z:(z /. freq)
+
+let at_opts ?(freq = 1.) ?(intervals = 1) ~x ~y ~z () =
+  let freq = ref freq in
+  let r = ref 0.0 in
+  for i = 1 to intervals do
+    r := !r +. at_with_freq ~freq:!freq ~x ~y ~z /. float i;
+    freq := !freq *. 0.5
+  done;
+  !r

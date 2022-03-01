@@ -5,6 +5,14 @@ type t = unit;
 
 let prepare = () => ();
 
+let is_air_or_snow =
+  fun
+  | Minecraft.Block.Air
+  | Snow => true
+  | _ => false;
+
+let not_air_or_snow = b => !is_air_or_snow(b);
+
 let apply_trees = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
   let trees =
     Point_cloud.init(
@@ -19,15 +27,26 @@ let apply_trees = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
       let x = int_of_float(x) + rx;
       let z = int_of_float(z) + rz;
       if (value && Minecraft.Region.is_within(~x, ~y=0, ~z, region)) {
-        let y = Minecraft.Region.height_at(region, ~x, ~z);
+        let y =
+          Option.value(
+            Minecraft.Region.highest_such_block(
+              region,
+              ~x,
+              ~z,
+              not_air_or_snow,
+            ),
+            ~default=0,
+          );
         let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
         switch (Biome_overlay.biome_at(~x, ~z, biomes)) {
         | Forest(_) =>
           switch (block) {
-          | Dirt =>
-            Minecraft_template.place(
+          | Dirt
+          | Grass_block =>
+            Minecraft_template.place_ignoring(
               Oak_tree.random_tree(),
               region,
+              ~ignorable=is_air_or_snow,
               ~x,
               ~y=y + 1,
               ~z,
@@ -35,12 +54,15 @@ let apply_trees = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
             |> ignore
           | _ => ()
           }
-        | Pine_forest =>
+        | Pine_forest
+        | Snow_taiga =>
           switch (block) {
-          | Dirt =>
-            Minecraft_template.place(
+          | Dirt
+          | Grass_block =>
+            Minecraft_template.place_ignoring(
               Spruce_tree.random_tree(),
               region,
+              ~ignorable=is_air_or_snow,
               ~x,
               ~y=y + 1,
               ~z,
@@ -56,6 +78,7 @@ let apply_trees = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
         | Savanna
         | Shore
         | Stone_shore
+        | Snow_plains
         | River => ()
         };
       };
@@ -64,12 +87,6 @@ let apply_trees = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
 };
 
 let is_opaque_or_water = b => Minecraft.Block.(is_wet(b) || is_opaque(b));
-
-let should_add_snow_despite_obstacle: Minecraft.Block.material => bool =
-  fun
-  | Dirt
-  | Grass => true
-  | _ => false;
 
 let apply_grass = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
   Minecraft_converter.iter_blocks(
@@ -89,7 +106,9 @@ let apply_grass = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
       | Savanna
       | River
       | Pine_forest
-      | Snow_mountain =>
+      | Snow_mountain
+      | Snow_plains
+      | Snow_taiga =>
         switch (top) {
         | Dirt => set_block(~x, ~y, ~z, Grass_block, region)
         | _ => ()
@@ -113,7 +132,9 @@ let apply_snow = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
       let top = get_block(region, ~x, ~y, ~z);
       let biome = Biome_overlay.biome_at(~x, ~z, biomes);
       switch (biome) {
-      | Snow_mountain =>
+      | Snow_mountain
+      | Snow_plains
+      | Snow_taiga =>
         if (Minecraft.Block.should_receive_snow(top)) {
           set_block(~x, ~y=y + 1, ~z, Snow, region);
         }
@@ -356,6 +377,8 @@ let apply_tallgrass = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => 
       | Ocean
       | Barren_mountain
       | Snow_mountain
+      | Snow_plains
+      | Snow_taiga
       | Shore
       | Stone_shore
       | River => ()
@@ -385,7 +408,9 @@ let apply_sandstone = (region: Minecraft.Region.t) => {
 let apply_region = ((), region: Minecraft.Region.t) => {
   let (biomes, _) = Biome_overlay.require();
   apply_grass(biomes, region);
+  apply_snow(biomes, region);
   apply_trees(biomes, region);
+  /* Snow again to cover trees */
   apply_snow(biomes, region);
   apply_flowers(biomes, region);
   apply_cactus(biomes, region);

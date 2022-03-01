@@ -126,26 +126,36 @@ let combine = (base, addition) => {
   combine_all([base, addition]);
 };
 
-/**
-  check_collision is true if the template would hit a non-Air block or go out
-  of the region. Ignores Air in the template.
- */
-let check_collision = (template, ~x, ~y, ~z, r) => {
+let check_collision_ignoring = (template, ~ignorable, ~x, ~y, ~z, r) => {
   List.exists(
     ~f=
       ((dx, dy, dz, block)) =>
-        if (!Minecraft.Block.(equal_material(block, Air))) {
+        if (!Minecraft.Block.is_air(block)) {
           switch (
             Minecraft.Region.get_block_opt(~x=x + dx, ~y=y + dy, ~z=z + dz, r)
           ) {
-          | Some(Air) => false
+          | Some(b) => !ignorable(b)
           | None => true
-          | Some(_not_air) => true
           };
         } else {
           false;
         },
     template.blocks,
+  );
+};
+
+/**
+  check_collision is true if the template would hit a non-Air block or go out
+  of the region. Ignores Air in the template.
+ */
+let check_collision = (template, ~x, ~y, ~z, r) => {
+  check_collision_ignoring(
+    template,
+    ~ignorable=Minecraft.Block.is_air,
+    ~x,
+    ~y,
+    ~z,
+    r,
   );
 };
 
@@ -189,13 +199,20 @@ let place_overwrite_opt = (template, ~x, ~y, ~z, r) => {
   place attempts to paste a template at the given coordinate. If any of the
   blocks are not air or are outside the region, it fails and returns false
  */
-let place = (template, ~x, ~y, ~z, r) =>
-  if (!check_collision(template, ~x, ~y, ~z, r)) {
+let place_ignoring = (template, ~ignorable, ~x, ~y, ~z, r) =>
+  if (!check_collision_ignoring(template, ~ignorable, ~x, ~y, ~z, r)) {
     place_overwrite(template, ~x, ~y, ~z, r);
     true;
   } else {
     false;
   };
+
+/**
+  place attempts to paste a template at the given coordinate. If any of the
+  blocks are not air or are outside the region, it fails and returns false
+ */
+let place = (template, ~x, ~y, ~z, r) =>
+  place_ignoring(template, ~ignorable=Minecraft.Block.is_air, ~x, ~y, ~z, r);
 
 /**
   footprint is the list of unique (x, z) coordinates where this template has at

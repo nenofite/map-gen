@@ -1923,5 +1923,6 @@ let is_wet =
 
 let should_receive_snow =
   fun
+  | Snow => false
   | x when is_plain_block(x) || is_solid(x) => true
   | _ => false;

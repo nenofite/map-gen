@@ -27,6 +27,10 @@ let to_minecraft_biome = function
   | River ->
       (* TODO sort of a weird choice *)
       Minecraft.Biome.River
+  | Snow_plains ->
+      Minecraft.Biome.Snowy_plains
+  | Snow_taiga ->
+      Minecraft.Biome.Snowy_taiga
 
 let is_near_river_at ~x ~z base =
   let r = 0 in
@@ -78,6 +82,10 @@ let colorize_biome = function
       0x828282
   | River ->
       0x8E7256
+  | Snow_plains ->
+      0xEBEBEB
+  | Snow_taiga ->
+      0xBFD3BA
 
 let random_flower () =
   let open Minecraft.Block in
@@ -126,7 +134,8 @@ let temperature_at ~x ~z =
   let open Float in
   let side = (Overlay.Canon.require ()).side in
   let offset =
-    Perlin.at ~x:(of_int x / 256.) ~y:0. ~z:(of_int z / 256.) * 25.
+    Perlin.at_opts ~freq:256. ~intervals:2 ~x:(of_int x) ~y:0. ~z:(of_int z) () * 25. +
+    Perlin.at_opts ~freq:3. ~x:(of_int x) ~y:0. ~z:(of_int z) () * 5.
   in
   (* range 0 to 50 degrees Celsius *)
   (Float.of_int z * 50. / Float.of_int side) + offset |> Int.of_float
@@ -287,7 +296,7 @@ let lookup_biome_category ~mountain_threshold ~temperature ~precipitation
   let is_moderate = (not is_cold) && temperature <= 35 in
   if is_mt_peak then 0
   else if is_mt_side then if is_arid then 1 else 2
-  else if is_cold then 3
+  else if is_cold then if is_arid then 5 else if is_mid_moisture then 3 else 9
   else if is_moderate then
     if is_arid then 4 else if is_mid_moisture then 5 else 6
   else if is_arid then 4
@@ -327,7 +336,7 @@ let prepare () =
   let b0 = Either.Second Snow_mountain in
   let b1 = Either.Second Barren_mountain in
   let b2 = Either.Second Pine_forest in
-  let b3 = Either.Second Snow_mountain (* TODO snowy tundra *) in
+  let b3 = Either.Second Snow_plains in
   let b4 = Either.First (Point_cloud.map cacti ~f:(fun c -> Desert c)) in
   let b5 = Either.First (Point_cloud.map flowers ~f:(fun f -> Plain f)) in
   let b6 =
@@ -336,7 +345,8 @@ let prepare () =
   in
   let b7 = Either.Second Savanna in
   let b8 = b6 (* TODO rainforest *) in
-  let categories = [|b0; b1; b2; b3; b4; b5; b6; b7; b8|] in
+  let b9 = Either.Second Snow_taiga in
+  let categories = [|b0; b1; b2; b3; b4; b5; b6; b7; b8; b9|] in
   let biomes = {precipitation; categories} in
   let biome_obstacles =
     Grid.Mut.init_exact ~side:(Grid.Mut.side dirt) ~f:(fun ~x ~z ->
@@ -430,7 +440,7 @@ let apply (state, _canon) (region : Minecraft.Region.t) =
           for y = elev - gravel_depth + 1 to elev do
             overwrite_stone_air region x y z Gravel
           done
-      | Snow_mountain ->
+      | Snow_mountain | Snow_plains | Snow_taiga ->
           (* Dirt (will add snow in Plant_overlay) *)
           for y = elev - dirt_depth + 1 to elev do
             overwrite_stone_air region x y z Dirt

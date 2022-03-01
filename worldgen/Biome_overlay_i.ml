@@ -17,6 +17,8 @@ type biome =
   | Pine_forest
   | Barren_mountain
   | Snow_mountain
+  | Snow_plains
+  | Snow_taiga
 [@@deriving eq, bin_io]
 
 type t' =
