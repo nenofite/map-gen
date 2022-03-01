@@ -387,6 +387,59 @@ let apply_tallgrass = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => 
   );
 };
 
+let is_near_river_at = (~x, ~z, base) => {
+  let r = 1;
+  let side = Base_overlay.side(base);
+  let result = ref(false);
+  for (z in z - r to z + r) {
+    for (x in x - r to x + r) {
+      if (Grid.is_within_side(~x, ~z, side)
+          && Base_overlay.river_at(~x, ~z, base)) {
+        result := true;
+      };
+    };
+  };
+  result^;
+};
+
+let apply_riverside =
+    (biomes: Biome_overlay.t', base, region: Minecraft.Region.t) => {
+  Minecraft.Region.iter_region_xz(region, ~f=(~x, ~z) => {
+    switch (Biome_overlay.biome_at(~x, ~z, biomes)) {
+    | Forest(_)
+    | Plain(_)
+    | Savanna
+    | Pine_forest =>
+      if (is_near_river_at(~x, ~z, base)) {
+        let y = Minecraft.Region.height_at(region, ~x, ~z);
+        let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
+        let block_above =
+          Minecraft.Region.get_block(region, ~x, ~y=y + 1, ~z);
+        switch (block, block_above) {
+        | (Grass_block, Air) =>
+          Minecraft.Region.set_block(
+            ~x,
+            ~y=y + 1,
+            ~z,
+            Minecraft.Block.Grass,
+            region,
+          )
+        | _ => ()
+        };
+      }
+    | Desert(_)
+    | Ocean
+    | Barren_mountain
+    | Snow_mountain
+    | Snow_plains
+    | Snow_taiga
+    | Shore
+    | Stone_shore
+    | River => ()
+    }
+  });
+};
+
 let apply_sandstone = (region: Minecraft.Region.t) => {
   let region = region;
   Minecraft_converter.iter_blocks(region, (~x, ~z) => {
@@ -406,9 +459,11 @@ let apply_sandstone = (region: Minecraft.Region.t) => {
 };
 
 let apply_region = ((), region: Minecraft.Region.t) => {
+  let (base, _) = Base_overlay.require();
   let (biomes, _) = Biome_overlay.require();
   apply_grass(biomes, region);
   apply_snow(biomes, region);
+  apply_riverside(biomes, base, region);
   apply_trees(biomes, region);
   /* Snow again to cover trees */
   apply_snow(biomes, region);
