@@ -57,14 +57,7 @@ let add_ceiling_pillars = (pillar_cloud: Point_cloud.t(bool), ceiling) => {
   Sparse_grid.iter(
     pillar_cloud.points, (_, Point_cloud.{px: x, py: y, value}) =>
     if (value) {
-      Grid.update(
-        ceiling, ~x=int_of_float(x), ~z=int_of_float(y), ~f=old_elev =>
-        if (old_elev > pillar_meet_elev) {
-          pillar_meet_elev - 5;
-        } else {
-          old_elev;
-        }
-      );
+      Grid.set(~x=int_of_float(x), ~z=int_of_float(y), -5, ceiling);
     }
   );
 };
@@ -74,16 +67,18 @@ let prepare = () => {
   let r = 32;
   let start_side = Base_overlay.side(world) / r;
   let floor_cloud =
-    Point_cloud.init(~side=start_side, ~spacing=16, (_x, _y) =>
+    Point_cloud.init(~side=start_side, ~spacing=4, (_x, _y) =>
       switch (Random.int(3)) {
       | 0 => 1.
-      | 1 => 3. +. Random.float(5.)
+      | 1 => 3. +. Random.float(12.)
       | _ => float_of_int(pillar_meet_elev + 5)
       }
-    );
+    )
+    |> Point_cloud.subdivide(~spacing=2)
+    |> Point_cloud.subdivide_interpolate_nf(~n=5, ~spacing=1);
   let ceiling_cloud =
     Point_cloud.init(~side=start_side, ~spacing=4, (_x, _y) =>
-      Random.float(10.) +. 30.
+      Random.float(10.) +. 3.
     );
   let pillar_cloud =
     Point_cloud.init(~side=start_side * 4, ~spacing=8, (_, _) => true);
@@ -139,7 +134,7 @@ let prepare = () => {
           0,
           ~f=(~x, ~z) =>
           if (Base_overlay.ocean_at(~x=x * r, ~z=z * r, world)) {
-            pillar_meet_elev - 5;
+            (-5);
           } else {
             (
               Point_cloud.interpolate(
@@ -167,6 +162,9 @@ let prepare = () => {
         );
       };
       Grid.Subdivide_mut.subdivide_with_fill(ceiling, ~fill=Grid.Fill.random);
+      Grid.map_in_place(ceiling, ~f=(~x, ~z, d) => {
+        Grid.get(~x, ~z, floor) + d
+      });
       ceiling;
     });
 

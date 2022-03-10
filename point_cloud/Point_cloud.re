@@ -295,6 +295,18 @@ let interpolate4 = (cloud, x, y) => {
   |> Int.of_float;
 };
 
+let interpolate_nf = (~n, cloud, x, y) => {
+  let ns = n_closest_points(~n, cloud, x, y);
+  let dist_total = List.sum((module Float), ns, ~f=((dist, _)) => dist);
+  let inv_dist_total =
+    List.sum((module Float), ns, ~f=((dist, _)) =>
+      Float.(1. - dist / dist_total)
+    );
+  List.sum((module Float), ns, ~f=((dist, point)) => {
+    Float.(point.value * (1. - dist / dist_total) / inv_dist_total)
+  });
+};
+
 /**
   creates a new point cloud of the same dimensions but with different spacing. Each point in the new cloud samples from the nearest in the old cloud
   */
@@ -317,6 +329,12 @@ let subdivide_with_edge = (~cover_edges=?, cloud, ~edge, ~spacing) => {
 
 let subdivide_interpolate4 = (cloud, ~spacing) => {
   let fn = (~xf, ~yf, ~xi as _, ~yi as _) => interpolate4(cloud, xf, yf);
+  init_f(~side=cloud.side, ~spacing, fn);
+};
+
+let subdivide_interpolate_nf = (~n, cloud, ~spacing) => {
+  let fn = (~xf, ~yf, ~xi as _, ~yi as _) =>
+    interpolate_nf(~n, cloud, xf, yf);
   init_f(~side=cloud.side, ~spacing, fn);
 };
 
