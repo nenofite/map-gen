@@ -112,7 +112,7 @@ let to_obstacles = base => {
 let extract_canonical = (base: x) =>
   Overlay.Canon.{
     side: side(base),
-    elevation: Grid.Mut.copy(base.elevation),
+    elevation: Grid.copy(base.elevation),
     obstacles: to_obstacles(base),
     spawn_points: [],
   };
@@ -144,29 +144,93 @@ let of_river_state = state => {
   {elevation, water};
 };
 
+let erode_flat_slopes = elevation => {
+  let t = 2 * precision_coef;
+  let elevation = Grid.copy(elevation);
+  let side = Grid.side(elevation);
+
+  let sea_level = sea_level * precision_coef;
+
+  Tale.log_progress(1, 50, ~f=_ => {
+    for (z in 1 to side - 2) {
+      for (x in 1 to side - 2) {
+        let height = Grid.get(~x, ~z, elevation);
+        if (height > sea_level) {
+          let dmax = ref(-1);
+          let xmax = ref(0);
+          let zmax = ref(0);
+          List.iter(
+            Grid.four_directions,
+            ~f=((dx, dz)) => {
+              let hx = x + dx;
+              let hz = z + dz;
+              let dh = height - Grid.get(~x=hx, ~z=hz, elevation);
+              if (dh > dmax^) {
+                dmax := dh;
+                xmax := hx;
+                zmax := hz;
+              };
+            },
+          );
+          if (dmax^ > 0 && dmax^ <= t) {
+            let height2 = Grid.get(~x=xmax^, ~z=zmax^, elevation);
+            let newh = (height + height2) / 2;
+            Grid.set(~x, ~z, newh, elevation);
+            Grid.set(~x=xmax^, ~z=zmax^, newh, elevation);
+          };
+        };
+      };
+    }
+  });
+
+  Grid.map_in_place(elevation, ~f=(~x as _, ~z as _, e) =>
+    e / precision_coef
+  );
+
+  let water =
+    Grid.init_exact(~side, ~f=(~x, ~z) =>
+      if (Grid.get(~x, ~z, elevation) <= Constants.sea_level) {
+        Ocean;
+      } else {
+        No_water;
+      }
+    );
+
+  {elevation, water};
+};
+
 let prepare = () => {
   let layer = Progress_view.push_layer();
   let side = Overlay.Canon.require().side;
   let grid = Tectonic.phase(side);
   let grid = Heightmap.phase(grid);
+  /* TODO restore rivers */
+  /* let grid = River.phase(grid);
+     assert(River.side(grid) == side);
+     let base = of_river_state(grid); */
+  Tale.log("About to erode");
+  let base = erode_flat_slopes(grid);
+  Tale.log("About to draw");
   Progress_view.update(
     ~title="height",
     ~draw_dense=
       (x, z) =>
-        if (Grid.Mut.is_within(~x, ~z, grid)) {
-          Some(Grid.Mut.get(~x, ~z, grid) |> Heightmap.colorize);
+        if (Grid.Mut.is_within(~x, ~z, base.elevation)) {
+          Some(
+            Grid.Mut.get(~x, ~z, base.elevation)
+            |> Heightmap.colorize_without_coef,
+          );
         } else {
           None;
         },
     layer,
   );
-  Progress_view.save(~side=Grid.Mut.side(grid), "height");
-  Progress_view.remove_layer(layer);
-  let grid = River.phase(grid);
-  assert(River.side(grid) == side);
-  let base = of_river_state(grid);
+  Tale.log("About to save");
+  Progress_view.save(~side=Grid.Mut.side(base.elevation), "height");
+  Tale.log("Saved");
   let canon = extract_canonical(base);
   Overlay.Canon.restore(canon);
+  Progress_view.remove_layer(layer);
   (base, canon);
 };
 
