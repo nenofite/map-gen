@@ -8,7 +8,7 @@ let prepare = () => ();
 let is_air_or_snow =
   fun
   | Minecraft.Block.Air
-  | Snow => true
+  | Snow(_) => true
   | _ => false;
 
 let not_air_or_snow = b => !is_air_or_snow(b);
@@ -123,7 +123,54 @@ let apply_grass = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
   );
 };
 
-let apply_snow = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
+let snow_depth_at = (~x, ~z) => {
+  let p =
+    Mg_util.Perlin.at_opts(
+      ~freq=20.,
+      ~intervals=1,
+      ~x=float(x),
+      ~y=0.,
+      ~z=float(z),
+      (),
+    );
+  max(1, abs(int_of_float(p *. 10.) mod 10 - 5) - 3);
+};
+
+let apply_snow =
+    (~force_depth=?, biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
+  let side = Overlay.Canon.require().side;
+  let snow_edge_dist = (~x, ~z) => {
+    let r = 3;
+    let is_edge = ref(false);
+    let dist = ref(Int.max_int);
+    for (hz in z - r to z + r) {
+      for (hx in x - r to x + r) {
+        if (Grid.is_within_side(~x=hx, ~z=hz, side)) {
+          switch (Biome_overlay.biome_at(~x=hx, ~z=hz, biomes)) {
+          | Snow_mountain
+          | Snow_plains
+          | Snow_taiga => ()
+          | _ =>
+            is_edge := true;
+            dist := min(dist^, abs(hx - x) + abs(hz - z));
+          };
+        };
+      };
+    };
+    if (is_edge^) {
+      dist^;
+    } else {
+      (-1);
+    };
+  };
+  let snow_depth_with_edge = (~x, ~z) => {
+    switch (snow_edge_dist(~x, ~z)) {
+    | 1 => 1
+    | 2 => snow_depth_at(~x, ~z) / 4
+    | 3 => snow_depth_at(~x, ~z) / 2
+    | _ => snow_depth_at(~x, ~z)
+    };
+  };
   Minecraft_converter.iter_blocks(
     region,
     (~x, ~z) => {
@@ -136,7 +183,12 @@ let apply_snow = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
       | Snow_plains
       | Snow_taiga =>
         if (Minecraft.Block.should_receive_snow(top)) {
-          set_block(~x, ~y=y + 1, ~z, Snow, region);
+          let d =
+            switch (force_depth) {
+            | Some(d) => d
+            | None => snow_depth_with_edge(~x, ~z)
+            };
+          set_block(~x, ~y=y + 1, ~z, Snow(d), region);
         }
       | Plain(_)
       | Forest(_)
@@ -355,7 +407,7 @@ let apply_edge_cactus = (biomes: Biome_overlay.t', region: Minecraft.Region.t) =
     coords,
     ~f=((lx, lz)) => {
       let (x, z) = (lx + x_off, lz + z_off);
-      if (is_desert(~x, ~z) && is_desert_edge(~x, ~z) && roll_cactus(~x,~z)) {
+      if (is_desert(~x, ~z) && is_desert_edge(~x, ~z) && roll_cactus(~x, ~z)) {
         place_cactus(~x, ~z, region);
       };
     },
@@ -514,7 +566,7 @@ let apply_region = ((), region: Minecraft.Region.t) => {
   apply_riverside(biomes, base, region);
   apply_trees(biomes, region);
   /* Snow again to cover trees */
-  apply_snow(biomes, region);
+  apply_snow(~force_depth=1, biomes, region);
   apply_flowers(biomes, region);
   apply_edge_cactus(biomes, region);
   apply_cactus(biomes, region);

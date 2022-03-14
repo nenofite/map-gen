@@ -728,7 +728,7 @@ type material =
   | Smooth_stone
   | Smooth_stone_slab(slab_type)
   | Snow_block
-  | Snow
+  | Snow(int)
   | Soul_campfire
   | Soul_fire
   | Soul_lantern
@@ -1511,7 +1511,7 @@ let namespace =
   | Smooth_stone => "minecraft:smooth_stone"
   | Smooth_stone_slab(_) => "minecraft:smooth_stone_slab"
   | Snow_block => "minecraft:snow_block"
-  | Snow => "minecraft:snow"
+  | Snow(_) => "minecraft:snow"
   | Soul_campfire => "minecraft:soul_campfire"
   | Soul_fire => "minecraft:soul_fire"
   | Soul_lantern => "minecraft:soul_lantern"
@@ -1756,7 +1756,7 @@ let data = block => {
            ),
         "waterlogged" >: String("false"),
       ]
-    | Snow => ["layers" >: String("1")]
+    | Snow(layers) => ["layers" >: String(string_of_int(layers))]
     | Stairs(_mat, dir) => [
         "facing"
         >: String(
@@ -1862,7 +1862,7 @@ let is_plain_block =
   | Farmland
   | Orange_bed(_, _)
   | Smooth_stone_slab(_)
-  | Snow
+  | Snow(_)
   | Flowing_water(_) => false
   | _ => true;
 
@@ -1923,6 +1923,6 @@ let is_wet =
 
 let should_receive_snow =
   fun
-  | Snow => false
+  | Snow(_) => false
   | x when is_plain_block(x) || is_solid(x) => true
   | _ => false;
