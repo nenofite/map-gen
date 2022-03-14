@@ -287,7 +287,6 @@ let place_cactus = (~x, ~z, region) => {
 
 let apply_cactus = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
   open Core_kernel;
-  let region = region;
   let cluster_centers =
     make_clusters(
       ~spacing=100,
@@ -311,6 +310,55 @@ let apply_cactus = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
     ~place=(~x, ~z, _cluster, region) => place_cactus(~x, ~z, region),
     cluster_centers,
     region,
+  );
+};
+
+let apply_edge_cactus = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
+  open Core_kernel;
+  let side = Overlay.Canon.require().side;
+  let is_desert = (~x, ~z) => {
+    switch (Biome_overlay.biome_at(~x, ~z, biomes)) {
+    | Desert(_) => true
+    | _ => false
+    };
+  };
+  let is_desert_edge = (~x, ~z) => {
+    let r = 3;
+    let is_edge = ref(false);
+    for (z in z - r to z + r) {
+      for (x in x - r to x + r) {
+        if (Grid.is_within_side(~x, ~z, side)) {
+          switch (Biome_overlay.biome_at(~x, ~z, biomes)) {
+          | Desert(_) => ()
+          | _ => is_edge := true
+          };
+        };
+      };
+    };
+    is_edge^;
+  };
+  let roll_cactus = (~x, ~z) => {
+    switch (Biome_overlay.biome_at(~x, ~z, biomes)) {
+    | Desert(c) => Random.int(100) < c.percentage
+    | _ => false
+    };
+  };
+
+  let (x_off, z_off) = Minecraft.Region.region_offset(region);
+  let coords =
+    Point_cloud.make_int_list(
+      ~side=Minecraft.Region.block_per_region_side,
+      ~spacing=3,
+      (),
+    );
+  List.iter(
+    coords,
+    ~f=((lx, lz)) => {
+      let (x, z) = (lx + x_off, lz + z_off);
+      if (is_desert(~x, ~z) && is_desert_edge(~x, ~z) && roll_cactus(~x,~z)) {
+        place_cactus(~x, ~z, region);
+      };
+    },
   );
 };
 
@@ -468,6 +516,7 @@ let apply_region = ((), region: Minecraft.Region.t) => {
   /* Snow again to cover trees */
   apply_snow(biomes, region);
   apply_flowers(biomes, region);
+  apply_edge_cactus(biomes, region);
   apply_cactus(biomes, region);
   apply_tallgrass(biomes, region);
   apply_sandstone(region);

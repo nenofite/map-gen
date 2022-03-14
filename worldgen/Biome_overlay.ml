@@ -134,8 +134,8 @@ let temperature_at ~x ~z =
   let open Float in
   let side = (Overlay.Canon.require ()).side in
   let offset =
-    Mg_util.Perlin.at_opts ~freq:256. ~intervals:2 ~x:(of_int x) ~y:0. ~z:(of_int z) () * 25. +
-    Mg_util.Perlin.at_opts ~freq:3. ~x:(of_int x) ~y:0. ~z:(of_int z) () * 5.
+    Mg_util.Perlin.at_opts ~freq:256. ~intervals:2 ~x:(of_int x) ~y:0. ~z:(of_int z) () * 25.
+    (* + Mg_util.Perlin.at_opts ~freq:3. ~x:(of_int x) ~y:0. ~z:(of_int z) () * 5. *)
   in
   (* range 0 to 50 degrees Celsius *)
   (Float.of_int z * 50. / Float.of_int side) + offset |> Int.of_float
