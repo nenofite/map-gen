@@ -151,7 +151,7 @@ let erode_flat_slopes = elevation => {
 
   let sea_level = sea_level * precision_coef;
 
-  Tale.log_progress(1, 50, ~f=_ => {
+  Tale.log_progress(1, 50, ~label="Eroding", ~f=_ => {
     for (z in 1 to side - 2) {
       for (x in 1 to side - 2) {
         let height = Grid.get(~x, ~z, elevation);

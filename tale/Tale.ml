@@ -88,17 +88,19 @@ let block ?always_close title ~f =
 
 let blockf ?always_close fmt ~f = Printf.ksprintf (block ?always_close ~f) fmt
 
-let log_progress ?every start stop ~f =
+let log_progress ?every ~label start stop ~f =
   let total = stop - start + 1 in
   let every = match every with Some n -> n | None -> Int.max (total / 20) 1 in
   let prog i total =
     Out_channel.print_string "\r";
-    logf "%d of %d..." i total;
+    print_indents (current_indents ());
+    Printf.printf "%s: %d of %d..." label i total;
     Out_channel.flush stdout
   in
   for i = start to stop do
       if Int.(i % every = 0) then prog i total ;
       f i
   done;
-  prog total total ;
+  Out_channel.print_string "\r";
+  logf "%s: %d of %d" label total total;
   Out_channel.newline stdout
