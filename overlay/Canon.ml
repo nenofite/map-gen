@@ -155,3 +155,6 @@ let draw_obstacles () =
       else None )
     l ;
   l
+
+let elevation_at ~x ~z t = 
+  Grid.get ~x ~z t.elevation

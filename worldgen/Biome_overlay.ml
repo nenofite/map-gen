@@ -44,11 +44,11 @@ let is_near_river_at ~x ~z base =
   done ;
   !result
 
-let is_near_ocean_at ~x ~z base =
+let is_near_ocean_at ~x ~z canon base =
   let r = 5 in
-  let max_elev = Base_overlay.sea_level + 2 in
+  let max_elev = Base_overlay.shore_level in
   let side = Base_overlay.side base in
-  if Base_overlay.elevation_at ~x ~z base <= max_elev then (
+  if Overlay.Canon.elevation_at ~x ~z canon <= max_elev then (
     let result = ref false in
     for z = z - r to z + r do
       for x = x - r to x + r do
@@ -163,10 +163,10 @@ let initial_moisture_at ~mx ~mz base =
       in
       max m here )
 
-let moisture_loss_at ~mx ~mz base =
+let moisture_loss_at ~mx ~mz canon =
   let sum =
     fold_scale_factor ~mx ~mz ~init:0 ~f:(fun ~x ~z m ->
-        let e = Base_overlay.elevation_at ~x ~z base in
+        let e = Overlay.Canon.elevation_at ~x ~z canon in
         let here = if e > 100 then 25 else 2 in
         m + here )
   in
@@ -222,7 +222,7 @@ let prepare_precipitation () =
   in
   let moisture_loss =
     Grid.Mut.init ~side:mside 0 ~f:(fun ~x ~z ->
-        moisture_loss_at ~mx:x ~mz:z base )
+        moisture_loss_at ~mx:x ~mz:z canon )
   in
   let spread_coord ~x ~z ~m pq =
     let loss = Grid.Mut.get ~x ~z moisture_loss in
@@ -304,19 +304,20 @@ let lookup_biome_category ~mountain_threshold ~temperature ~precipitation
   else 8
 
 let biome_at ~x ~z biomes =
+  let canon = Overlay.Canon.require () in
   let base, _ = Base_overlay.require () in
   let dirt = Dirt_overlay.require () in
   match () with
   | _ when Base_overlay.ocean_at ~x ~z base ->
       Ocean
-  | _ when is_near_ocean_at ~x ~z base ->
+  | _ when is_near_ocean_at ~x ~z canon base ->
       Shore (* TODO also Stone_shore *)
   | _ when is_near_river_at ~x ~z base ->
       River
   | _ ->
       let temperature = temperature_at ~x ~z in
       let precipitation = precipitation_at ~x ~z biomes in
-      let elevation = Base_overlay.elevation_at ~x ~z base in
+      let elevation = Overlay.Canon.elevation_at ~x ~z canon in
       let mountain_threshold = mountain_threshold_at ~x ~z dirt in
       let category =
         lookup_biome_category ~temperature ~precipitation ~elevation
@@ -348,32 +349,40 @@ let prepare () =
   let b9 = Either.Second Snow_taiga in
   let categories = [|b0; b1; b2; b3; b4; b5; b6; b7; b8; b9|] in
   let biomes = {precipitation; categories} in
+  let cached_biomes = Grid.init_exact ~side:(canon.side) ~f:(fun ~x ~z ->
+    biome_at ~x ~z biomes
+  ) in
+  let elevation = Grid.copy canon.elevation in
+  Erosion.erode ~biome_at:(Grid.get cached_biomes) ~elevation ;
   let biome_obstacles =
     Grid.Mut.init_exact ~side:(Grid.Mut.side dirt) ~f:(fun ~x ~z ->
         let here_dirt = Grid.Mut.get ~x ~z dirt in
         let here_biome = biome_at ~x ~z biomes in
         get_obstacle here_dirt here_biome )
   in
-  let canond = Overlay.Canon.make_delta ~obstacles:(`Add biome_obstacles) () in
+  let canond = Overlay.Canon.make_delta ~elevation:(`Replace elevation) ~obstacles:(`Add biome_obstacles) () in
   (biomes, canond)
 
-let apply_progress_view (state : t) =
+let after_prepare (state : t) =
+  let biome, canond = state in
+  Overlay.Canon.push_delta canond ;
+
+  let canon = Overlay.Canon.require () in
   let base, _ = Base_overlay.require () in
-  let biome, _canon = state in
   let side = Base_overlay.side base in
   let layer = Progress_view.push_layer () in
   let draw_dense x z =
     if Grid.is_within_side ~x ~z side then
       if Base_overlay.any_water_at ~x ~z base then
-        Some (Base_overlay.color_at ~x ~z base)
+        Some (Base_overlay.color_at ~x ~z canon base)
       else
         let here_biome = biome_at ~x ~z biome in
-        let gray = Base_overlay.gray_at ~x ~z base in
+        let gray = Base_overlay.gray_of_elevation (Overlay.Canon.elevation_at ~x ~z canon) in
         Some (Mg_util.Color.blend 0 (colorize_biome here_biome) gray)
     else None
   in
   Progress_view.update ~fit:(0, side, 0, side) ~draw_dense layer ;
-  Progress_view.save ~side ~format:Images.Png "biome" ;
+  Progress_view.save ~img_side:2048 ~side ~format:Images.Png "biome" ;
   ()
 
 let improvise_river_floors () =
@@ -465,5 +474,5 @@ let apply (state, _canon) (region : Minecraft.Region.t) =
           done )
 
 let require, prepare, apply =
-  Overlay.make_lifecycle ~prepare ~after_prepare:apply_progress_view ~apply
+  Overlay.make_lifecycle ~prepare ~after_prepare ~apply
     overlay

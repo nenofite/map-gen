@@ -97,6 +97,7 @@ let log_progress ?every ~label start stop ~f =
     Printf.printf "%s: %d of %d..." label i total;
     Out_channel.flush stdout
   in
+  prog 0 total;
   for i = start to stop do
       if Int.(i % every = 0) then prog i total ;
       f i

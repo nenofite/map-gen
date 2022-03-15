@@ -8,19 +8,12 @@ type water =
   | Ocean;
 
 [@deriving bin_io]
-type x = {
-  water: Grid.Mut.t(water),
-  elevation: Grid.Mut.t(int),
-};
+type x = {water: Grid.t(water)};
 
 [@deriving bin_io]
 type t = (x, Overlay.Canon.t);
 
 let overlay = Overlay.make_overlay("base", bin_reader_t, bin_writer_t);
-
-let elevation_at = (~x, ~z, base) => {
-  Grid.Mut.get(~x, ~z, base.elevation);
-};
 
 let water_at = (~x, ~z, base) => {
   Grid.Mut.get(~x, ~z, base.water);
@@ -65,12 +58,9 @@ let oceanside_at = (~x, ~z, base) => {
   );
 };
 
-let side = base => Grid.Mut.side(base.elevation);
+let side = base => Grid.Mut.side(base.water);
 
 let gray_of_elevation = e => Float.(of_int(e) / 200.);
-
-let gray_at = (~x, ~z, base) =>
-  gray_of_elevation(elevation_at(~x, ~z, base));
 
 let color_of_water =
   fun
@@ -78,8 +68,8 @@ let color_of_water =
   | River(_)
   | Ocean => 0x0000FF;
 
-let color_at = (~x, ~z, base) => {
-  let elevation = elevation_at(~x, ~z, base);
+let color_at = (~x, ~z, canon, base) => {
+  let elevation = Overlay.Canon.elevation_at(~x, ~z, canon);
   let gray = gray_of_elevation(elevation);
   let color = water_at(~x, ~z, base) |> color_of_water;
   Mg_util.Color.blend(0, color, gray);
@@ -87,11 +77,12 @@ let color_at = (~x, ~z, base) => {
 
 let apply_progress_view = (state: t) => {
   let (world, _canon) = state;
+  let canon = Overlay.Canon.require();
   let side = side(world);
   let layer = Progress_view.push_layer();
   let draw_dense = (x, z) =>
     if (Grid.Griddable.is_within_side(~x, ~z, side)) {
-      Some(color_at(~x, ~z, world));
+      Some(color_at(~x, ~z, canon, world));
     } else {
       None;
     };
@@ -109,10 +100,10 @@ let to_obstacles = base => {
   );
 };
 
-let extract_canonical = (base: x) =>
+let extract_canonical = (base: x, elevation) =>
   Overlay.Canon.{
     side: side(base),
-    elevation: Grid.copy(base.elevation),
+    elevation: Grid.copy(elevation),
     obstacles: to_obstacles(base),
     spawn_points: [],
   };
@@ -141,62 +132,7 @@ let of_river_state = state => {
           },
       Ocean,
     );
-  {elevation, water};
-};
-
-let erode_flat_slopes = elevation => {
-  let t = 2 * precision_coef;
-  let elevation = Grid.copy(elevation);
-  let side = Grid.side(elevation);
-
-  let sea_level = sea_level * precision_coef;
-
-  Tale.log_progress(1, 50, ~label="Eroding", ~f=_ => {
-    for (z in 1 to side - 2) {
-      for (x in 1 to side - 2) {
-        let height = Grid.get(~x, ~z, elevation);
-        if (height > sea_level) {
-          let dmax = ref(-1);
-          let xmax = ref(0);
-          let zmax = ref(0);
-          List.iter(
-            Grid.four_directions,
-            ~f=((dx, dz)) => {
-              let hx = x + dx;
-              let hz = z + dz;
-              let dh = height - Grid.get(~x=hx, ~z=hz, elevation);
-              if (dh > dmax^) {
-                dmax := dh;
-                xmax := hx;
-                zmax := hz;
-              };
-            },
-          );
-          if (dmax^ > 0 && dmax^ <= t) {
-            let height2 = Grid.get(~x=xmax^, ~z=zmax^, elevation);
-            let newh = (height + height2) / 2;
-            Grid.set(~x, ~z, newh, elevation);
-            Grid.set(~x=xmax^, ~z=zmax^, newh, elevation);
-          };
-        };
-      };
-    }
-  });
-
-  Grid.map_in_place(elevation, ~f=(~x as _, ~z as _, e) =>
-    e / precision_coef
-  );
-
-  let water =
-    Grid.init_exact(~side, ~f=(~x, ~z) =>
-      if (Grid.get(~x, ~z, elevation) <= Constants.sea_level) {
-        Ocean;
-      } else {
-        No_water;
-      }
-    );
-
-  {elevation, water};
+  ({water: water}, elevation);
 };
 
 let prepare = () => {
@@ -204,31 +140,24 @@ let prepare = () => {
   let side = Overlay.Canon.require().side;
   let grid = Tectonic.phase(side);
   let grid = Heightmap.phase(grid);
-  /* TODO restore rivers */
-  /* let grid = River.phase(grid);
-     assert(River.side(grid) == side);
-     let base = of_river_state(grid); */
-  Tale.log("About to erode");
-  let base = erode_flat_slopes(grid);
-  Tale.log("About to draw");
+  let grid = River.phase(grid);
+  assert(River.side(grid) == side);
+  let (base, elevation) = of_river_state(grid);
   Progress_view.update(
     ~title="height",
     ~draw_dense=
       (x, z) =>
-        if (Grid.Mut.is_within(~x, ~z, base.elevation)) {
+        if (Grid.Mut.is_within(~x, ~z, elevation)) {
           Some(
-            Grid.Mut.get(~x, ~z, base.elevation)
-            |> Heightmap.colorize_without_coef,
+            Grid.Mut.get(~x, ~z, elevation) |> Heightmap.colorize_without_coef,
           );
         } else {
           None;
         },
     layer,
   );
-  Tale.log("About to save");
-  Progress_view.save(~side=Grid.Mut.side(base.elevation), "height");
-  Tale.log("Saved");
-  let canon = extract_canonical(base);
+  Progress_view.save(~side=Grid.Mut.side(elevation), "height");
+  let canon = extract_canonical(base, elevation);
   Overlay.Canon.restore(canon);
   Progress_view.remove_layer(layer);
   (base, canon);
@@ -237,12 +166,13 @@ let prepare = () => {
 let river_mat = Minecraft.Block.Flowing_water(0);
 let apply_region = (state: t, region: Minecraft.Region.t) => {
   let (world, _canon) = state;
+  let canon = Overlay.Canon.require();
   Minecraft.Region.iter_region_xz(
     region,
     ~f=(~x, ~z) => {
       open Minecraft.Region;
 
-      let elevation = elevation_at(~x, ~z, world);
+      let elevation = Overlay.Canon.elevation_at(~x, ~z, canon);
       let water = water_at(~x, ~z, world);
 
       set_block(~x, ~y=0, ~z, Minecraft.Block.Bedrock, region);
@@ -266,8 +196,8 @@ let apply_region = (state: t, region: Minecraft.Region.t) => {
 };
 
 let after_prepare = ((_, canon) as state) => {
-  apply_progress_view(state);
   Overlay.Canon.restore(canon);
+  apply_progress_view(state);
 };
 
 let (require, prepare, apply) =

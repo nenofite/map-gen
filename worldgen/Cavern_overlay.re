@@ -181,14 +181,14 @@ let prepare = () => {
 };
 
 let apply_region = (cavern, region: Minecraft.Region.t) => {
-  let (world, _) = Base_overlay.require();
+  let canon = Overlay.Canon.require();
   let region = region;
   Minecraft_converter.iter_blocks(
     region,
     (~x, ~z) => {
       open Minecraft.Region;
 
-      let surface_elev = Base_overlay.elevation_at(~x, ~z, world);
+      let surface_elev = Overlay.Canon.elevation_at(~x, ~z, canon);
       let floor_elev = Grid.get(~x, ~z, cavern.floor);
       let ceiling_elev = Grid.get(~x, ~z, cavern.ceiling);
 

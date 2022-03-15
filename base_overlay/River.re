@@ -160,11 +160,9 @@ let flow_raindrop = (~x, ~z, state) => {
 let flow_all_raindrops = state => {
   let dig_revs = 10;
   let starts = Point_cloud.make_int_list(~side=side(state), ~spacing=4, ());
-  for (i in 1 to dig_revs) {
-    Tale.blockf("Digging %d of %d", i, dig_revs, ~f=() => {
-      starts |> List.iter(~f=((x, z)) => dig_raindrop(~x, ~z, state))
-    });
-  };
+  Tale.log_progress(~label="Digging", 1, dig_revs, ~f=_ => {
+    starts |> List.iter(~f=((x, z)) => dig_raindrop(~x, ~z, state))
+  });
   Tale.block("Flowing", ~f=() => {
     starts |> List.iter(~f=((x, z)) => flow_raindrop(~x, ~z, state))
   });
@@ -274,8 +272,9 @@ let add_rivers = state => {
 
 let phase = input => {
   Tale.block("Flow rivers", ~f=() => {
-    let state = convert(input);
+    let original_elevation = input;
+    let state = convert(Grid.copy(input));
     add_rivers(state);
-    state;
+    {...state, elevation: original_elevation};
   });
 };
