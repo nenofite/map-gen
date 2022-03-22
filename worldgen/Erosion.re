@@ -1,6 +1,6 @@
 open! Core_kernel;
 
-let t = 2 * Base_overlay.precision_coef;
+let t = 3 * Base_overlay.precision_coef;
 let sea_level = Base_overlay.sea_level * Base_overlay.precision_coef;
 let shore_level = Base_overlay.shore_level * Base_overlay.precision_coef;
 
@@ -73,6 +73,27 @@ let erode_at = (~x, ~z, ~elevation, ~biome_at) => {
   };
 };
 
+let smooth_edges = (~elevation) => {
+  let side = Grid.side(elevation);
+  let ns = Array.create(~len=List.length(Grid.four_directions) + 1, 0);
+  for (z in 1 to side - 2) {
+    for (x in 1 to side - 2) {
+      ns[0] = Grid.get(~x, ~z, elevation);
+      List.iteri(
+        Grid.four_directions,
+        ~f=(i, (dx, dz)) => {
+          let hx = x + dx;
+          let hz = z + dz;
+          let h = Grid.get(~x=hx, ~z=hz, elevation);
+          ns[i + 1] = h;
+        },
+      );
+      Array.sort(~compare=Int.compare, ns);
+      Grid.set(~x, ~z, ns[Array.length(ns) / 2], elevation);
+    };
+  };
+};
+
 let erode = (~biome_at, ~elevation) => {
   let side = Grid.side(elevation);
 
@@ -80,7 +101,7 @@ let erode = (~biome_at, ~elevation) => {
     e * Base_overlay.precision_coef
   );
 
-  Tale.log_progress(1, 1, ~label="Eroding", ~f=_ => {
+  Tale.log_progress(1, 50, ~label="Eroding", ~f=_ => {
     for (z in 1 to side - 2) {
       for (x in 1 to side - 2) {
         erode_at(~x, ~z, ~elevation, ~biome_at);
@@ -88,7 +109,10 @@ let erode = (~biome_at, ~elevation) => {
     }
   });
 
+  Tale.log("Smoothing");
+  smooth_edges(~elevation);
+
   Grid.map_in_place(elevation, ~f=(~x as _, ~z as _, e) =>
-    e / Base_overlay.precision_coef
+    (e + Base_overlay.precision_coef / 2) / Base_overlay.precision_coef
   );
 };
