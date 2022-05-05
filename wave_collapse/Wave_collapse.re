@@ -141,6 +141,7 @@ module Builder = {
           auto_z1: true,
         };
         next_id := next_id^ + 1;
+        tiles := [tile, ...tiles^];
 
         List.iter(
           tiles^,
@@ -165,8 +166,6 @@ module Builder = {
             };
           },
         );
-
-        tiles := [tile, ...tiles^];
       },
     );
 
