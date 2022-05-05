@@ -44,13 +44,13 @@ module Builder = {
     items: array(array(array('a))),
   };
 
-  let yzx_to_xyz = (yzx: array(array(array('a)))) => {
+  let xyz_of_yzx = (yzx: array(array(array('a)))) => {
     let xs = Array.length(yzx[0][0]);
     let ys = Array.length(yzx);
     let zs = Array.length(yzx[0]);
 
     Array.init(xs, ~f=x =>
-      Array.init(ys, ~f=y => Array.init(zs, ~f=z => yzx[y][z][x]))
+      Array.init(ys, ~f=y => Array.init(zs, ~f=z => yzx[ys - 1 - y][z][x]))
     );
   };
 
@@ -120,7 +120,7 @@ module Builder = {
     List.iter(
       btiles,
       ~f=btile => {
-        let xyz_items = yzx_to_xyz(btile.items);
+        let xyz_items = xyz_of_yzx(btile.items);
         let xs = Array.length(xyz_items);
         let ys = Array.length(xyz_items[0]);
         let zs = Array.length(xyz_items[0][0]);
@@ -217,17 +217,41 @@ let%expect_test "single tiles" = {
           tile(
             ~weight=1.0,
             [|
-              [|[|"g", "h", "i"|], [|"d", "1", "f"|], [|"g", "h", "i"|]|],
-              [|[|"g", "h", "i"|], [|"d", "1", "f"|], [|"g", "h", "i"|]|],
-              [|[|"g", "h", "i"|], [|"d", "1", "f"|], [|"g", "h", "i"|]|],
+              [|
+                [|"g", "h", "i"|], /* */
+                [|"d", "1", "f"|], /* */
+                [|"g", "h", "i"|],
+              |],
+              [|
+                [|"g", "h", "i"|], /* */
+                [|"d", "1", "f"|], /* */
+                [|"g", "h", "i"|] /* */
+              |],
+              [|
+                [|"g", "h", "i"|], /* */
+                [|"d", "1", "f"|], /* */
+                [|"g", "h", "i"|] /* */
+              |],
             |],
           ),
           tile(
             ~weight=1.0,
             [|
-              [|[|"a", "b", "a"|], [|"d", "2", "d"|], [|"g", "h", "g"|]|],
-              [|[|"a", "b", "a"|], [|"d", "2", "d"|], [|"g", "h", "g"|]|],
-              [|[|"a", "b", "a"|], [|"d", "2", "d"|], [|"g", "h", "g"|]|],
+              [|
+                [|"a", "b", "a"|], /* */
+                [|"d", "2", "d"|], /* */
+                [|"g", "h", "g"|] /* */
+              |],
+              [|
+                [|"a", "b", "a"|], /* */
+                [|"d", "2", "d"|], /* */
+                [|"g", "h", "g"|] /* */
+              |],
+              [|
+                [|"a", "b", "a"|], /* */
+                [|"d", "2", "d"|], /* */
+                [|"g", "h", "g"|] /* */
+              |],
             |],
           ),
         ],
@@ -239,5 +263,19 @@ let%expect_test "single tiles" = {
     [%sexp_of: array(array(bool))](ts.x_pairs),
   );
   %expect
-  "";
+  "((false false false) (false false false) (true false true))";
+
+  Sexp.output_hum(
+    Stdio.stdout,
+    [%sexp_of: array(array(bool))](ts.y_pairs),
+  );
+  %expect
+  "((true false false) (false true false) (false false true))";
+
+  Sexp.output_hum(
+    Stdio.stdout,
+    [%sexp_of: array(array(bool))](ts.z_pairs),
+  );
+  %expect
+  "((false true false) (false true false) (false false false))";
 };
