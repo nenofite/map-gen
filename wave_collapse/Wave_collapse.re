@@ -111,66 +111,68 @@ module Builder = {
     };
 
   let create_tileset = (~tilesize: int, btiles: list(btile('a))) => {
-    let tiles = ref([]);
-    let next_id = ref(0);
     let x_pairs_s = Hash_set.Poly.create();
     let y_pairs_s = Hash_set.Poly.create();
     let z_pairs_s = Hash_set.Poly.create();
 
-    List.iter(
-      btiles,
-      ~f=btile => {
-        let xyz_items = xyz_of_yzx(btile.items);
-        let xs = Array.length(xyz_items);
-        let ys = Array.length(xyz_items[0]);
-        let zs = Array.length(xyz_items[0][0]);
+    let tiles =
+      List.concat_map(
+        btiles,
+        ~f=btile => {
+          let xyz_items = xyz_of_yzx(btile.items);
+          let xs = Array.length(xyz_items);
+          let ys = Array.length(xyz_items[0]);
+          let zs = Array.length(xyz_items[0][0]);
 
-        if (xs != tilesize || ys != tilesize || zs != tilesize) {
-          failwith("TODO");
-        };
+          if (xs != tilesize || ys != tilesize || zs != tilesize) {
+            failwith("TODO");
+          };
 
-        let tile = {
-          id: next_id^,
-          weight: btile.weight,
-          items: xyz_items,
-          auto_x0: true,
-          auto_x1: true,
-          auto_y0: true,
-          auto_y1: true,
-          auto_z0: true,
-          auto_z1: true,
-        };
-        next_id := next_id^ + 1;
-        tiles := [tile, ...tiles^];
+          let tile = {
+            id: (-1),
+            weight: btile.weight,
+            items: xyz_items,
+            auto_x0: true,
+            auto_x1: true,
+            auto_y0: true,
+            auto_y1: true,
+            auto_z0: true,
+            auto_z1: true,
+          };
 
-        List.iter(
-          tiles^,
-          ~f=pred => {
-            if (x_match(pred, tile)) {
-              Hash_set.add(x_pairs_s, (pred.id, tile.id));
-            };
-            if (x_match(tile, pred)) {
-              Hash_set.add(x_pairs_s, (tile.id, pred.id));
-            };
-            if (y_match(pred, tile)) {
-              Hash_set.add(y_pairs_s, (pred.id, tile.id));
-            };
-            if (y_match(tile, pred)) {
-              Hash_set.add(y_pairs_s, (tile.id, pred.id));
-            };
-            if (z_match(pred, tile)) {
-              Hash_set.add(z_pairs_s, (pred.id, tile.id));
-            };
-            if (z_match(tile, pred)) {
-              Hash_set.add(z_pairs_s, (tile.id, pred.id));
-            };
-          },
-        );
-      },
-    );
+          [tile];
+        },
+      )
+      |> List.mapi(~f=(i, tile) => {...tile, id: i});
 
-    let tiles = Array.of_list(tiles^);
+    let tiles = Array.of_list(tiles);
     let numtiles = Array.length(tiles);
+
+    for (ta in 0 to numtiles - 1) {
+      for (tb in 0 to ta) {
+        let ta_ = tiles[ta];
+        let tb_ = tiles[tb];
+        if (x_match(ta_, tb_)) {
+          Hash_set.add(x_pairs_s, (ta_.id, tb_.id));
+        };
+        if (x_match(tb_, ta_)) {
+          Hash_set.add(x_pairs_s, (tb_.id, ta_.id));
+        };
+        if (y_match(ta_, tb_)) {
+          Hash_set.add(y_pairs_s, (ta_.id, tb_.id));
+        };
+        if (y_match(tb_, ta_)) {
+          Hash_set.add(y_pairs_s, (tb_.id, ta_.id));
+        };
+        if (z_match(ta_, tb_)) {
+          Hash_set.add(z_pairs_s, (ta_.id, tb_.id));
+        };
+        if (z_match(tb_, ta_)) {
+          Hash_set.add(z_pairs_s, (tb_.id, ta_.id));
+        };
+      };
+    };
+
     let x_pairs = make_blank_pairs(numtiles);
     let y_pairs = make_blank_pairs(numtiles);
     let z_pairs = make_blank_pairs(numtiles);
