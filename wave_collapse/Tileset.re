@@ -32,6 +32,8 @@ type btile('a) = {
   items: array(array(array('a))),
 };
 
+let numtiles = ts => Array.length(ts.tiles);
+
 let pop_id = next_id => {
   let id = next_id^;
   next_id := id + 1;
