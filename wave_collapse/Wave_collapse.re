@@ -44,6 +44,12 @@ module Builder = {
     items: array(array(array('a))),
   };
 
+  let pop_id = next_id => {
+    let id = next_id^;
+    next_id := id + 1;
+    id;
+  };
+
   let xyz_of_yzx = (yzx: array(array(array('a)))) => {
     let xs = Array.length(yzx[0][0]);
     let ys = Array.length(yzx);
@@ -110,7 +116,62 @@ module Builder = {
       false;
     };
 
+  let split_multitile =
+      (
+        ~tilesize: int,
+        ~next_id: ref(int),
+        ~weight: float,
+        multitile: array(array(array('a))),
+      ) => {
+    let xs = Array.length(multitile);
+    let ys = Array.length(multitile[0]);
+    let zs = Array.length(multitile[0][0]);
+
+    let txs = (xs - 1) / (tilesize - 1);
+    let tys = (ys - 1) / (tilesize - 1);
+    let tzs = (zs - 1) / (tilesize - 1);
+    if (txs * (tilesize - 1) + 1 != xs) {
+      failwithf("multitile has bad X size: %d", xs, ());
+    };
+    if (tys * (tilesize - 1) + 1 != ys) {
+      failwithf("multitile has bad Y size: %d", ys, ());
+    };
+    if (tzs * (tilesize - 1) + 1 != zs) {
+      failwithf("multitile has bad Z size: %d", zs, ());
+    };
+
+    let cut_tile = (~tx, ~ty, ~tz) => {
+      let bx = tx * (tilesize - 1);
+      let by = ty * (tilesize - 1);
+      let bz = tz * (tilesize - 1);
+      let items =
+        Array.init(tilesize, ~f=ox =>
+          Array.init(tilesize, ~f=oy =>
+            Array.init(tilesize, ~f=oz => multitile[bx + ox][by + oy][bz + oz])
+          )
+        );
+      {
+        id: pop_id(next_id),
+        weight,
+        items,
+        auto_x0: tx == 0,
+        auto_x1: tx == txs - 1,
+        auto_y0: ty == 0,
+        auto_y1: ty == tys - 1,
+        auto_z0: tz == 0,
+        auto_z1: tz == tzs - 1,
+      };
+    };
+
+    Array.init(txs, ~f=tx =>
+      Array.init(tys, ~f=ty =>
+        Array.init(tzs, ~f=tz => cut_tile(~tx, ~ty, ~tz))
+      )
+    );
+  };
+
   let create_tileset = (~tilesize: int, btiles: list(btile('a))) => {
+    let next_id = ref(0);
     let x_pairs_s = Hash_set.Poly.create();
     let y_pairs_s = Hash_set.Poly.create();
     let z_pairs_s = Hash_set.Poly.create();
@@ -120,30 +181,21 @@ module Builder = {
         btiles,
         ~f=btile => {
           let xyz_items = xyz_of_yzx(btile.items);
-          let xs = Array.length(xyz_items);
-          let ys = Array.length(xyz_items[0]);
-          let zs = Array.length(xyz_items[0][0]);
 
-          if (xs != tilesize || ys != tilesize || zs != tilesize) {
-            failwith("TODO");
-          };
+          let subtiles =
+            split_multitile(
+              xyz_items,
+              ~tilesize,
+              ~next_id,
+              ~weight=btile.weight,
+            );
 
-          let tile = {
-            id: (-1),
-            weight: btile.weight,
-            items: xyz_items,
-            auto_x0: true,
-            auto_x1: true,
-            auto_y0: true,
-            auto_y1: true,
-            auto_z0: true,
-            auto_z1: true,
-          };
-
-          [tile];
+          Array.to_list(subtiles)
+          |> List.concat_map(~f=a =>
+               Array.to_list(a) |> List.concat_map(~f=Array.to_list)
+             );
         },
-      )
-      |> List.mapi(~f=(i, tile) => {...tile, id: i});
+      );
 
     let tiles = Array.of_list(tiles);
     let numtiles = Array.length(tiles);
@@ -221,7 +273,7 @@ let%expect_test "single tiles" = {
               [|
                 [|"g", "h", "i"|], /* */
                 [|"d", "1", "f"|], /* */
-                [|"g", "h", "i"|],
+                [|"g", "h", "i"|] /* */
               |],
               [|
                 [|"g", "h", "i"|], /* */
@@ -279,4 +331,96 @@ let%expect_test "single tiles" = {
   );
   %expect
   "((false true false) (false true false) (false false false))";
+};
+
+let%expect_test "multi tiles" = {
+  let ts =
+    Builder.(
+      create_tileset(
+        ~tilesize=3,
+        [
+          tile(
+            ~weight=1.0,
+            [|
+              [|
+                [|"a", "b", "b", "b", "c"|], /* */
+                [|"d", "0", "0", "0", "f"|], /* */
+                [|"g", "h", "h", "h", "i"|] /* */
+              |],
+              [|
+                [|"a", "b", "b", "b", "c"|], /* */
+                [|"d", "0", "0", "0", "f"|], /* */
+                [|"g", "h", "h", "h", "i"|] /* */
+              |],
+              [|
+                [|"a", "b", "b", "b", "c"|], /* */
+                [|"d", "0", "0", "0", "f"|], /* */
+                [|"g", "h", "h", "h", "i"|] /* */
+              |],
+            |],
+          ),
+          tile(
+            ~weight=1.0,
+            [|
+              [|
+                [|"h", "h", "i"|], /* */
+                [|"d", "2", "f"|], /* */
+                [|"a", "b", "b"|] /* */
+              |],
+              [|
+                [|"h", "h", "i"|], /* */
+                [|"d", "2", "f"|], /* */
+                [|"a", "b", "b"|] /* */
+              |],
+              [|
+                [|"h", "h", "i"|], /* */
+                [|"d", "2", "f"|], /* */
+                [|"a", "b", "b"|] /* */
+              |],
+            |],
+          ),
+          tile(
+            ~weight=1.0,
+            [|
+              [|
+                [|"b", "y", "b"|], /* */
+                [|"0", "3", "0"|], /* */
+                [|"h", "z", "h"|] /* */
+              |],
+              [|
+                [|"b", "y", "b"|], /* */
+                [|"0", "3", "0"|], /* */
+                [|"h", "z", "h"|] /* */
+              |],
+              [|
+                [|"b", "x", "b"|], /* */
+                [|"0", "3", "0"|], /* */
+                [|"h", "x", "h"|] /* */
+              |],
+            |],
+          ),
+        ],
+      )
+    );
+
+  Sexp.output_hum(
+    Stdio.stdout,
+    [%sexp_of: array(array(bool))](ts.x_pairs),
+  );
+  %expect
+  "((false true false false) (false false false false) (false false false false) (false false false true))";
+
+  Sexp.output_hum(
+    Stdio.stdout,
+    [%sexp_of: array(array(bool))](ts.y_pairs),
+  );
+  %expect
+  "((true false false false) (false true false false) (false false true false) (false false false false))";
+
+  Sexp.output_hum(
+    Stdio.stdout,
+    [%sexp_of: array(array(bool))](ts.z_pairs),
+  );
+  %expect
+  "((false false false false) (false false true false) (true false false false) (false false false false))";
 };
