@@ -1,16 +1,20 @@
 open! Core_kernel;
 
 type wave('a) = {
+  /* TODO put this to use */
   tileset: Tileset.tileset('a),
-  /* x y z kind */
-  possibilities: array(array(array(array(bool)))),
   xs: int,
   ys: int,
   zs: int,
+  /* x y z kind */
+  possibilities: array(array(array(array(bool)))),
 };
 
 type wave_evaluator('a) = {
-  initial: wave('a),
+  tileset: Tileset.tileset('a),
+  xs: int,
+  ys: int,
+  zs: int,
   /* x y z kind */
   mutable possibilities: array(array(array(array(bool)))),
   mutable entropy_queue: Priority_queue.t((int, int, int)),
@@ -24,45 +28,39 @@ let make_blank_possibilities = (~numtiles: int, xs: int, ys: int, zs: int) =>
   );
 
 let force_no_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
-  let numtiles = Tileset.numtiles(eval.initial.tileset);
+  let numtiles = Tileset.numtiles(eval.tileset);
   for (t in 0 to numtiles - 1) {
     eval.possibilities[x][y][z][t] = t == tile_id;
   };
 };
 
 let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
-  let initial = {
+  let numtiles = Tileset.numtiles(tileset);
+  {
     tileset,
-    possibilities: [||], /* TODO */
     xs,
     ys,
     zs,
-  };
-  let numtiles = Tileset.numtiles(tileset);
-  {
-    initial,
     possibilities: make_blank_possibilities(~numtiles, xs, ys, zs),
     entropy_queue: Priority_queue.empty,
   };
 };
 
 let tile_fits_at = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
-  let numtiles = Tileset.numtiles(eval.initial.tileset);
+  let numtiles = Tileset.numtiles(eval.tileset);
 
   let x0_fits =
     if (x > 0) {
       Mg_util.Range.exists(0, numtiles - 1, t =>
-        eval.possibilities[x - 1][y][z][t]
-        && eval.initial.tileset.x_pairs[t][tile_id]
+        eval.possibilities[x - 1][y][z][t] && eval.tileset.x_pairs[t][tile_id]
       );
     } else {
       true;
     };
   let x1_fits =
-    if (x < eval.initial.xs - 1) {
+    if (x < eval.xs - 1) {
       Mg_util.Range.exists(0, numtiles - 1, t =>
-        eval.possibilities[x + 1][y][z][t]
-        && eval.initial.tileset.x_pairs[tile_id][t]
+        eval.possibilities[x + 1][y][z][t] && eval.tileset.x_pairs[tile_id][t]
       );
     } else {
       true;
@@ -71,17 +69,15 @@ let tile_fits_at = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
   let y0_fits =
     if (y > 0) {
       Mg_util.Range.exists(0, numtiles - 1, t =>
-        eval.possibilities[x][y - 1][z][t]
-        && eval.initial.tileset.y_pairs[t][tile_id]
+        eval.possibilities[x][y - 1][z][t] && eval.tileset.y_pairs[t][tile_id]
       );
     } else {
       true;
     };
   let y1_fits =
-    if (y < eval.initial.ys - 1) {
+    if (y < eval.ys - 1) {
       Mg_util.Range.exists(0, numtiles - 1, t =>
-        eval.possibilities[x][y + 1][z][t]
-        && eval.initial.tileset.y_pairs[tile_id][t]
+        eval.possibilities[x][y + 1][z][t] && eval.tileset.y_pairs[tile_id][t]
       );
     } else {
       true;
@@ -90,17 +86,15 @@ let tile_fits_at = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
   let z0_fits =
     if (z > 0) {
       Mg_util.Range.exists(0, numtiles - 1, t =>
-        eval.possibilities[x][y][z - 1][t]
-        && eval.initial.tileset.z_pairs[t][tile_id]
+        eval.possibilities[x][y][z - 1][t] && eval.tileset.z_pairs[t][tile_id]
       );
     } else {
       true;
     };
   let z1_fits =
-    if (z < eval.initial.zs - 1) {
+    if (z < eval.zs - 1) {
       Mg_util.Range.exists(0, numtiles - 1, t =>
-        eval.possibilities[x][y][z + 1][t]
-        && eval.initial.tileset.z_pairs[tile_id][t]
+        eval.possibilities[x][y][z + 1][t] && eval.tileset.z_pairs[tile_id][t]
       );
     } else {
       true;
@@ -133,8 +127,8 @@ let push_neighbor_coords = (ls, ~xs, ~ys, ~zs, ~x, ~y, ~z) => {
 };
 
 let propagate_at = (eval, needs_propagate, ~x, ~y, ~z) => {
-  let {xs, ys, zs, _} = eval.initial;
-  let numtiles = Tileset.numtiles(eval.initial.tileset);
+  let {xs, ys, zs, _} = eval;
+  let numtiles = Tileset.numtiles(eval.tileset);
   let changed = ref(false);
   for (t in 0 to numtiles - 1) {
     if (eval.possibilities[x][y][z][t] && !tile_fits_at(eval, ~x, ~y, ~z, t)) {
@@ -158,7 +152,7 @@ let finish_propagating = (eval, needs_propagate) => {
 };
 
 let force_and_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
-  let {xs, ys, zs, _} = eval.initial;
+  let {xs, ys, zs, _} = eval;
   force_no_propagate(eval, ~x, ~y, ~z, tile_id);
   let needs_propagate = ref([]);
   push_neighbor_coords(needs_propagate, ~xs, ~ys, ~zs, ~x, ~y, ~z);
@@ -167,7 +161,7 @@ let force_and_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
 
 let propagate_all = eval => {
   let needs_propagate = ref([]);
-  let {xs, ys, zs, _} = eval.initial;
+  let {xs, ys, zs, _} = eval;
 
   for (x in 0 to xs - 1) {
     for (y in 0 to ys - 1) {
@@ -185,7 +179,7 @@ let entropy_at = (eval, ~x: int, ~y: int, ~z: int) => {
 
 module Test_helpers = {
   let print_entropy = eval => {
-    let {xs, ys, zs, _} = eval.initial;
+    let {xs, ys, zs, _} = eval;
     for (y in 0 to ys - 1) {
       for (z in 0 to zs - 1) {
         for (x in 0 to xs - 1) {
