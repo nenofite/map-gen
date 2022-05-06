@@ -177,6 +177,23 @@ let entropy_at = (eval, ~x: int, ~y: int, ~z: int) => {
   Array.sum((module Int), eval.possibilities[x][y][z], ~f=Bool.to_int) - 1;
 };
 
+let collapse_at = (eval, ~x, ~y, ~z) => {
+  let options =
+    Array.filter_mapi(eval.possibilities[x][y][z], ~f=(i, p) =>
+      if (p) {
+        Some(i);
+      } else {
+        None;
+      }
+    );
+  if (Array.is_empty(options)) {
+    /* TODO */
+    failwith("Contradiction, cannot collapse");
+  };
+  let t = Array.random_element_exn(options);
+  force_and_propagate(eval, ~x, ~y, ~z, t);
+};
+
 module Test_helpers = {
   let print_entropy = eval => {
     let {xs, ys, zs, _} = eval;
@@ -283,7 +300,7 @@ let%expect_test "initial propagation" = {
     1 1 1
   |};
 
-  force_and_propagate(eval, ~x=1, ~y=0, ~z=0, 2);
+  collapse_at(eval, ~x=1, ~y=0, ~z=0);
   Test_helpers.print_entropy(eval);
   %expect
   {|
