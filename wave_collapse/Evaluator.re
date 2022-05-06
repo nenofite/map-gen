@@ -217,6 +217,14 @@ let try_collapse_next_lowest_entropy = eval => {
   };
 };
 
+let observe_at = (eval, ~x, ~y, ~z) => {
+  if (entropy_at(eval, ~x, ~y, ~z) != 0) {
+    failwith("Cannot get because entropy != 0");
+  };
+  let (t, _) = Array.findi_exn(eval.possibilities[x][y][z], ~f=(_, b) => b);
+  t;
+};
+
 module Test_helpers = {
   let print_entropy = eval => {
     let {xs, ys, zs, _} = eval;
