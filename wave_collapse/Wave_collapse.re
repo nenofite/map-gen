@@ -23,10 +23,10 @@ let make_blank_possibilities = (~numtiles: int, xs: int, ys: int, zs: int) =>
     )
   );
 
-let force_no_propagate = (wave, ~x: int, ~y: int, ~z: int, tile_id: int) => {
-  let numtiles = Tileset.numtiles(wave.tileset);
+let force_no_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
+  let numtiles = Tileset.numtiles(eval.initial.tileset);
   for (t in 0 to numtiles - 1) {
-    wave.possibilities[x][y][z][t] = t == tile_id;
+    eval.possibilities[x][y][z][t] = t == tile_id;
   };
 };
 
@@ -97,7 +97,7 @@ let tile_fits_at = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
       true;
     };
   let z1_fits =
-    if (x < eval.initial.zs - 1) {
+    if (z < eval.initial.zs - 1) {
       Mg_util.Range.exists(0, numtiles - 1, t =>
         eval.possibilities[x][y][z + 1][t]
         && eval.initial.tileset.z_pairs[tile_id][t]
@@ -198,39 +198,19 @@ let%expect_test "initial propagation" = {
             ~weight=1.0,
             [|
               [|
-                [|"a", "b", "c"|], /* */
-                [|"d", "0", "f"|], /* */
-                [|"g", "h", "i"|] /* */
+                [|"a", "a", "a"|], /* */
+                [|"a", "0", "a"|], /* */
+                [|"a", "a", "a"|] /* */
               |],
               [|
-                [|"a", "b", "c"|], /* */
-                [|"d", "0", "f"|], /* */
-                [|"g", "h", "i"|] /* */
+                [|"a", "a", "a"|], /* */
+                [|"a", "0", "a"|], /* */
+                [|"a", "a", "a"|] /* */
               |],
               [|
-                [|"a", "b", "c"|], /* */
-                [|"d", "0", "f"|], /* */
-                [|"g", "h", "i"|] /* */
-              |],
-            |],
-          ),
-          tile(
-            ~weight=1.0,
-            [|
-              [|
-                [|"g", "h", "i"|], /* */
-                [|"d", "1", "f"|], /* */
-                [|"g", "h", "i"|] /* */
-              |],
-              [|
-                [|"g", "h", "i"|], /* */
-                [|"d", "1", "f"|], /* */
-                [|"g", "h", "i"|] /* */
-              |],
-              [|
-                [|"g", "h", "i"|], /* */
-                [|"d", "1", "f"|], /* */
-                [|"g", "h", "i"|] /* */
+                [|"a", "a", "a"|], /* */
+                [|"a", "0", "a"|], /* */
+                [|"a", "a", "a"|] /* */
               |],
             |],
           ),
@@ -238,19 +218,39 @@ let%expect_test "initial propagation" = {
             ~weight=1.0,
             [|
               [|
-                [|"a", "b", "a"|], /* */
-                [|"d", "2", "d"|], /* */
-                [|"g", "h", "g"|] /* */
+                [|"x", "|", "x"|], /* */
+                [|"x", "1", "-"|], /* */
+                [|"x", "|", "x"|] /* */
               |],
               [|
-                [|"a", "b", "a"|], /* */
-                [|"d", "2", "d"|], /* */
-                [|"g", "h", "g"|] /* */
+                [|"x", "|", "x"|], /* */
+                [|"x", "1", "-"|], /* */
+                [|"x", "|", "x"|] /* */
               |],
               [|
-                [|"a", "b", "a"|], /* */
-                [|"d", "2", "d"|], /* */
-                [|"g", "h", "g"|] /* */
+                [|"x", "|", "x"|], /* */
+                [|"x", "1", "-"|], /* */
+                [|"x", "|", "x"|] /* */
+              |],
+            |],
+          ),
+          tile(
+            ~weight=1.0,
+            [|
+              [|
+                [|"x", "|", "x"|], /* */
+                [|"-", "2", "x"|], /* */
+                [|"x", "|", "x"|] /* */
+              |],
+              [|
+                [|"x", "|", "x"|], /* */
+                [|"-", "2", "x"|], /* */
+                [|"x", "|", "x"|] /* */
+              |],
+              [|
+                [|"x", "|", "x"|], /* */
+                [|"-", "2", "x"|], /* */
+                [|"x", "|", "x"|] /* */
               |],
             |],
           ),
@@ -258,65 +258,23 @@ let%expect_test "initial propagation" = {
       )
     );
 
-  let eval = make_blank_wave(ts, ~xs=7, ~ys=7, ~zs=7);
+  let eval = make_blank_wave(ts, ~xs=3, ~ys=1, ~zs=3);
+  propagate_all(eval);
   Test_helpers.print_entropy(eval);
   %expect
   {|
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
-    2 2 2 2 2 2 2
+    2 2 2
+    2 2 2
+    2 2 2
   |};
-  ();
+
+  force_no_propagate(eval, ~x=0, ~y=0, ~z=1, 1);
+  propagate_all(eval);
+  Test_helpers.print_entropy(eval);
+  %expect
+  {|
+    1 1 1
+    0 0 0
+    1 1 1
+  |};
 };
