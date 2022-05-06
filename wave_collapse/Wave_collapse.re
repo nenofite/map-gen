@@ -147,6 +147,24 @@ let propagate_at = (eval, needs_propagate, ~x, ~y, ~z) => {
   };
 };
 
+let finish_propagating = (eval, needs_propagate) => {
+  while (!List.is_empty(needs_propagate^)) {
+    let np = needs_propagate^;
+    needs_propagate := [];
+    List.iter(np, ~f=((x, y, z)) => {
+      propagate_at(eval, needs_propagate, ~x, ~y, ~z)
+    });
+  };
+};
+
+let force_and_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
+  let {xs, ys, zs, _} = eval.initial;
+  force_no_propagate(eval, ~x, ~y, ~z, tile_id);
+  let needs_propagate = ref([]);
+  push_neighbor_coords(needs_propagate, ~xs, ~ys, ~zs, ~x, ~y, ~z);
+  finish_propagating(eval, needs_propagate);
+};
+
 let propagate_all = eval => {
   let needs_propagate = ref([]);
   let {xs, ys, zs, _} = eval.initial;
@@ -158,14 +176,7 @@ let propagate_all = eval => {
       };
     };
   };
-
-  while (!List.is_empty(needs_propagate^)) {
-    let np = needs_propagate^;
-    needs_propagate := [];
-    List.iter(np, ~f=((x, y, z)) => {
-      propagate_at(eval, needs_propagate, ~x, ~y, ~z)
-    });
-  };
+  finish_propagating(eval, needs_propagate);
 };
 
 let entropy_at = (eval, ~x: int, ~y: int, ~z: int) => {
@@ -276,5 +287,23 @@ let%expect_test "initial propagation" = {
     1 1 1
     0 0 0
     1 1 1
+  |};
+
+  force_and_propagate(eval, ~x=1, ~y=0, ~z=0, 2);
+  Test_helpers.print_entropy(eval);
+  %expect
+  {|
+    0 0 0
+    0 0 0
+    1 1 1
+  |};
+
+  force_and_propagate(eval, ~x=2, ~y=0, ~z=2, 2);
+  Test_helpers.print_entropy(eval);
+  %expect
+  {|
+    0 0 0
+    0 0 0
+    0 0 0
   |};
 };
