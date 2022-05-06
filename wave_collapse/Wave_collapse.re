@@ -30,6 +30,22 @@ let force_no_propagate = (wave, ~x: int, ~y: int, ~z: int, tile_id: int) => {
   };
 };
 
+let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
+  let initial = {
+    tileset,
+    possibilities: [||], /* TODO */
+    xs,
+    ys,
+    zs,
+  };
+  let numtiles = Tileset.numtiles(tileset);
+  {
+    initial,
+    possibilities: make_blank_possibilities(~numtiles, xs, ys, zs),
+    entropy_queue: Priority_queue.empty,
+  };
+};
+
 let tile_fits_at = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
   let numtiles = Tileset.numtiles(eval.initial.tileset);
 
@@ -150,4 +166,157 @@ let propagate_all = eval => {
       propagate_at(eval, needs_propagate, ~x, ~y, ~z)
     });
   };
+};
+
+let entropy_at = (eval, ~x: int, ~y: int, ~z: int) => {
+  Array.sum((module Int), eval.possibilities[x][y][z], ~f=Bool.to_int) - 1;
+};
+
+module Test_helpers = {
+  let print_entropy = eval => {
+    let {xs, ys, zs, _} = eval.initial;
+    for (y in 0 to ys - 1) {
+      for (z in 0 to zs - 1) {
+        for (x in 0 to xs - 1) {
+          let e = entropy_at(eval, ~x, ~y, ~z);
+          Printf.printf("%d ", e);
+        };
+        Out_channel.newline(stdout);
+      };
+      Out_channel.newline(stdout);
+    };
+  };
+};
+
+let%expect_test "initial propagation" = {
+  let ts =
+    Tileset.(
+      create_tileset(
+        ~tilesize=3,
+        [
+          tile(
+            ~weight=1.0,
+            [|
+              [|
+                [|"a", "b", "c"|], /* */
+                [|"d", "0", "f"|], /* */
+                [|"g", "h", "i"|] /* */
+              |],
+              [|
+                [|"a", "b", "c"|], /* */
+                [|"d", "0", "f"|], /* */
+                [|"g", "h", "i"|] /* */
+              |],
+              [|
+                [|"a", "b", "c"|], /* */
+                [|"d", "0", "f"|], /* */
+                [|"g", "h", "i"|] /* */
+              |],
+            |],
+          ),
+          tile(
+            ~weight=1.0,
+            [|
+              [|
+                [|"g", "h", "i"|], /* */
+                [|"d", "1", "f"|], /* */
+                [|"g", "h", "i"|] /* */
+              |],
+              [|
+                [|"g", "h", "i"|], /* */
+                [|"d", "1", "f"|], /* */
+                [|"g", "h", "i"|] /* */
+              |],
+              [|
+                [|"g", "h", "i"|], /* */
+                [|"d", "1", "f"|], /* */
+                [|"g", "h", "i"|] /* */
+              |],
+            |],
+          ),
+          tile(
+            ~weight=1.0,
+            [|
+              [|
+                [|"a", "b", "a"|], /* */
+                [|"d", "2", "d"|], /* */
+                [|"g", "h", "g"|] /* */
+              |],
+              [|
+                [|"a", "b", "a"|], /* */
+                [|"d", "2", "d"|], /* */
+                [|"g", "h", "g"|] /* */
+              |],
+              [|
+                [|"a", "b", "a"|], /* */
+                [|"d", "2", "d"|], /* */
+                [|"g", "h", "g"|] /* */
+              |],
+            |],
+          ),
+        ],
+      )
+    );
+
+  let eval = make_blank_wave(ts, ~xs=7, ~ys=7, ~zs=7);
+  Test_helpers.print_entropy(eval);
+  %expect
+  {|
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+    2 2 2 2 2 2 2
+  |};
+  ();
 };
