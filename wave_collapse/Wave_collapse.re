@@ -177,6 +177,30 @@ let entropy_at = (eval, ~x: int, ~y: int, ~z: int) => {
   Array.sum((module Int), eval.possibilities[x][y][z], ~f=Bool.to_int) - 1;
 };
 
+let next_lowest_entropy = eval => {
+  let lowest_e = ref(Int.max_value);
+  let coords_at_lowest = ref([]);
+
+  let {xs, ys, zs, _} = eval;
+  for (x in 0 to xs - 1) {
+    for (y in 0 to ys - 1) {
+      for (z in 0 to zs - 1) {
+        let e = entropy_at(eval, ~x, ~y, ~z);
+        if (e > 0) {
+          if (e < lowest_e^) {
+            lowest_e := e;
+            coords_at_lowest := [(x, y, z)];
+          } else if (e == lowest_e^) {
+            coords_at_lowest := [(x, y, z), ...coords_at_lowest^];
+          };
+        };
+      };
+    };
+  };
+
+  List.random_element(coords_at_lowest^);
+};
+
 let collapse_at = (eval, ~x, ~y, ~z) => {
   let options =
     Array.filter_mapi(eval.possibilities[x][y][z], ~f=(i, p) =>
@@ -194,6 +218,15 @@ let collapse_at = (eval, ~x, ~y, ~z) => {
   force_and_propagate(eval, ~x, ~y, ~z, t);
 };
 
+let try_collapse_next_lowest_entropy = eval => {
+  switch (next_lowest_entropy(eval)) {
+  | Some((x, y, z)) =>
+    collapse_at(eval, ~x, ~y, ~z);
+    true;
+  | None => false
+  };
+};
+
 module Test_helpers = {
   let print_entropy = eval => {
     let {xs, ys, zs, _} = eval;
@@ -208,10 +241,8 @@ module Test_helpers = {
       Out_channel.newline(stdout);
     };
   };
-};
 
-let%expect_test "initial propagation" = {
-  let ts =
+  let tileset =
     Tileset.(
       create_tileset(
         ~tilesize=3,
@@ -279,8 +310,10 @@ let%expect_test "initial propagation" = {
         ],
       )
     );
+};
 
-  let eval = make_blank_wave(ts, ~xs=3, ~ys=1, ~zs=3);
+let%expect_test "propagation" = {
+  let eval = make_blank_wave(Test_helpers.tileset, ~xs=3, ~ys=1, ~zs=3);
   propagate_all(eval);
   Test_helpers.print_entropy(eval);
   %expect
@@ -313,6 +346,32 @@ let%expect_test "initial propagation" = {
   Test_helpers.print_entropy(eval);
   %expect
   {|
+    0 0 0
+    0 0 0
+    0 0 0
+  |};
+};
+
+let%expect_test "collapse" = {
+  let eval = make_blank_wave(Test_helpers.tileset, ~xs=3, ~ys=1, ~zs=3);
+  force_and_propagate(eval, ~x=2, ~y=0, ~z=2, 2);
+  Test_helpers.print_entropy(eval);
+  %expect
+  {|
+    1 1 1
+    1 1 1
+    0 0 0
+  |};
+
+  while (try_collapse_next_lowest_entropy(eval)) {
+    Test_helpers.print_entropy(eval);
+  };
+  %expect
+  {|
+    1 1 1
+    0 0 0
+    0 0 0
+
     0 0 0
     0 0 0
     0 0 0
