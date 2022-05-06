@@ -34,7 +34,7 @@ module Test_helpers = {
   };
 };
 
-let%expect_test "getting items after propagation" = {
+let%expect_test "getting items after collapse" = {
   let eval =
     Evaluator.make_blank_wave(Test_helpers.tileset, ~xs=3, ~ys=1, ~zs=3);
   Evaluator.force_and_propagate(eval, ~x=2, ~y=0, ~z=2, 2);
@@ -68,5 +68,5 @@ let%expect_test "getting items after propagation" = {
     x | x | x | x
     - 2 x 1 - 2 x
     x | x | x | x
-  |}
+  |};
 };
