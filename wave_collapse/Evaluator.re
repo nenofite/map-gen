@@ -17,6 +17,20 @@ let make_blank_possibilities = (~numtiles: int, xs: int, ys: int, zs: int) =>
     )
   );
 
+let copy_a4 = a => Array.(map(a, ~f=b => map(b, ~f=c => map(c, ~f=copy))));
+
+let copy = eval => {
+  let {tileset, xs, ys, zs, possibilities, entropy_queue} = eval;
+  {
+    tileset,
+    xs,
+    ys,
+    zs,
+    possibilities: copy_a4(possibilities),
+    entropy_queue,
+  };
+};
+
 let force_no_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
   let numtiles = Tileset.numtiles(eval.tileset);
   for (t in 0 to numtiles - 1) {

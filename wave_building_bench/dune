@@ -4,6 +4,7 @@
  (libraries
   core
   core_bench
+  core_unix.command_unix
   bin_prot
   Mg_util
   Tale
