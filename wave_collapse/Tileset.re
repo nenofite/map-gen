@@ -199,61 +199,73 @@ let flip_z_multitile = (flip_z, tile) => {
   );
 };
 
+let rec expand_btile = (~flip_x, ~flip_z, btile, ls) =>
+  if (btile.flip_x) {
+    let btile = {...btile, flip_x: false};
+    let btile_fx = {...btile, items: flip_x_multitile(flip_x, btile.items)};
+    let ls = expand_btile(~flip_x, ~flip_z, btile, ls);
+    let ls = expand_btile(~flip_x, ~flip_z, btile_fx, ls);
+    ls;
+  } else if (btile.flip_z) {
+    let btile = {...btile, flip_z: false};
+    let btile_fz = {...btile, items: flip_z_multitile(flip_z, btile.items)};
+    let ls = expand_btile(~flip_x, ~flip_z, btile, ls);
+    let ls = expand_btile(~flip_x, ~flip_z, btile_fz, ls);
+    ls;
+  } else {
+    [btile, ...ls];
+  };
+
 let create_tileset =
     (~tilesize: int, ~flip_x=Fn.id, ~flip_z=Fn.id, btiles: list(btile('a))) => {
-  ignore(flip_x);
-  ignore(flip_z);
   let next_id = ref(0);
   let x_pairs_s = Hash_set.Poly.create();
   let y_pairs_s = Hash_set.Poly.create();
   let z_pairs_s = Hash_set.Poly.create();
 
   let tiles =
-    List.concat_map(
-      btiles,
-      ~f=btile => {
-        let xyz_items = xyz_of_yzx(btile.items);
-
-        let (txs, tys, tzs, subtiles) =
-          split_multitile(
-            xyz_items,
-            ~tilesize,
-            ~next_id,
-            ~weight=btile.weight,
-          );
-
-        for (tx in 0 to txs - 1) {
-          for (ty in 0 to tys - 1) {
-            for (tz in 0 to tzs - 1) {
-              let here_id = subtiles[tx][ty][tz].id;
-              if (tx > 0) {
-                Hash_set.add(
-                  x_pairs_s,
-                  (subtiles[tx - 1][ty][tz].id, here_id),
-                );
-              };
-              if (ty > 0) {
-                Hash_set.add(
-                  y_pairs_s,
-                  (subtiles[tx][ty - 1][tz].id, here_id),
-                );
-              };
-              if (tz > 0) {
-                Hash_set.add(
-                  z_pairs_s,
-                  (subtiles[tx][ty][tz - 1].id, here_id),
-                );
-              };
-            };
-          };
-        };
-
-        Array.to_list(subtiles)
-        |> List.concat_map(~f=a =>
-             Array.to_list(a) |> List.concat_map(~f=Array.to_list)
+    List.map(btiles, ~f=btile => {...btile, items: xyz_of_yzx(btile.items)})
+    |> List.concat_map(~f=btile => expand_btile(~flip_x, ~flip_z, btile, []))
+    |> List.concat_map(~f=btile => {
+         let (txs, tys, tzs, subtiles) =
+           split_multitile(
+             btile.items,
+             ~tilesize,
+             ~next_id,
+             ~weight=btile.weight,
            );
-      },
-    );
+
+         for (tx in 0 to txs - 1) {
+           for (ty in 0 to tys - 1) {
+             for (tz in 0 to tzs - 1) {
+               let here_id = subtiles[tx][ty][tz].id;
+               if (tx > 0) {
+                 Hash_set.add(
+                   x_pairs_s,
+                   (subtiles[tx - 1][ty][tz].id, here_id),
+                 );
+               };
+               if (ty > 0) {
+                 Hash_set.add(
+                   y_pairs_s,
+                   (subtiles[tx][ty - 1][tz].id, here_id),
+                 );
+               };
+               if (tz > 0) {
+                 Hash_set.add(
+                   z_pairs_s,
+                   (subtiles[tx][ty][tz - 1].id, here_id),
+                 );
+               };
+             };
+           };
+         };
+
+         Array.to_list(subtiles)
+         |> List.concat_map(~f=a =>
+              Array.to_list(a) |> List.concat_map(~f=Array.to_list)
+            );
+       });
 
   let tiles = Array.of_list(tiles);
   let numtiles = Array.length(tiles);
@@ -630,6 +642,6 @@ let%expect_test "flipping multi tiles" = {
   );
   %expect
   "
-    ((false false true false) (false false false true) (false false false false)
-     (false false false false))";
+    ((false false true false) (false false false true) (true false false false)
+     (false true false false))";
 };
