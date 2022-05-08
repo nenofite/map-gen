@@ -30,6 +30,7 @@ type btile('a) = {
   weight: float,
   /* x y z item */
   items: array(array(array('a))),
+  rotate: bool,
   flip_x: bool,
   flip_z: bool,
 };
@@ -55,12 +56,14 @@ let xyz_of_yzx = (yzx: array(array(array('a)))) => {
 let tile =
     (
       ~weight: float=1.0,
+      ~rotate=false,
       ~flip_x=false,
       ~flip_z=false,
       items: array(array(array('a))),
     )
     : btile('a) => {
   items,
+  rotate,
   flip_x,
   flip_z,
   weight,
@@ -173,6 +176,17 @@ let split_multitile =
   (txs, tys, tzs, subtiles);
 };
 
+let rotate_multitile = (rotate_cw, tile) => {
+  let xs = Array.length(tile);
+  let ys = Array.length(tile[0]);
+  let zs = Array.length(tile[0][0]);
+  Array.init(zs, ~f=z =>
+    Array.init(ys, ~f=y =>
+      Array.init(xs, ~f=x => rotate_cw(tile[x][y][zs - 1 - z]))
+    )
+  );
+};
+
 let flip_x_multitile = (flip_x, tile) => {
   let xs = Array.length(tile);
   Array.mapi(
@@ -199,25 +213,52 @@ let flip_z_multitile = (flip_z, tile) => {
   );
 };
 
-let rec expand_btile = (~flip_x, ~flip_z, btile, ls) =>
-  if (btile.flip_x) {
+let rec expand_btile = (~rotate_cw, ~flip_x, ~flip_z, btile, ls) =>
+  if (btile.rotate) {
+    let btile = {...btile, rotate: false};
+    let btile_r1 = {
+      ...btile,
+      items: rotate_multitile(rotate_cw, btile.items),
+    };
+    let btile_r2 = {
+      ...btile,
+      items: rotate_multitile(rotate_cw, btile_r1.items),
+    };
+    let btile_r3 = {
+      ...btile,
+      items: rotate_multitile(rotate_cw, btile_r2.items),
+    };
+    let ls = expand_btile(~rotate_cw, ~flip_x, ~flip_z, btile, ls);
+    let ls = expand_btile(~rotate_cw, ~flip_x, ~flip_z, btile_r1, ls);
+    let ls = expand_btile(~rotate_cw, ~flip_x, ~flip_z, btile_r2, ls);
+    let ls = expand_btile(~rotate_cw, ~flip_x, ~flip_z, btile_r3, ls);
+    ls;
+  } else if (btile.flip_x) {
     let btile = {...btile, flip_x: false};
     let btile_fx = {...btile, items: flip_x_multitile(flip_x, btile.items)};
-    let ls = expand_btile(~flip_x, ~flip_z, btile, ls);
-    let ls = expand_btile(~flip_x, ~flip_z, btile_fx, ls);
+    let ls = expand_btile(~rotate_cw, ~flip_x, ~flip_z, btile, ls);
+    let ls = expand_btile(~rotate_cw, ~flip_x, ~flip_z, btile_fx, ls);
     ls;
   } else if (btile.flip_z) {
     let btile = {...btile, flip_z: false};
     let btile_fz = {...btile, items: flip_z_multitile(flip_z, btile.items)};
-    let ls = expand_btile(~flip_x, ~flip_z, btile, ls);
-    let ls = expand_btile(~flip_x, ~flip_z, btile_fz, ls);
+    let ls = expand_btile(~rotate_cw, ~flip_x, ~flip_z, btile, ls);
+    let ls = expand_btile(~rotate_cw, ~flip_x, ~flip_z, btile_fz, ls);
     ls;
   } else {
     [btile, ...ls];
   };
 
+let twice = (f, x) => f(f(x));
+
 let create_tileset =
-    (~tilesize: int, ~flip_x=Fn.id, ~flip_z=Fn.id, btiles: list(btile('a))) => {
+    (
+      ~tilesize: int,
+      ~rotate_cw=Fn.id,
+      ~flip_x=twice(rotate_cw),
+      ~flip_z=twice(rotate_cw),
+      btiles: list(btile('a)),
+    ) => {
   let next_id = ref(0);
   let x_pairs_s = Hash_set.Poly.create();
   let y_pairs_s = Hash_set.Poly.create();
@@ -225,7 +266,9 @@ let create_tileset =
 
   let tiles =
     List.map(btiles, ~f=btile => {...btile, items: xyz_of_yzx(btile.items)})
-    |> List.concat_map(~f=btile => expand_btile(~flip_x, ~flip_z, btile, []))
+    |> List.concat_map(~f=btile =>
+         expand_btile(~rotate_cw, ~flip_x, ~flip_z, btile, [])
+       )
     |> List.concat_map(~f=btile => {
          let (txs, tys, tzs, subtiles) =
            split_multitile(
