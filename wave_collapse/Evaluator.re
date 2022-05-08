@@ -242,13 +242,22 @@ let collapse_all = eval => {
   };
 };
 
-let observe_at = (eval, ~x, ~y, ~z) => {
+let observe_at_exn = (eval, ~x, ~y, ~z) => {
   if (entropy_at(eval, ~x, ~y, ~z) != 0) {
     failwith("Cannot get because entropy != 0");
   };
   let (t, _) = Array.findi_exn(eval.possibilities[x][y][z], ~f=(_, b) => b);
   t;
 };
+
+let observe_at = (eval, ~x, ~y, ~z) =>
+  if (entropy_at(eval, ~x, ~y, ~z) != 0) {
+    None;
+  } else {
+    let (t, _) =
+      Array.findi_exn(eval.possibilities[x][y][z], ~f=(_, b) => b);
+    Some(t);
+  };
 
 module Test_helpers = {
   let print_entropy = eval => {
