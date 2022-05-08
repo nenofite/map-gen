@@ -1,0 +1,14 @@
+(executable
+ (name Bnch)
+ (public_name Wave_building_bench)
+ (libraries
+  core
+  core_bench
+  bin_prot
+  Mg_util
+  Tale
+  Grid
+  Priority_queue
+  Minecraft
+  Wave_collapse
+  Wave_building))
