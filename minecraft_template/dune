@@ -1,6 +1,6 @@
 (library
  (name Minecraft_template)
  (inline_tests)
- (libraries core_kernel Mg_util Minecraft)
+ (libraries core Mg_util Minecraft)
  (preprocess
   (pps ppx_deriving.eq ppx_bin_prot ppx_inline_test ppx_expect ppx_sexp_conv)))

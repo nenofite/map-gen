@@ -1,4 +1,4 @@
-open Core_kernel
+open Core
 
 let overlays_base = ref "overlays"
 

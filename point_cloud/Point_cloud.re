@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 /*
  Conventions:
@@ -126,7 +126,7 @@ let make_int_list = (~cover_edges=?, ~side, ~spacing=?, ()) => {
 let distance2 = (ax, ay, bx, by) => Float.((ax - bx) ** 2. + (ay - by) ** 2.);
 
 let rec closest_point = (~radius=1, cloud, x, y) => {
-  open Core_kernel;
+  open Core;
   /* Convert to cloud x, y */
   let cx = (Int.of_float(x) - cloud.offset) / cloud.spacing;
   let cy = (Int.of_float(y) - cloud.offset) / cloud.spacing;

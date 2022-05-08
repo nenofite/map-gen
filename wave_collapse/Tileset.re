@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 type tile('a) = {
   id: int,

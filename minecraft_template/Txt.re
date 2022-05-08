@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 module Space = {
   type space('a) =
@@ -61,7 +61,7 @@ let parse_template = (~palette, ~has_spaces=true, s) => {
 };
 
 let%expect_test "parse a template with marks" = {
-  open Core_kernel;
+  open Core;
   let palette =
     Palette_incl.[
       ("-", Filled(Air)),

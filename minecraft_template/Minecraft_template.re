@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 include Core;
 module Rect = Rect;

@@ -206,7 +206,7 @@ let apply_snow =
 };
 
 let make_clusters = (~spacing, ~f, ~biomes: Biome_overlay.t', region) => {
-  open Core_kernel;
+  open Core;
   let (x_off, z_off) = Minecraft.Region.region_offset(region);
   Point_cloud.init(
     ~cover_edges=false,
@@ -228,7 +228,7 @@ let fill_clusters =
       cluster_centers,
       region,
     ) => {
-  open Core_kernel;
+  open Core;
   let (x_off, z_off) = Minecraft.Region.region_offset(region);
   let coords =
     Point_cloud.make_int_list(
@@ -273,7 +273,7 @@ let place_flower = (~x, ~z, flower_block, region) => {
 };
 
 let apply_flowers = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
-  open Core_kernel;
+  open Core;
   let region = region;
   let cluster_centers =
     make_clusters(
@@ -324,7 +324,7 @@ let cactus_has_space = (~x, ~y, ~z, region) => {
 };
 
 let place_cactus = (~x, ~z, region) => {
-  open Core_kernel;
+  open Core;
   let y = Minecraft.Region.height_at(region, ~x, ~z);
   let block = Minecraft.Region.get_block(region, ~x, ~y, ~z);
   switch (block) {
@@ -338,7 +338,7 @@ let place_cactus = (~x, ~z, region) => {
 };
 
 let apply_cactus = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
-  open Core_kernel;
+  open Core;
   let cluster_centers =
     make_clusters(
       ~spacing=100,
@@ -366,7 +366,7 @@ let apply_cactus = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
 };
 
 let apply_edge_cactus = (biomes: Biome_overlay.t', region: Minecraft.Region.t) => {
-  open Core_kernel;
+  open Core;
   let side = Overlay.Canon.require().side;
   let is_desert = (~x, ~z) => {
     switch (Biome_overlay.biome_at(~x, ~z, biomes)) {

@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 let t = 3 * Base_overlay.precision_coef;
 let sea_level = Base_overlay.sea_level * Base_overlay.precision_coef;

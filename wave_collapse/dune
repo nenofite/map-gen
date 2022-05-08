@@ -1,13 +1,7 @@
 (library
  (name Wave_collapse)
  (inline_tests)
- (libraries
-  core_kernel
-  bin_prot
-  Mg_util
-  Tale
-  Grid
-  Priority_queue)
+ (libraries core bin_prot Mg_util Tale Grid Priority_queue)
  (preprocess
   (pps
    ppx_inline_test

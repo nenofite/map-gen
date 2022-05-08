@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 
 type t = {rotation_cw: int; template: unit Minecraft_template.t}
 [@@deriving bin_io]

@@ -2,7 +2,7 @@
  (name Wave_building)
  (inline_tests)
  (libraries
-  core_kernel
+  core
   bin_prot
   Mg_util
   Tale

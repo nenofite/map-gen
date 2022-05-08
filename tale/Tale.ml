@@ -1,7 +1,7 @@
-(* Need to bypass Core_kernel *)
+(* Need to bypass Core *)
 let gettimeofday = Unix.gettimeofday
 
-open Core_kernel
+open Core
 
 type level = {title: string; indents: int; needs_closer: bool; start_ms: float}
 
@@ -92,16 +92,16 @@ let log_progress ?every ~label start stop ~f =
   let total = stop - start + 1 in
   let every = match every with Some n -> n | None -> Int.max (total / 20) 1 in
   let prog i total =
-    Out_channel.print_string "\r";
-    print_indents (current_indents ());
-    Printf.printf "%s: %d of %d..." label i total;
+    Out_channel.print_string "\r" ;
+    print_indents (current_indents ()) ;
+    Printf.printf "%s: %d of %d..." label i total ;
     Out_channel.flush stdout
   in
-  prog 0 total;
+  prog 0 total ;
   for i = start to stop do
-      if Int.(i % every = 0) then prog i total ;
-      f i
-  done;
-  Out_channel.print_string "\r";
-  logf "%s: %d of %d" label total total;
+    if Int.(i % every = 0) then prog i total ;
+    f i
+  done ;
+  Out_channel.print_string "\r" ;
+  logf "%s: %d of %d" label total total ;
   Out_channel.newline stdout

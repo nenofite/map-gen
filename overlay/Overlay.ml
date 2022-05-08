@@ -1,3 +1,3 @@
-open! Core_kernel
+open! Core
 include Overlay_core
 module Canon = Canon

@@ -1,4 +1,4 @@
-open Core_kernel;
+open Core;
 
 type options = {
   glassify: Minecraft.Block.material => bool,

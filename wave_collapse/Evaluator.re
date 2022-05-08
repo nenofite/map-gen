@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 type wave_evaluator('a) = {
   tileset: Tileset.tileset('a),

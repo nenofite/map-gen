@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 
 (** taken from Rosetta Code https://rosettacode.org/wiki/Perlin_noise#OCaml *)
 
@@ -76,7 +76,7 @@ let at_opts ?(freq = 1.) ?(intervals = 1) ~x ~y ~z () =
   let freq = ref freq in
   let r = ref 0.0 in
   for i = 1 to intervals do
-    r := !r +. at_with_freq ~freq:!freq ~x ~y ~z /. float i;
+    r := !r +. (at_with_freq ~freq:!freq ~x ~y ~z /. float i) ;
     freq := !freq *. 0.5
-  done;
+  done ;
   !r

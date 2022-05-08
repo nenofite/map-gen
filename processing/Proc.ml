@@ -1,4 +1,4 @@
-open Core_kernel
+open Core
 open Tsdl
 
 module Coord = struct
@@ -12,36 +12,36 @@ module Coord = struct
 end
 
 (* let draw_splat size =
-  let width = size_x () in
-  let height = size_y () in
-  let marked = Coord.Hash_set.create () in
-  let periphery =
-    Pairing_heap.create ~cmp:(fun (a, _) (b, _) -> Int.compare a b) ()
-  in
-  let start = (width / 2, height / 2) in
-  Pairing_heap.add periphery (0, start) ;
-  set_color blue ;
-  fill_rect 0 0 (width - 1) (height - 1) ;
-  set_color green ;
-  let last_syncd = ref 0 in
-  while Hash_set.length marked < size do
-    if Hash_set.length marked - !last_syncd > 10 then (
-      last_syncd := Hash_set.length marked ;
-      synchronize () ) ;
-    let _, next = Pairing_heap.pop_exn periphery in
-    let x, y = next in
-    if not (Hash_set.mem marked next) then (
-      Hash_set.add marked next ;
-      plot x y ;
-      for x = x - 1 to x + 1 do
-        for y = y - 1 to y + 1 do
-          let r = Random.bits () in
-          Pairing_heap.add periphery (r, (x, y))
-        done
-      done )
-  done ;
-  synchronize () ;
-  () *)
+   let width = size_x () in
+   let height = size_y () in
+   let marked = Coord.Hash_set.create () in
+   let periphery =
+     Pairing_heap.create ~cmp:(fun (a, _) (b, _) -> Int.compare a b) ()
+   in
+   let start = (width / 2, height / 2) in
+   Pairing_heap.add periphery (0, start) ;
+   set_color blue ;
+   fill_rect 0 0 (width - 1) (height - 1) ;
+   set_color green ;
+   let last_syncd = ref 0 in
+   while Hash_set.length marked < size do
+     if Hash_set.length marked - !last_syncd > 10 then (
+       last_syncd := Hash_set.length marked ;
+       synchronize () ) ;
+     let _, next = Pairing_heap.pop_exn periphery in
+     let x, y = next in
+     if not (Hash_set.mem marked next) then (
+       Hash_set.add marked next ;
+       plot x y ;
+       for x = x - 1 to x + 1 do
+         for y = y - 1 to y + 1 do
+           let r = Random.bits () in
+           Pairing_heap.add periphery (r, (x, y))
+         done
+       done )
+   done ;
+   synchronize () ;
+   () *)
 
 let ok_or_sdl r = match r with Ok a -> a | Error (`Msg a) -> failwith a
 
@@ -64,7 +64,7 @@ let main () =
        Sdl.create_window_and_renderer ~w:400 ~h:400 Sdl.Window.opengl
      in
      Sdl.set_window_title w "Howdy!" ;
-     return (w, r))
+     return (w, r) )
     |> Result.map_error ~f:(fun (`Msg s) -> s)
     |> Result.ok_or_failwith
   in

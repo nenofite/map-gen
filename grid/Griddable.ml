@@ -1,4 +1,4 @@
-open Core_kernel
+open Core
 
 module Helpers = struct
   let is_within_side ~x ~z s = 0 <= x && x < s && 0 <= z && z < s

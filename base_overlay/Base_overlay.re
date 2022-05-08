@@ -1,4 +1,4 @@
-open Core_kernel;
+open Core;
 include Constants;
 
 [@deriving (eq, ord, bin_io)]

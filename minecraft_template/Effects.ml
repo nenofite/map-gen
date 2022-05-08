@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 
 let lateral_and_up = [(-1, 0, 0); (1, 0, 0); (0, 0, -1); (0, 0, 1); (0, 1, 0)]
 

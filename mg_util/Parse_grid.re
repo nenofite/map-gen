@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 let parse_3d = (~has_spaces=true, s) => {
   let append_if_not_empty = (l, ls) =>

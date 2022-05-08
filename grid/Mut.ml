@@ -1,7 +1,7 @@
 (** Mutable grids backed by arrays, which can be pre-allocated to allow for
     fast subdivision *)
 
-open Core_kernel
+open Core
 
 module T = struct
   type 'a t = {mutable side: int; data: 'a array} [@@deriving bin_io]

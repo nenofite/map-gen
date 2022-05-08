@@ -1,6 +1,6 @@
 (library
  (name Mg_util)
- (libraries bin_prot core_kernel Tale)
+ (libraries bin_prot core Tale)
  (preprocess
   (pps
    ppx_inline_test

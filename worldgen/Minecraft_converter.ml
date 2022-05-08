@@ -1,4 +1,4 @@
-open Core_kernel
+open Core
 
 let region_of_spawn (x, _y, z) = Minecraft.Region.region_containing ~x ~z
 

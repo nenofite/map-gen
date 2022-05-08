@@ -1,4 +1,4 @@
-open Core_kernel
+open Core
 
 let subdivide_with_fill ~fill m =
   let open Mut in

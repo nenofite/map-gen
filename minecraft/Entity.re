@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 /**
   entity is a Minecraft entity[0] such as a villager

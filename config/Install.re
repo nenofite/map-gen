@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 let should_install_at = ref(None: option(string));
 

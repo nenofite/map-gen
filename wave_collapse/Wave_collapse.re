@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 let item_at_exn =
     (eval: Evaluator.wave_evaluator('a), ~x: int, ~y: int, ~z: int) => {

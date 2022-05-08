@@ -5,7 +5,7 @@
   bin_prot
   camlimages.core
   camlimages.png
-  core_kernel
+  core
   parmap
   Base_overlay
   Building

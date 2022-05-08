@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 open Town_overlay_i;
 
 type input = {
@@ -227,7 +227,7 @@ let set_block_into_elevation = (state, ~block) => {
 };
 
 let flatten_blocks = (state, ~blocks) => {
-  Core_kernel.List.map(blocks, ~f=block => flatten_block(state, ~block));
+  Core.List.map(blocks, ~f=block => flatten_block(state, ~block));
 };
 
 let sort_by_distance_to_center = (center, block_centers) => {
@@ -347,7 +347,7 @@ let add_block_to_obstacles = (~block, obstacles) => {
 };
 
 let add_roads_to_obstacles = (~roads, obstacles) => {
-  Core_kernel.(
+  Core.(
     List.fold(
       roads,
       ~init=obstacles,

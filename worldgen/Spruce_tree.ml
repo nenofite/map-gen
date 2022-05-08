@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 
 let log = Minecraft.Block.(Log (Spruce_log, Y))
 

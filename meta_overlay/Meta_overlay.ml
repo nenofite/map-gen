@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 
 (**
 The meta overlay handles "out of character" elements, ie. places walls around

@@ -2,7 +2,7 @@
  (name Town_overlay)
  (inline_tests)
  (libraries
-  core_kernel
+  core
   Base_overlay
   Building_old
   Mg_util

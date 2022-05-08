@@ -15,7 +15,7 @@ depends: [
     "bitstring"
     "conf-libpng"
     "camlimages"
-    "core_kernel"
+    "core"
     "core"
     "parmap"
     "ppx_sexp_conv"

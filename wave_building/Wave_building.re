@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 let palette = [
   (".", Minecraft.Block.Air),
@@ -4371,5 +4371,5 @@ let%expect_test "yay" = {
     , , O # # # # # # # # # # # # # # # O , ,
     , , , , , , , , , , , , , , , , , , , , ,
     , , , , , , , , , , , , , , , , , , , , ,
-  |}
+  |};
 };

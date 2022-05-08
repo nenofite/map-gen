@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 open Text_grid;
 
 let show_region_top_down =

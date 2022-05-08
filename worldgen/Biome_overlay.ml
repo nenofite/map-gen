@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 include Biome_overlay_i
 
 let scale_factor = 8
@@ -134,7 +134,9 @@ let temperature_at ~x ~z =
   let open Float in
   let side = (Overlay.Canon.require ()).side in
   let offset =
-    Mg_util.Perlin.at_opts ~freq:256. ~intervals:2 ~x:(of_int x) ~y:0. ~z:(of_int z) () * 25.
+    Mg_util.Perlin.at_opts ~freq:256. ~intervals:2 ~x:(of_int x) ~y:0.
+      ~z:(of_int z) ()
+    * 25.
     (* + Mg_util.Perlin.at_opts ~freq:3. ~x:(of_int x) ~y:0. ~z:(of_int z) () * 5. *)
   in
   (* range 0 to 50 degrees Celsius *)
@@ -349,9 +351,9 @@ let prepare () =
   let b9 = Either.Second Snow_taiga in
   let categories = [|b0; b1; b2; b3; b4; b5; b6; b7; b8; b9|] in
   let biomes = {precipitation; categories} in
-  let cached_biomes = Grid.init_exact ~side:(canon.side) ~f:(fun ~x ~z ->
-    biome_at ~x ~z biomes
-  ) in
+  let cached_biomes =
+    Grid.init_exact ~side:canon.side ~f:(fun ~x ~z -> biome_at ~x ~z biomes)
+  in
   let elevation = Grid.copy canon.elevation in
   Erosion.erode ~biome_at:(Grid.get cached_biomes) ~elevation ;
   let biome_obstacles =
@@ -360,13 +362,15 @@ let prepare () =
         let here_biome = biome_at ~x ~z biomes in
         get_obstacle here_dirt here_biome )
   in
-  let canond = Overlay.Canon.make_delta ~elevation:(`Replace elevation) ~obstacles:(`Add biome_obstacles) () in
+  let canond =
+    Overlay.Canon.make_delta ~elevation:(`Replace elevation)
+      ~obstacles:(`Add biome_obstacles) ()
+  in
   (biomes, canond)
 
 let after_prepare (state : t) =
   let biome, canond = state in
   Overlay.Canon.push_delta canond ;
-
   let canon = Overlay.Canon.require () in
   let base, _ = Base_overlay.require () in
   let side = Base_overlay.side base in
@@ -377,7 +381,10 @@ let after_prepare (state : t) =
         Some (Base_overlay.color_at ~x ~z canon base)
       else
         let here_biome = biome_at ~x ~z biome in
-        let gray = Base_overlay.gray_of_elevation (Overlay.Canon.elevation_at ~x ~z canon) in
+        let gray =
+          Base_overlay.gray_of_elevation
+            (Overlay.Canon.elevation_at ~x ~z canon)
+        in
         Some (Mg_util.Color.blend 0 (colorize_biome here_biome) gray)
     else None
   in
@@ -474,5 +481,4 @@ let apply (state, _canon) (region : Minecraft.Region.t) =
           done )
 
 let require, prepare, apply =
-  Overlay.make_lifecycle ~prepare ~after_prepare ~apply
-    overlay
+  Overlay.make_lifecycle ~prepare ~after_prepare ~apply overlay

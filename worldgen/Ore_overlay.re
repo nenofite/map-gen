@@ -209,7 +209,7 @@ let prepare = () => {
 };
 
 let remove_i = (i, list) => {
-  open Core_kernel;
+  open Core;
   let rec go = (passed, i, rest) =>
     switch (rest) {
     | [] => raise(Invalid_argument("index out of bounds"))

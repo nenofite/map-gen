@@ -1,6 +1,6 @@
 (library
  (name Grid)
  (inline_tests)
- (libraries core_kernel Mg_util)
+ (libraries core Mg_util)
  (preprocess
   (pps ppx_sexp_conv ppx_bin_prot ppx_expect)))

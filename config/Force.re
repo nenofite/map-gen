@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 let force_overlays: ref(list(string)) = ref([]);
 

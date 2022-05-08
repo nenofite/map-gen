@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 module Pq = Priority_queue.Int;
 module Path_coord = Rules.Coord;
 

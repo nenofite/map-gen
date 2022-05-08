@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 type text_grid = Grid.Mut.t(string);
 

@@ -1,4 +1,4 @@
-open Core_kernel;
+open Core;
 
 type needs_update_list('a) = list((int, list('a)));
 

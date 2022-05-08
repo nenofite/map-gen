@@ -3,7 +3,7 @@
  (inline_tests)
  (libraries
   bin_prot
-  core_kernel
+  core
   Mg_util
   Tale
   Grid

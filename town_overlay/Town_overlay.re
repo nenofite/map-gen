@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 include Town_overlay_i;
 open Mg_util;
 
