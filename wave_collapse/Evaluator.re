@@ -217,6 +217,12 @@ let try_collapse_next_lowest_entropy = eval => {
   };
 };
 
+let collapse_all = eval => {
+  while (try_collapse_next_lowest_entropy(eval)) {
+    ();
+  };
+};
+
 let observe_at = (eval, ~x, ~y, ~z) => {
   if (entropy_at(eval, ~x, ~y, ~z) != 0) {
     failwith("Cannot get because entropy != 0");

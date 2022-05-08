@@ -13,6 +13,9 @@ let item_at = (eval: Evaluator.wave_evaluator('a), ~x: int, ~y: int, ~z: int) =>
   eval.tileset.tiles[t].items[subx][suby][subz];
 };
 
+include Tileset;
+include Evaluator;
+
 module Test_helpers = {
   include Evaluator.Test_helpers;
 
