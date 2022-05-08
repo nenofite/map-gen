@@ -30,6 +30,8 @@ type btile('a) = {
   weight: float,
   /* x y z item */
   items: array(array(array('a))),
+  flip_x: bool,
+  flip_z: bool,
 };
 
 let numtiles = ts => Array.length(ts.tiles);
@@ -50,8 +52,17 @@ let xyz_of_yzx = (yzx: array(array(array('a)))) => {
   );
 };
 
-let tile = (~weight: float, items: array(array(array('a)))): btile('a) => {
+let tile =
+    (
+      ~weight: float=1.0,
+      ~flip_x=false,
+      ~flip_z=false,
+      items: array(array(array('a))),
+    )
+    : btile('a) => {
   items,
+  flip_x,
+  flip_z,
   weight,
 };
 
@@ -162,7 +173,36 @@ let split_multitile =
   (txs, tys, tzs, subtiles);
 };
 
-let create_tileset = (~tilesize: int, btiles: list(btile('a))) => {
+let flip_x_multitile = (flip_x, tile) => {
+  let xs = Array.length(tile);
+  Array.mapi(
+    tile,
+    ~f=(i, _) => {
+      let yz = tile[xs - 1 - i];
+      Array.map(yz, ~f=z => Array.map(z, ~f=item => flip_x(item)));
+    },
+  );
+};
+
+let flip_z_multitile = (flip_z, tile) => {
+  let zs = Array.length(tile[0][0]);
+  Array.map(tile, ~f=yz =>
+    Array.map(yz, ~f=z =>
+      Array.mapi(
+        z,
+        ~f=(i, _) => {
+          let item = z[zs - 1 - i];
+          flip_z(item);
+        },
+      )
+    )
+  );
+};
+
+let create_tileset =
+    (~tilesize: int, ~flip_x=Fn.id, ~flip_z=Fn.id, btiles: list(btile('a))) => {
+  ignore(flip_x);
+  ignore(flip_z);
   let next_id = ref(0);
   let x_pairs_s = Hash_set.Poly.create();
   let y_pairs_s = Hash_set.Poly.create();
@@ -256,6 +296,24 @@ let create_tileset = (~tilesize: int, btiles: list(btile('a))) => {
   };
 
   {tilesize, tiles, x_pairs, y_pairs, z_pairs};
+};
+
+module Test_helpers = {
+  let print_multitile = multitile => {
+    let xs = Array.length(multitile);
+    let ys = Array.length(multitile[0]);
+    let zs = Array.length(multitile[0][0]);
+
+    for (y in ys - 1 downto 0) {
+      for (z in 0 to zs - 1) {
+        for (x in 0 to xs - 1) {
+          Printf.printf("%s ", multitile[x][y][z]);
+        };
+        Out_channel.newline(stdout);
+      };
+      Out_channel.newline(stdout);
+    };
+  };
 };
 
 let%expect_test "single tiles" = {
@@ -441,5 +499,137 @@ let%expect_test "multi tiles" = {
   %expect
   "
     ((false false false false) (false false true false) (true false false false)
+     (false false false false))";
+};
+
+let%expect_test "flipping" = {
+  let flipped_x =
+    flip_x_multitile(
+      String.uppercase,
+      xyz_of_yzx([|
+        [|
+          [|"a", "b", "c"|], /* */
+          [|"x", "y", "y"|], /* */
+          [|"m", "n", "o"|] /* */
+        |],
+        [|
+          [|"x", "y", "y"|], /* */
+          [|"a", "b", "c"|], /* */
+          [|"m", "n", "o"|] /* */
+        |],
+        [|
+          [|"x", "y", "y"|], /* */
+          [|"m", "n", "o"|], /* */
+          [|"a", "b", "c"|] /* */
+        |],
+      |]),
+    );
+  Test_helpers.print_multitile(flipped_x);
+  %expect
+  {|
+  C B A
+  Y Y X
+  O N M
+
+  Y Y X
+  C B A
+  O N M
+
+  Y Y X
+  O N M
+  C B A
+  |};
+
+  let flipped_z =
+    flip_z_multitile(
+      String.uppercase,
+      xyz_of_yzx([|
+        [|
+          [|"a", "b", "c"|], /* */
+          [|"x", "y", "y"|], /* */
+          [|"m", "n", "o"|] /* */
+        |],
+        [|
+          [|"x", "y", "y"|], /* */
+          [|"a", "b", "c"|], /* */
+          [|"m", "n", "o"|] /* */
+        |],
+        [|
+          [|"x", "y", "y"|], /* */
+          [|"m", "n", "o"|], /* */
+          [|"a", "b", "c"|] /* */
+        |],
+      |]),
+    );
+  Test_helpers.print_multitile(flipped_z);
+  %expect
+  {|
+  M N O
+  X Y Y
+  A B C
+
+  M N O
+  A B C
+  X Y Y
+
+  A B C
+  M N O
+  X Y Y
+  |};
+};
+
+let%expect_test "flipping multi tiles" = {
+  let ts =
+    create_tileset(
+      ~tilesize=3,
+      [
+        tile(
+          ~flip_z=true,
+          [|
+            [|
+              [|"a", "b", "b", "b", "c"|], /* */
+              [|"d", "0", "0", "0", "f"|], /* */
+              [|"g", "h", "h", "h", "i"|] /* */
+            |],
+            [|
+              [|"a", "b", "b", "b", "c"|], /* */
+              [|"d", "0", "0", "0", "f"|], /* */
+              [|"g", "h", "h", "h", "i"|] /* */
+            |],
+            [|
+              [|"a", "b", "b", "b", "c"|], /* */
+              [|"d", "0", "0", "0", "f"|], /* */
+              [|"g", "h", "h", "h", "i"|] /* */
+            |],
+          |],
+        ),
+      ],
+    );
+
+  Sexp.output_hum(
+    Stdio.stdout,
+    [%sexp_of: array(array(bool))](ts.x_pairs),
+  );
+  %expect
+  "
+    ((false true false false) (false false false false) (false false false true)
+     (false false false false))";
+
+  Sexp.output_hum(
+    Stdio.stdout,
+    [%sexp_of: array(array(bool))](ts.y_pairs),
+  );
+  %expect
+  "
+    ((true false false false) (false true false false) (false false true false)
+     (false false false true))";
+
+  Sexp.output_hum(
+    Stdio.stdout,
+    [%sexp_of: array(array(bool))](ts.z_pairs),
+  );
+  %expect
+  "
+    ((false false true false) (false false false true) (false false false false)
      (false false false false))";
 };
