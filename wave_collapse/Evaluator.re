@@ -191,6 +191,25 @@ let next_lowest_entropy = eval => {
   List.random_element(coords_at_lowest^);
 };
 
+let random_tile_by_weight =
+    (options: array(int), ~tileset: Tileset.tileset('a)) => {
+  let total_weight =
+    Array.fold(options, ~init=0.0, ~f=(s, i) => s +. tileset.tiles[i].weight);
+  let selected_weight = Random.float(total_weight);
+
+  let rec select = (i, remaining_weight) => {
+    let remaining_weight =
+      remaining_weight -. tileset.tiles[options[i]].weight;
+    if (Float.(remaining_weight <= 0.0)) {
+      options[i];
+    } else {
+      select(i + 1, remaining_weight);
+    };
+  };
+
+  select(0, selected_weight);
+};
+
 let collapse_at = (eval, ~x, ~y, ~z) => {
   let options =
     Array.filter_mapi(eval.possibilities[x][y][z], ~f=(i, p) =>
@@ -204,7 +223,7 @@ let collapse_at = (eval, ~x, ~y, ~z) => {
     /* TODO */
     failwith("Contradiction, cannot collapse");
   };
-  let t = Array.random_element_exn(options);
+  let t = random_tile_by_weight(options, ~tileset=eval.tileset);
   force_and_propagate(eval, ~x, ~y, ~z, t);
 };
 

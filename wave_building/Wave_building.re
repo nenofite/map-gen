@@ -31,48 +31,52 @@ let flip_symbol = symbol => {
 let ts =
   Wave_collapse.(
     create_tileset(
-      ~tilesize=3,
+      ~tilesize=2,
       ~flip_x=flip_symbol,
       ~flip_z=flip_symbol,
       [
         // Empty dirt
-        tile([|
+        tile(
+          ~weight=0.01,
           [|
-            [|".", ".", "."|], /* */
-            [|".", ".", "."|], /* */
-            [|".", ".", "."|] /* */
+            [|
+              [|".", "."|], /* */
+              [|".", "."|] /* */
+            |],
+            [|
+              [|",", ","|], /* */
+              [|",", ","|] /* */
+            |],
           |],
+        ),
+        // Empty air
+        tile(
+          ~weight=0.01,
           [|
-            [|".", ".", "."|], /* */
-            [|".", ".", "."|], /* */
-            [|".", ".", "."|] /* */
+            [|
+              [|".", "."|], /* */
+              [|".", "."|] /* */
+            |],
+            [|
+              [|".", "."|], /* */
+              [|".", "."|] /* */
+            |],
           |],
-          [|
-            [|",", ",", ","|], /* */
-            [|",", ",", ","|], /* */
-            [|",", ",", ","|] /* */
-          |],
-        |]),
+        ),
         // Empty interior
         tile([|
           [|
-            [|".", ".", "."|], /* */
-            [|".", ".", "."|], /* */
-            [|".", ".", "."|] /* */
+            [|".", "."|], /* */
+            [|".", "."|] /* */
           |],
           [|
-            [|".", ".", "."|], /* */
-            [|".", ".", "."|], /* */
-            [|".", ".", "."|] /* */
-          |],
-          [|
-            [|"#", "#", "#"|], /* */
-            [|"#", "#", "#"|], /* */
-            [|"#", "#", "#"|] /* */
+            [|"#", "#"|], /* */
+            [|"#", "#"|] /* */
           |],
         |]),
         // Corner post
         tile(
+          ~weight=0.1,
           ~flip_x=true,
           ~flip_z=true,
           [|
@@ -95,6 +99,7 @@ let ts =
         ),
         // Inverted corner post
         tile(
+          ~weight=0.025,
           ~flip_x=true,
           ~flip_z=true,
           [|
@@ -138,6 +143,7 @@ let ts =
         ),
         // Straight wall with door (X)
         tile(
+          ~weight=0.1,
           ~flip_z=true,
           [|
             [|
@@ -229,14 +235,14 @@ module Test_helpers = {
 };
 
 let%expect_test "yay" = {
-  let wave = Wave_collapse.make_blank_wave(ts, ~xs=10, ~ys=1, ~zs=10);
-  for (x in 0 to 9) {
+  let wave = Wave_collapse.make_blank_wave(ts, ~xs=20, ~ys=2, ~zs=20);
+  for (x in 0 to 19) {
     Wave_collapse.force_and_propagate(wave, ~x, ~y=0, ~z=0, 0);
-    Wave_collapse.force_and_propagate(wave, ~x, ~y=0, ~z=9, 0);
+    Wave_collapse.force_and_propagate(wave, ~x, ~y=0, ~z=19, 0);
   };
-  for (z in 0 to 9) {
+  for (z in 0 to 19) {
     Wave_collapse.force_and_propagate(wave, ~x=0, ~y=0, ~z, 0);
-    Wave_collapse.force_and_propagate(wave, ~x=9, ~y=0, ~z, 0);
+    Wave_collapse.force_and_propagate(wave, ~x=19, ~y=0, ~z, 0);
   };
   Wave_collapse.collapse_all(wave);
   Test_helpers.print_items(wave);
