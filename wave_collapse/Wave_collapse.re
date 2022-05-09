@@ -66,25 +66,25 @@ let%expect_test "getting items after collapse" = {
   %expect
   {|
     x | x | x | x
-    - 2 x 1 - 2 x
-    x | x | x | x
     x 1 - 2 x 1 -
+    x | x | x | x
+    - 2 x 1 - 2 x
     x | x | x | x
     - 2 x 1 - 2 x
     x | x | x | x
 
     x | x | x | x
-    - 2 x 1 - 2 x
-    x | x | x | x
     x 1 - 2 x 1 -
+    x | x | x | x
+    - 2 x 1 - 2 x
     x | x | x | x
     - 2 x 1 - 2 x
     x | x | x | x
 
     x | x | x | x
-    - 2 x 1 - 2 x
-    x | x | x | x
     x 1 - 2 x 1 -
+    x | x | x | x
+    - 2 x 1 - 2 x
     x | x | x | x
     - 2 x 1 - 2 x
     x | x | x | x

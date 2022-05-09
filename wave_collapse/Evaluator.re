@@ -7,7 +7,7 @@ type wave_evaluator('a) = {
   zs: int,
   /* x y z kind */
   mutable possibilities: array(array(array(array(bool)))),
-  mutable entropy_queue: Priority_queue.t((int, int, int)),
+  mutable entropy_queue: Priority_queue.Int.t((int, int, int)),
   mutable total_entropy: int,
 };
 
@@ -43,18 +43,29 @@ let force_no_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
   for (t in 0 to numtiles - 1) {
     eval.possibilities[x][y][z][t] = t == tile_id;
   };
+  // Entropy is now 0, so no need to queue
   eval.total_entropy = eval.total_entropy - prev_entropy;
 };
 
 let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
   let numtiles = Tileset.numtiles(tileset);
+  let entropy_queue =
+    Mg_util.Range.(
+      fold(0, xs - 1, Priority_queue.Int.empty, (queue, x) => {
+        fold(0, ys - 1, queue, (queue, y) => {
+          fold(0, zs - 1, queue, (queue, z) => {
+            Priority_queue.Int.insert(queue, numtiles - 1, (x, y, z))
+          })
+        })
+      })
+    );
   {
     tileset,
     xs,
     ys,
     zs,
     possibilities: make_blank_possibilities(~numtiles, xs, ys, zs),
-    entropy_queue: Priority_queue.empty,
+    entropy_queue,
     total_entropy: xs * ys * zs * (numtiles - 1),
   };
 };
@@ -150,7 +161,10 @@ let propagate_at = (eval, needs_propagate, ~x, ~y, ~z) => {
     };
   };
   if (removals^ != 0) {
+    let now_entropy = entropy_at(eval, ~x, ~y, ~z);
     eval.total_entropy = eval.total_entropy - removals^;
+    eval.entropy_queue =
+      Priority_queue.Int.insert(eval.entropy_queue, now_entropy, (x, y, z));
     push_neighbor_coords(needs_propagate, ~xs, ~ys, ~zs, ~x, ~y, ~z);
   };
 };
@@ -187,28 +201,15 @@ let propagate_all = eval => {
   finish_propagating(eval, needs_propagate);
 };
 
-let next_lowest_entropy = eval => {
-  let lowest_e = ref(Int.max_value);
-  let coords_at_lowest = ref([]);
-
-  let {xs, ys, zs, _} = eval;
-  for (x in 0 to xs - 1) {
-    for (y in 0 to ys - 1) {
-      for (z in 0 to zs - 1) {
-        let e = entropy_at(eval, ~x, ~y, ~z);
-        if (e > 0) {
-          if (e < lowest_e^) {
-            lowest_e := e;
-            coords_at_lowest := [(x, y, z)];
-          } else if (e == lowest_e^) {
-            coords_at_lowest := [(x, y, z), ...coords_at_lowest^];
-          };
-        };
-      };
-    };
+let rec next_lowest_entropy = eval => {
+  let (next, entropy_queue) = Priority_queue.Int.extract(eval.entropy_queue);
+  eval.entropy_queue = entropy_queue;
+  switch (next) {
+  | None => None
+  | Some((x, y, z)) when entropy_at(eval, ~x, ~y, ~z) > 0 => next
+  | Some(_) => next_lowest_entropy(eval)
   };
-
-  List.random_element(coords_at_lowest^);
+  // TODO randomize
 };
 
 let random_tile_by_weight =
@@ -431,8 +432,8 @@ let%expect_test "collapse" = {
   };
   %expect
   {|
-    1 1 1
     0 0 0
+    1 1 1
     0 0 0
 
     total_entropy = 3
