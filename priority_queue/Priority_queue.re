@@ -1,5 +1,7 @@
 open Core;
 
+module Lite = Lite;
+
 module type Priority = {
   type t;
   let (<=): (t, t) => bool;
