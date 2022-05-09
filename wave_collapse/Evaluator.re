@@ -49,15 +49,14 @@ let force_no_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
 
 let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
   let numtiles = Tileset.numtiles(tileset);
+  // We don't need to enqueue all coords, just one. As soon as the wave starts
+  // to collapse, the full entropy entries will become unreachable in the queue.
+  // We just need one entry to start the process.
   let entropy_queue =
-    Mg_util.Range.(
-      fold(0, xs - 1, Priority_queue.Int.empty, (queue, x) => {
-        fold(0, ys - 1, queue, (queue, y) => {
-          fold(0, zs - 1, queue, (queue, z) => {
-            Priority_queue.Int.insert(queue, numtiles - 1, (x, y, z))
-          })
-        })
-      })
+    Priority_queue.Int.insert(
+      Priority_queue.Int.empty,
+      numtiles - 1,
+      (0, 0, 0),
     );
   {
     tileset,
