@@ -8,6 +8,7 @@ type wave_evaluator('a) = {
   /* x y z kind */
   mutable possibilities: array(array(array(array(bool)))),
   mutable entropy_queue: Priority_queue.t((int, int, int)),
+  mutable total_entropy: int,
 };
 
 let make_blank_possibilities = (~numtiles: int, xs: int, ys: int, zs: int) =>
@@ -20,7 +21,7 @@ let make_blank_possibilities = (~numtiles: int, xs: int, ys: int, zs: int) =>
 let copy_a4 = a => Array.(map(a, ~f=b => map(b, ~f=c => map(c, ~f=copy))));
 
 let copy = eval => {
-  let {tileset, xs, ys, zs, possibilities, entropy_queue} = eval;
+  let {tileset, xs, ys, zs, possibilities, entropy_queue, total_entropy} = eval;
   {
     tileset,
     xs,
@@ -28,14 +29,21 @@ let copy = eval => {
     zs,
     possibilities: copy_a4(possibilities),
     entropy_queue,
+    total_entropy,
   };
+};
+
+let entropy_at = (eval, ~x: int, ~y: int, ~z: int) => {
+  Array.sum((module Int), eval.possibilities[x][y][z], ~f=Bool.to_int) - 1;
 };
 
 let force_no_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
   let numtiles = Tileset.numtiles(eval.tileset);
+  let prev_entropy = entropy_at(eval, ~x, ~y, ~z);
   for (t in 0 to numtiles - 1) {
     eval.possibilities[x][y][z][t] = t == tile_id;
   };
+  eval.total_entropy = eval.total_entropy - prev_entropy;
 };
 
 let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
@@ -47,6 +55,7 @@ let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
     zs,
     possibilities: make_blank_possibilities(~numtiles, xs, ys, zs),
     entropy_queue: Priority_queue.empty,
+    total_entropy: xs * ys * zs * (numtiles - 1),
   };
 };
 
@@ -133,14 +142,15 @@ let push_neighbor_coords = (ls, ~xs, ~ys, ~zs, ~x, ~y, ~z) => {
 let propagate_at = (eval, needs_propagate, ~x, ~y, ~z) => {
   let {xs, ys, zs, _} = eval;
   let numtiles = Tileset.numtiles(eval.tileset);
-  let changed = ref(false);
+  let removals = ref(0);
   for (t in 0 to numtiles - 1) {
     if (eval.possibilities[x][y][z][t] && !tile_fits_at(eval, ~x, ~y, ~z, t)) {
-      changed := true;
       eval.possibilities[x][y][z][t] = false;
+      incr(removals);
     };
   };
-  if (changed^) {
+  if (removals^ != 0) {
+    eval.total_entropy = eval.total_entropy - removals^;
     push_neighbor_coords(needs_propagate, ~xs, ~ys, ~zs, ~x, ~y, ~z);
   };
 };
@@ -175,10 +185,6 @@ let propagate_all = eval => {
     };
   };
   finish_propagating(eval, needs_propagate);
-};
-
-let entropy_at = (eval, ~x: int, ~y: int, ~z: int) => {
-  Array.sum((module Int), eval.possibilities[x][y][z], ~f=Bool.to_int) - 1;
 };
 
 let next_lowest_entropy = eval => {
@@ -286,6 +292,7 @@ module Test_helpers = {
       };
       Out_channel.newline(stdout);
     };
+    Printf.printf("total_entropy = %d\n\n", eval.total_entropy);
   };
 
   let tileset =
@@ -367,6 +374,8 @@ let%expect_test "propagation" = {
     2 2 2
     2 2 2
     2 2 2
+
+    total_entropy = 18
   |};
 
   force_no_propagate(eval, ~x=0, ~y=0, ~z=1, 1);
@@ -377,6 +386,8 @@ let%expect_test "propagation" = {
     1 1 1
     0 0 0
     1 1 1
+
+    total_entropy = 6
   |};
 
   collapse_at(eval, ~x=1, ~y=0, ~z=0);
@@ -386,6 +397,8 @@ let%expect_test "propagation" = {
     0 0 0
     0 0 0
     1 1 1
+
+    total_entropy = 3
   |};
 
   force_and_propagate(eval, ~x=2, ~y=0, ~z=2, 2);
@@ -395,6 +408,8 @@ let%expect_test "propagation" = {
     0 0 0
     0 0 0
     0 0 0
+
+    total_entropy = 0
   |};
 };
 
@@ -407,6 +422,8 @@ let%expect_test "collapse" = {
     1 1 1
     1 1 1
     0 0 0
+
+    total_entropy = 6
   |};
 
   while (try_collapse_next_lowest_entropy(eval)) {
@@ -418,8 +435,12 @@ let%expect_test "collapse" = {
     0 0 0
     0 0 0
 
+    total_entropy = 3
+
     0 0 0
     0 0 0
     0 0 0
+
+    total_entropy = 0
   |};
 };
