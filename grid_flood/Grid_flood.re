@@ -10,7 +10,7 @@ let rec flood_gen = (~init, ~live: needs_update_list(_), ~spread) =>
     let (acc, updated_coords) = spread(init, ~level, coord);
     let next_live =
       List.fold(updated_coords, ~init=needs_update, ~f=(ls, (level, coord)) =>
-        Pq.insert(~level, coord, ls)
+        Pq.insert(~p=level, coord, ls)
       );
     flood_gen(~init=acc, ~live=next_live, ~spread);
   | None => init
