@@ -9,7 +9,14 @@ type wave_evaluator('a) = {
   mutable possibilities: array(array(array(array(bool)))),
   mutable entropy_queue: Priority_queue.Int.t((int, int, int)),
   mutable total_entropy: int,
+  needs_propagate: Hash_queue.t((int, int, int), unit),
 };
+
+module Int3 = {
+  [@deriving (eq, ord, hash, sexp)]
+  type t = (int, int, int);
+};
+module Hq_I3 = Hash_queue.Make(Int3);
 
 let make_blank_possibilities = (~numtiles: int, xs: int, ys: int, zs: int) =>
   Array.init(xs, ~f=_ =>
@@ -21,7 +28,17 @@ let make_blank_possibilities = (~numtiles: int, xs: int, ys: int, zs: int) =>
 let copy_a4 = a => Array.(map(a, ~f=b => map(b, ~f=c => map(c, ~f=copy))));
 
 let copy = eval => {
-  let {tileset, xs, ys, zs, possibilities, entropy_queue, total_entropy} = eval;
+  let {
+    tileset,
+    xs,
+    ys,
+    zs,
+    possibilities,
+    entropy_queue,
+    total_entropy,
+    needs_propagate,
+  } = eval;
+  assert(Hash_queue.is_empty(needs_propagate));
   {
     tileset,
     xs,
@@ -30,6 +47,8 @@ let copy = eval => {
     possibilities: copy_a4(possibilities),
     entropy_queue,
     total_entropy,
+    // needs_propagate should always be empty, so just make a fresh copy
+    needs_propagate: Hq_I3.create(),
   };
 };
 
@@ -66,6 +85,7 @@ let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
     possibilities: make_blank_possibilities(~numtiles, xs, ys, zs),
     entropy_queue,
     total_entropy: xs * ys * zs * (numtiles - 1),
+    needs_propagate: Hq_I3.create(),
   };
 };
 
@@ -128,28 +148,28 @@ let tile_fits_at = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
 
 let push_neighbor_coords = (ls, ~xs, ~ys, ~zs, ~x, ~y, ~z) => {
   if (x > 0) {
-    ls := [(x - 1, y, z), ...ls^];
+    Hash_queue.enqueue_back(ls, (x - 1, y, z), ()) |> ignore;
   };
   if (x < xs - 1) {
-    ls := [(x + 1, y, z), ...ls^];
+    Hash_queue.enqueue_back(ls, (x + 1, y, z), ()) |> ignore;
   };
 
   if (y > 0) {
-    ls := [(x, y - 1, z), ...ls^];
+    Hash_queue.enqueue_back(ls, (x, y - 1, z), ()) |> ignore;
   };
   if (y < ys - 1) {
-    ls := [(x, y + 1, z), ...ls^];
+    Hash_queue.enqueue_back(ls, (x, y + 1, z), ()) |> ignore;
   };
 
   if (z > 0) {
-    ls := [(x, y, z - 1), ...ls^];
+    Hash_queue.enqueue_back(ls, (x, y, z - 1), ()) |> ignore;
   };
   if (z < zs - 1) {
-    ls := [(x, y, z + 1), ...ls^];
+    Hash_queue.enqueue_back(ls, (x, y, z + 1), ()) |> ignore;
   };
 };
 
-let propagate_at = (eval, needs_propagate, ~x, ~y, ~z) => {
+let propagate_at = (eval, ~x, ~y, ~z) => {
   let {xs, ys, zs, _} = eval;
   let numtiles = Tileset.numtiles(eval.tileset);
   let removals = ref(0);
@@ -164,40 +184,36 @@ let propagate_at = (eval, needs_propagate, ~x, ~y, ~z) => {
     eval.total_entropy = eval.total_entropy - removals^;
     eval.entropy_queue =
       Priority_queue.Int.insert(eval.entropy_queue, now_entropy, (x, y, z));
-    push_neighbor_coords(needs_propagate, ~xs, ~ys, ~zs, ~x, ~y, ~z);
+    push_neighbor_coords(eval.needs_propagate, ~xs, ~ys, ~zs, ~x, ~y, ~z);
   };
 };
 
-let finish_propagating = (eval, needs_propagate) => {
-  while (!List.is_empty(needs_propagate^)) {
-    let np = needs_propagate^;
-    needs_propagate := [];
-    List.iter(np, ~f=((x, y, z)) => {
-      propagate_at(eval, needs_propagate, ~x, ~y, ~z)
-    });
+let finish_propagating = eval => {
+  while (!Hash_queue.is_empty(eval.needs_propagate)) {
+    let ((x, y, z), _) =
+      Hash_queue.dequeue_back_with_key_exn(eval.needs_propagate);
+    propagate_at(eval, ~x, ~y, ~z);
   };
 };
 
 let force_and_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
   let {xs, ys, zs, _} = eval;
   force_no_propagate(eval, ~x, ~y, ~z, tile_id);
-  let needs_propagate = ref([]);
-  push_neighbor_coords(needs_propagate, ~xs, ~ys, ~zs, ~x, ~y, ~z);
-  finish_propagating(eval, needs_propagate);
+  push_neighbor_coords(eval.needs_propagate, ~xs, ~ys, ~zs, ~x, ~y, ~z);
+  finish_propagating(eval);
 };
 
 let propagate_all = eval => {
-  let needs_propagate = ref([]);
   let {xs, ys, zs, _} = eval;
 
   for (x in 0 to xs - 1) {
     for (y in 0 to ys - 1) {
       for (z in 0 to zs - 1) {
-        propagate_at(eval, needs_propagate, ~x, ~y, ~z);
+        propagate_at(eval, ~x, ~y, ~z);
       };
     };
   };
-  finish_propagating(eval, needs_propagate);
+  finish_propagating(eval);
 };
 
 let rec next_lowest_entropy = eval => {
