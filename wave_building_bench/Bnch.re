@@ -1,7 +1,7 @@
 open! Core;
 open Core_bench;
 
-let make_wave = size => {
+let prep_wave = size => {
   Random.init(123);
   let wave =
     Wave_collapse.make_blank_wave(
@@ -21,6 +21,19 @@ let make_wave = size => {
   Wave_collapse.try_collapse_next_lowest_entropy(wave) |> ignore;
   Wave_collapse.try_collapse_next_lowest_entropy(wave) |> ignore;
   Wave_collapse.try_collapse_next_lowest_entropy(wave) |> ignore;
+  wave;
+};
+
+let just_copy = size => {
+  let wave = prep_wave(size);
+  Staged.stage(() => {
+    let wave = Wave_collapse.copy(wave);
+    wave;
+  });
+};
+
+let collapse = size => {
+  let wave = prep_wave(size);
   Staged.stage(() => {
     let wave = Wave_collapse.copy(wave);
     Wave_collapse.try_collapse_next_lowest_entropy(wave) |> ignore;
@@ -32,8 +45,15 @@ Command_unix.run(
   Bench.make_command([
     Bench.Test.create_indexed(
       ~name="collapse",
-      ~args=[5, 10, 15, 20],
-      make_wave,
+      //   ~args=[5, 10, 15, 20],
+      ~args=[10],
+      collapse,
+    ),
+    Bench.Test.create_indexed(
+      ~name="just copy",
+      //   ~args=[5, 10, 15, 20],
+      ~args=[10],
+      just_copy,
     ),
   ]),
 );
