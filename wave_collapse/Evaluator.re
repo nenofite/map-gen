@@ -94,64 +94,75 @@ let tile_fits_at =
   let numtiles = Tileset.numtiles(eval.tileset);
   let Tileset.{x_pairs, y_pairs, z_pairs, _} = eval.tileset;
 
-  let x0_fits =
+  (
+    // x0_fits
     if (x > 0) {
       let neigh = eval.possibilities[x - 1][y][z];
-      Mg_util.Range.exists(0, numtiles - 1, t =>
+      Mg_util.Range.exists(0, numtiles - 1, [@inline] t =>
         neigh[t] && x_pairs[t][tile_id]
       );
     } else {
       true;
-    };
-  let x1_fits =
+    }
+  )
+  && (
+    // x1_fits
     if (x < eval.xs - 1) {
       let neigh = eval.possibilities[x + 1][y][z];
-      Mg_util.Range.exists(0, numtiles - 1, t =>
-        neigh[t] && x_pairs[tile_id][t]
+      let x_pairs_here = x_pairs[tile_id];
+      Mg_util.Range.exists(0, numtiles - 1, [@inline] t =>
+        neigh[t] && x_pairs_here[t]
       );
     } else {
       true;
-    };
-
-  let y0_fits =
+    }
+  )
+  && (
+    // y0_fits
     if (y > 0) {
       let neigh = eval.possibilities[x][y - 1][z];
-      Mg_util.Range.exists(0, numtiles - 1, t =>
+      Mg_util.Range.exists(0, numtiles - 1, [@inline] t =>
         neigh[t] && y_pairs[t][tile_id]
       );
     } else {
       true;
-    };
-  let y1_fits =
+    }
+  )
+  && (
+    // y1_fits
     if (y < eval.ys - 1) {
       let neigh = eval.possibilities[x][y + 1][z];
-      Mg_util.Range.exists(0, numtiles - 1, t =>
-        neigh[t] && y_pairs[tile_id][t]
+      let y_pairs_here = y_pairs[tile_id];
+      Mg_util.Range.exists(0, numtiles - 1, [@inline] t =>
+        neigh[t] && y_pairs_here[t]
       );
     } else {
       true;
-    };
-
-  let z0_fits =
+    }
+  )
+  && (
+    // z0_fits
     if (z > 0) {
       let neigh = eval.possibilities[x][y][z - 1];
-      Mg_util.Range.exists(0, numtiles - 1, t =>
+      Mg_util.Range.exists(0, numtiles - 1, [@inline] t =>
         neigh[t] && z_pairs[t][tile_id]
       );
     } else {
       true;
-    };
-  let z1_fits =
+    }
+  )
+  && (
+    // z1_fits
     if (z < eval.zs - 1) {
       let neigh = eval.possibilities[x][y][z + 1];
-      Mg_util.Range.exists(0, numtiles - 1, t =>
-        neigh[t] && z_pairs[tile_id][t]
+      let z_pairs_here = z_pairs[tile_id];
+      Mg_util.Range.exists(0, numtiles - 1, [@inline] t =>
+        neigh[t] && z_pairs_here[t]
       );
     } else {
       true;
-    };
-
-  x0_fits && x1_fits && y0_fits && y1_fits && z0_fits && z1_fits;
+    }
+  );
 };
 
 let push_neighbor_coords = (ls, ~xs, ~ys, ~zs, ~x, ~y, ~z) => {
