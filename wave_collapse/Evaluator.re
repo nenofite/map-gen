@@ -98,7 +98,7 @@ let tile_fits_at =
     // x0_fits
     if (x > 0) {
       let neigh = eval.possibilities[x - 1][y][z];
-      Mg_util.Range.exists(0, numtiles - 1, [@inline] t =>
+      Mg_util.Range.exists(0, numtiles - 1, t =>
         neigh[t] && x_pairs[t][tile_id]
       );
     } else {
@@ -110,9 +110,7 @@ let tile_fits_at =
     if (x < eval.xs - 1) {
       let neigh = eval.possibilities[x + 1][y][z];
       let x_pairs_here = x_pairs[tile_id];
-      Mg_util.Range.exists(0, numtiles - 1, [@inline] t =>
-        neigh[t] && x_pairs_here[t]
-      );
+      Mg_util.Range.exists(0, numtiles - 1, t => neigh[t] && x_pairs_here[t]);
     } else {
       true;
     }
@@ -121,7 +119,7 @@ let tile_fits_at =
     // y0_fits
     if (y > 0) {
       let neigh = eval.possibilities[x][y - 1][z];
-      Mg_util.Range.exists(0, numtiles - 1, [@inline] t =>
+      Mg_util.Range.exists(0, numtiles - 1, t =>
         neigh[t] && y_pairs[t][tile_id]
       );
     } else {
@@ -133,9 +131,7 @@ let tile_fits_at =
     if (y < eval.ys - 1) {
       let neigh = eval.possibilities[x][y + 1][z];
       let y_pairs_here = y_pairs[tile_id];
-      Mg_util.Range.exists(0, numtiles - 1, [@inline] t =>
-        neigh[t] && y_pairs_here[t]
-      );
+      Mg_util.Range.exists(0, numtiles - 1, t => neigh[t] && y_pairs_here[t]);
     } else {
       true;
     }
@@ -144,7 +140,7 @@ let tile_fits_at =
     // z0_fits
     if (z > 0) {
       let neigh = eval.possibilities[x][y][z - 1];
-      Mg_util.Range.exists(0, numtiles - 1, [@inline] t =>
+      Mg_util.Range.exists(0, numtiles - 1, t =>
         neigh[t] && z_pairs[t][tile_id]
       );
     } else {
@@ -156,9 +152,7 @@ let tile_fits_at =
     if (z < eval.zs - 1) {
       let neigh = eval.possibilities[x][y][z + 1];
       let z_pairs_here = z_pairs[tile_id];
-      Mg_util.Range.exists(0, numtiles - 1, [@inline] t =>
-        neigh[t] && z_pairs_here[t]
-      );
+      Mg_util.Range.exists(0, numtiles - 1, t => neigh[t] && z_pairs_here[t]);
     } else {
       true;
     }
