@@ -5,14 +5,15 @@ type wave_evaluator('a) = {
   xs: int,
   ys: int,
   zs: int,
+  ts: int,
   /* Which tiles are not yet banned here. Used to avoid double-banning and
    * quickly count entropy */
-  /* xyz kind */
-  possibilities: array(array(bool)),
+  /* xyzt */
+  possibilities: array(bool),
   /* In each direction, how many neighboring possible tiles would be compatible
    * with this tile */
-  /* xyz kind direction_inverted */
-  supporters: array(array(array(int))),
+  /* xyzt direction_inverted */
+  supporters: array(array(int)),
   mutable entropy_queue: Priority_queue.Int.t((int, int, int)),
   mutable total_entropy: int,
   /* Tiles that have become impossible (ie. supporter count reached 0) but have
@@ -26,12 +27,14 @@ module Int4 = {
 };
 module Hq_I4 = Hash_queue.Make(Int4);
 
-let i_of_xyz =
-    (~xs as _: int, ~ys: int, ~zs: int, x: int, y: int, z: int): int =>
-  z + (y + x * ys) * zs;
+let it_of_xyz = (~xs as _: int, ~ys, ~zs, ~ts, x, y, z): int =>
+  (z + (y + x * ys) * zs) * ts;
+
+let i_of_xyzt = (~xs as _: int, ~ys, ~zs, ~ts, x, y, z, t): int =>
+  t + (z + (y + x * ys) * zs) * ts;
 
 let make_blank_possibilities = (~numtiles: int, xs: int, ys: int, zs: int) =>
-  Array.init(xs * ys * zs, ~f=_ => Array.create(~len=numtiles, true));
+  Array.create(~len=xs * ys * zs * numtiles, true);
 
 let copy_a2 = a => Array.(map(a, ~f=copy));
 
@@ -44,15 +47,22 @@ let copy_a5 = a =>
 
 let make_blank_supporters =
     (~tileset: Tileset.tileset('a), xs: int, ys: int, zs: int) => {
+  let ts = Tileset.numtiles(tileset);
   let starting_supporters =
     Array.init(
-      Tileset.numtiles(tileset),
+      ts,
       ~f=t => {
         let reqs = tileset.requirements[t];
         Array.init(Tileset.numdirs, ~f=dir => Array.length(reqs[dir]));
       },
     );
-  Array.init(xs * ys * zs, ~f=_ => copy_a2(starting_supporters));
+  Array.init(
+    xs * ys * zs * ts,
+    ~f=i => {
+      let t = i % ts;
+      Array.copy(starting_supporters[t]);
+    },
+  );
 };
 
 let copy = eval => {
@@ -61,6 +71,7 @@ let copy = eval => {
     xs,
     ys,
     zs,
+    ts,
     possibilities,
     supporters,
     entropy_queue,
@@ -73,8 +84,9 @@ let copy = eval => {
     xs,
     ys,
     zs,
-    possibilities: copy_a2(possibilities),
-    supporters: copy_a3(supporters),
+    ts,
+    possibilities: Array.copy(possibilities),
+    supporters: copy_a2(supporters),
     entropy_queue,
     total_entropy,
     // needs_ban should always be empty, so just make a fresh copy
@@ -82,21 +94,26 @@ let copy = eval => {
   };
 };
 
-let entropy_at = (eval, i) => {
-  Array.sum((module Int), eval.possibilities[i], ~f=Bool.to_int) - 1;
+let entropy_at = (eval, it) => {
+  let s = ref(0);
+  for (t in 0 to eval.ts - 1) {
+    s := s^ + Bool.to_int(eval.possibilities[it + t]);
+  };
+  s^ - 1;
 };
 
 let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
-  let {xs, ys, zs, _} = eval;
-  let i = i_of_xyz(~xs, ~ys, ~zs, x, y, z);
-  if (eval.possibilities[i][tile_id]) {
-    eval.possibilities[i][tile_id] = false;
-    let now_entropy = entropy_at(eval, i);
+  let {xs, ys, zs, ts, _} = eval;
+  let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
+  let i = it + tile_id;
+  if (eval.possibilities[i]) {
+    eval.possibilities[i] = false;
+    let now_entropy = entropy_at(eval, it);
     eval.total_entropy = eval.total_entropy - 1;
     eval.entropy_queue =
       Priority_queue.Int.insert(eval.entropy_queue, now_entropy, (x, y, z));
 
-    Array.fill(eval.supporters[i][tile_id], ~pos=0, ~len=Tileset.numdirs, 0);
+    Array.fill(eval.supporters[i], ~pos=0, ~len=Tileset.numdirs, 0);
     let reqs = eval.tileset.requirements[tile_id];
     for (d in 0 to Tileset.numdirs - 1) {
       let (dx, dy, dz) = Tileset.directions[d];
@@ -109,13 +126,13 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
           && ny < eval.ys
           && 0 <= nz
           && nz < eval.zs) {
-        let ni = i_of_xyz(~xs, ~ys, ~zs, nx, ny, nz);
-        let neigh = eval.supporters[ni];
+        let nit = it_of_xyz(~xs, ~ys, ~zs, ~ts, nx, ny, nz);
         Array.iter(
           reqs[d],
           ~f=t1 => {
-            neigh[t1][d] = neigh[t1][d] - 1;
-            if (neigh[t1][d] == 0) {
+            let neigh = eval.supporters[nit + t1];
+            neigh[d] = neigh[d] - 1;
+            if (neigh[d] == 0) {
               Hash_queue.enqueue_back(eval.needs_ban, (nx, ny, nz, t1), ())
               |> ignore;
             };
@@ -127,8 +144,7 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
 };
 
 let force_no_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
-  let numtiles = Tileset.numtiles(eval.tileset);
-  for (t in 0 to numtiles - 1) {
+  for (t in 0 to eval.ts - 1) {
     if (t != tile_id) {
       ban(eval, ~x, ~y, ~z, t);
     };
@@ -151,6 +167,7 @@ let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
     xs,
     ys,
     zs,
+    ts: numtiles,
     possibilities: make_blank_possibilities(~numtiles, xs, ys, zs),
     supporters: make_blank_supporters(~tileset, xs, ys, zs),
     entropy_queue,
@@ -175,11 +192,11 @@ let force_and_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
 let rec next_lowest_entropy = eval => {
   let (next, entropy_queue) = Priority_queue.Int.extract(eval.entropy_queue);
   eval.entropy_queue = entropy_queue;
-  let {xs, ys, zs, _} = eval;
+  let {xs, ys, zs, ts, _} = eval;
   switch (next) {
   | None => None
   | Some((x, y, z))
-      when entropy_at(eval, i_of_xyz(~xs, ~ys, ~zs, x, y, z)) > 0 => next
+      when entropy_at(eval, it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z)) > 0 => next
   | Some(_) => next_lowest_entropy(eval)
   };
   // TODO randomize
@@ -205,21 +222,22 @@ let random_tile_by_weight =
 };
 
 let collapse_at = (eval, ~x, ~y, ~z) => {
-  let {xs, ys, zs, _} = eval;
-  let i = i_of_xyz(~xs, ~ys, ~zs, x, y, z);
+  let {xs, ys, zs, ts, _} = eval;
+  let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
   let options =
-    Array.filter_mapi(eval.possibilities[i], ~f=(t, p) =>
-      if (p) {
+    Mg_util.Range.flat_map(0, ts - 1, t =>
+      if (eval.possibilities[it + t]) {
         Some(t);
       } else {
         None;
       }
     );
-  if (Array.is_empty(options)) {
+  if (List.is_empty(options)) {
     /* TODO */
     failwith("Contradiction, cannot collapse");
   };
-  let t = random_tile_by_weight(options, ~tileset=eval.tileset);
+  let t =
+    random_tile_by_weight(Array.of_list(options), ~tileset=eval.tileset);
   force_and_propagate(eval, ~x, ~y, ~z, t);
 };
 
@@ -239,34 +257,33 @@ let collapse_all = eval => {
 };
 
 let observe_at_exn = (eval, ~x, ~y, ~z) => {
-  let {xs, ys, zs, _} = eval;
-  let i = i_of_xyz(~xs, ~ys, ~zs, x, y, z);
-  if (entropy_at(eval, i) != 0) {
+  let {xs, ys, zs, ts, _} = eval;
+  let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
+  if (entropy_at(eval, it) != 0) {
     failwith("Cannot get because entropy != 0");
   };
-  let (t, _) = Array.findi_exn(eval.possibilities[i], ~f=(_, b) => b);
-  t;
+  Mg_util.Range.find_exn(0, ts - 1, t => eval.possibilities[it + t]);
 };
 
 let observe_at = (eval, ~x, ~y, ~z) => {
-  let {xs, ys, zs, _} = eval;
-  let i = i_of_xyz(~xs, ~ys, ~zs, x, y, z);
-  if (entropy_at(eval, i) != 0) {
+  let {xs, ys, zs, ts, _} = eval;
+  let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
+  if (entropy_at(eval, it) != 0) {
     None;
   } else {
-    let (t, _) = Array.findi_exn(eval.possibilities[i], ~f=(_, b) => b);
+    let t = Mg_util.Range.find_exn(0, ts - 1, t => eval.possibilities[it + t]);
     Some(t);
   };
 };
 
 module Test_helpers = {
   let print_entropy = eval => {
-    let {xs, ys, zs, _} = eval;
+    let {xs, ys, zs, ts, _} = eval;
     for (y in 0 to ys - 1) {
       for (z in 0 to zs - 1) {
         for (x in 0 to xs - 1) {
-          let i = i_of_xyz(~xs, ~ys, ~zs, x, y, z);
-          let e = entropy_at(eval, i);
+          let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
+          let e = entropy_at(eval, it);
           Printf.printf("%d ", e);
         };
         Out_channel.newline(stdout);
