@@ -181,6 +181,14 @@ module Range = {
 
   let map = (min, max, f) => fold(min, max, [], (ls, n) => [f(n), ...ls]);
 
+  let flat_map = (min, max, f) =>
+    fold(min, max, [], (ls, n) =>
+      switch (f(n)) {
+      | Some(x) => [x, ...ls]
+      | None => ls
+      }
+    );
+
   let rec iter_m = (min, max, ~bind, expr) => {
     let s = expr(min);
     if (min < max) {

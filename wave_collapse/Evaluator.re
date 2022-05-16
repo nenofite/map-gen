@@ -91,16 +91,12 @@ let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
 
 let tile_fits_at =
     (eval: wave_evaluator('a), ~x: int, ~y: int, ~z: int, tile_id: int) => {
-  let numtiles = Tileset.numtiles(eval.tileset);
-  let Tileset.{x_pairs, y_pairs, z_pairs, _} = eval.tileset;
-
+  let {possibilities, tileset, _} = eval;
   (
     // x0_fits
     if (x > 0) {
-      let neigh = eval.possibilities[x - 1][y][z];
-      Mg_util.Range.exists(0, numtiles - 1, t =>
-        neigh[t] && x_pairs[t][tile_id]
-      );
+      let neigh = possibilities[x - 1][y][z];
+      Array.exists(tileset.x0_requirements[tile_id], ~f=t1 => neigh[t1]);
     } else {
       true;
     }
@@ -108,9 +104,8 @@ let tile_fits_at =
   && (
     // x1_fits
     if (x < eval.xs - 1) {
-      let neigh = eval.possibilities[x + 1][y][z];
-      let x_pairs_here = x_pairs[tile_id];
-      Mg_util.Range.exists(0, numtiles - 1, t => neigh[t] && x_pairs_here[t]);
+      let neigh = possibilities[x + 1][y][z];
+      Array.exists(tileset.x1_requirements[tile_id], ~f=t1 => neigh[t1]);
     } else {
       true;
     }
@@ -118,10 +113,8 @@ let tile_fits_at =
   && (
     // y0_fits
     if (y > 0) {
-      let neigh = eval.possibilities[x][y - 1][z];
-      Mg_util.Range.exists(0, numtiles - 1, t =>
-        neigh[t] && y_pairs[t][tile_id]
-      );
+      let neigh = possibilities[x][y - 1][z];
+      Array.exists(tileset.y0_requirements[tile_id], ~f=t1 => neigh[t1]);
     } else {
       true;
     }
@@ -129,9 +122,8 @@ let tile_fits_at =
   && (
     // y1_fits
     if (y < eval.ys - 1) {
-      let neigh = eval.possibilities[x][y + 1][z];
-      let y_pairs_here = y_pairs[tile_id];
-      Mg_util.Range.exists(0, numtiles - 1, t => neigh[t] && y_pairs_here[t]);
+      let neigh = possibilities[x][y + 1][z];
+      Array.exists(tileset.y1_requirements[tile_id], ~f=t1 => neigh[t1]);
     } else {
       true;
     }
@@ -139,10 +131,8 @@ let tile_fits_at =
   && (
     // z0_fits
     if (z > 0) {
-      let neigh = eval.possibilities[x][y][z - 1];
-      Mg_util.Range.exists(0, numtiles - 1, t =>
-        neigh[t] && z_pairs[t][tile_id]
-      );
+      let neigh = possibilities[x][y][z - 1];
+      Array.exists(tileset.z0_requirements[tile_id], ~f=t1 => neigh[t1]);
     } else {
       true;
     }
@@ -150,9 +140,8 @@ let tile_fits_at =
   && (
     // z1_fits
     if (z < eval.zs - 1) {
-      let neigh = eval.possibilities[x][y][z + 1];
-      let z_pairs_here = z_pairs[tile_id];
-      Mg_util.Range.exists(0, numtiles - 1, t => neigh[t] && z_pairs_here[t]);
+      let neigh = possibilities[x][y][z + 1];
+      Array.exists(tileset.z1_requirements[tile_id], ~f=t1 => neigh[t1]);
     } else {
       true;
     }

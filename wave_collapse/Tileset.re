@@ -24,6 +24,13 @@ type tileset('a) = {
   y_pairs: array(array(bool)),
   /* z-1 z allowed */
   z_pairs: array(array(bool)),
+  /* here_tile other_tiles */
+  x0_requirements: array(array(int)),
+  x1_requirements: array(array(int)),
+  y0_requirements: array(array(int)),
+  y1_requirements: array(array(int)),
+  z0_requirements: array(array(int)),
+  z1_requirements: array(array(int)),
 };
 
 type btile('a) = {
@@ -350,7 +357,88 @@ let create_tileset =
     };
   };
 
-  {tilesize, tiles, x_pairs, y_pairs, z_pairs};
+  let x0_requirements =
+    Array.init(numtiles, ~f=t => {
+      Mg_util.Range.flat_map(0, numtiles - 1, t1 =>
+        if (x_pairs[t1][t]) {
+          Some(t1);
+        } else {
+          None;
+        }
+      )
+      |> Array.of_list
+    });
+  let x1_requirements =
+    Array.init(numtiles, ~f=t => {
+      Mg_util.Range.flat_map(0, numtiles - 1, t1 =>
+        if (x_pairs[t][t1]) {
+          Some(t1);
+        } else {
+          None;
+        }
+      )
+      |> Array.of_list
+    });
+
+  let y0_requirements =
+    Array.init(numtiles, ~f=t => {
+      Mg_util.Range.flat_map(0, numtiles - 1, t1 =>
+        if (y_pairs[t1][t]) {
+          Some(t1);
+        } else {
+          None;
+        }
+      )
+      |> Array.of_list
+    });
+  let y1_requirements =
+    Array.init(numtiles, ~f=t => {
+      Mg_util.Range.flat_map(0, numtiles - 1, t1 =>
+        if (y_pairs[t][t1]) {
+          Some(t1);
+        } else {
+          None;
+        }
+      )
+      |> Array.of_list
+    });
+
+  let z0_requirements =
+    Array.init(numtiles, ~f=t => {
+      Mg_util.Range.flat_map(0, numtiles - 1, t1 =>
+        if (z_pairs[t1][t]) {
+          Some(t1);
+        } else {
+          None;
+        }
+      )
+      |> Array.of_list
+    });
+  let z1_requirements =
+    Array.init(numtiles, ~f=t => {
+      Mg_util.Range.flat_map(0, numtiles - 1, t1 =>
+        if (z_pairs[t][t1]) {
+          Some(t1);
+        } else {
+          None;
+        }
+      )
+      |> Array.of_list
+    });
+
+  {
+    tilesize,
+    tiles,
+    x_pairs,
+    y_pairs,
+    z_pairs,
+    x0_requirements,
+    x1_requirements,
+    y0_requirements,
+    y1_requirements,
+    z0_requirements,
+    z1_requirements,
+  };
 };
 
 module Test_helpers = {
