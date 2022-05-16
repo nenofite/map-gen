@@ -46,13 +46,13 @@ Command_unix.run(
     Bench.Test.create_indexed(
       ~name="collapse",
       //   ~args=[5, 10, 15, 20],
-      ~args=[10],
+      ~args=[10, 20],
       collapse,
     ),
     Bench.Test.create_indexed(
       ~name="just copy",
       //   ~args=[5, 10, 15, 20],
-      ~args=[10],
+      ~args=[10, 20],
       just_copy,
     ),
   ]),
