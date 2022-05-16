@@ -24,13 +24,8 @@ type tileset('a) = {
   y_pairs: array(array(bool)),
   /* z-1 z allowed */
   z_pairs: array(array(bool)),
-  /* here_tile other_tiles */
-  x0_requirements: array(array(int)),
-  x1_requirements: array(array(int)),
-  y0_requirements: array(array(int)),
-  y1_requirements: array(array(int)),
-  z0_requirements: array(array(int)),
-  z1_requirements: array(array(int)),
+  /* direction here_tile other_tiles */
+  requirements: array(array(array(int))),
 };
 
 type btile('a) = {
@@ -41,6 +36,16 @@ type btile('a) = {
   flip_x: bool,
   flip_z: bool,
 };
+
+let numdirs = 6;
+let directions = [|
+  ((-1), 0, 0),
+  (1, 0, 0),
+  (0, (-1), 0),
+  (0, 1, 0),
+  (0, 0, (-1)),
+  (0, 0, 1),
+|];
 
 let numtiles = ts => Array.length(ts.tiles);
 
@@ -432,12 +437,14 @@ let create_tileset =
     x_pairs,
     y_pairs,
     z_pairs,
-    x0_requirements,
-    x1_requirements,
-    y0_requirements,
-    y1_requirements,
-    z0_requirements,
-    z1_requirements,
+    requirements: [|
+      x0_requirements,
+      x1_requirements,
+      y0_requirements,
+      y1_requirements,
+      z0_requirements,
+      z1_requirements,
+    |],
   };
 };
 
