@@ -175,9 +175,10 @@ let propagate_at = (eval, ~x, ~y, ~z) => {
   let {xs, ys, zs, _} = eval;
   let numtiles = Tileset.numtiles(eval.tileset);
   let removals = ref(0);
+  let here = eval.possibilities[x][y][z];
   for (t in 0 to numtiles - 1) {
-    if (eval.possibilities[x][y][z][t] && !tile_fits_at(eval, ~x, ~y, ~z, t)) {
-      eval.possibilities[x][y][z][t] = false;
+    if (here[t] && !tile_fits_at(eval, ~x, ~y, ~z, t)) {
+      here[t] = false;
       incr(removals);
     };
   };
