@@ -12,8 +12,8 @@ type wave_evaluator('a) = {
   possibilities: array(bool),
   /* In each direction, how many neighboring possible tiles would be compatible
    * with this tile */
-  /* direction_inverted xyzt */
-  supporters: array(array(int)),
+  /* xyzt-direction_inverted */
+  supporters: array(int),
   mutable entropy_queue: Priority_queue.Int.t((int, int, int)),
   mutable total_entropy: int,
   /* Tiles that have become impossible (ie. supporter count reached 0) but have
@@ -33,6 +33,9 @@ let it_of_xyz = (~xs as _: int, ~ys, ~zs, ~ts, x, y, z): int =>
 let i_of_xyzt = (~xs as _: int, ~ys, ~zs, ~ts, x, y, z, t): int =>
   t + (z + (y + x * ys) * zs) * ts;
 
+let si_of_xyztd = (~xs as _: int, ~ys, ~zs, ~ts, x, y, z, t, d): int =>
+  d + (t + (z + (y + x * ys) * zs) * ts) * Tileset.numdirs;
+
 let make_blank_possibilities = (~numtiles: int, xs: int, ys: int, zs: int) =>
   Array.create(~len=xs * ys * zs * numtiles, true);
 
@@ -48,15 +51,14 @@ let copy_a5 = a =>
 let make_blank_supporters =
     (~tileset: Tileset.tileset('a), xs: int, ys: int, zs: int) => {
   let ts = Tileset.numtiles(tileset);
-  Array.init(Tileset.numdirs, ~f=dir =>
-    Array.init(
-      xs * ys * zs * ts,
-      ~f=i => {
-        let t = i % ts;
-        /* TODO fixme opposite direction */
-        Array.length(tileset.requirements[t][dir]);
-      },
-    )
+  Array.init(
+    xs * ys * zs * ts * Tileset.numdirs,
+    ~f=i => {
+      let dir = i % Tileset.numdirs;
+      let t = i / Tileset.numdirs % ts;
+      /* TODO fixme opposite direction */
+      Array.length(tileset.requirements[t][dir]);
+    },
   );
 };
 
@@ -81,7 +83,7 @@ let copy = eval => {
     zs,
     ts,
     possibilities: Array.copy(possibilities),
-    supporters: copy_a2(supporters),
+    supporters: Array.copy(supporters),
     entropy_queue,
     total_entropy,
     // needs_ban should always be empty, so just make a fresh copy
@@ -109,8 +111,9 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
       Priority_queue.Int.insert(eval.entropy_queue, now_entropy, (x, y, z));
 
     let reqs = eval.tileset.requirements[tile_id];
+    let sid = si_of_xyztd(~xs, ~ys, ~zs, ~ts, x, y, z, tile_id, 0);
     for (d in 0 to Tileset.numdirs - 1) {
-      eval.supporters[d][i] = 0;
+      eval.supporters[sid + d] = 0;
       let (dx, dy, dz) = Tileset.directions[d];
       let nx = x + dx;
       let ny = y + dy;
@@ -121,13 +124,12 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
           && ny < eval.ys
           && 0 <= nz
           && nz < eval.zs) {
-        let nit = it_of_xyz(~xs, ~ys, ~zs, ~ts, nx, ny, nz);
         Array.iter(
           reqs[d],
           ~f=t1 => {
-            let neigh = eval.supporters[d];
-            neigh[nit + t1] = neigh[nit + t1] - 1;
-            if (neigh[nit + t1] == 0) {
+            let nsi = si_of_xyztd(~xs, ~ys, ~zs, ~ts, nx, ny, nz, t1, d);
+            eval.supporters[nsi] = eval.supporters[nsi] - 1;
+            if (eval.supporters[nsi] == 0) {
               Hash_queue.enqueue_back(eval.needs_ban, (nx, ny, nz, t1), ())
               |> ignore;
             };
