@@ -44,7 +44,7 @@ module Test_helpers = {
     for (y in 0 to ys - 1) {
       for (z in 0 to zs - 1) {
         for (x in 0 to xs - 1) {
-          let t = item_at_exn(eval, ~x, ~y, ~z);
+          let t = item_at(eval, ~x, ~y, ~z, ~default="?");
           Printf.printf("%s ", t);
         };
         Out_channel.newline(stdout);
@@ -66,25 +66,25 @@ let%expect_test "getting items after collapse" = {
   %expect
   {|
     x | x | x | x
-    - 2 x 1 - 2 x
-    x | x | x | x
     x 1 - 2 x 1 -
+    x | x | x | x
+    - 2 x 1 - 2 x
     x | x | x | x
     - 2 x 1 - 2 x
     x | x | x | x
 
     x | x | x | x
-    - 2 x 1 - 2 x
-    x | x | x | x
     x 1 - 2 x 1 -
+    x | x | x | x
+    - 2 x 1 - 2 x
     x | x | x | x
     - 2 x 1 - 2 x
     x | x | x | x
 
     x | x | x | x
-    - 2 x 1 - 2 x
-    x | x | x | x
     x 1 - 2 x 1 -
+    x | x | x | x
+    - 2 x 1 - 2 x
     x | x | x | x
     - 2 x 1 - 2 x
     x | x | x | x

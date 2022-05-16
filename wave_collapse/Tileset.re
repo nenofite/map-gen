@@ -46,6 +46,16 @@ let directions = [|
   (0, 0, (-1)),
   (0, 0, 1),
 |];
+let flip_direction = d =>
+  switch (d) {
+  | 0 => 1
+  | 1 => 0
+  | 2 => 3
+  | 3 => 2
+  | 4 => 5
+  | 5
+  | _ => 4
+  };
 
 let numtiles = ts => Array.length(ts.tiles);
 

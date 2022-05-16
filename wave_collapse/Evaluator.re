@@ -56,8 +56,7 @@ let make_blank_supporters =
     ~f=i => {
       let dir = i % Tileset.numdirs;
       let t = i / Tileset.numdirs % ts;
-      /* TODO fixme opposite direction */
-      Array.length(tileset.requirements[t][dir]);
+      Array.length(tileset.requirements[t][Tileset.flip_direction(dir)]);
     },
   );
 };
@@ -106,9 +105,9 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
   if (eval.possibilities[i]) {
     eval.possibilities[i] = false;
     let now_entropy = entropy_at(eval, it);
-    eval.total_entropy = eval.total_entropy - 1;
     eval.entropy_queue =
       Priority_queue.Int.insert(eval.entropy_queue, now_entropy, (x, y, z));
+    eval.total_entropy = eval.total_entropy - 1;
 
     let reqs = eval.tileset.requirements[tile_id];
     let sid = si_of_xyztd(~xs, ~ys, ~zs, ~ts, x, y, z, tile_id, 0);
@@ -290,13 +289,27 @@ module Test_helpers = {
     Printf.printf("total_entropy = %d\n\n", eval.total_entropy);
   };
 
+  let print_supporters_at = (eval, x, y, z) => {
+    let {xs, ys, zs, ts, _} = eval;
+    for (t in 0 to eval.ts - 1) {
+      Printf.printf("%d:", t);
+      for (d in 0 to Tileset.numdirs - 1) {
+        Printf.printf(
+          " %d",
+          eval.supporters[si_of_xyztd(~xs, ~ys, ~zs, ~ts, x, y, z, t, d)],
+        );
+      };
+      Printf.printf("\n");
+    };
+  };
+
   let tileset =
     Tileset.(
       create_tileset(
         ~tilesize=3,
         [
           tile(
-            ~weight=1.0,
+            ~weight=0.0,
             [|
               [|
                 [|"a", "a", "a"|], /* */
@@ -352,6 +365,26 @@ module Test_helpers = {
                 [|"x", "|", "x"|], /* */
                 [|"-", "2", "x"|], /* */
                 [|"x", "|", "x"|] /* */
+              |],
+            |],
+          ),
+          tile(
+            ~weight=0.0,
+            [|
+              [|
+                [|"a", "|", "x"|], /* */
+                [|"a", "3", "-"|], /* */
+                [|"a", "|", "x"|] /* */
+              |],
+              [|
+                [|"a", "|", "x"|], /* */
+                [|"a", "3", "-"|], /* */
+                [|"a", "|", "x"|] /* */
+              |],
+              [|
+                [|"a", "|", "x"|], /* */
+                [|"a", "3", "-"|], /* */
+                [|"a", "|", "x"|] /* */
               |],
             |],
           ),
@@ -365,14 +398,33 @@ let%expect_test "propagation" = {
   Test_helpers.print_entropy(eval);
   %expect
   {|
-    2 2 2
-    2 2 2
-    2 2 2
+    3 3 3
+    3 3 3
+    3 3 3
 
-    total_entropy = 18
+    total_entropy = 27
+  |};
+
+  Test_helpers.print_supporters_at(eval, 0, 0, 0);
+  %expect
+  {|
+    0: 2 1 1 1 1 1
+    1: 1 1 1 1 2 2
+    2: 1 2 1 1 2 2
+    3: 1 1 1 1 1 1
   |};
 
   force_and_propagate(eval, ~x=0, ~y=0, ~z=1, 1);
+
+  Test_helpers.print_supporters_at(eval, 1, 0, 1);
+  %expect
+  {|
+    0: 0 0 0 0 0 0
+    1: -1 0 0 0 0 0
+    2: 1 1 1 1 2 2
+    3: -1 0 0 0 0 0
+  |};
+
   Test_helpers.print_entropy(eval);
   %expect
   {|
@@ -412,11 +464,11 @@ let%expect_test "collapse" = {
   Test_helpers.print_entropy(eval);
   %expect
   {|
-    1 1 1
-    1 1 1
-    0 0 0
+    2 2 1
+    2 2 1
+    1 1 0
 
-    total_entropy = 6
+    total_entropy = 12
   |};
 
   while (try_collapse_next_lowest_entropy(eval)) {
@@ -424,8 +476,14 @@ let%expect_test "collapse" = {
   };
   %expect
   {|
-    0 0 0
+    2 2 1
+    1 1 0
+    1 1 0
+
+    total_entropy = 9
+
     1 1 1
+    0 0 0
     0 0 0
 
     total_entropy = 3
