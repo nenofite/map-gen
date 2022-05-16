@@ -24,7 +24,7 @@ type tileset('a) = {
   y_pairs: array(array(bool)),
   /* z-1 z allowed */
   z_pairs: array(array(bool)),
-  /* direction here_tile other_tiles */
+  /* here_tile direction other_tiles */
   requirements: array(array(array(int))),
 };
 
@@ -437,14 +437,15 @@ let create_tileset =
     x_pairs,
     y_pairs,
     z_pairs,
-    requirements: [|
-      x0_requirements,
-      x1_requirements,
-      y0_requirements,
-      y1_requirements,
-      z0_requirements,
-      z1_requirements,
-    |],
+    requirements:
+      Array.transpose_exn([|
+        x0_requirements,
+        x1_requirements,
+        y0_requirements,
+        y1_requirements,
+        z0_requirements,
+        z1_requirements,
+      |]),
   };
 };
 

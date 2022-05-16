@@ -43,10 +43,12 @@ let copy_a5 = a =>
 let make_blank_supporters =
     (~tileset: Tileset.tileset('a), xs: int, ys: int, zs: int) => {
   let starting_supporters =
-    Array.init(Tileset.numtiles(tileset), ~f=t =>
-      Array.init(Tileset.numdirs, ~f=dir =>
-        Array.length(tileset.requirements[dir][t])
-      )
+    Array.init(
+      Tileset.numtiles(tileset),
+      ~f=t => {
+        let reqs = tileset.requirements[t];
+        Array.init(Tileset.numdirs, ~f=dir => Array.length(reqs[dir]));
+      },
     );
   Array.init(xs, ~f=_ =>
     Array.init(ys, ~f=_ =>
@@ -100,6 +102,7 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) =>
       ~len=Tileset.numdirs,
       0,
     );
+    let reqs = eval.tileset.requirements[tile_id];
     for (d in 0 to Tileset.numdirs - 1) {
       let (dx, dy, dz) = Tileset.directions[d];
       let nx = x + dx;
@@ -113,7 +116,7 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) =>
           && nz < eval.zs) {
         let neigh = eval.supporters[nx][ny][nz];
         Array.iter(
-          eval.tileset.requirements[d][tile_id],
+          reqs[d],
           ~f=t1 => {
             neigh[t1][d] = neigh[t1][d] - 1;
             if (neigh[t1][d] == 0) {
