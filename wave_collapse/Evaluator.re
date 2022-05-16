@@ -12,7 +12,7 @@ type wave_evaluator('a) = {
   possibilities: array(bool),
   /* In each direction, how many neighboring possible tiles would be compatible
    * with this tile */
-  /* xyzt direction_inverted */
+  /* direction_inverted xyzt */
   supporters: array(array(int)),
   mutable entropy_queue: Priority_queue.Int.t((int, int, int)),
   mutable total_entropy: int,
@@ -48,20 +48,15 @@ let copy_a5 = a =>
 let make_blank_supporters =
     (~tileset: Tileset.tileset('a), xs: int, ys: int, zs: int) => {
   let ts = Tileset.numtiles(tileset);
-  let starting_supporters =
+  Array.init(Tileset.numdirs, ~f=dir =>
     Array.init(
-      ts,
-      ~f=t => {
-        let reqs = tileset.requirements[t];
-        Array.init(Tileset.numdirs, ~f=dir => Array.length(reqs[dir]));
+      xs * ys * zs * ts,
+      ~f=i => {
+        let t = i % ts;
+        /* TODO fixme opposite direction */
+        Array.length(tileset.requirements[t][dir]);
       },
-    );
-  Array.init(
-    xs * ys * zs * ts,
-    ~f=i => {
-      let t = i % ts;
-      Array.copy(starting_supporters[t]);
-    },
+    )
   );
 };
 
@@ -113,9 +108,9 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
     eval.entropy_queue =
       Priority_queue.Int.insert(eval.entropy_queue, now_entropy, (x, y, z));
 
-    Array.fill(eval.supporters[i], ~pos=0, ~len=Tileset.numdirs, 0);
     let reqs = eval.tileset.requirements[tile_id];
     for (d in 0 to Tileset.numdirs - 1) {
+      eval.supporters[d][i] = 0;
       let (dx, dy, dz) = Tileset.directions[d];
       let nx = x + dx;
       let ny = y + dy;
@@ -130,9 +125,9 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
         Array.iter(
           reqs[d],
           ~f=t1 => {
-            let neigh = eval.supporters[nit + t1];
-            neigh[d] = neigh[d] - 1;
-            if (neigh[d] == 0) {
+            let neigh = eval.supporters[d];
+            neigh[nit + t1] = neigh[nit + t1] - 1;
+            if (neigh[nit + t1] == 0) {
               Hash_queue.enqueue_back(eval.needs_ban, (nx, ny, nz, t1), ())
               |> ignore;
             };
