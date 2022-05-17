@@ -1,6 +1,13 @@
 (library
  (name Progress_view)
  (inline_tests)
- (libraries tsdl Mg_util Config camlimages.core camlimages.png)
+ (libraries
+  core
+  core_unix.signal_unix
+  tsdl
+  Mg_util
+  Config
+  camlimages.core
+  camlimages.png)
  (preprocess
   (pps ppx_inline_test ppx_expect ppx_let)))

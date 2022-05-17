@@ -12,7 +12,7 @@ let ok_or_sdl r = match r with Ok a -> a | Error (`Msg a) -> failwith a
 
 let make_window ?(pixels_per_tile = 2) ?(width = 400) ?(height = 400) () =
   Sdl.init Sdl.Init.video |> ok_or_sdl ;
-  Sys.(set_signal sigint Signal_default) ;
+  Caml.Sys.(set_signal sigint Signal_default) ;
   let window, renderer =
     Sdl.create_window_and_renderer ~w:(width * pixels_per_tile)
       ~h:(height * pixels_per_tile) Sdl.Window.opengl

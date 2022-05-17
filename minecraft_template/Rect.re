@@ -1,5 +1,5 @@
 open! Core;
-open Core;
+open Template_core;
 
 type rect = {
   min_x: int,

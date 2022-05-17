@@ -57,7 +57,7 @@ let parse_template = (~palette, ~has_spaces=true, s) => {
       })
     })
   });
-  Core.of_blocks(blocks^, ~marks=marks^) |> Core.flip_y;
+  Template_core.of_blocks(blocks^, ~marks=marks^) |> Template_core.flip_y;
 };
 
 let%expect_test "parse a template with marks" = {
@@ -80,7 +80,7 @@ let%expect_test "parse a template with marks" = {
   let print_at = (~x, ~y, ~z) =>
     print_s(
       [%sexp_of: option(Minecraft.Block.material)](
-        Core.at(template, ~x, ~y, ~z),
+        Template_core.at(template, ~x, ~y, ~z),
       ),
     );
   print_at(~x=0, ~y=1, ~z=0);
@@ -95,11 +95,13 @@ let%expect_test "parse a template with marks" = {
   (Bedrock)
   |};
 
-  let (fx, fy, fz) = Option.value_exn(Core.get_mark(template, ~mark=`Foo));
+  let (fx, fy, fz) =
+    Option.value_exn(Template_core.get_mark(template, ~mark=`Foo));
   Printf.printf("%d %d %d\n", fx, fy, fz);
   %expect
   "0 0 1";
-  let (bx, by, bz) = Option.value_exn(Core.get_mark(template, ~mark=`Bar));
+  let (bx, by, bz) =
+    Option.value_exn(Template_core.get_mark(template, ~mark=`Bar));
   Printf.printf("%d %d %d\n", bx, by, bz);
   %expect
   "0 1 1";
