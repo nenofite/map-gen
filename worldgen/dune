@@ -27,7 +27,8 @@
   Roads
   Sparse_grid
   Town_overlay
-  Meta_overlay)
+  Meta_overlay
+  Wave_collapse)
  (preprocess
   (pps
    ppx_inline_test

@@ -30,6 +30,84 @@ let item_at =
   };
 };
 
+let item_dims = eval => {
+  let Evaluator.{xs, ys, zs, ts, _} = eval;
+  (xs * (ts - 1) + 1, ys * (ts - 1) + 1, zs * (ts - 1) + 1);
+};
+
+let force_edges =
+    (
+      ~x0=?,
+      ~x1=?,
+      ~y0=?,
+      ~y1=?,
+      ~z0=?,
+      ~z1=?,
+      eval: Evaluator.wave_evaluator('a),
+    ) => {
+  let Evaluator.{xs, ys, zs, _} = eval;
+
+  switch (x0) {
+  | Some(t) =>
+    for (y in 0 to ys - 1) {
+      for (z in 0 to zs - 1) {
+        Evaluator.force_no_propagate(eval, ~x=0, ~y, ~z, t);
+      };
+    }
+  | None => ()
+  };
+  switch (x1) {
+  | Some(t) =>
+    for (y in 0 to ys - 1) {
+      for (z in 0 to zs - 1) {
+        Evaluator.force_no_propagate(eval, ~x=xs - 1, ~y, ~z, t);
+      };
+    }
+  | None => ()
+  };
+
+  switch (z0) {
+  | Some(t) =>
+    for (x in 0 to xs - 1) {
+      for (y in 0 to ys - 1) {
+        Evaluator.force_no_propagate(eval, ~x, ~y, ~z=0, t);
+      };
+    }
+  | None => ()
+  };
+  switch (z1) {
+  | Some(t) =>
+    for (x in 0 to xs - 1) {
+      for (y in 0 to ys - 1) {
+        Evaluator.force_no_propagate(eval, ~x, ~y, ~z=zs - 1, t);
+      };
+    }
+  | None => ()
+  };
+
+  // Top and bottom take priority
+  switch (y0) {
+  | Some(t) =>
+    for (x in 0 to xs - 1) {
+      for (z in 0 to zs - 1) {
+        Evaluator.force_no_propagate(eval, ~x, ~y=0, ~z, t);
+      };
+    }
+  | None => ()
+  };
+  switch (y1) {
+  | Some(t) =>
+    for (x in 0 to xs - 1) {
+      for (z in 0 to zs - 1) {
+        Evaluator.force_no_propagate(eval, ~x, ~y=ys - 1, ~z, t);
+      };
+    }
+  | None => ()
+  };
+
+  Evaluator.finish_propagating(eval);
+};
+
 include Tileset;
 include Evaluator;
 
@@ -37,10 +115,7 @@ module Test_helpers = {
   include Evaluator.Test_helpers;
 
   let print_items = (eval: Evaluator.wave_evaluator('a)) => {
-    let ts = eval.tileset.tilesize;
-    let xs = eval.xs * (ts - 1) + 1;
-    let ys = eval.ys * (ts - 1) + 1;
-    let zs = eval.zs * (ts - 1) + 1;
+    let (xs, ys, zs) = item_dims(eval);
     for (y in 0 to ys - 1) {
       for (z in 0 to zs - 1) {
         for (x in 0 to xs - 1) {
