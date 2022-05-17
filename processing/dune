@@ -1,6 +1,6 @@
 (library
  (name Proc)
- (libraries core core.pairing_heap tsdl Mg_util camlimages.core)
+ (libraries core tsdl Mg_util camlimages.core)
  (preprocess
   (pps
    ppx_inline_test

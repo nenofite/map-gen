@@ -101,7 +101,15 @@ let make_building = (~x as ox, ~y as oy, ~z as oz, region) => {
 
 let test = () => {
   open Minecraft;
-  let builder = World.make("heightmap", ~generator=Generator.Flat, ());
+  // TODO improve config
+  Config.Paths.overlays_base := "seed-test/overlays";
+  Config.Paths.world_level_base := "seed-test/worlds/seed-test";
+  Config.Paths.create_directories();
+  Config.Install.set_install_world_at(
+    Some("/mnt/c/Users/Ben/AppData/Roaming/.minecraft/saves"),
+  );
+
+  let builder = World.make("seed-test", ~generator=Generator.Flat, ());
   World.make_region(~rx=0, ~rz=0, builder, r => {
     Region.(
       iter_region_xz(
