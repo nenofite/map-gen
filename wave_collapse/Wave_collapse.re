@@ -2,13 +2,13 @@ open! Core;
 
 let item_at_exn =
     (eval: Evaluator.wave_evaluator('a), ~x: int, ~y: int, ~z: int) => {
-  let ts = eval.tileset.tilesize;
-  let tx = max(0, (x - 1) / (ts - 1));
-  let ty = max(0, (y - 1) / (ts - 1));
-  let tz = max(0, (z - 1) / (ts - 1));
-  let subx = x - tx * (ts - 1);
-  let suby = y - ty * (ts - 1);
-  let subz = z - tz * (ts - 1);
+  let tsz = eval.tileset.tilesize;
+  let tx = max(0, (x - 1) / (tsz - 1));
+  let ty = max(0, (y - 1) / (tsz - 1));
+  let tz = max(0, (z - 1) / (tsz - 1));
+  let subx = x - tx * (tsz - 1);
+  let suby = y - ty * (tsz - 1);
+  let subz = z - tz * (tsz - 1);
 
   let t = Evaluator.observe_at_exn(eval, ~x=tx, ~y=ty, ~z=tz);
   eval.tileset.tiles[t].items[subx][suby][subz];
@@ -16,13 +16,13 @@ let item_at_exn =
 
 let item_at =
     (eval: Evaluator.wave_evaluator('a), ~x: int, ~y: int, ~z: int, ~default) => {
-  let ts = eval.tileset.tilesize;
-  let tx = max(0, (x - 1) / (ts - 1));
-  let ty = max(0, (y - 1) / (ts - 1));
-  let tz = max(0, (z - 1) / (ts - 1));
-  let subx = x - tx * (ts - 1);
-  let suby = y - ty * (ts - 1);
-  let subz = z - tz * (ts - 1);
+  let tsz = eval.tileset.tilesize;
+  let tx = max(0, (x - 1) / (tsz - 1));
+  let ty = max(0, (y - 1) / (tsz - 1));
+  let tz = max(0, (z - 1) / (tsz - 1));
+  let subx = x - tx * (tsz - 1);
+  let suby = y - ty * (tsz - 1);
+  let subz = z - tz * (tsz - 1);
 
   switch (Evaluator.observe_at(eval, ~x=tx, ~y=ty, ~z=tz)) {
   | Some(t) => eval.tileset.tiles[t].items[subx][suby][subz]
@@ -30,9 +30,10 @@ let item_at =
   };
 };
 
-let item_dims = eval => {
-  let Evaluator.{xs, ys, zs, ts, _} = eval;
-  (xs * (ts - 1) + 1, ys * (ts - 1) + 1, zs * (ts - 1) + 1);
+let item_dims = (eval: Evaluator.wave_evaluator('a)) => {
+  let tsz = eval.tileset.tilesize;
+  let Evaluator.{xs, ys, zs, _} = eval;
+  (xs * (tsz - 1) + 1, ys * (tsz - 1) + 1, zs * (tsz - 1) + 1);
 };
 
 let force_edges =

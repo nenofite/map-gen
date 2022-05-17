@@ -27,11 +27,25 @@ module Int4 = {
 };
 module Hq_I4 = Hash_queue.Make(Int4);
 
-let it_of_xyz = (~xs as _: int, ~ys, ~zs, ~ts, x, y, z): int =>
-  (z + (y + x * ys) * zs) * ts;
+let assert_within = (n, size) =>
+  if (!(0 <= n && n < size)) {
+    failwithf("Expected 0 <= %d < %d", n, size, ());
+  };
 
-let i_of_xyzt = (~xs as _: int, ~ys, ~zs, ~ts, x, y, z, t): int =>
+let it_of_xyz = (~xs as _: int, ~ys, ~zs, ~ts, x, y, z): int => {
+  // assert_within(x, xs);
+  // assert_within(y, ys);
+  // assert_within(z, zs);
+  (z + (y + x * ys) * zs) * ts;
+};
+
+let i_of_xyzt = (~xs as _: int, ~ys, ~zs, ~ts, x, y, z, t): int => {
+  // assert_within(x, xs);
+  // assert_within(y, ys);
+  // assert_within(z, zs);
+  // assert_within(t, ts);
   t + (z + (y + x * ys) * zs) * ts;
+};
 
 let si_of_xyztd = (~xs as _: int, ~ys, ~zs, ~ts, x, y, z, t, d): int =>
   d + (t + (z + (y + x * ys) * zs) * ts) * Tileset.numdirs;
