@@ -1,4 +1,5 @@
 /* Make a world and level, put some dirt in the center, and save */
+open! Core;
 
 let test_stairs = region => {
   Building_old.stair_foundation(
@@ -17,63 +18,89 @@ let tileset =
       ~tilesize=2,
       ~rotate_cw=Minecraft.Block.rotate_cw(~times=1),
       Minecraft.Block.[
-        tile([|
+        tile(
+          ~name="air",
           [|
-            [|Air, Air|], //
-            [|Air, Air|] //
+            [|
+              [|Air, Air|], //
+              [|Air, Air|] //
+            |],
+            [|
+              [|Air, Air|], //
+              [|Air, Air|] //
+            |],
           |],
+        ),
+        tile(
+          ~name="grass",
           [|
-            [|Air, Air|], //
-            [|Air, Air|] //
+            [|
+              [|Air, Air|], //
+              [|Air, Air|] //
+            |],
+            [|
+              [|Grass_block, Grass_block|], //
+              [|Grass_block, Grass_block|] //
+            |],
           |],
-        |]),
-        tile([|
+        ),
+        tile(
+          ~name="grass2u",
           [|
-            [|Air, Air|], //
-            [|Air, Air|] //
+            [|
+              [|Grass_block, Grass_block|], //
+              [|Grass_block, Grass_block|] //
+            |],
+            [|
+              [|Dirt, Dirt|], //
+              [|Dirt, Dirt|] //
+            |],
           |],
+        ),
+        tile(
+          ~name="underground",
+          ~weight=0.0,
           [|
-            [|Grass_block, Grass_block|], //
-            [|Grass_block, Grass_block|] //
+            [|
+              [|Dirt, Dirt|], //
+              [|Dirt, Dirt|] //
+            |],
+            [|
+              [|Dirt, Dirt|], //
+              [|Dirt, Dirt|] //
+            |],
           |],
-        |]),
-        tile([|
+        ),
+        tile(
+          ~name="column",
           [|
-            [|Grass_block, Grass_block|], //
-            [|Grass_block, Grass_block|] //
+            [|
+              [|Air, Air, Air|], //
+              [|Air, Air, Air|], //
+              [|Air, Air, Air|] //
+            |],
+            [|
+              [|Air, Air, Air|], //
+              [|Air, Cobblestone, Air|], //
+              [|Air, Air, Air|] //
+            |],
+            [|
+              [|Air, Air, Air|], //
+              [|Air, Cobblestone, Air|], //
+              [|Air, Air, Air|] //
+            |],
+            [|
+              [|Grass_block, Grass_block, Grass_block|], //
+              [|Grass_block, Cobblestone, Grass_block|], //
+              [|Grass_block, Grass_block, Grass_block|] //
+            |],
+            [|
+              [|Dirt, Dirt, Dirt|], //
+              [|Dirt, Dirt, Dirt|], //
+              [|Dirt, Dirt, Dirt|] //
+            |],
           |],
-          [|
-            [|Dirt, Dirt|], //
-            [|Dirt, Dirt|] //
-          |],
-        |]),
-        tile([|
-          [|
-            [|Air, Air, Air|], //
-            [|Air, Air, Air|], //
-            [|Air, Air, Air|] //
-          |],
-          [|
-            [|Air, Air, Air|], //
-            [|Air, Cobblestone, Air|], //
-            [|Air, Air, Air|] //
-          |],
-          [|
-            [|Air, Air, Air|], //
-            [|Air, Cobblestone, Air|], //
-            [|Air, Air, Air|] //
-          |],
-          [|
-            [|Grass_block, Grass_block, Grass_block|], //
-            [|Grass_block, Cobblestone, Grass_block|], //
-            [|Grass_block, Grass_block, Grass_block|] //
-          |],
-          [|
-            [|Dirt, Dirt, Dirt|], //
-            [|Dirt, Dirt, Dirt|], //
-            [|Dirt, Dirt, Dirt|] //
-          |],
-        |]),
+        ),
       ],
     )
   );
@@ -141,4 +168,16 @@ let test = () => {
       make_building(~x=11, ~y=1, ~z=30, r);
     },
   );
+};
+
+let%expect_test "tileset" = {
+  let show_item = b =>
+    Sexp.to_string_hum(Minecraft.Block.sexp_of_material(b));
+  Wave_collapse.Test_helpers.dump_tileset(
+    ~only_impossible=true,
+    ~show_item,
+    tileset,
+  );
+  %expect
+  {| |};
 };
