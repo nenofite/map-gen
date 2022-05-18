@@ -148,12 +148,16 @@ module Test_helpers = {
   include Tileset.Test_helpers;
   include Evaluator.Test_helpers;
 
-  let print_items = (eval: Evaluator.wave_evaluator('a, 'tag)) => {
+  let print_items = (~show_item, eval: Evaluator.wave_evaluator('a, 'tag)) => {
     let (xs, ys, zs) = item_dims(eval);
     for (y in 0 to ys - 1) {
       for (z in 0 to zs - 1) {
         for (x in 0 to xs - 1) {
-          let t = item_at(eval, ~x, ~y, ~z, ~default="?");
+          let t =
+            switch (item_or_entropy_at(eval, ~x, ~y, ~z)) {
+            | Ok(item) => show_item(item)
+            | Error(_) => "?"
+            };
           Printf.printf("%s ", t);
         };
         Out_channel.newline(stdout);
@@ -171,7 +175,7 @@ let%expect_test "getting items after collapse" = {
     ();
   };
 
-  Test_helpers.print_items(eval);
+  Test_helpers.print_items(~show_item=Fn.id, eval);
   %expect
   {|
     x | x | x | x
