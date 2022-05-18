@@ -547,13 +547,14 @@ module Test_helpers = {
     );
   };
 
-  let print_tile_items = (tile, ~show_item) => {
+  let print_tile_items = (tile, ~show_item, ~indent) => {
     let xs = Array.length(tile);
     let ys = Array.length(tile[0]);
     let zs = Array.length(tile[0][0]);
 
     for (y in ys - 1 downto 0) {
       for (z in 0 to zs - 1) {
+        Printf.printf("%s", indent);
         for (x in 0 to xs - 1) {
           Printf.printf("%s ", show_item(tile[x][y][z]));
         };
@@ -563,8 +564,9 @@ module Test_helpers = {
     };
   };
 
-  let print_tile_pairs = (tile_id, ~tileset) => {
+  let print_tile_pairs = (tile_id, ~tileset, ~indent) => {
     let print_pair_axis = (name, pairs) => {
+      Printf.printf("%s", indent);
       Array.iteri(pairs, ~f=(i, ps) =>
         if (ps[tile_id]) {
           Printf.printf("%s ", tileset.tiles[i].name);
@@ -583,14 +585,16 @@ module Test_helpers = {
     print_pair_axis("Z", tileset.z_pairs);
   };
 
-  let dump_tileset = (ts, ~show_item) => {
+  let dump_tileset = (~only_impossible=false, ~show_item, ts) => {
     for (t in 0 to numtiles(ts) - 1) {
       let tile = ts.tiles[t];
-      let impossible_warning = tile.is_impossible ? " IMPOSSIBLE!" : "";
-      Printf.printf("Tile %s:%s\n", tile.name, impossible_warning);
-      print_tile_items(tile.items, ~show_item);
-      print_tile_pairs(t, ~tileset=ts);
-      Printf.printf("----------\n");
+      if (!only_impossible || tile.is_impossible) {
+        let impossible_warning = tile.is_impossible ? " IMPOSSIBLE!" : "";
+        Printf.printf("Tile %s:%s\n", tile.name, impossible_warning);
+        print_tile_items(tile.items, ~show_item, ~indent="  ");
+        print_tile_pairs(t, ~tileset=ts, ~indent="  ");
+        Printf.printf("----------\n");
+      };
     };
   };
 };
@@ -865,103 +869,103 @@ let%expect_test "vertical multi tiles" = {
   %expect
   {|
     Tile abc.0: IMPOSSIBLE!
-    b b
-    b b
+      b b
+      b b
 
-    c c
-    c c
+      c c
+      c c
 
-    abc.4 abc.5 -X+ abc.4
-    -Y+ abc.2
-    abc.1 abc.5 -Z+ abc.1
+      abc.4 abc.5 -X+ abc.4
+      -Y+ abc.2
+      abc.1 abc.5 -Z+ abc.1
     ----------
     Tile abc.1: IMPOSSIBLE!
-    b b
-    b b
+      b b
+      b b
 
-    c c
-    c c
+      c c
+      c c
 
-    abc.4 abc.5 -X+ abc.5
-    -Y+ abc.3
-    abc.0 -Z+ abc.0 abc.4
+      abc.4 abc.5 -X+ abc.5
+      -Y+ abc.3
+      abc.0 -Z+ abc.0 abc.4
     ----------
     Tile abc.2: IMPOSSIBLE!
-    a a
-    a a
+      a a
+      a a
 
-    b b
-    b b
+      b b
+      b b
 
-    abc.6 abc.7 -X+ abc.6
-    abc.0 -Y+
-    abc.3 abc.7 -Z+ abc.3
+      abc.6 abc.7 -X+ abc.6
+      abc.0 -Y+
+      abc.3 abc.7 -Z+ abc.3
     ----------
     Tile abc.3: IMPOSSIBLE!
-    a a
-    a a
+      a a
+      a a
 
-    b b
-    b b
+      b b
+      b b
 
-    abc.6 abc.7 -X+ abc.7
-    abc.1 -Y+
-    abc.2 -Z+ abc.2 abc.6
+      abc.6 abc.7 -X+ abc.7
+      abc.1 -Y+
+      abc.2 -Z+ abc.2 abc.6
     ----------
     Tile abc.4: IMPOSSIBLE!
-    b b
-    b b
+      b b
+      b b
 
-    c c
-    c c
+      c c
+      c c
 
-    abc.0 -X+ abc.0 abc.1
-    -Y+ abc.6
-    abc.1 abc.5 -Z+ abc.5
+      abc.0 -X+ abc.0 abc.1
+      -Y+ abc.6
+      abc.1 abc.5 -Z+ abc.5
     ----------
     Tile abc.5: IMPOSSIBLE!
-    b b
-    b b
+      b b
+      b b
 
-    c c
-    c c
+      c c
+      c c
 
-    abc.1 -X+ abc.0 abc.1
-    -Y+ abc.7
-    abc.4 -Z+ abc.0 abc.4
+      abc.1 -X+ abc.0 abc.1
+      -Y+ abc.7
+      abc.4 -Z+ abc.0 abc.4
     ----------
     Tile abc.6: IMPOSSIBLE!
-    a a
-    a a
+      a a
+      a a
 
-    b b
-    b b
+      b b
+      b b
 
-    abc.2 -X+ abc.2 abc.3
-    abc.4 -Y+
-    abc.3 abc.7 -Z+ abc.7
+      abc.2 -X+ abc.2 abc.3
+      abc.4 -Y+
+      abc.3 abc.7 -Z+ abc.7
     ----------
     Tile abc.7: IMPOSSIBLE!
-    a a
-    a a
+      a a
+      a a
 
-    b b
-    b b
+      b b
+      b b
 
-    abc.3 -X+ abc.2 abc.3
-    abc.5 -Y+
-    abc.6 -Z+ abc.2 abc.6
+      abc.3 -X+ abc.2 abc.3
+      abc.5 -Y+
+      abc.6 -Z+ abc.2 abc.6
     ----------
     Tile just_b:
-    b b
-    b b
+      b b
+      b b
 
-    b b
-    b b
+      b b
+      b b
 
-    just_b -X+ just_b
-    just_b -Y+ just_b
-    just_b -Z+ just_b
+      just_b -X+ just_b
+      just_b -Y+ just_b
+      just_b -Z+ just_b
     ----------
   |};
 };
