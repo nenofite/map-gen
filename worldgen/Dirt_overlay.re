@@ -1,4 +1,4 @@
-open Core_kernel;
+open Core;
 
 let max_depth = 9;
 

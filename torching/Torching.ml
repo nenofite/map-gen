@@ -1,4 +1,4 @@
-open Core_kernel
+open Core
 module Range = Mg_util.Range
 module Geometry = Mg_util.Geometry
 

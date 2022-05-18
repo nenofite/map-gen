@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 let sea_level = 62;
 let shore_level = sea_level + 2;

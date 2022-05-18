@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 let pillar = {
   open Minecraft_template;

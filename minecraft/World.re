@@ -203,7 +203,7 @@ let entity_nbt = (entity: Entity.t) => {
 };
 
 let chunk_biomes = (~cx, ~cz, r) => {
-  open Core_kernel;
+  open Core;
   let ids = Region.biomes_in_xzy_order(~cx, ~cz, r) |> List.map(~f=Biome.id);
   assert(List.length(ids) == 1024);
   Nbt.Node.Int_array(ids);

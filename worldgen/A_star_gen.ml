@@ -1,4 +1,4 @@
-open Core_kernel
+open Core
 
 module type Score = sig
   type t
@@ -58,7 +58,7 @@ module Make (Score : Score) (Coord : Comparable.S) = struct
                         ; f_score= heuristic neighbor_coord }
                       in
                       let priority = Score.(node.g_score + node.f_score) in
-                      Pq.insert acc priority node)
+                      Pq.insert acc priority node )
               in
               go ~open_set ~closed_set ~remaining_iters:(remaining_iters - 1) )
     in
@@ -70,7 +70,7 @@ module Make (Score : Score) (Coord : Comparable.S) = struct
             {coord= start_coord; came_from= start_coord; g_score; f_score}
           in
           let priority = Score.(node.g_score + node.f_score) in
-          Pq.insert acc priority node)
+          Pq.insert acc priority node )
     in
     go ~closed_set ~open_set ~remaining_iters:max_iters
 end

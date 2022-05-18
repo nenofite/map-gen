@@ -166,6 +166,24 @@ module Range = {
       exists(min + 1, max, f);
     };
 
+  let rec find = (min, max, f) =>
+    if (min > max) {
+      None;
+    } else if (f(min)) {
+      Some(min);
+    } else {
+      find(min + 1, max, f);
+    };
+
+  let rec find_exn = (min, max, f) =>
+    if (min > max) {
+      failwith("find_exn: not found");
+    } else if (f(min)) {
+      min;
+    } else {
+      find_exn(min + 1, max, f);
+    };
+
   let for_all = (min, max, f) => {
     let not_f = n => !f(n);
     !exists(min, max, not_f);
@@ -180,6 +198,14 @@ module Range = {
     };
 
   let map = (min, max, f) => fold(min, max, [], (ls, n) => [f(n), ...ls]);
+
+  let flat_map = (min, max, f) =>
+    fold(min, max, [], (ls, n) =>
+      switch (f(n)) {
+      | Some(x) => [x, ...ls]
+      | None => ls
+      }
+    );
 
   let rec iter_m = (min, max, ~bind, expr) => {
     let s = expr(min);

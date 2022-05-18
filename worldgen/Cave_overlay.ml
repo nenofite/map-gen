@@ -1,4 +1,4 @@
-open Core_kernel
+open Core
 module Geometry = Mg_util.Geometry
 
 type metaball = {center: Geometry.Vec3i.t; radii: Geometry.Vec3i.t}

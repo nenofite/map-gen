@@ -1,4 +1,4 @@
-open Core_kernel;
+open Core;
 
 /** stores blocks in [[z][x][y]] order */
 type section = array(Block.material);

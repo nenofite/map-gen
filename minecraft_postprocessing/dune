@@ -1,7 +1,7 @@
 (library
  (name Minecraft_postprocessing)
  (inline_tests)
- (libraries core_kernel Config Mg_util Minecraft Nbt Test_helpers)
+ (libraries core Config Mg_util Minecraft Nbt Test_helpers)
  (preprocess
   (pps
    ppx_inline_test

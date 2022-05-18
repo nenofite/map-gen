@@ -1,4 +1,4 @@
-open Core_kernel;
+open Core;
 
 type state = {
   inflow: Grid.Mut.t(int),

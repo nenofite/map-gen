@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 /**
   t is a templated structure, tree, etc. that can be pasted into the block
@@ -431,7 +431,7 @@ let find_blocks = (t: t(_), ~f) => {
 };
 
 let get_mark = (t: t('a), ~mark: 'a) => {
-  Core_kernel.(
+  Core.(
     List.find_map(t.marks, ~f=((x, y, z, m)) =>
       if (Poly.(m == mark)) {
         Some((x, y, z));
@@ -443,7 +443,7 @@ let get_mark = (t: t('a), ~mark: 'a) => {
 };
 
 let get_marks = (t: t('a), ~mark: 'a) => {
-  Core_kernel.(
+  Core.(
     List.filter_map(t.marks, ~f=((x, y, z, m)) =>
       if (Poly.(m == mark)) {
         Some((x, y, z));

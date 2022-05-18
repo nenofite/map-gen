@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 
 module T = struct
   type 'a t = 'a Prepare_monad.t * 'a Apply_monad.t

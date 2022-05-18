@@ -2,7 +2,7 @@
  (name Roads)
  (inline_tests)
  (libraries
-  core_kernel
+  core
   Mg_util
   Tale
   Grid

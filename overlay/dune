@@ -2,7 +2,7 @@
  (name Overlay)
  (inline_tests)
  (libraries
-  core_kernel
+  core
   Mg_util
   Tale
   Grid

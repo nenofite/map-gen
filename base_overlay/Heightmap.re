@@ -1,4 +1,4 @@
-open Core_kernel;
+open Core;
 open Constants;
 
 type with_distances = {

@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 
 (**
    This is not a true overlay, but rather this defines the canonical data which
@@ -156,5 +156,4 @@ let draw_obstacles () =
     l ;
   l
 
-let elevation_at ~x ~z t = 
-  Grid.get ~x ~z t.elevation
+let elevation_at ~x ~z t = Grid.get ~x ~z t.elevation

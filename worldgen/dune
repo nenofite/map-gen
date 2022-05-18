@@ -5,7 +5,7 @@
   bin_prot
   camlimages.core
   camlimages.png
-  core_kernel
+  core
   parmap
   Base_overlay
   Building
@@ -27,7 +27,8 @@
   Roads
   Sparse_grid
   Town_overlay
-  Meta_overlay)
+  Meta_overlay
+  Wave_collapse)
  (preprocess
   (pps
    ppx_inline_test

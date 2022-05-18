@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 
 type global_state = {mutable seed: int}
 
@@ -136,24 +136,24 @@ let make name ?(apply_progress_view = fun _ -> ()) prepare apply_region reader
   make_lifecycle ~prepare ~after_prepare ~apply:apply_region overlay
 
 (* let%expect_test "consistent random state" =
-  let overlay_a =
-    make_overlay "test_a" Bin_prot.Type_class.bin_reader_unit
-      Bin_prot.Type_class.bin_writer_unit
-  in
-  let overlay_b =
-    make_overlay "test_b" Bin_prot.Type_class.bin_reader_unit
-      Bin_prot.Type_class.bin_writer_unit
-  in
-  init 123 ;
-  before_prepare overlay_a ;
-  let a_rand_1 = Caml.Random.bits () in
-  before_prepare overlay_b ;
-  let b_rand_1 = Caml.Random.bits () in
-  before_prepare overlay_a ;
-  let a_rand_2 = Caml.Random.bits () in
-  before_prepare overlay_b ;
-  let b_rand_2 = Caml.Random.bits () in
-  Printf.printf "overlay a: %d == %d" a_rand_1 a_rand_2 ;
-  [%expect "TODO"] ;
-  Printf.printf "overlay b: %d == %d" b_rand_1 b_rand_2 ;
-  [%expect "TODO"] *)
+   let overlay_a =
+     make_overlay "test_a" Bin_prot.Type_class.bin_reader_unit
+       Bin_prot.Type_class.bin_writer_unit
+   in
+   let overlay_b =
+     make_overlay "test_b" Bin_prot.Type_class.bin_reader_unit
+       Bin_prot.Type_class.bin_writer_unit
+   in
+   init 123 ;
+   before_prepare overlay_a ;
+   let a_rand_1 = Caml.Random.bits () in
+   before_prepare overlay_b ;
+   let b_rand_1 = Caml.Random.bits () in
+   before_prepare overlay_a ;
+   let a_rand_2 = Caml.Random.bits () in
+   before_prepare overlay_b ;
+   let b_rand_2 = Caml.Random.bits () in
+   Printf.printf "overlay a: %d == %d" a_rand_1 a_rand_2 ;
+   [%expect "TODO"] ;
+   Printf.printf "overlay b: %d == %d" b_rand_1 b_rand_2 ;
+   [%expect "TODO"] *)

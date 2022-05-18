@@ -30,10 +30,10 @@ let remove_layer = (layer: layer, stack: stack) => {
   stack.layers = List.filter(n => n !== layer, stack.layers);
 };
 
-let last_layer = (stack: stack) => Core_kernel.List.hd(stack.layers);
+let last_layer = (stack: stack) => Core.List.hd(stack.layers);
 
 let remove_after_layer = (layer: layer, stack: stack) => {
-  Core_kernel.(
+  Core.(
     stack.layers =
       List.drop_while(stack.layers, ~f=l => !phys_equal(l, layer))
   );

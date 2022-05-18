@@ -1,7 +1,7 @@
 (library
  (name Point_cloud)
  (inline_tests)
- (libraries bin_prot core_kernel Mg_util Grid Sparse_grid)
+ (libraries bin_prot core Mg_util Grid Sparse_grid)
  (preprocess
   (pps
    ppx_inline_test

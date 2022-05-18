@@ -1,7 +1,7 @@
 (library
  (name Meta_overlay)
  (libraries
-  core_kernel
+  core
   Mg_util
   Tale
   Grid

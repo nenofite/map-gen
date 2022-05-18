@@ -3,4 +3,4 @@
  (public_names Main Test Splat)
  (preprocess
   (pps ppx_let))
- (libraries core memtrace Stats Proc Worldgen))
+ (libraries core core_unix.command_unix memtrace Stats Proc Worldgen))

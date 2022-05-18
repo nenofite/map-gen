@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 
 type state =
   {obstacles: Overlay.Canon.Obstacle.t Grid.t; region: (int * int) option}

@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 open Text_grid;
 
 let show_template_top_down =

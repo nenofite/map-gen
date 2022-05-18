@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 open Minecraft;
 
 let should_extend_to = (~x, ~y, ~z, r: Region.t) => {

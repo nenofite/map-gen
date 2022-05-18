@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 
 type region_args = Minecraft.Region.t
 

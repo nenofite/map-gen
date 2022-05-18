@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 
 type flower = {block: Minecraft.Block.material; percentage: int}
 [@@deriving eq, bin_io]

@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 
 [@deriving (bin_io, sexp)]
 type block_no_elevation = {

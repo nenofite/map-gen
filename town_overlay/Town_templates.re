@@ -1,4 +1,4 @@
-open! Core_kernel;
+open! Core;
 open Town_overlay_i;
 
 let make = t => {template: Minecraft_template.normalize_on_origin(t)};

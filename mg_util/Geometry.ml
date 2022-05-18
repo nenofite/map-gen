@@ -1,4 +1,4 @@
-open Core_kernel
+open Core
 
 module Vec2i = struct
   module T = struct
