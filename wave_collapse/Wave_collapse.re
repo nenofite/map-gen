@@ -25,8 +25,23 @@ let item_at =
   let subz = z - tz * (tsz - 1);
 
   switch (Evaluator.observe_at(eval, ~x=tx, ~y=ty, ~z=tz)) {
-  | Some(t) => eval.tileset.tiles[t].items[subx][suby][subz]
-  | None => default
+  | Result.Ok(t) => eval.tileset.tiles[t].items[subx][suby][subz]
+  | Result.Error(_) => default
+  };
+};
+let item_or_entropy_at =
+    (eval: Evaluator.wave_evaluator('a), ~x: int, ~y: int, ~z: int) => {
+  let tsz = eval.tileset.tilesize;
+  let tx = max(0, (x - 1) / (tsz - 1));
+  let ty = max(0, (y - 1) / (tsz - 1));
+  let tz = max(0, (z - 1) / (tsz - 1));
+  let subx = x - tx * (tsz - 1);
+  let suby = y - ty * (tsz - 1);
+  let subz = z - tz * (tsz - 1);
+
+  switch (Evaluator.observe_at(eval, ~x=tx, ~y=ty, ~z=tz)) {
+  | Result.Ok(t) => Result.Ok(eval.tileset.tiles[t].items[subx][suby][subz])
+  | Result.Error(_) as e => e
   };
 };
 

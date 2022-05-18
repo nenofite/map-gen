@@ -1,5 +1,13 @@
 open! Core;
 
+[@deriving sexp_of]
+type contradiction_info = {
+  contradiction_at: (int, int, int),
+  banned_tile: int,
+  during_collapse: option((int, int, int, int)),
+};
+exception Contradiction(contradiction_info);
+
 type wave_evaluator('a) = {
   tileset: Tileset.tileset('a),
   xs: int,
@@ -32,18 +40,18 @@ let assert_within = (n, size) =>
     failwithf("Expected 0 <= %d < %d", n, size, ());
   };
 
-let it_of_xyz = (~xs as _: int, ~ys, ~zs, ~ts, x, y, z): int => {
-  // assert_within(x, xs);
-  // assert_within(y, ys);
-  // assert_within(z, zs);
+let it_of_xyz = (~xs: int, ~ys, ~zs, ~ts, x, y, z): int => {
+  assert_within(x, xs);
+  assert_within(y, ys);
+  assert_within(z, zs);
   (z + (y + x * ys) * zs) * ts;
 };
 
-let i_of_xyzt = (~xs as _: int, ~ys, ~zs, ~ts, x, y, z, t): int => {
-  // assert_within(x, xs);
-  // assert_within(y, ys);
-  // assert_within(z, zs);
-  // assert_within(t, ts);
+let i_of_xyzt = (~xs: int, ~ys, ~zs, ~ts, x, y, z, t): int => {
+  assert_within(x, xs);
+  assert_within(y, ys);
+  assert_within(z, zs);
+  assert_within(t, ts);
   t + (z + (y + x * ys) * zs) * ts;
 };
 
@@ -104,6 +112,31 @@ let copy = eval => {
   };
 };
 
+let blit = (src, dest) => {
+  assert(src.xs == dest.xs);
+  assert(src.ys == dest.ys);
+  assert(src.zs == dest.zs);
+  assert(src.ts == dest.ts);
+  let {
+    tileset: _,
+    xs: _,
+    ys: _,
+    zs: _,
+    ts: _,
+    possibilities,
+    supporters,
+    entropy_queue,
+    total_entropy,
+    needs_ban,
+  } = src;
+  Array.blito(~src=possibilities, ~dst=dest.possibilities, ());
+  Array.blito(~src=supporters, ~dst=dest.supporters, ());
+  dest.entropy_queue = entropy_queue;
+  dest.total_entropy = total_entropy;
+  assert(Hash_queue.is_empty(needs_ban));
+  Hash_queue.clear(dest.needs_ban);
+};
+
 let entropy_at = (eval, it) => {
   let s = ref(0);
   for (t in 0 to eval.ts - 1) {
@@ -119,8 +152,22 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
   if (eval.possibilities[i]) {
     eval.possibilities[i] = false;
     let now_entropy = entropy_at(eval, it);
-    eval.entropy_queue =
-      Priority_queue.Int.insert(eval.entropy_queue, now_entropy, (x, y, z));
+    if (now_entropy < 0) {
+      raise_notrace(
+        Contradiction({
+          contradiction_at: (x, y, z),
+          banned_tile: tile_id,
+          during_collapse: None,
+        }),
+      );
+    } else if (now_entropy > 0) {
+      eval.entropy_queue =
+        Priority_queue.Int.insert(
+          eval.entropy_queue,
+          now_entropy,
+          (x, y, z),
+        );
+    };
     eval.total_entropy = eval.total_entropy - 1;
 
     let reqs = eval.tileset.requirements[tile_id];
@@ -166,12 +213,16 @@ let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
   // We don't need to enqueue all coords, just one. As soon as the wave starts
   // to collapse, the full entropy entries will become unreachable in the queue.
   // We just need one entry to start the process.
-  let entropy_queue =
-    Priority_queue.Int.insert(
-      Priority_queue.Int.empty,
-      numtiles - 1,
-      (0, 0, 0),
-    );
+  let entropy_queue = ref(Priority_queue.Int.empty);
+  for (x in 0 to xs - 1) {
+    for (y in 0 to ys - 1) {
+      for (z in 0 to zs - 1) {
+        entropy_queue :=
+          Priority_queue.Int.insert(entropy_queue^, numtiles - 1, (x, y, z));
+      };
+    };
+  };
+  let entropy_queue = entropy_queue^;
   {
     tileset,
     xs,
@@ -248,7 +299,12 @@ let collapse_at = (eval, ~x, ~y, ~z) => {
   };
   let t =
     random_tile_by_weight(Array.of_list(options), ~tileset=eval.tileset);
-  force_and_propagate(eval, ~x, ~y, ~z, t);
+  try(force_and_propagate(eval, ~x, ~y, ~z, t)) {
+  | Contradiction(c) =>
+    raise_notrace(
+      Contradiction({...c, during_collapse: Some((x, y, z, t))}),
+    )
+  };
 };
 
 let try_collapse_next_lowest_entropy = eval => {
@@ -261,16 +317,31 @@ let try_collapse_next_lowest_entropy = eval => {
 };
 
 let collapse_all = eval => {
-  while (try_collapse_next_lowest_entropy(eval)) {
-    ();
+  let start = copy(eval);
+  for (_tries in 0 to 9) {
+    blit(start, eval);
+    try(
+      while (try_collapse_next_lowest_entropy(eval)) {
+        ();
+      }
+    ) {
+    | Contradiction(c) =>
+      Printf.printf(
+        "*** contra: %s\n",
+        Sexp.to_string_hum([%sexp_of: contradiction_info](c)),
+      )
+    };
   };
+  // while (try_collapse_next_lowest_entropy(eval)) {
+  //   ();
+  // };
 };
 
 let observe_at_exn = (eval, ~x, ~y, ~z) => {
   let {xs, ys, zs, ts, _} = eval;
   let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
   if (entropy_at(eval, it) != 0) {
-    failwith("Cannot get because entropy != 0");
+    failwith("Cannot observe because entropy != 0");
   };
   Mg_util.Range.find_exn(0, ts - 1, t => eval.possibilities[it + t]);
 };
@@ -278,11 +349,12 @@ let observe_at_exn = (eval, ~x, ~y, ~z) => {
 let observe_at = (eval, ~x, ~y, ~z) => {
   let {xs, ys, zs, ts, _} = eval;
   let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
-  if (entropy_at(eval, it) != 0) {
-    None;
+  let e = entropy_at(eval, it);
+  if (e != 0) {
+    Result.Error(e);
   } else {
     let t = Mg_util.Range.find_exn(0, ts - 1, t => eval.possibilities[it + t]);
-    Some(t);
+    Result.Ok(t);
   };
 };
 
