@@ -329,8 +329,17 @@ let collapse_at = (eval, ~x, ~y, ~z) => {
     /* TODO */
     failwith("Contradiction, cannot collapse");
   };
+  let opts = Sexp.to_string_hum([%sexp_of: list(int)](options));
   let t =
     random_tile_by_weight(Array.of_list(options), ~tileset=eval.tileset);
+  Printf.printf(
+    "Collapsing %d %d %d (opts=%s) to %s\n",
+    x,
+    y,
+    z,
+    opts,
+    eval.tileset.tiles[t].name,
+  );
   try(force_and_propagate(eval, ~x, ~y, ~z, t)) {
   | Contradiction(c) =>
     raise_notrace(
@@ -353,23 +362,25 @@ let try_collapse_next_lowest_entropy = eval => {
 
 let collapse_all = eval => {
   let start = copy(eval);
-  for (_tries in 0 to 9) {
-    blit(start, eval);
-    try(
-      while (try_collapse_next_lowest_entropy(eval)) {
-        ();
-      }
-    ) {
-    | Contradiction(c) =>
-      Printf.printf(
-        "*** contra: %s\n",
-        Sexp.to_string_hum([%sexp_of: contradiction_info](c)),
-      )
+  let rec with_tries = tries =>
+    if (tries > 0) {
+      try(
+        while (try_collapse_next_lowest_entropy(eval)) {
+          ();
+        }
+      ) {
+      | Contradiction(c) =>
+        Printf.printf(
+          "*** contra: %s\n",
+          Sexp.to_string_hum([%sexp_of: contradiction_info](c)),
+        );
+        blit(start, eval);
+        with_tries(tries - 1);
+      };
+    } else {
+      failwith("Ran out of tries");
     };
-  };
-  // while (try_collapse_next_lowest_entropy(eval)) {
-  //   ();
-  // };
+  with_tries(10);
 };
 
 let observe_at_exn = (eval, ~x, ~y, ~z) => {

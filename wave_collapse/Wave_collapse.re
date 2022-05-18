@@ -57,6 +57,13 @@ let item_dims = (eval: Evaluator.wave_evaluator('a, 'tag)) => {
   (xs * (tsz - 1) + 1, ys * (tsz - 1) + 1, zs * (tsz - 1) + 1);
 };
 
+let force_at = (~x, ~y, ~z, tag, eval: Evaluator.wave_evaluator('a, 'tag)) =>
+  Evaluator.wrap_contradiction_error(() => {
+    let bans = Tileset.lookup_tag_inv(tag, eval.tileset);
+    Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
+    Evaluator.finish_propagating(eval);
+  });
+
 let force_edges =
     (
       ~transition_margin=0,
@@ -150,7 +157,7 @@ module Test_helpers = {
 
   let print_items = (~show_item, eval: Evaluator.wave_evaluator('a, 'tag)) => {
     let (xs, ys, zs) = item_dims(eval);
-    for (y in 0 to ys - 1) {
+    for (y in ys - 1 downto 0) {
       for (z in 0 to zs - 1) {
         for (x in 0 to xs - 1) {
           let t =
