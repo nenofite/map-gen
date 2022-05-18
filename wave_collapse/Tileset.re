@@ -260,19 +260,28 @@ let flip_z_multitile = (flip_z, tile) => {
   );
 };
 
+let maybe_append = (a, b) =>
+  switch (a) {
+  | None => None
+  | Some(a) => Some(a ++ b)
+  };
+
 let rec expand_btile = (~rotate_cw, ~flip_x, ~flip_z, btile, ls) =>
   if (btile.rotate) {
     let btile = {...btile, rotate: false};
     let btile_r1 = {
       ...btile,
+      name: maybe_append(btile.name, ".r1"),
       items: rotate_multitile(rotate_cw, btile.items),
     };
     let btile_r2 = {
       ...btile,
+      name: maybe_append(btile.name, ".r2"),
       items: rotate_multitile(rotate_cw, btile_r1.items),
     };
     let btile_r3 = {
       ...btile,
+      name: maybe_append(btile.name, ".r3"),
       items: rotate_multitile(rotate_cw, btile_r2.items),
     };
     let ls = expand_btile(~rotate_cw, ~flip_x, ~flip_z, btile, ls);
@@ -282,13 +291,21 @@ let rec expand_btile = (~rotate_cw, ~flip_x, ~flip_z, btile, ls) =>
     ls;
   } else if (btile.flip_x) {
     let btile = {...btile, flip_x: false};
-    let btile_fx = {...btile, items: flip_x_multitile(flip_x, btile.items)};
+    let btile_fx = {
+      ...btile,
+      name: maybe_append(btile.name, ".fx"),
+      items: flip_x_multitile(flip_x, btile.items),
+    };
     let ls = expand_btile(~rotate_cw, ~flip_x, ~flip_z, btile, ls);
     let ls = expand_btile(~rotate_cw, ~flip_x, ~flip_z, btile_fx, ls);
     ls;
   } else if (btile.flip_z) {
     let btile = {...btile, flip_z: false};
-    let btile_fz = {...btile, items: flip_z_multitile(flip_z, btile.items)};
+    let btile_fz = {
+      ...btile,
+      name: maybe_append(btile.name, ".fz"),
+      items: flip_z_multitile(flip_z, btile.items),
+    };
     let ls = expand_btile(~rotate_cw, ~flip_x, ~flip_z, btile, ls);
     let ls = expand_btile(~rotate_cw, ~flip_x, ~flip_z, btile_fz, ls);
     ls;
