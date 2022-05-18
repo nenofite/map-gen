@@ -1,8 +1,9 @@
 open! Core;
 
-type tile('a) = {
+type tile('a, 'tag) = {
   id: int,
   name: string,
+  tags: list('tag),
   weight: float,
   /* x y z item */
   items: array(array(array('a))),
@@ -17,10 +18,10 @@ type tile('a) = {
   is_impossible: bool,
 };
 
-type tileset('a) = {
+type tileset('a, 'tag) = {
   tilesize: int,
   /* kind tile */
-  tiles: array(tile('a)),
+  tiles: array(tile('a, 'tag)),
   /* x-1 x allowed */
   x_pairs: array(array(bool)),
   /* y-1 y allowed */
@@ -31,8 +32,9 @@ type tileset('a) = {
   supportees: array(array(array(int))),
 };
 
-type btile('a) = {
+type btile('a, 'tag) = {
   name: option(string),
+  tags: list('tag),
   weight: float,
   /* x y z item */
   items: array(array(array('a))),
@@ -83,13 +85,15 @@ let tile =
     (
       ~weight: float=1.0,
       ~name: option(string)=?,
+      ~tags=[],
       ~rotate=false,
       ~flip_x=false,
       ~flip_z=false,
       items: array(array(array('a))),
     )
-    : btile('a) => {
+    : btile('a, 'tag) => {
   name,
+  tags,
   items,
   rotate,
   flip_x,
@@ -100,7 +104,7 @@ let tile =
 let make_blank_pairs = numtiles =>
   Array.init(numtiles, ~f=_ => Array.create(~len=numtiles, false));
 
-let x_match = (x0: tile('a), x1: tile('a)): bool =>
+let x_match = (x0: tile('a, _), x1: tile('a, _)): bool =>
   if (x0.auto_x1 && x1.auto_x0) {
     let tilesize = Array.length(x0.items);
     let all_match = ref(true);
@@ -116,7 +120,7 @@ let x_match = (x0: tile('a), x1: tile('a)): bool =>
     false;
   };
 
-let y_match = (y0: tile('a), y1: tile('a)): bool =>
+let y_match = (y0: tile('a, _), y1: tile('a, _)): bool =>
   if (y0.auto_y1 && y1.auto_y0) {
     let tilesize = Array.length(y0.items);
     let all_match = ref(true);
@@ -132,7 +136,7 @@ let y_match = (y0: tile('a), y1: tile('a)): bool =>
     false;
   };
 
-let z_match = (z0: tile('a), z1: tile('a)): bool =>
+let z_match = (z0: tile('a, _), z1: tile('a, _)): bool =>
   if (z0.auto_z1 && z1.auto_z0) {
     let tilesize = Array.length(z0.items);
     let all_match = ref(true);
@@ -154,6 +158,7 @@ let split_multitile =
       ~next_id: ref(int),
       ~weight: float,
       ~name: option(string),
+      ~tags,
       multitile: array(array(array('a))),
     ) => {
   let xs = Array.length(multitile);
@@ -202,6 +207,7 @@ let split_multitile =
     {
       id,
       name: form_name(~id, ~local_id),
+      tags,
       weight,
       items,
       auto_x0: tx == 0,
@@ -321,7 +327,9 @@ let create_tileset =
       ~rotate_cw=Fn.id,
       ~flip_x=twice(rotate_cw),
       ~flip_z=twice(rotate_cw),
-      btiles: list(btile('a)),
+      // If no tags are specified the type checker will fail, so this can fix that
+      ~tagfix as _: option('tag)=?,
+      btiles: list(btile('a, 'tag)),
     ) => {
   let next_id = ref(0);
   let x_pairs_s = Hash_set.Poly.create();
@@ -338,6 +346,7 @@ let create_tileset =
            split_multitile(
              btile.items,
              ~name=btile.name,
+             ~tags=btile.tags,
              ~tilesize,
              ~next_id,
              ~weight=btile.weight,
@@ -515,13 +524,39 @@ let create_tileset =
   };
 };
 
-let lookup_tile_exn = (name, tileset: tileset('a)) => {
+let lookup_tile_exn = (name, tileset: tileset('a, _)) => {
   switch (Array.filter(tileset.tiles, ~f=t => String.(t.name == name))) {
   | [|match|] => match.id
   | [||] => failwithf("No matches: %s", name, ())
   | multi =>
     failwithf("Multiple (%d) matches: %s", Array.length(multi), name, ())
   };
+};
+
+let lookup_tag = (tag, tileset: tileset('a, 'tag)) => {
+  Array.filter_map(tileset.tiles, ~f=t =>
+    if (List.mem(t.tags, tag, ~equal=Poly.equal)) {
+      Some(t.id);
+    } else {
+      None;
+    }
+  );
+};
+
+// Inverts the set of tile IDs, ie. gives the list of all tiles NOT in the
+// provided list
+let invert_tile_ids = (ids, tileset) => {
+  Array.filter_map(tileset.tiles, ~f=t =>
+    if (!Array.mem(ids, t.id, ~equal=Int.equal)) {
+      Some(t.id);
+    } else {
+      None;
+    }
+  );
+};
+
+let lookup_tag_inv = (tag, tileset: tileset('a, 'tag)) => {
+  invert_tile_ids(lookup_tag(tag, tileset), tileset);
 };
 
 module Test_helpers = {
@@ -594,14 +629,24 @@ module Test_helpers = {
     print_pair_axis("Z", tileset.z_pairs);
   };
 
-  let dump_tileset = (~only_impossible=false, ~show_item, ts) => {
+  let print_tile_tags = (tile: tile('a, 'tag), ~show_tag, ~indent) =>
+    if (!List.is_empty(tile.tags)) {
+      Printf.printf("%s", indent);
+      List.iter(tile.tags, ~f=tag => {Printf.printf("%s ", show_tag(tag))});
+      Printf.printf("\n");
+    };
+
+  let dump_tileset =
+      (~only_impossible=false, ~show_item, ~show_tag=_ => "", ts) => {
+    let indent = "  ";
     for (t in 0 to numtiles(ts) - 1) {
       let tile = ts.tiles[t];
       if (!only_impossible || tile.is_impossible) {
         let impossible_warning = tile.is_impossible ? " IMPOSSIBLE!" : "";
         Printf.printf("Tile %s:%s\n", tile.name, impossible_warning);
-        print_tile_items(tile.items, ~show_item, ~indent="  ");
-        print_tile_pairs(t, ~tileset=ts, ~indent="  ");
+        print_tile_tags(tile, ~show_tag, ~indent);
+        print_tile_items(tile.items, ~show_item, ~indent);
+        print_tile_pairs(t, ~tileset=ts, ~indent);
         Printf.printf("----------\n");
       };
     };

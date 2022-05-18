@@ -1,7 +1,7 @@
 open! Core;
 
 let item_at_exn =
-    (eval: Evaluator.wave_evaluator('a), ~x: int, ~y: int, ~z: int) => {
+    (eval: Evaluator.wave_evaluator('a, 'tag), ~x: int, ~y: int, ~z: int) => {
   let tsz = eval.tileset.tilesize;
   let tx = max(0, (x - 1) / (tsz - 1));
   let ty = max(0, (y - 1) / (tsz - 1));
@@ -15,7 +15,13 @@ let item_at_exn =
 };
 
 let item_at =
-    (eval: Evaluator.wave_evaluator('a), ~x: int, ~y: int, ~z: int, ~default) => {
+    (
+      eval: Evaluator.wave_evaluator('a, 'tag),
+      ~x: int,
+      ~y: int,
+      ~z: int,
+      ~default,
+    ) => {
   let tsz = eval.tileset.tilesize;
   let tx = max(0, (x - 1) / (tsz - 1));
   let ty = max(0, (y - 1) / (tsz - 1));
@@ -30,7 +36,7 @@ let item_at =
   };
 };
 let item_or_entropy_at =
-    (eval: Evaluator.wave_evaluator('a), ~x: int, ~y: int, ~z: int) => {
+    (eval: Evaluator.wave_evaluator('a, 'tag), ~x: int, ~y: int, ~z: int) => {
   let tsz = eval.tileset.tilesize;
   let tx = max(0, (x - 1) / (tsz - 1));
   let ty = max(0, (y - 1) / (tsz - 1));
@@ -45,7 +51,7 @@ let item_or_entropy_at =
   };
 };
 
-let item_dims = (eval: Evaluator.wave_evaluator('a)) => {
+let item_dims = (eval: Evaluator.wave_evaluator('a, 'tag)) => {
   let tsz = eval.tileset.tilesize;
   let Evaluator.{xs, ys, zs, _} = eval;
   (xs * (tsz - 1) + 1, ys * (tsz - 1) + 1, zs * (tsz - 1) + 1);
@@ -60,69 +66,75 @@ let force_edges =
       ~y1=?,
       ~z0=?,
       ~z1=?,
-      eval: Evaluator.wave_evaluator('a),
+      eval: Evaluator.wave_evaluator('a, 'tag),
     ) =>
   Evaluator.wrap_contradiction_error(() => {
-    let Evaluator.{xs, ys, zs, _} = eval;
+    let Evaluator.{xs, ys, zs, tileset, _} = eval;
 
     // If allowing transitions, don't force corners
     let (mino, maxo) = (transition_margin, - (1 + transition_margin));
 
     switch (x0) {
     | Some(t) =>
+      let bans = Tileset.lookup_tag_inv(t, tileset);
       for (y in mino to ys + maxo) {
         for (z in mino to zs + maxo) {
-          Evaluator.force_no_propagate(eval, ~x=0, ~y, ~z, t);
+          Evaluator.ban_multi_no_propagate(eval, ~x=0, ~y, ~z, bans);
         };
-      }
+      };
     | None => ()
     };
     switch (x1) {
     | Some(t) =>
+      let bans = Tileset.lookup_tag_inv(t, tileset);
       for (y in mino to ys + maxo) {
         for (z in mino to zs + maxo) {
-          Evaluator.force_no_propagate(eval, ~x=xs - 1, ~y, ~z, t);
+          Evaluator.ban_multi_no_propagate(eval, ~x=xs - 1, ~y, ~z, bans);
         };
-      }
+      };
     | None => ()
     };
 
     switch (z0) {
     | Some(t) =>
+      let bans = Tileset.lookup_tag_inv(t, tileset);
       for (x in mino to xs + maxo) {
         for (y in mino to ys + maxo) {
-          Evaluator.force_no_propagate(eval, ~x, ~y, ~z=0, t);
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z=0, bans);
         };
-      }
+      };
     | None => ()
     };
     switch (z1) {
     | Some(t) =>
+      let bans = Tileset.lookup_tag_inv(t, tileset);
       for (x in mino to xs + maxo) {
         for (y in mino to ys + maxo) {
-          Evaluator.force_no_propagate(eval, ~x, ~y, ~z=zs - 1, t);
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z=zs - 1, bans);
         };
-      }
+      };
     | None => ()
     };
 
     // Top and bottom take priority
     switch (y0) {
     | Some(t) =>
+      let bans = Tileset.lookup_tag_inv(t, tileset);
       for (x in mino to xs + maxo) {
         for (z in mino to zs + maxo) {
-          Evaluator.force_no_propagate(eval, ~x, ~y=0, ~z, t);
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y=0, ~z, bans);
         };
-      }
+      };
     | None => ()
     };
     switch (y1) {
     | Some(t) =>
+      let bans = Tileset.lookup_tag_inv(t, tileset);
       for (x in mino to xs + maxo) {
         for (z in mino to zs + maxo) {
-          Evaluator.force_no_propagate(eval, ~x, ~y=ys - 1, ~z, t);
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y=ys - 1, ~z, bans);
         };
-      }
+      };
     | None => ()
     };
 
@@ -136,7 +148,7 @@ module Test_helpers = {
   include Tileset.Test_helpers;
   include Evaluator.Test_helpers;
 
-  let print_items = (eval: Evaluator.wave_evaluator('a)) => {
+  let print_items = (eval: Evaluator.wave_evaluator('a, 'tag)) => {
     let (xs, ys, zs) = item_dims(eval);
     for (y in 0 to ys - 1) {
       for (z in 0 to zs - 1) {

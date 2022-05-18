@@ -8,8 +8,8 @@ type contradiction_info = {
 };
 exception Contradiction(contradiction_info);
 
-type wave_evaluator('a) = {
-  tileset: Tileset.tileset('a),
+type wave_evaluator('a, 'tag) = {
+  tileset: Tileset.tileset('a, 'tag),
   xs: int,
   ys: int,
   zs: int,
@@ -71,7 +71,7 @@ let copy_a5 = a =>
   Array.(map(a, ~f=b => map(b, ~f=c => map(c, ~f=d => map(d, ~f=copy)))));
 
 let make_blank_supporters =
-    (~tileset: Tileset.tileset('a), xs: int, ys: int, zs: int) => {
+    (~tileset: Tileset.tileset('a, 'tag), xs: int, ys: int, zs: int) => {
   let ts = Tileset.numtiles(tileset);
   Array.init(
     xs * ys * zs * ts * Tileset.numdirs,
@@ -217,6 +217,12 @@ let force_no_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) =>
     }
   });
 
+let ban_multi_no_propagate =
+    (eval, ~x: int, ~y: int, ~z: int, tiles_to_ban: array(int)) =>
+  wrap_contradiction_error(() => {
+    Array.iter(tiles_to_ban, ~f=t => ban(eval, ~x, ~y, ~z, t))
+  });
+
 let finish_propagating = eval => {
   while (!Hash_queue.is_empty(eval.needs_ban)) {
     let ((x, y, z, t), _) =
@@ -290,7 +296,7 @@ let rec next_lowest_entropy = eval => {
 };
 
 let random_tile_by_weight =
-    (options: array(int), ~tileset: Tileset.tileset('a)) => {
+    (options: array(int), ~tileset: Tileset.tileset('a, 'tag)) => {
   let total_weight =
     Array.fold(options, ~init=0.0, ~f=(s, i) => s +. tileset.tiles[i].weight);
   let selected_weight = Random.float(total_weight);
@@ -424,6 +430,7 @@ module Test_helpers = {
     Tileset.(
       create_tileset(
         ~tilesize=3,
+        ~tagfix="",
         [
           tile(
             ~weight=0.0,
@@ -513,6 +520,7 @@ module Test_helpers = {
     Tileset.(
       create_tileset(
         ~tilesize=2,
+        ~tagfix="",
         [
           tile([|
             [|
