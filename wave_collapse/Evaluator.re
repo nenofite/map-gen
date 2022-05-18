@@ -361,7 +361,7 @@ let observe_at = (eval, ~x, ~y, ~z) => {
 module Test_helpers = {
   let print_entropy = eval => {
     let {xs, ys, zs, ts, _} = eval;
-    for (y in 0 to ys - 1) {
+    for (y in ys - 1 downto 0) {
       for (z in 0 to zs - 1) {
         for (x in 0 to xs - 1) {
           let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
@@ -477,6 +477,49 @@ module Test_helpers = {
         ],
       )
     );
+
+  let vertical_tileset =
+    Tileset.(
+      create_tileset(
+        ~tilesize=2,
+        [
+          tile([|
+            [|
+              [|"a", "a", "a"|], /* */
+              [|"a", "1", "a"|], /* */
+              [|"a", "a", "a"|] /* */
+            |],
+            [|
+              [|"a", "a", "a"|], /* */
+              [|"a", "Y", "a"|], /* */
+              [|"a", "a", "a"|] /* */
+            |],
+            [|
+              [|"a", "a", "a"|], /* */
+              [|"a", "1", "a"|], /* */
+              [|"a", "a", "a"|] /* */
+            |],
+          |]),
+          tile([|
+            [|
+              [|"a", "a", "a"|], /* */
+              [|"a", "1", "a"|], /* */
+              [|"a", "a", "a"|] /* */
+            |],
+            [|
+              [|"a", "a", "a"|], /* */
+              [|"a", "X", "a"|], /* */
+              [|"a", "a", "a"|] /* */
+            |],
+            [|
+              [|"a", "a", "a"|], /* */
+              [|"a", "0", "a"|], /* */
+              [|"a", "a", "a"|] /* */
+            |],
+          |]),
+        ],
+      )
+    );
 };
 
 let%expect_test "propagation" = {
@@ -539,6 +582,260 @@ let%expect_test "propagation" = {
     0 0 0
     0 0 0
     0 0 0
+
+    total_entropy = 0
+  |};
+};
+
+let%expect_test "vertical propagation" = {
+  Tileset.Test_helpers.dump_tileset(
+    Test_helpers.vertical_tileset,
+    ~show_item=Fn.id,
+  );
+  %expect
+  {|
+    Tile 0:
+    a a
+    a Y
+
+    a a
+    a 1
+
+    4 5 6 7 12 13 14 15 -X+ 4
+    2 10 -Y+ 2
+    1 3 5 7 9 11 13 15 -Z+ 1
+    ----------
+    Tile 1:
+    a Y
+    a a
+
+    a 1
+    a a
+
+    4 5 6 7 12 13 14 15 -X+ 5
+    3 11 -Y+ 3
+    0 -Z+ 0 2 4 6 8 10 12 14
+    ----------
+    Tile 2:
+    a a
+    a 1
+
+    a a
+    a Y
+
+    4 5 6 7 12 13 14 15 -X+ 6
+    0 -Y+ 0
+    1 3 5 7 9 11 13 15 -Z+ 3
+    ----------
+    Tile 3:
+    a 1
+    a a
+
+    a Y
+    a a
+
+    4 5 6 7 12 13 14 15 -X+ 7
+    1 -Y+ 1
+    2 -Z+ 0 2 4 6 8 10 12 14
+    ----------
+    Tile 4:
+    a a
+    Y a
+
+    a a
+    1 a
+
+    0 -X+ 0 1 2 3 8 9 10 11
+    6 14 -Y+ 6
+    1 3 5 7 9 11 13 15 -Z+ 5
+    ----------
+    Tile 5:
+    Y a
+    a a
+
+    1 a
+    a a
+
+    1 -X+ 0 1 2 3 8 9 10 11
+    7 15 -Y+ 7
+    4 -Z+ 0 2 4 6 8 10 12 14
+    ----------
+    Tile 6:
+    a a
+    1 a
+
+    a a
+    Y a
+
+    2 -X+ 0 1 2 3 8 9 10 11
+    4 -Y+ 4
+    1 3 5 7 9 11 13 15 -Z+ 7
+    ----------
+    Tile 7:
+    1 a
+    a a
+
+    Y a
+    a a
+
+    3 -X+ 0 1 2 3 8 9 10 11
+    5 -Y+ 5
+    6 -Z+ 0 2 4 6 8 10 12 14
+    ----------
+    Tile 8:
+    a a
+    a X
+
+    a a
+    a 0
+
+    4 5 6 7 12 13 14 15 -X+ 12
+    -Y+ 10
+    1 3 5 7 9 11 13 15 -Z+ 9
+    ----------
+    Tile 9:
+    a X
+    a a
+
+    a 0
+    a a
+
+    4 5 6 7 12 13 14 15 -X+ 13
+    -Y+ 11
+    8 -Z+ 0 2 4 6 8 10 12 14
+    ----------
+    Tile 10:
+    a a
+    a 1
+
+    a a
+    a X
+
+    4 5 6 7 12 13 14 15 -X+ 14
+    8 -Y+ 0
+    1 3 5 7 9 11 13 15 -Z+ 11
+    ----------
+    Tile 11:
+    a 1
+    a a
+
+    a X
+    a a
+
+    4 5 6 7 12 13 14 15 -X+ 15
+    9 -Y+ 1
+    10 -Z+ 0 2 4 6 8 10 12 14
+    ----------
+    Tile 12:
+    a a
+    X a
+
+    a a
+    0 a
+
+    8 -X+ 0 1 2 3 8 9 10 11
+    -Y+ 14
+    1 3 5 7 9 11 13 15 -Z+ 13
+    ----------
+    Tile 13:
+    X a
+    a a
+
+    0 a
+    a a
+
+    9 -X+ 0 1 2 3 8 9 10 11
+    -Y+ 15
+    12 -Z+ 0 2 4 6 8 10 12 14
+    ----------
+    Tile 14:
+    a a
+    1 a
+
+    a a
+    X a
+
+    10 -X+ 0 1 2 3 8 9 10 11
+    12 -Y+ 4
+    1 3 5 7 9 11 13 15 -Z+ 15
+    ----------
+    Tile 15:
+    1 a
+    a a
+
+    X a
+    a a
+
+    11 -X+ 0 1 2 3 8 9 10 11
+    13 -Y+ 5
+    14 -Z+ 0 2 4 6 8 10 12 14
+    ----------
+  |};
+
+  let eval =
+    make_blank_wave(Test_helpers.vertical_tileset, ~xs=2, ~ys=5, ~zs=2);
+
+  Test_helpers.print_supporters_at(eval, 0, 0, 0);
+  %expect
+  {|
+    0: 1 8 1 1 1 8
+    1: -1 0 -1 0 0 0
+    2: -1 0 0 0 -1 0
+    3: -1 0 -1 0 0 0
+    4: 0 0 0 0 0 0
+    5: -8 0 -1 0 0 0
+    6: 0 0 0 0 0 0
+    7: -8 0 -1 0 0 0
+    8: 1 8 1 0 1 8
+    9: -1 0 -1 0 0 0
+    10: -1 0 0 0 -1 0
+    11: -1 0 -1 0 0 0
+    12: 0 0 0 0 0 0
+    13: -8 0 -1 0 0 0
+    14: 0 0 0 0 0 0
+    15: -8 0 -1 0 0 0
+  |};
+
+  Test_helpers.print_entropy(eval);
+  %expect
+  {|
+    15 15
+    15 15
+
+    15 15
+    15 15
+
+    15 15
+    15 15
+
+    15 15
+    15 15
+
+    15 15
+    15 15
+
+    total_entropy = 300
+  |};
+
+  force_and_propagate(eval, ~x=0, ~y=0, ~z=0, 0);
+
+  Test_helpers.print_entropy(eval);
+  %expect
+  {|
+    0 0
+    0 0
+
+    0 0
+    0 0
+
+    0 0
+    0 0
+
+    0 0
+    0 0
+
+    0 0
+    0 0
 
     total_entropy = 0
   |};
