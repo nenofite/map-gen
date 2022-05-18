@@ -85,8 +85,10 @@ let block ?always_close title ~f =
   open_level ?always_close title ;
   let result = f () in
   close_level () ; result
+  [@@inline]
 
 let blockf ?always_close fmt ~f = Printf.ksprintf (block ?always_close ~f) fmt
+  [@@inline]
 
 let log_progress ?every ~label start stop ~f =
   let total = stop - start + 1 in
@@ -105,3 +107,4 @@ let log_progress ?every ~label start stop ~f =
   Out_channel.print_string "\r" ;
   logf "%s: %d of %d" label total total ;
   Out_channel.newline stdout
+  [@@inline]

@@ -53,6 +53,7 @@ let item_dims = (eval: Evaluator.wave_evaluator('a)) => {
 
 let force_edges =
     (
+      ~transition_margin=0,
       ~x0=?,
       ~x1=?,
       ~y0=?,
@@ -60,69 +61,73 @@ let force_edges =
       ~z0=?,
       ~z1=?,
       eval: Evaluator.wave_evaluator('a),
-    ) => {
-  let Evaluator.{xs, ys, zs, _} = eval;
+    ) =>
+  Evaluator.wrap_contradiction_error(() => {
+    let Evaluator.{xs, ys, zs, _} = eval;
 
-  switch (x0) {
-  | Some(t) =>
-    for (y in 0 to ys - 1) {
-      for (z in 0 to zs - 1) {
-        Evaluator.force_no_propagate(eval, ~x=0, ~y, ~z, t);
-      };
-    }
-  | None => ()
-  };
-  switch (x1) {
-  | Some(t) =>
-    for (y in 0 to ys - 1) {
-      for (z in 0 to zs - 1) {
-        Evaluator.force_no_propagate(eval, ~x=xs - 1, ~y, ~z, t);
-      };
-    }
-  | None => ()
-  };
+    // If allowing transitions, don't force corners
+    let (mino, maxo) = (transition_margin, - (1 + transition_margin));
 
-  switch (z0) {
-  | Some(t) =>
-    for (x in 0 to xs - 1) {
-      for (y in 0 to ys - 1) {
-        Evaluator.force_no_propagate(eval, ~x, ~y, ~z=0, t);
-      };
-    }
-  | None => ()
-  };
-  switch (z1) {
-  | Some(t) =>
-    for (x in 0 to xs - 1) {
-      for (y in 0 to ys - 1) {
-        Evaluator.force_no_propagate(eval, ~x, ~y, ~z=zs - 1, t);
-      };
-    }
-  | None => ()
-  };
+    switch (x0) {
+    | Some(t) =>
+      for (y in mino to ys + maxo) {
+        for (z in mino to zs + maxo) {
+          Evaluator.force_no_propagate(eval, ~x=0, ~y, ~z, t);
+        };
+      }
+    | None => ()
+    };
+    switch (x1) {
+    | Some(t) =>
+      for (y in mino to ys + maxo) {
+        for (z in mino to zs + maxo) {
+          Evaluator.force_no_propagate(eval, ~x=xs - 1, ~y, ~z, t);
+        };
+      }
+    | None => ()
+    };
 
-  // Top and bottom take priority
-  switch (y0) {
-  | Some(t) =>
-    for (x in 0 to xs - 1) {
-      for (z in 0 to zs - 1) {
-        Evaluator.force_no_propagate(eval, ~x, ~y=0, ~z, t);
-      };
-    }
-  | None => ()
-  };
-  switch (y1) {
-  | Some(t) =>
-    for (x in 0 to xs - 1) {
-      for (z in 0 to zs - 1) {
-        Evaluator.force_no_propagate(eval, ~x, ~y=ys - 1, ~z, t);
-      };
-    }
-  | None => ()
-  };
+    switch (z0) {
+    | Some(t) =>
+      for (x in mino to xs + maxo) {
+        for (y in mino to ys + maxo) {
+          Evaluator.force_no_propagate(eval, ~x, ~y, ~z=0, t);
+        };
+      }
+    | None => ()
+    };
+    switch (z1) {
+    | Some(t) =>
+      for (x in mino to xs + maxo) {
+        for (y in mino to ys + maxo) {
+          Evaluator.force_no_propagate(eval, ~x, ~y, ~z=zs - 1, t);
+        };
+      }
+    | None => ()
+    };
 
-  Evaluator.finish_propagating(eval);
-};
+    // Top and bottom take priority
+    switch (y0) {
+    | Some(t) =>
+      for (x in mino to xs + maxo) {
+        for (z in mino to zs + maxo) {
+          Evaluator.force_no_propagate(eval, ~x, ~y=0, ~z, t);
+        };
+      }
+    | None => ()
+    };
+    switch (y1) {
+    | Some(t) =>
+      for (x in mino to xs + maxo) {
+        for (z in mino to zs + maxo) {
+          Evaluator.force_no_propagate(eval, ~x, ~y=ys - 1, ~z, t);
+        };
+      }
+    | None => ()
+    };
+
+    Evaluator.finish_propagating(eval);
+  });
 
 include Tileset;
 include Evaluator;

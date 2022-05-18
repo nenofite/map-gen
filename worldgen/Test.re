@@ -108,7 +108,16 @@ let tileset =
 let make_building = (~x as ox, ~y as oy, ~z as oz, region) => {
   Tale.block("Making building", ~f=() => {
     let wfc = Wave_collapse.make_blank_wave(tileset, ~xs=20, ~ys=10, ~zs=20);
-    Wave_collapse.force_edges(~x0=0, ~x1=0, ~y0=2, ~y1=0, ~z0=0, ~z1=0, wfc);
+    Wave_collapse.force_edges(
+      ~transition_margin=2,
+      ~x0=0,
+      ~x1=0,
+      ~y0=2,
+      ~y1=0,
+      ~z0=0,
+      ~z1=0,
+      wfc,
+    );
     Wave_collapse.collapse_all(wfc);
     let (xs, ys, zs) = Wave_collapse.item_dims(wfc);
     for (z in 0 to zs - 1) {

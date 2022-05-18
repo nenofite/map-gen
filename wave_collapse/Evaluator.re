@@ -3,8 +3,8 @@ open! Core;
 [@deriving sexp_of]
 type contradiction_info = {
   contradiction_at: (int, int, int),
-  banned_tile: int,
-  during_collapse: option((int, int, int, int)),
+  banned_tile: string,
+  during_collapse: option((int, int, int, string)),
 };
 exception Contradiction(contradiction_info);
 
@@ -156,7 +156,7 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
       raise_notrace(
         Contradiction({
           contradiction_at: (x, y, z),
-          banned_tile: tile_id,
+          banned_tile: eval.tileset.tiles[tile_id].name,
           during_collapse: None,
         }),
       );
@@ -200,13 +200,22 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
   };
 };
 
-let force_no_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
-  for (t in 0 to eval.ts - 1) {
-    if (t != tile_id) {
-      ban(eval, ~x, ~y, ~z, t);
-    };
+[@inline]
+let wrap_contradiction_error = f =>
+  try(f()) {
+  | Contradiction(c) =>
+    let msg = Sexp.to_string_hum(sexp_of_contradiction_info(c));
+    failwithf("Caused contradiction outside collapse: %s", msg, ());
   };
-};
+
+let force_no_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) =>
+  wrap_contradiction_error(() => {
+    for (t in 0 to eval.ts - 1) {
+      if (t != tile_id) {
+        ban(eval, ~x, ~y, ~z, t);
+      };
+    }
+  });
 
 let finish_propagating = eval => {
   while (!Hash_queue.is_empty(eval.needs_ban)) {
@@ -319,7 +328,10 @@ let collapse_at = (eval, ~x, ~y, ~z) => {
   try(force_and_propagate(eval, ~x, ~y, ~z, t)) {
   | Contradiction(c) =>
     raise_notrace(
-      Contradiction({...c, during_collapse: Some((x, y, z, t))}),
+      Contradiction({
+        ...c,
+        during_collapse: Some((x, y, z, eval.tileset.tiles[t].name)),
+      }),
     )
   };
 };
@@ -614,180 +626,180 @@ let%expect_test "vertical propagation" = {
   %expect
   {|
     Tile 0:
-    a a
-    a Y
+      a a
+      a Y
 
-    a a
-    a 1
+      a a
+      a 1
 
-    4 5 6 7 12 13 14 15 -X+ 4
-    2 10 -Y+ 2
-    1 3 5 7 9 11 13 15 -Z+ 1
+      4 5 6 7 12 13 14 15 -X+ 4
+      2 10 -Y+ 2
+      1 3 5 7 9 11 13 15 -Z+ 1
     ----------
     Tile 1:
-    a Y
-    a a
+      a Y
+      a a
 
-    a 1
-    a a
+      a 1
+      a a
 
-    4 5 6 7 12 13 14 15 -X+ 5
-    3 11 -Y+ 3
-    0 -Z+ 0 2 4 6 8 10 12 14
+      4 5 6 7 12 13 14 15 -X+ 5
+      3 11 -Y+ 3
+      0 -Z+ 0 2 4 6 8 10 12 14
     ----------
     Tile 2:
-    a a
-    a 1
+      a a
+      a 1
 
-    a a
-    a Y
+      a a
+      a Y
 
-    4 5 6 7 12 13 14 15 -X+ 6
-    0 -Y+ 0
-    1 3 5 7 9 11 13 15 -Z+ 3
+      4 5 6 7 12 13 14 15 -X+ 6
+      0 -Y+ 0
+      1 3 5 7 9 11 13 15 -Z+ 3
     ----------
     Tile 3:
-    a 1
-    a a
+      a 1
+      a a
 
-    a Y
-    a a
+      a Y
+      a a
 
-    4 5 6 7 12 13 14 15 -X+ 7
-    1 -Y+ 1
-    2 -Z+ 0 2 4 6 8 10 12 14
+      4 5 6 7 12 13 14 15 -X+ 7
+      1 -Y+ 1
+      2 -Z+ 0 2 4 6 8 10 12 14
     ----------
     Tile 4:
-    a a
-    Y a
+      a a
+      Y a
 
-    a a
-    1 a
+      a a
+      1 a
 
-    0 -X+ 0 1 2 3 8 9 10 11
-    6 14 -Y+ 6
-    1 3 5 7 9 11 13 15 -Z+ 5
+      0 -X+ 0 1 2 3 8 9 10 11
+      6 14 -Y+ 6
+      1 3 5 7 9 11 13 15 -Z+ 5
     ----------
     Tile 5:
-    Y a
-    a a
+      Y a
+      a a
 
-    1 a
-    a a
+      1 a
+      a a
 
-    1 -X+ 0 1 2 3 8 9 10 11
-    7 15 -Y+ 7
-    4 -Z+ 0 2 4 6 8 10 12 14
+      1 -X+ 0 1 2 3 8 9 10 11
+      7 15 -Y+ 7
+      4 -Z+ 0 2 4 6 8 10 12 14
     ----------
     Tile 6:
-    a a
-    1 a
+      a a
+      1 a
 
-    a a
-    Y a
+      a a
+      Y a
 
-    2 -X+ 0 1 2 3 8 9 10 11
-    4 -Y+ 4
-    1 3 5 7 9 11 13 15 -Z+ 7
+      2 -X+ 0 1 2 3 8 9 10 11
+      4 -Y+ 4
+      1 3 5 7 9 11 13 15 -Z+ 7
     ----------
     Tile 7:
-    1 a
-    a a
+      1 a
+      a a
 
-    Y a
-    a a
+      Y a
+      a a
 
-    3 -X+ 0 1 2 3 8 9 10 11
-    5 -Y+ 5
-    6 -Z+ 0 2 4 6 8 10 12 14
+      3 -X+ 0 1 2 3 8 9 10 11
+      5 -Y+ 5
+      6 -Z+ 0 2 4 6 8 10 12 14
     ----------
     Tile 8: IMPOSSIBLE!
-    a a
-    a X
+      a a
+      a X
 
-    a a
-    a 0
+      a a
+      a 0
 
-    4 5 6 7 12 13 14 15 -X+ 12
-    -Y+ 10
-    1 3 5 7 9 11 13 15 -Z+ 9
+      4 5 6 7 12 13 14 15 -X+ 12
+      -Y+ 10
+      1 3 5 7 9 11 13 15 -Z+ 9
     ----------
     Tile 9: IMPOSSIBLE!
-    a X
-    a a
+      a X
+      a a
 
-    a 0
-    a a
+      a 0
+      a a
 
-    4 5 6 7 12 13 14 15 -X+ 13
-    -Y+ 11
-    8 -Z+ 0 2 4 6 8 10 12 14
+      4 5 6 7 12 13 14 15 -X+ 13
+      -Y+ 11
+      8 -Z+ 0 2 4 6 8 10 12 14
     ----------
     Tile 10:
-    a a
-    a 1
+      a a
+      a 1
 
-    a a
-    a X
+      a a
+      a X
 
-    4 5 6 7 12 13 14 15 -X+ 14
-    8 -Y+ 0
-    1 3 5 7 9 11 13 15 -Z+ 11
+      4 5 6 7 12 13 14 15 -X+ 14
+      8 -Y+ 0
+      1 3 5 7 9 11 13 15 -Z+ 11
     ----------
     Tile 11:
-    a 1
-    a a
+      a 1
+      a a
 
-    a X
-    a a
+      a X
+      a a
 
-    4 5 6 7 12 13 14 15 -X+ 15
-    9 -Y+ 1
-    10 -Z+ 0 2 4 6 8 10 12 14
+      4 5 6 7 12 13 14 15 -X+ 15
+      9 -Y+ 1
+      10 -Z+ 0 2 4 6 8 10 12 14
     ----------
     Tile 12: IMPOSSIBLE!
-    a a
-    X a
+      a a
+      X a
 
-    a a
-    0 a
+      a a
+      0 a
 
-    8 -X+ 0 1 2 3 8 9 10 11
-    -Y+ 14
-    1 3 5 7 9 11 13 15 -Z+ 13
+      8 -X+ 0 1 2 3 8 9 10 11
+      -Y+ 14
+      1 3 5 7 9 11 13 15 -Z+ 13
     ----------
     Tile 13: IMPOSSIBLE!
-    X a
-    a a
+      X a
+      a a
 
-    0 a
-    a a
+      0 a
+      a a
 
-    9 -X+ 0 1 2 3 8 9 10 11
-    -Y+ 15
-    12 -Z+ 0 2 4 6 8 10 12 14
+      9 -X+ 0 1 2 3 8 9 10 11
+      -Y+ 15
+      12 -Z+ 0 2 4 6 8 10 12 14
     ----------
     Tile 14:
-    a a
-    1 a
+      a a
+      1 a
 
-    a a
-    X a
+      a a
+      X a
 
-    10 -X+ 0 1 2 3 8 9 10 11
-    12 -Y+ 4
-    1 3 5 7 9 11 13 15 -Z+ 15
+      10 -X+ 0 1 2 3 8 9 10 11
+      12 -Y+ 4
+      1 3 5 7 9 11 13 15 -Z+ 15
     ----------
     Tile 15:
-    1 a
-    a a
+      1 a
+      a a
 
-    X a
-    a a
+      X a
+      a a
 
-    11 -X+ 0 1 2 3 8 9 10 11
-    13 -Y+ 5
-    14 -Z+ 0 2 4 6 8 10 12 14
+      11 -X+ 0 1 2 3 8 9 10 11
+      13 -Y+ 5
+      14 -Z+ 0 2 4 6 8 10 12 14
     ----------
   |};
 
