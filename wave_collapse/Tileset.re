@@ -2,6 +2,7 @@ open! Core;
 
 type tile('a) = {
   id: int,
+  name: string,
   weight: float,
   /* x y z item */
   items: array(array(array('a))),
@@ -31,6 +32,7 @@ type tileset('a) = {
 };
 
 type btile('a) = {
+  name: option(string),
   weight: float,
   /* x y z item */
   items: array(array(array('a))),
@@ -80,12 +82,14 @@ let xyz_of_yzx = (yzx: array(array(array('a)))) => {
 let tile =
     (
       ~weight: float=1.0,
+      ~name: option(string)=?,
       ~rotate=false,
       ~flip_x=false,
       ~flip_z=false,
       items: array(array(array('a))),
     )
     : btile('a) => {
+  name,
   items,
   rotate,
   flip_x,
@@ -149,6 +153,7 @@ let split_multitile =
       ~tilesize: int,
       ~next_id: ref(int),
       ~weight: float,
+      ~name: option(string),
       multitile: array(array(array('a))),
     ) => {
   let xs = Array.length(multitile);
@@ -168,6 +173,20 @@ let split_multitile =
     failwithf("multitile has bad Z size: %d", zs, ());
   };
 
+  let next_local_id = ref(0);
+  let is_multi = txs > 1 || tys > 1 || tzs > 1;
+  let form_name = (~id, ~local_id) => {
+    switch (name) {
+    | Some(name) =>
+      if (is_multi) {
+        Printf.sprintf("%s.%d", name, local_id);
+      } else {
+        name;
+      }
+    | None => Int.to_string(id)
+    };
+  };
+
   let cut_tile = (~tx, ~ty, ~tz) => {
     let bx = tx * (tilesize - 1);
     let by = ty * (tilesize - 1);
@@ -178,8 +197,11 @@ let split_multitile =
           Array.init(tilesize, ~f=oz => multitile[bx + ox][by + oy][bz + oz])
         )
       );
+    let id = pop_id(next_id);
+    let local_id = pop_id(next_local_id);
     {
-      id: pop_id(next_id),
+      id,
+      name: form_name(~id, ~local_id),
       weight,
       items,
       auto_x0: tx == 0,
@@ -298,6 +320,7 @@ let create_tileset =
          let (txs, tys, tzs, subtiles) =
            split_multitile(
              btile.items,
+             ~name=btile.name,
              ~tilesize,
              ~next_id,
              ~weight=btile.weight,
@@ -523,38 +546,33 @@ module Test_helpers = {
     };
   };
 
-  let print_tile_pairs = (tile_id, ~x_pairs, ~y_pairs, ~z_pairs) => {
+  let print_tile_pairs = (tile_id, ~tileset) => {
     let print_pair_axis = (name, pairs) => {
       Array.iteri(pairs, ~f=(i, ps) =>
         if (ps[tile_id]) {
-          Printf.printf("%d ", i);
+          Printf.printf("%s ", tileset.tiles[i].name);
         }
       );
       Printf.printf("-%s+", name);
       Array.iteri(pairs[tile_id], ~f=(i, p) =>
         if (p) {
-          Printf.printf(" %d", i);
+          Printf.printf(" %s", tileset.tiles[i].name);
         }
       );
       Printf.printf("\n");
     };
-    print_pair_axis("X", x_pairs);
-    print_pair_axis("Y", y_pairs);
-    print_pair_axis("Z", z_pairs);
+    print_pair_axis("X", tileset.x_pairs);
+    print_pair_axis("Y", tileset.y_pairs);
+    print_pair_axis("Z", tileset.z_pairs);
   };
 
   let dump_tileset = (ts, ~show_item) => {
     for (t in 0 to numtiles(ts) - 1) {
       let tile = ts.tiles[t];
       let impossible_warning = tile.is_impossible ? " IMPOSSIBLE!" : "";
-      Printf.printf("Tile %d:%s\n", t, impossible_warning);
+      Printf.printf("Tile %s:%s\n", tile.name, impossible_warning);
       print_tile_items(tile.items, ~show_item);
-      print_tile_pairs(
-        t,
-        ~x_pairs=ts.x_pairs,
-        ~y_pairs=ts.y_pairs,
-        ~z_pairs=ts.z_pairs,
-      );
+      print_tile_pairs(t, ~tileset=ts);
       Printf.printf("----------\n");
     };
   };
@@ -748,33 +766,39 @@ let%expect_test "vertical multi tiles" = {
     create_tileset(
       ~tilesize=2,
       [
-        tile([|
+        tile(
+          ~name="abc",
           [|
-            [|"a", "a", "a"|], /* */
-            [|"a", "a", "a"|], /* */
-            [|"a", "a", "a"|] /* */
+            [|
+              [|"a", "a", "a"|], /* */
+              [|"a", "a", "a"|], /* */
+              [|"a", "a", "a"|] /* */
+            |],
+            [|
+              [|"b", "b", "b"|], /* */
+              [|"b", "b", "b"|], /* */
+              [|"b", "b", "b"|] /* */
+            |],
+            [|
+              [|"c", "c", "c"|], /* */
+              [|"c", "c", "c"|], /* */
+              [|"c", "c", "c"|] /* */
+            |],
           |],
+        ),
+        tile(
+          ~name="just_b",
           [|
-            [|"b", "b", "b"|], /* */
-            [|"b", "b", "b"|], /* */
-            [|"b", "b", "b"|] /* */
+            [|
+              [|"b", "b"|], /* */
+              [|"b", "b"|] /* */
+            |],
+            [|
+              [|"b", "b"|], /* */
+              [|"b", "b"|] /* */
+            |],
           |],
-          [|
-            [|"c", "c", "c"|], /* */
-            [|"c", "c", "c"|], /* */
-            [|"c", "c", "c"|] /* */
-          |],
-        |]),
-        tile([|
-          [|
-            [|"b", "b"|], /* */
-            [|"b", "b"|] /* */
-          |],
-          [|
-            [|"b", "b"|], /* */
-            [|"b", "b"|] /* */
-          |],
-        |]),
+        ),
       ],
     );
 
@@ -823,104 +847,104 @@ let%expect_test "vertical multi tiles" = {
   Test_helpers.dump_tileset(ts, ~show_item=Fn.id);
   %expect
   {|
-    Tile 0: IMPOSSIBLE!
+    Tile abc.0: IMPOSSIBLE!
     b b
     b b
 
     c c
     c c
 
-    4 5 -X+ 4
-    -Y+ 2
-    1 5 -Z+ 1
+    abc.4 abc.5 -X+ abc.4
+    -Y+ abc.2
+    abc.1 abc.5 -Z+ abc.1
     ----------
-    Tile 1: IMPOSSIBLE!
+    Tile abc.1: IMPOSSIBLE!
     b b
     b b
 
     c c
     c c
 
-    4 5 -X+ 5
-    -Y+ 3
-    0 -Z+ 0 4
+    abc.4 abc.5 -X+ abc.5
+    -Y+ abc.3
+    abc.0 -Z+ abc.0 abc.4
     ----------
-    Tile 2: IMPOSSIBLE!
+    Tile abc.2: IMPOSSIBLE!
     a a
     a a
 
     b b
     b b
 
-    6 7 -X+ 6
-    0 -Y+
-    3 7 -Z+ 3
+    abc.6 abc.7 -X+ abc.6
+    abc.0 -Y+
+    abc.3 abc.7 -Z+ abc.3
     ----------
-    Tile 3: IMPOSSIBLE!
+    Tile abc.3: IMPOSSIBLE!
     a a
     a a
 
     b b
     b b
 
-    6 7 -X+ 7
-    1 -Y+
-    2 -Z+ 2 6
+    abc.6 abc.7 -X+ abc.7
+    abc.1 -Y+
+    abc.2 -Z+ abc.2 abc.6
     ----------
-    Tile 4: IMPOSSIBLE!
+    Tile abc.4: IMPOSSIBLE!
     b b
     b b
 
     c c
     c c
 
-    0 -X+ 0 1
-    -Y+ 6
-    1 5 -Z+ 5
+    abc.0 -X+ abc.0 abc.1
+    -Y+ abc.6
+    abc.1 abc.5 -Z+ abc.5
     ----------
-    Tile 5: IMPOSSIBLE!
+    Tile abc.5: IMPOSSIBLE!
     b b
     b b
 
     c c
     c c
 
-    1 -X+ 0 1
-    -Y+ 7
-    4 -Z+ 0 4
+    abc.1 -X+ abc.0 abc.1
+    -Y+ abc.7
+    abc.4 -Z+ abc.0 abc.4
     ----------
-    Tile 6: IMPOSSIBLE!
+    Tile abc.6: IMPOSSIBLE!
     a a
     a a
 
     b b
     b b
 
-    2 -X+ 2 3
-    4 -Y+
-    3 7 -Z+ 7
+    abc.2 -X+ abc.2 abc.3
+    abc.4 -Y+
+    abc.3 abc.7 -Z+ abc.7
     ----------
-    Tile 7: IMPOSSIBLE!
+    Tile abc.7: IMPOSSIBLE!
     a a
     a a
 
     b b
     b b
 
-    3 -X+ 2 3
-    5 -Y+
-    6 -Z+ 2 6
+    abc.3 -X+ abc.2 abc.3
+    abc.5 -Y+
+    abc.6 -Z+ abc.2 abc.6
     ----------
-    Tile 8:
+    Tile just_b:
     b b
     b b
 
     b b
     b b
 
-    8 -X+ 8
-    8 -Y+ 8
-    8 -Z+ 8
+    just_b -X+ just_b
+    just_b -Y+ just_b
+    just_b -Z+ just_b
     ----------
   |};
 };

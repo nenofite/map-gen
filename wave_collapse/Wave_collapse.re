@@ -128,6 +128,7 @@ include Tileset;
 include Evaluator;
 
 module Test_helpers = {
+  include Tileset.Test_helpers;
   include Evaluator.Test_helpers;
 
   let print_items = (eval: Evaluator.wave_evaluator('a)) => {
