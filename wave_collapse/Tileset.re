@@ -475,6 +475,21 @@ module Test_helpers = {
       Out_channel.newline(stdout);
     };
   };
+
+  let print_pairs = pairs => {
+    Array.iteri(
+      pairs,
+      ~f=(i, ps) => {
+        Printf.printf("%d:", i);
+        Array.iteri(ps, ~f=(i, p) =>
+          if (p) {
+            Printf.printf(" %d", i);
+          }
+        );
+        Printf.printf("\n");
+      },
+    );
+  };
 };
 
 let%expect_test "single tiles" = {
@@ -545,26 +560,26 @@ let%expect_test "single tiles" = {
       ],
     );
 
-  Sexp.output_hum(
-    Stdio.stdout,
-    [%sexp_of: array(array(bool))](ts.x_pairs),
-  );
+  Test_helpers.print_pairs(ts.x_pairs);
   %expect
-  "((false false false) (false false false) (true false true))";
+  "
+    0:
+    1:
+    2: 0 2";
 
-  Sexp.output_hum(
-    Stdio.stdout,
-    [%sexp_of: array(array(bool))](ts.y_pairs),
-  );
+  Test_helpers.print_pairs(ts.y_pairs);
   %expect
-  "((true false false) (false true false) (false false true))";
+  "
+    0: 0
+    1: 1
+    2: 2";
 
-  Sexp.output_hum(
-    Stdio.stdout,
-    [%sexp_of: array(array(bool))](ts.z_pairs),
-  );
+  Test_helpers.print_pairs(ts.z_pairs);
   %expect
-  "((false true false) (false true false) (false false false))";
+  "
+    0: 1
+    1: 1
+    2:";
 };
 
 let%expect_test "multi tiles" = {
@@ -635,32 +650,107 @@ let%expect_test "multi tiles" = {
       ],
     );
 
-  Sexp.output_hum(
-    Stdio.stdout,
-    [%sexp_of: array(array(bool))](ts.x_pairs),
-  );
+  Test_helpers.print_pairs(ts.x_pairs);
   %expect
   "
-    ((false true false false) (false false false false) (false false false false)
-     (false false false true))";
+    0: 1
+    1:
+    2:
+    3: 3";
 
-  Sexp.output_hum(
-    Stdio.stdout,
-    [%sexp_of: array(array(bool))](ts.y_pairs),
-  );
+  Test_helpers.print_pairs(ts.y_pairs);
   %expect
   "
-    ((true false false false) (false true false false) (false false true false)
-     (false false false false))";
+    0: 0
+    1: 1
+    2: 2
+    3:";
 
-  Sexp.output_hum(
-    Stdio.stdout,
-    [%sexp_of: array(array(bool))](ts.z_pairs),
-  );
+  Test_helpers.print_pairs(ts.z_pairs);
   %expect
   "
-    ((false false false false) (false false true false) (true false false false)
-     (false false false false))";
+    0:
+    1: 2
+    2: 0
+    3:";
+};
+
+let%expect_test "vertical multi tiles" = {
+  let ts =
+    create_tileset(
+      ~tilesize=2,
+      [
+        tile([|
+          [|
+            [|"a", "a", "a"|], /* */
+            [|"a", "a", "a"|], /* */
+            [|"a", "a", "a"|] /* */
+          |],
+          [|
+            [|"b", "b", "b"|], /* */
+            [|"b", "b", "b"|], /* */
+            [|"b", "b", "b"|] /* */
+          |],
+          [|
+            [|"c", "c", "c"|], /* */
+            [|"c", "c", "c"|], /* */
+            [|"c", "c", "c"|] /* */
+          |],
+        |]),
+        tile([|
+          [|
+            [|"b", "b"|], /* */
+            [|"b", "b"|] /* */
+          |],
+          [|
+            [|"b", "b"|], /* */
+            [|"b", "b"|] /* */
+          |],
+        |]),
+      ],
+    );
+
+  Test_helpers.print_pairs(ts.x_pairs);
+  %expect
+  {|
+    0: 4
+    1: 5
+    2: 6
+    3: 7
+    4: 0 1
+    5: 0 1
+    6: 2 3
+    7: 2 3
+    8: 8
+  |};
+
+  Test_helpers.print_pairs(ts.y_pairs);
+  %expect
+  {|
+    0: 2
+    1: 3
+    2:
+    3:
+    4: 6
+    5: 7
+    6:
+    7:
+    8: 8
+  |};
+
+  Test_helpers.print_pairs(ts.z_pairs);
+  %expect
+  {|
+    0: 1
+    1: 0 4
+    2: 3
+    3: 2 6
+    4: 5
+    5: 0 4
+    6: 7
+    7: 2 6
+    8: 8
+  |};
 };
 
 let%expect_test "flipping" = {
@@ -767,30 +857,27 @@ let%expect_test "flipping multi tiles" = {
       ],
     );
 
-  Sexp.output_hum(
-    Stdio.stdout,
-    [%sexp_of: array(array(bool))](ts.x_pairs),
-  );
+  Test_helpers.print_pairs(ts.x_pairs);
   %expect
   "
-    ((false true false false) (false false false false) (false false false true)
-     (false false false false))";
+    0: 1
+    1:
+    2: 3
+    3:";
 
-  Sexp.output_hum(
-    Stdio.stdout,
-    [%sexp_of: array(array(bool))](ts.y_pairs),
-  );
+  Test_helpers.print_pairs(ts.y_pairs);
   %expect
   "
-    ((true false false false) (false true false false) (false false true false)
-     (false false false true))";
+    0: 0
+    1: 1
+    2: 2
+    3: 3";
 
-  Sexp.output_hum(
-    Stdio.stdout,
-    [%sexp_of: array(array(bool))](ts.z_pairs),
-  );
+  Test_helpers.print_pairs(ts.z_pairs);
   %expect
   "
-    ((false false true false) (false false false true) (true false false false)
-     (false true false false))";
+    0: 2
+    1: 3
+    2: 0
+    3: 1";
 };
