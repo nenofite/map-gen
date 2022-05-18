@@ -490,6 +490,57 @@ module Test_helpers = {
       },
     );
   };
+
+  let print_tile_items = (tile, ~show_item) => {
+    let xs = Array.length(tile);
+    let ys = Array.length(tile[0]);
+    let zs = Array.length(tile[0][0]);
+
+    for (y in ys - 1 downto 0) {
+      for (z in 0 to zs - 1) {
+        for (x in 0 to xs - 1) {
+          Printf.printf("%s ", show_item(tile[x][y][z]));
+        };
+        Out_channel.newline(stdout);
+      };
+      Out_channel.newline(stdout);
+    };
+  };
+
+  let print_tile_pairs = (tile_id, ~x_pairs, ~y_pairs, ~z_pairs) => {
+    let print_pair_axis = (name, pairs) => {
+      Array.iteri(pairs, ~f=(i, ps) =>
+        if (ps[tile_id]) {
+          Printf.printf("%d ", i);
+        }
+      );
+      Printf.printf("-%s+", name);
+      Array.iteri(pairs[tile_id], ~f=(i, p) =>
+        if (p) {
+          Printf.printf(" %d", i);
+        }
+      );
+      Printf.printf("\n");
+    };
+    print_pair_axis("X", x_pairs);
+    print_pair_axis("Y", y_pairs);
+    print_pair_axis("Z", z_pairs);
+  };
+
+  let dump_tileset = (ts, ~show_item) => {
+    for (t in 0 to numtiles(ts) - 1) {
+      Printf.printf("Tile %d:\n", t);
+      let tile = ts.tiles[t];
+      print_tile_items(tile.items, ~show_item);
+      print_tile_pairs(
+        t,
+        ~x_pairs=ts.x_pairs,
+        ~y_pairs=ts.y_pairs,
+        ~z_pairs=ts.z_pairs,
+      );
+      Printf.printf("----------\n");
+    };
+  };
 };
 
 let%expect_test "single tiles" = {
@@ -750,6 +801,110 @@ let%expect_test "vertical multi tiles" = {
     6: 7
     7: 2 6
     8: 8
+  |};
+
+  Test_helpers.dump_tileset(ts, ~show_item=Fn.id);
+  %expect
+  {|
+    Tile 0:
+    b b
+    b b
+
+    c c
+    c c
+
+    4 5 -X+ 4
+    -Y+ 2
+    1 5 -Z+ 1
+    ----------
+    Tile 1:
+    b b
+    b b
+
+    c c
+    c c
+
+    4 5 -X+ 5
+    -Y+ 3
+    0 -Z+ 0 4
+    ----------
+    Tile 2:
+    a a
+    a a
+
+    b b
+    b b
+
+    6 7 -X+ 6
+    0 -Y+
+    3 7 -Z+ 3
+    ----------
+    Tile 3:
+    a a
+    a a
+
+    b b
+    b b
+
+    6 7 -X+ 7
+    1 -Y+
+    2 -Z+ 2 6
+    ----------
+    Tile 4:
+    b b
+    b b
+
+    c c
+    c c
+
+    0 -X+ 0 1
+    -Y+ 6
+    1 5 -Z+ 5
+    ----------
+    Tile 5:
+    b b
+    b b
+
+    c c
+    c c
+
+    1 -X+ 0 1
+    -Y+ 7
+    4 -Z+ 0 4
+    ----------
+    Tile 6:
+    a a
+    a a
+
+    b b
+    b b
+
+    2 -X+ 2 3
+    4 -Y+
+    3 7 -Z+ 7
+    ----------
+    Tile 7:
+    a a
+    a a
+
+    b b
+    b b
+
+    3 -X+ 2 3
+    5 -Y+
+    6 -Z+ 2 6
+    ----------
+    Tile 8:
+    b b
+    b b
+
+    b b
+    b b
+
+    8 -X+ 8
+    8 -Y+ 8
+    8 -Z+ 8
+    ----------
   |};
 };
 
