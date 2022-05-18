@@ -1136,7 +1136,7 @@ let%expect_test "collapsing" = {
   Test_helpers.print_items(wave);
   %expect
   {|
-    Collapsing 1 1 1 (opts=(1 0)) to dirt2a
+    Collapsing 1 1 1 (opts=(underground dirt2a)) to dirt2a
     . . . . . . . . . . . . . . . . . . . . .
     . . . . . . . . . . . . . . . . . . . . .
     . . . . . . . . . . . . . . . . . . . . .

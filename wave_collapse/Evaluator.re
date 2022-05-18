@@ -329,7 +329,11 @@ let collapse_at = (eval, ~x, ~y, ~z) => {
     /* TODO */
     failwith("Contradiction, cannot collapse");
   };
-  let opts = Sexp.to_string_hum([%sexp_of: list(int)](options));
+  let name_of = t => eval.tileset.tiles[t].name;
+  let opts =
+    Sexp.to_string_hum(
+      [%sexp_of: list(string)](List.map(options, ~f=name_of)),
+    );
   let t =
     random_tile_by_weight(Array.of_list(options), ~tileset=eval.tileset);
   Printf.printf(
@@ -338,15 +342,12 @@ let collapse_at = (eval, ~x, ~y, ~z) => {
     y,
     z,
     opts,
-    eval.tileset.tiles[t].name,
+    name_of(t),
   );
   try(force_and_propagate(eval, ~x, ~y, ~z, t)) {
   | Contradiction(c) =>
     raise_notrace(
-      Contradiction({
-        ...c,
-        during_collapse: Some((x, y, z, eval.tileset.tiles[t].name)),
-      }),
+      Contradiction({...c, during_collapse: Some((x, y, z, name_of(t)))}),
     )
   };
 };
