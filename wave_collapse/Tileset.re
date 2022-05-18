@@ -12,6 +12,8 @@ type tile('a) = {
   auto_y1: bool,
   auto_z0: bool,
   auto_z1: bool,
+  /* sometimes tiles are impossible even when the wave is entirely unobserved */
+  is_impossible: bool,
 };
 
 type tileset('a) = {
@@ -25,7 +27,7 @@ type tileset('a) = {
   /* z-1 z allowed */
   z_pairs: array(array(bool)),
   /* here_tile direction other_tiles */
-  requirements: array(array(array(int))),
+  supportees: array(array(array(int))),
 };
 
 type btile('a) = {
@@ -186,6 +188,7 @@ let split_multitile =
       auto_y1: ty == tys - 1,
       auto_z0: tz == 0,
       auto_z1: tz == tzs - 1,
+      is_impossible: false,
     };
   };
 
@@ -372,7 +375,20 @@ let create_tileset =
     };
   };
 
-  let x0_requirements =
+  for (t in 0 to numtiles - 1) {
+    let is_possible =
+      Array.exists(x_pairs, ~f=ps => ps[t])
+      && Array.exists(x_pairs[t], ~f=p => p)
+      && Array.exists(y_pairs, ~f=ps => ps[t])
+      && Array.exists(y_pairs[t], ~f=p => p)
+      && Array.exists(z_pairs, ~f=ps => ps[t])
+      && Array.exists(z_pairs[t], ~f=p => p);
+    if (!is_possible) {
+      tiles[t] = {...tiles[t], is_impossible: true};
+    };
+  };
+
+  let x0_sups =
     Array.init(numtiles, ~f=t => {
       Mg_util.Range.flat_map(0, numtiles - 1, t1 =>
         if (x_pairs[t1][t]) {
@@ -383,7 +399,7 @@ let create_tileset =
       )
       |> Array.of_list
     });
-  let x1_requirements =
+  let x1_sups =
     Array.init(numtiles, ~f=t => {
       Mg_util.Range.flat_map(0, numtiles - 1, t1 =>
         if (x_pairs[t][t1]) {
@@ -395,7 +411,7 @@ let create_tileset =
       |> Array.of_list
     });
 
-  let y0_requirements =
+  let y0_sups =
     Array.init(numtiles, ~f=t => {
       Mg_util.Range.flat_map(0, numtiles - 1, t1 =>
         if (y_pairs[t1][t]) {
@@ -406,7 +422,7 @@ let create_tileset =
       )
       |> Array.of_list
     });
-  let y1_requirements =
+  let y1_sups =
     Array.init(numtiles, ~f=t => {
       Mg_util.Range.flat_map(0, numtiles - 1, t1 =>
         if (y_pairs[t][t1]) {
@@ -418,7 +434,7 @@ let create_tileset =
       |> Array.of_list
     });
 
-  let z0_requirements =
+  let z0_sups =
     Array.init(numtiles, ~f=t => {
       Mg_util.Range.flat_map(0, numtiles - 1, t1 =>
         if (z_pairs[t1][t]) {
@@ -429,7 +445,7 @@ let create_tileset =
       )
       |> Array.of_list
     });
-  let z1_requirements =
+  let z1_sups =
     Array.init(numtiles, ~f=t => {
       Mg_util.Range.flat_map(0, numtiles - 1, t1 =>
         if (z_pairs[t][t1]) {
@@ -447,14 +463,14 @@ let create_tileset =
     x_pairs,
     y_pairs,
     z_pairs,
-    requirements:
+    supportees:
       Array.transpose_exn([|
-        x0_requirements,
-        x1_requirements,
-        y0_requirements,
-        y1_requirements,
-        z0_requirements,
-        z1_requirements,
+        x0_sups,
+        x1_sups,
+        y0_sups,
+        y1_sups,
+        z0_sups,
+        z1_sups,
       |]),
   };
 };
@@ -529,8 +545,9 @@ module Test_helpers = {
 
   let dump_tileset = (ts, ~show_item) => {
     for (t in 0 to numtiles(ts) - 1) {
-      Printf.printf("Tile %d:\n", t);
       let tile = ts.tiles[t];
+      let impossible_warning = tile.is_impossible ? " IMPOSSIBLE!" : "";
+      Printf.printf("Tile %d:%s\n", t, impossible_warning);
       print_tile_items(tile.items, ~show_item);
       print_tile_pairs(
         t,
@@ -806,7 +823,7 @@ let%expect_test "vertical multi tiles" = {
   Test_helpers.dump_tileset(ts, ~show_item=Fn.id);
   %expect
   {|
-    Tile 0:
+    Tile 0: IMPOSSIBLE!
     b b
     b b
 
@@ -817,7 +834,7 @@ let%expect_test "vertical multi tiles" = {
     -Y+ 2
     1 5 -Z+ 1
     ----------
-    Tile 1:
+    Tile 1: IMPOSSIBLE!
     b b
     b b
 
@@ -828,7 +845,7 @@ let%expect_test "vertical multi tiles" = {
     -Y+ 3
     0 -Z+ 0 4
     ----------
-    Tile 2:
+    Tile 2: IMPOSSIBLE!
     a a
     a a
 
@@ -839,7 +856,7 @@ let%expect_test "vertical multi tiles" = {
     0 -Y+
     3 7 -Z+ 3
     ----------
-    Tile 3:
+    Tile 3: IMPOSSIBLE!
     a a
     a a
 
@@ -850,7 +867,7 @@ let%expect_test "vertical multi tiles" = {
     1 -Y+
     2 -Z+ 2 6
     ----------
-    Tile 4:
+    Tile 4: IMPOSSIBLE!
     b b
     b b
 
@@ -861,7 +878,7 @@ let%expect_test "vertical multi tiles" = {
     -Y+ 6
     1 5 -Z+ 5
     ----------
-    Tile 5:
+    Tile 5: IMPOSSIBLE!
     b b
     b b
 
@@ -872,7 +889,7 @@ let%expect_test "vertical multi tiles" = {
     -Y+ 7
     4 -Z+ 0 4
     ----------
-    Tile 6:
+    Tile 6: IMPOSSIBLE!
     a a
     a a
 
@@ -883,7 +900,7 @@ let%expect_test "vertical multi tiles" = {
     4 -Y+
     3 7 -Z+ 7
     ----------
-    Tile 7:
+    Tile 7: IMPOSSIBLE!
     a a
     a a
 

@@ -78,7 +78,7 @@ let make_blank_supporters =
     ~f=i => {
       let dir = i % Tileset.numdirs;
       let t = i / Tileset.numdirs % ts;
-      Array.length(tileset.requirements[t][Tileset.flip_direction(dir)]);
+      Array.length(tileset.supportees[t][Tileset.flip_direction(dir)]);
     },
   );
 };
@@ -170,7 +170,7 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
     };
     eval.total_entropy = eval.total_entropy - 1;
 
-    let reqs = eval.tileset.requirements[tile_id];
+    let sups = eval.tileset.supportees[tile_id];
     let sid = si_of_xyztd(~xs, ~ys, ~zs, ~ts, x, y, z, tile_id, 0);
     for (d in 0 to Tileset.numdirs - 1) {
       eval.supporters[sid + d] = 0;
@@ -185,7 +185,7 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
           && 0 <= nz
           && nz < eval.zs) {
         Array.iter(
-          reqs[d],
+          sups[d],
           ~f=t1 => {
             let nsi = si_of_xyztd(~xs, ~ys, ~zs, ~ts, nx, ny, nz, t1, d);
             eval.supporters[nsi] = eval.supporters[nsi] - 1;
@@ -208,6 +208,29 @@ let force_no_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
   };
 };
 
+let finish_propagating = eval => {
+  while (!Hash_queue.is_empty(eval.needs_ban)) {
+    let ((x, y, z, t), _) =
+      Hash_queue.dequeue_back_with_key_exn(eval.needs_ban);
+    ban(eval, ~x, ~y, ~z, t);
+  };
+};
+
+let ban_impossible_tiles = eval => {
+  let {xs, ys, zs, _} = eval;
+  let impossible = Array.filter(eval.tileset.tiles, ~f=t => t.is_impossible);
+  if (!Array.is_empty(impossible)) {
+    for (x in 0 to xs - 1) {
+      for (y in 0 to ys - 1) {
+        for (z in 0 to zs - 1) {
+          Array.iter(impossible, ~f=tile => {ban(eval, ~x, ~y, ~z, tile.id)});
+        };
+      };
+    };
+    finish_propagating(eval);
+  };
+};
+
 let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
   let numtiles = Tileset.numtiles(tileset);
   // We don't need to enqueue all coords, just one. As soon as the wave starts
@@ -223,7 +246,7 @@ let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
     };
   };
   let entropy_queue = entropy_queue^;
-  {
+  let wave = {
     tileset,
     xs,
     ys,
@@ -235,14 +258,8 @@ let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
     total_entropy: xs * ys * zs * (numtiles - 1),
     needs_ban: Hq_I4.create(),
   };
-};
-
-let finish_propagating = eval => {
-  while (!Hash_queue.is_empty(eval.needs_ban)) {
-    let ((x, y, z, t), _) =
-      Hash_queue.dequeue_back_with_key_exn(eval.needs_ban);
-    ban(eval, ~x, ~y, ~z, t);
-  };
+  ban_impossible_tiles(wave);
+  wave;
 };
 
 let force_and_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
@@ -378,7 +395,9 @@ module Test_helpers = {
   let print_supporters_at = (eval, x, y, z) => {
     let {xs, ys, zs, ts, _} = eval;
     for (t in 0 to eval.ts - 1) {
-      Printf.printf("%d:", t);
+      let i = i_of_xyzt(~xs, ~ys, ~zs, ~ts, x, y, z, t);
+      let possible = eval.possibilities[i];
+      Printf.printf("%d: %s", t, possible ? " " : "B");
       for (d in 0 to Tileset.numdirs - 1) {
         Printf.printf(
           " %d",
@@ -537,10 +556,10 @@ let%expect_test "propagation" = {
   Test_helpers.print_supporters_at(eval, 0, 0, 0);
   %expect
   {|
-    0: 2 1 1 1 1 1
-    1: 1 1 1 1 2 2
-    2: 1 2 1 1 2 2
-    3: 1 1 1 1 1 1
+    0:   2 1 1 1 1 1
+    1:   1 1 1 1 2 2
+    2:   1 2 1 1 2 2
+    3:   1 1 1 1 1 1
   |};
 
   force_and_propagate(eval, ~x=0, ~y=0, ~z=1, 1);
@@ -548,10 +567,10 @@ let%expect_test "propagation" = {
   Test_helpers.print_supporters_at(eval, 1, 0, 1);
   %expect
   {|
-    0: 0 0 0 0 0 0
-    1: -1 0 0 0 0 0
-    2: 1 1 1 1 2 2
-    3: -1 0 0 0 0 0
+    0: B 0 0 0 0 0 0
+    1: B -1 0 0 0 0 0
+    2:   1 1 1 1 2 2
+    3: B -1 0 0 0 0 0
   |};
 
   Test_helpers.print_entropy(eval);
@@ -682,7 +701,7 @@ let%expect_test "vertical propagation" = {
     5 -Y+ 5
     6 -Z+ 0 2 4 6 8 10 12 14
     ----------
-    Tile 8:
+    Tile 8: IMPOSSIBLE!
     a a
     a X
 
@@ -693,7 +712,7 @@ let%expect_test "vertical propagation" = {
     -Y+ 10
     1 3 5 7 9 11 13 15 -Z+ 9
     ----------
-    Tile 9:
+    Tile 9: IMPOSSIBLE!
     a X
     a a
 
@@ -726,7 +745,7 @@ let%expect_test "vertical propagation" = {
     9 -Y+ 1
     10 -Z+ 0 2 4 6 8 10 12 14
     ----------
-    Tile 12:
+    Tile 12: IMPOSSIBLE!
     a a
     X a
 
@@ -737,7 +756,7 @@ let%expect_test "vertical propagation" = {
     -Y+ 14
     1 3 5 7 9 11 13 15 -Z+ 13
     ----------
-    Tile 13:
+    Tile 13: IMPOSSIBLE!
     X a
     a a
 
@@ -778,46 +797,67 @@ let%expect_test "vertical propagation" = {
   Test_helpers.print_supporters_at(eval, 0, 0, 0);
   %expect
   {|
-    0: 1 8 1 1 1 8
-    1: -1 0 -1 0 0 0
-    2: -1 0 0 0 -1 0
-    3: -1 0 -1 0 0 0
-    4: 0 0 0 0 0 0
-    5: -8 0 -1 0 0 0
-    6: 0 0 0 0 0 0
-    7: -8 0 -1 0 0 0
-    8: 1 8 1 0 1 8
-    9: -1 0 -1 0 0 0
-    10: -1 0 0 0 -1 0
-    11: -1 0 -1 0 0 0
-    12: 0 0 0 0 0 0
-    13: -8 0 -1 0 0 0
-    14: 0 0 0 0 0 0
-    15: -8 0 -1 0 0 0
+    0:   1 8 1 2 1 8
+    1:   1 8 1 2 6 1
+    2:   1 8 1 1 1 8
+    3:   1 8 1 1 6 1
+    4:   6 1 1 2 1 8
+    5:   6 1 1 2 6 1
+    6:   6 1 1 1 1 8
+    7:   6 1 1 1 6 1
+    8: B -1 0 -1 0 -1 0
+    9: B -1 0 -1 0 -2 0
+    10:   1 8 1 1 1 8
+    11:   1 8 1 1 6 1
+    12: B -2 0 -1 0 -1 0
+    13: B -2 0 -1 0 -2 0
+    14:   6 1 1 1 1 8
+    15:   6 1 1 1 6 1
   |};
 
   Test_helpers.print_entropy(eval);
   %expect
   {|
-    15 15
-    15 15
+    7 7
+    7 7
 
-    15 15
-    15 15
+    7 7
+    7 7
 
-    15 15
-    15 15
+    7 7
+    7 7
 
-    15 15
-    15 15
+    7 7
+    7 7
 
-    15 15
-    15 15
+    11 11
+    11 11
 
-    total_entropy = 300
+    total_entropy = 156
   |};
 
   force_and_propagate(eval, ~x=0, ~y=0, ~z=0, 0);
+
+  Test_helpers.print_supporters_at(eval, 0, 1, 0);
+  %expect
+  {|
+    0: B -1 0 -1 0 -1 0
+    1: B 0 0 0 0 0 0
+    2:   1 8 1 1 1 8
+    3: B 0 0 0 0 0 0
+    4: B 0 0 0 0 0 0
+    5: B -4 0 0 0 0 0
+    6: B 0 0 0 0 0 0
+    7: B 0 0 0 0 0 0
+    8: B -1 0 -1 0 -1 0
+    9: B -1 0 -1 0 -8 0
+    10: B 0 0 0 0 0 0
+    11: B 0 0 -1 0 -4 0
+    12: B -8 0 -1 0 -1 0
+    13: B -8 0 -1 0 -8 0
+    14: B -4 0 -1 0 0 0
+    15: B -4 0 -1 0 -4 0
+  |};
 
   Test_helpers.print_entropy(eval);
   %expect
