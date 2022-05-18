@@ -109,10 +109,10 @@ let make_building = (~x as ox, ~y as oy, ~z as oz, region) => {
   Tale.block("Making building", ~f=() => {
     let wfc = Wave_collapse.make_blank_wave(tileset, ~xs=20, ~ys=10, ~zs=20);
     Wave_collapse.force_edges(
-      ~transition_margin=2,
+      ~transition_margin=3,
       ~x0=0,
       ~x1=0,
-      ~y0=2,
+      ~y0=Wave_collapse.lookup_tile_exn("underground", tileset),
       ~y1=0,
       ~z0=0,
       ~z1=0,

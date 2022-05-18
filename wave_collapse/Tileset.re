@@ -515,6 +515,15 @@ let create_tileset =
   };
 };
 
+let lookup_tile_exn = (name, tileset: tileset('a)) => {
+  switch (Array.filter(tileset.tiles, ~f=t => String.(t.name == name))) {
+  | [|match|] => match.id
+  | [||] => failwithf("No matches: %s", name, ())
+  | multi =>
+    failwithf("Multiple (%d) matches: %s", Array.length(multi), name, ())
+  };
+};
+
 module Test_helpers = {
   let print_multitile = multitile => {
     let xs = Array.length(multitile);
