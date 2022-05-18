@@ -1,6 +1,10 @@
 /* Make a world and level, put some dirt in the center, and save */
 open! Core;
 
+type tag =
+  | Edge // Can be placed on edge of grid
+  | Bottom; // Can be placed on bottom edge of grid
+
 let test_stairs = region => {
   Building_old.stair_foundation(
     region,
@@ -20,6 +24,7 @@ let tileset =
       Minecraft.Block.[
         tile(
           ~name="air",
+          ~tags=[Edge],
           [|
             [|
               [|Air, Air|], //
@@ -33,6 +38,7 @@ let tileset =
         ),
         tile(
           ~name="grass",
+          ~tags=[Edge],
           [|
             [|
               [|Air, Air|], //
@@ -46,6 +52,7 @@ let tileset =
         ),
         tile(
           ~name="grass2u",
+          ~tags=[Edge],
           [|
             [|
               [|Grass_block, Grass_block|], //
@@ -60,6 +67,7 @@ let tileset =
         tile(
           ~name="underground",
           ~weight=0.0,
+          ~tags=[Edge, Bottom],
           [|
             [|
               [|Dirt, Dirt|], //
@@ -109,13 +117,13 @@ let make_building = (~x as ox, ~y as oy, ~z as oz, region) => {
   Tale.block("Making building", ~f=() => {
     let wfc = Wave_collapse.make_blank_wave(tileset, ~xs=20, ~ys=10, ~zs=20);
     Wave_collapse.force_edges(
-      ~transition_margin=3,
-      ~x0=0,
-      ~x1=0,
-      ~y0=Wave_collapse.lookup_tile_exn("underground", tileset),
-      ~y1=0,
-      ~z0=0,
-      ~z1=0,
+      ~transition_margin=0,
+      ~x0=Edge,
+      ~x1=Edge,
+      ~y0=Bottom,
+      ~y1=Edge,
+      ~z0=Edge,
+      ~z1=Edge,
       wfc,
     );
     Wave_collapse.collapse_all(wfc);
