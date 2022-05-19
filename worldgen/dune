@@ -28,7 +28,8 @@
   Sparse_grid
   Town_overlay
   Meta_overlay
-  Wave_collapse)
+  Wave_collapse
+  Wave_building)
  (preprocess
   (pps
    ppx_inline_test
