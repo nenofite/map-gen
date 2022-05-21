@@ -45,17 +45,7 @@ let collapse = size => {
 
 Command_unix.run(
   Bench.make_command([
-    Bench.Test.create_indexed(
-      ~name="collapse",
-      //   ~args=[5, 10, 15, 20],
-      ~args=[10, 20],
-      collapse,
-    ),
-    Bench.Test.create_indexed(
-      ~name="just blit",
-      //   ~args=[5, 10, 15, 20],
-      ~args=[10, 20],
-      just_blit,
-    ),
+    Bench.Test.create_indexed(~name="collapse", ~args=[10, 20], collapse),
+    Bench.Test.create_indexed(~name="just blit", ~args=[10, 20], just_blit),
   ]),
 );
