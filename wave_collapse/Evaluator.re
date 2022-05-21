@@ -22,7 +22,7 @@ type wave_evaluator('a, 'tag) = {
    * with this tile */
   /* xyzt-direction_inverted */
   supporters: array(int),
-  mutable entropy_queue: Priority_queue.Int.t((int, int, int)),
+  frontier: Frontier_stack.t,
   mutable total_entropy: int,
   /* Tiles that have become impossible (ie. supporter count reached 0) but have
    * not yet been propagated */
@@ -92,7 +92,7 @@ let copy = eval => {
     ts,
     possibilities,
     supporters,
-    entropy_queue,
+    frontier,
     total_entropy,
     needs_ban,
   } = eval;
@@ -105,7 +105,7 @@ let copy = eval => {
     ts,
     possibilities: Array.copy(possibilities),
     supporters: Array.copy(supporters),
-    entropy_queue,
+    frontier: Frontier_stack.copy(frontier),
     total_entropy,
     // needs_ban should always be empty, so just make a fresh copy
     needs_ban: Hq_I4.create(),
@@ -125,16 +125,38 @@ let blit = (src, dest) => {
     ts: _,
     possibilities,
     supporters,
-    entropy_queue,
+    frontier,
     total_entropy,
     needs_ban,
   } = src;
   Array.blito(~src=possibilities, ~dst=dest.possibilities, ());
   Array.blito(~src=supporters, ~dst=dest.supporters, ());
-  dest.entropy_queue = entropy_queue;
+  Frontier_stack.blit(frontier, dest.frontier);
   dest.total_entropy = total_entropy;
   assert(Hash_queue.is_empty(needs_ban));
   Hash_queue.clear(dest.needs_ban);
+};
+
+let add_neighbors_to_frontier = (eval, x, y, z) => {
+  let {xs, ys, zs, _} = eval;
+  if (x > 0) {
+    Frontier_stack.add(eval.frontier, (x - 1, y, z));
+  };
+  if (x < xs - 1) {
+    Frontier_stack.add(eval.frontier, (x + 1, y, z));
+  };
+  if (y > 0) {
+    Frontier_stack.add(eval.frontier, (x, y - 1, z));
+  };
+  if (y < ys - 1) {
+    Frontier_stack.add(eval.frontier, (x, y + 1, z));
+  };
+  if (z > 0) {
+    Frontier_stack.add(eval.frontier, (x, y, z - 1));
+  };
+  if (z < zs - 1) {
+    Frontier_stack.add(eval.frontier, (x, y, z + 1));
+  };
 };
 
 let entropy_at = (eval, it) => {
@@ -160,13 +182,8 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
           during_collapse: None,
         }),
       );
-    } else if (now_entropy > 0) {
-      eval.entropy_queue =
-        Priority_queue.Int.insert(
-          eval.entropy_queue,
-          now_entropy,
-          (x, y, z),
-        );
+    } else if (now_entropy == 0) {
+      add_neighbors_to_frontier(eval, x, y, z);
     };
     eval.total_entropy = eval.total_entropy - 1;
 
@@ -248,19 +265,6 @@ let ban_impossible_tiles = eval => {
 
 let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
   let numtiles = Tileset.numtiles(tileset);
-  // We don't need to enqueue all coords, just one. As soon as the wave starts
-  // to collapse, the full entropy entries will become unreachable in the queue.
-  // We just need one entry to start the process.
-  let entropy_queue = ref(Priority_queue.Int.empty);
-  for (x in 0 to xs - 1) {
-    for (y in 0 to ys - 1) {
-      for (z in 0 to zs - 1) {
-        entropy_queue :=
-          Priority_queue.Int.insert(entropy_queue^, numtiles - 1, (x, y, z));
-      };
-    };
-  };
-  let entropy_queue = entropy_queue^;
   let wave = {
     tileset,
     xs,
@@ -269,7 +273,7 @@ let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
     ts: numtiles,
     possibilities: make_blank_possibilities(~numtiles, xs, ys, zs),
     supporters: make_blank_supporters(~tileset, xs, ys, zs),
-    entropy_queue,
+    frontier: Frontier_stack.create(),
     total_entropy: xs * ys * zs * (numtiles - 1),
     needs_ban: Hq_I4.create(),
   };
@@ -283,12 +287,10 @@ let force_and_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
 };
 
 let rec next_lowest_entropy = eval => {
-  let (next, entropy_queue) = Priority_queue.Int.extract(eval.entropy_queue);
-  eval.entropy_queue = entropy_queue;
   let {xs, ys, zs, ts, _} = eval;
-  switch (next) {
+  switch (Frontier_stack.pop(eval.frontier)) {
   | None => None
-  | Some((x, y, z))
+  | Some((x, y, z)) as next
       when entropy_at(eval, it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z)) > 0 => next
   | Some(_) => next_lowest_entropy(eval)
   };
