@@ -35,6 +35,7 @@ type tileset('a, 'tag) = {
 type btile('a, 'tag) = {
   name: option(string),
   tags: list('tag),
+  full_auto: bool,
   weight: float,
   /* x y z item */
   items: array(array(array('a))),
@@ -71,7 +72,21 @@ let pop_id = next_id => {
   id;
 };
 
+let assert_lengths_match = a => {
+  let d2 = Array.length(a[0]);
+  let d3 = Array.length(a[0][0]);
+
+  Array.iter(
+    a,
+    ~f=a2 => {
+      assert(Array.length(a2) == d2);
+      Array.iter(a2, ~f=a3 => {assert(Array.length(a3) == d3)});
+    },
+  );
+};
+
 let xyz_of_yzx = (yzx: array(array(array('a)))) => {
+  assert_lengths_match(yzx);
   let xs = Array.length(yzx[0][0]);
   let ys = Array.length(yzx);
   let zs = Array.length(yzx[0]);
@@ -86,19 +101,15 @@ let tile =
       ~weight: float=1.0,
       ~name: option(string)=?,
       ~tags=[],
+      ~full_auto=false,
       ~rotate=false,
       ~flip_x=false,
       ~flip_z=false,
       items: array(array(array('a))),
     )
     : btile('a, 'tag) => {
-  name,
-  tags,
-  items,
-  rotate,
-  flip_x,
-  flip_z,
-  weight,
+  assert_lengths_match(items);
+  {name, tags, full_auto, items, rotate, flip_x, flip_z, weight};
 };
 
 let make_blank_pairs = numtiles =>
@@ -159,6 +170,7 @@ let split_multitile =
       ~weight: float,
       ~name: option(string),
       ~tags,
+      ~full_auto,
       multitile: array(array(array('a))),
     ) => {
   let xs = Array.length(multitile);
@@ -210,12 +222,12 @@ let split_multitile =
       tags,
       weight,
       items,
-      auto_x0: tx == 0,
-      auto_x1: tx == txs - 1,
-      auto_y0: ty == 0,
-      auto_y1: ty == tys - 1,
-      auto_z0: tz == 0,
-      auto_z1: tz == tzs - 1,
+      auto_x0: full_auto || tx == 0,
+      auto_x1: full_auto || tx == txs - 1,
+      auto_y0: full_auto || ty == 0,
+      auto_y1: full_auto || ty == tys - 1,
+      auto_z0: full_auto || tz == 0,
+      auto_z1: full_auto || tz == tzs - 1,
       is_impossible: false,
     };
   };
@@ -349,6 +361,7 @@ let create_tileset =
              ~tags=btile.tags,
              ~tilesize,
              ~next_id,
+             ~full_auto=btile.full_auto,
              ~weight=btile.weight,
            );
 

@@ -18,7 +18,10 @@ let test_stairs = region => {
 
 let make_building = (~x as ox, ~y as oy, ~z as oz, region) => {
   Tale.block("Making building", ~f=() => {
-    let wfc = Wave_building.prepare_wave(~xs=30, ~ys=10, ~zs=30);
+    let xs = 10;
+    let zs = 10;
+    let ys = 10;
+    let wfc = Wave_building.prepare_wave(~xs, ~ys, ~zs);
     let (xs, ys, zs) = Wave_collapse.item_dims(wfc);
     for (z in 0 to zs - 1) {
       for (x in 0 to xs - 1) {
@@ -41,6 +44,12 @@ let make_building = (~x as ox, ~y as oy, ~z as oz, region) => {
         };
       };
     };
+    Torching.illuminate_bounds(
+      ~x=(ox, ox + xs),
+      ~y=(oy, oy + ys),
+      ~z=(oz, oz + zs),
+      region,
+    );
   });
 };
 
@@ -74,7 +83,9 @@ let test = () => {
         )
       );
       make_building(~x=11, ~y=1, ~z=2, r);
-      // make_building(~x=11, ~y=1, ~z=30, r);
+      make_building(~x=11, ~y=1, ~z=30, r);
+      make_building(~x=35, ~y=1, ~z=2, r);
+      make_building(~x=35, ~y=1, ~z=30, r);
     },
   );
 };

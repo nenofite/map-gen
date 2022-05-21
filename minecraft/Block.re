@@ -1677,6 +1677,13 @@ let rotate_axis_cw =
   | Y => Y
   | Z => X;
 
+let rotate_fence_extends_cw = ext => {
+  north: ext.west,
+  east: ext.north,
+  south: ext.east,
+  west: ext.south,
+};
+
 let rotate_cw = (mat, ~times) => {
   let rep = f => Mg_util.times(f, times);
   switch (mat) {
@@ -1685,6 +1692,8 @@ let rotate_cw = (mat, ~times) => {
   | Orange_bed(dir, part) => Orange_bed(rep(rotate_dir_cw, dir), part)
   | Stairs(mat, dir) => Stairs(mat, rep(rotate_stair_dir_cw, dir))
   | Wall_torch(dir) => Wall_torch(rep(rotate_dir_cw, dir))
+  | Fence(mat, extends, water) =>
+    Fence(mat, rep(rotate_fence_extends_cw, extends), water)
   | other => other
   };
 };
