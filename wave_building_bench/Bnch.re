@@ -24,18 +24,20 @@ let prep_wave = size => {
   wave;
 };
 
-let just_copy = size => {
-  let wave = prep_wave(size);
+let just_blit = size => {
+  let original = prep_wave(size);
+  let wave = Wave_collapse.copy(original);
   Staged.stage(() => {
-    let wave = Wave_collapse.copy(wave);
+    Wave_collapse.blit(original, wave);
     wave;
   });
 };
 
 let collapse = size => {
-  let wave = prep_wave(size);
+  let original = prep_wave(size);
+  let wave = Wave_collapse.copy(original);
   Staged.stage(() => {
-    let wave = Wave_collapse.copy(wave);
+    Wave_collapse.blit(original, wave);
     Wave_collapse.try_collapse_next_lowest_entropy(wave) |> ignore;
     wave;
   });
@@ -50,10 +52,10 @@ Command_unix.run(
       collapse,
     ),
     Bench.Test.create_indexed(
-      ~name="just copy",
+      ~name="just blit",
       //   ~args=[5, 10, 15, 20],
       ~args=[10, 20],
-      just_copy,
+      just_blit,
     ),
   ]),
 );
