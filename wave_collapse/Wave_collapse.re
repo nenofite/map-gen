@@ -1,56 +1,5 @@
 open! Core;
 
-let item_at_exn =
-    (eval: Evaluator.wave_evaluator('a, 'tag), ~x: int, ~y: int, ~z: int) => {
-  let tsz = eval.tileset.tilesize;
-  let tx = max(0, (x - 1) / (tsz - 1));
-  let ty = max(0, (y - 1) / (tsz - 1));
-  let tz = max(0, (z - 1) / (tsz - 1));
-  let subx = x - tx * (tsz - 1);
-  let suby = y - ty * (tsz - 1);
-  let subz = z - tz * (tsz - 1);
-
-  let t = Evaluator.observe_at_exn(eval, ~x=tx, ~y=ty, ~z=tz);
-  eval.tileset.tiles[t].items[subx][suby][subz];
-};
-
-let item_at =
-    (
-      eval: Evaluator.wave_evaluator('a, 'tag),
-      ~x: int,
-      ~y: int,
-      ~z: int,
-      ~default,
-    ) => {
-  let tsz = eval.tileset.tilesize;
-  let tx = max(0, (x - 1) / (tsz - 1));
-  let ty = max(0, (y - 1) / (tsz - 1));
-  let tz = max(0, (z - 1) / (tsz - 1));
-  let subx = x - tx * (tsz - 1);
-  let suby = y - ty * (tsz - 1);
-  let subz = z - tz * (tsz - 1);
-
-  switch (Evaluator.observe_at(eval, ~x=tx, ~y=ty, ~z=tz)) {
-  | Result.Ok(t) => eval.tileset.tiles[t].items[subx][suby][subz]
-  | Result.Error(_) => default
-  };
-};
-let item_or_entropy_at =
-    (eval: Evaluator.wave_evaluator('a, 'tag), ~x: int, ~y: int, ~z: int) => {
-  let tsz = eval.tileset.tilesize;
-  let tx = max(0, (x - 1) / (tsz - 1));
-  let ty = max(0, (y - 1) / (tsz - 1));
-  let tz = max(0, (z - 1) / (tsz - 1));
-  let subx = x - tx * (tsz - 1);
-  let suby = y - ty * (tsz - 1);
-  let subz = z - tz * (tsz - 1);
-
-  switch (Evaluator.observe_at(eval, ~x=tx, ~y=ty, ~z=tz)) {
-  | Result.Ok(t) => Result.Ok(eval.tileset.tiles[t].items[subx][suby][subz])
-  | Result.Error(_) as e => e
-  };
-};
-
 let item_dims = (eval: Evaluator.wave_evaluator('a, 'tag)) => {
   let tsz = eval.tileset.tilesize;
   let Evaluator.{xs, ys, zs, _} = eval;
@@ -186,7 +135,7 @@ let%expect_test "getting items after collapse" = {
   %expect
   {|
     x | x | x | x
-    - 2 x 1 - 2 x
+    x 1 - 2 x 1 -
     x | x | x | x
     - 2 x 1 - 2 x
     x | x | x | x
@@ -194,7 +143,7 @@ let%expect_test "getting items after collapse" = {
     x | x | x | x
 
     x | x | x | x
-    - 2 x 1 - 2 x
+    x 1 - 2 x 1 -
     x | x | x | x
     - 2 x 1 - 2 x
     x | x | x | x
@@ -202,7 +151,7 @@ let%expect_test "getting items after collapse" = {
     x | x | x | x
 
     x | x | x | x
-    - 2 x 1 - 2 x
+    x 1 - 2 x 1 -
     x | x | x | x
     - 2 x 1 - 2 x
     x | x | x | x

@@ -1,9 +1,14 @@
 open! Core;
 
 [@deriving sexp_of]
+type contradiction_action =
+  | Banning_tile(string)
+  | Fitting_walkability(bool, bool);
+
+[@deriving sexp_of]
 type contradiction_info = {
   contradiction_at: (int, int, int),
-  banned_tile: string,
+  contradiction_action,
   during_collapse: option((int, int, int, string)),
 };
 exception Contradiction(contradiction_info);
@@ -178,7 +183,8 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
       raise_notrace(
         Contradiction({
           contradiction_at: (x, y, z),
-          banned_tile: eval.tileset.tiles[tile_id].name,
+          contradiction_action:
+            Banning_tile(eval.tileset.tiles[tile_id].name),
           during_collapse: None,
         }),
       );
@@ -316,22 +322,195 @@ let random_tile_by_weight =
   select(0, selected_weight);
 };
 
+let observe_at_exn = (eval, ~x, ~y, ~z) => {
+  let {xs, ys, zs, ts, _} = eval;
+  let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
+  if (entropy_at(eval, it) != 0) {
+    failwith("Cannot observe because entropy != 0");
+  };
+  Mg_util.Range.find_exn(0, ts - 1, t => eval.possibilities[it + t]);
+};
+
+let observe_at = (eval, ~x, ~y, ~z) => {
+  let {xs, ys, zs, ts, _} = eval;
+  let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
+  let e = entropy_at(eval, it);
+  if (e != 0) {
+    Result.Error(e);
+  } else {
+    let t = Mg_util.Range.find_exn(0, ts - 1, t => eval.possibilities[it + t]);
+    Result.Ok(t);
+  };
+};
+
+let item_at_exn = (eval: wave_evaluator('a, 'tag), ~x: int, ~y: int, ~z: int) => {
+  let tsz = eval.tileset.tilesize;
+  let tx = max(0, (x - 1) / (tsz - 1));
+  let ty = max(0, (y - 1) / (tsz - 1));
+  let tz = max(0, (z - 1) / (tsz - 1));
+  let subx = x - tx * (tsz - 1);
+  let suby = y - ty * (tsz - 1);
+  let subz = z - tz * (tsz - 1);
+
+  let t = observe_at_exn(eval, ~x=tx, ~y=ty, ~z=tz);
+  eval.tileset.tiles[t].items[subx][suby][subz];
+};
+
+let item_at =
+    (eval: wave_evaluator('a, 'tag), ~x: int, ~y: int, ~z: int, ~default) => {
+  let tsz = eval.tileset.tilesize;
+  let tx = max(0, (x - 1) / (tsz - 1));
+  let ty = max(0, (y - 1) / (tsz - 1));
+  let tz = max(0, (z - 1) / (tsz - 1));
+  let subx = x - tx * (tsz - 1);
+  let suby = y - ty * (tsz - 1);
+  let subz = z - tz * (tsz - 1);
+
+  switch (observe_at(eval, ~x=tx, ~y=ty, ~z=tz)) {
+  | Result.Ok(t) => eval.tileset.tiles[t].items[subx][suby][subz]
+  | Result.Error(_) => default
+  };
+};
+
+let item_or_entropy_at =
+    (eval: wave_evaluator('a, 'tag), ~x: int, ~y: int, ~z: int) => {
+  let tsz = eval.tileset.tilesize;
+  let tx = max(0, (x - 1) / (tsz - 1));
+  let ty = max(0, (y - 1) / (tsz - 1));
+  let tz = max(0, (z - 1) / (tsz - 1));
+  let subx = x - tx * (tsz - 1);
+  let suby = y - ty * (tsz - 1);
+  let subz = z - tz * (tsz - 1);
+
+  switch (observe_at(eval, ~x=tx, ~y=ty, ~z=tz)) {
+  | Result.Ok(t) => Result.Ok(eval.tileset.tiles[t].items[subx][suby][subz])
+  | Result.Error(_) as e => e
+  };
+};
+
+let get_neighbor_walkability = (eval, ~x, ~y, ~z) => {
+  let {xs, ys, zs, _} = eval;
+  let has_walkable = ref(false);
+  let has_unwalkable = ref(false);
+  if (x > 0) {
+    switch (observe_at(eval, ~x=x - 1, ~y, ~z)) {
+    | Ok(tile) =>
+      let tile = eval.tileset.tiles[tile];
+      switch (tile.walkability) {
+      | Walkable => has_walkable := true
+      | Unwalkable => has_unwalkable := true
+      | Boundary
+      | Irrelevant => ()
+      };
+    | Error(_) => ()
+    };
+  };
+  if (x < xs - 1) {
+    switch (observe_at(eval, ~x=x + 1, ~y, ~z)) {
+    | Ok(tile) =>
+      let tile = eval.tileset.tiles[tile];
+      switch (tile.walkability) {
+      | Walkable => has_walkable := true
+      | Unwalkable => has_unwalkable := true
+      | Boundary
+      | Irrelevant => ()
+      };
+    | Error(_) => ()
+    };
+  };
+  if (y > 0) {
+    switch (observe_at(eval, ~x, ~y=y - 1, ~z)) {
+    | Ok(tile) =>
+      let tile = eval.tileset.tiles[tile];
+      switch (tile.walkability) {
+      | Walkable => has_walkable := true
+      | Unwalkable => has_unwalkable := true
+      | Boundary
+      | Irrelevant => ()
+      };
+    | Error(_) => ()
+    };
+  };
+  if (y < ys - 1) {
+    switch (observe_at(eval, ~x, ~y=y + 1, ~z)) {
+    | Ok(tile) =>
+      let tile = eval.tileset.tiles[tile];
+      switch (tile.walkability) {
+      | Walkable => has_walkable := true
+      | Unwalkable => has_unwalkable := true
+      | Boundary
+      | Irrelevant => ()
+      };
+    | Error(_) => ()
+    };
+  };
+  if (z > 0) {
+    switch (observe_at(eval, ~x, ~y, ~z=z - 1)) {
+    | Ok(tile) =>
+      let tile = eval.tileset.tiles[tile];
+      switch (tile.walkability) {
+      | Walkable => has_walkable := true
+      | Unwalkable => has_unwalkable := true
+      | Boundary
+      | Irrelevant => ()
+      };
+    | Error(_) => ()
+    };
+  };
+  if (z < zs - 1) {
+    switch (observe_at(eval, ~x, ~y, ~z=z + 1)) {
+    | Ok(tile) =>
+      let tile = eval.tileset.tiles[tile];
+      switch (tile.walkability) {
+      | Walkable => has_walkable := true
+      | Unwalkable => has_unwalkable := true
+      | Boundary
+      | Irrelevant => ()
+      };
+    | Error(_) => ()
+    };
+  };
+  (has_walkable^, has_unwalkable^);
+};
+
 let collapse_at = (eval, ~x, ~y, ~z) => {
   let {xs, ys, zs, ts, _} = eval;
   let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
+  let (has_walkable, has_unwalkable) =
+    get_neighbor_walkability(eval, ~x, ~y, ~z);
+  let neither_walkability = !(has_walkable || has_unwalkable);
   let options =
     Mg_util.Range.flat_map(0, ts - 1, t =>
       if (eval.possibilities[it + t]) {
-        Some(t);
+        if (neither_walkability) {
+          Some(t);
+        } else {
+          let tile = eval.tileset.tiles[t];
+          switch (tile.walkability) {
+          | Walkable when has_walkable => Some(t)
+          | Unwalkable when has_unwalkable => Some(t)
+          | Boundary when has_walkable /*&& has_unwalkable*/ => Some(t)
+          | Irrelevant => Some(t)
+          | _ => None
+          };
+        };
       } else {
         None;
       }
     );
-  if (List.is_empty(options)) {
-    /* TODO */
-    failwith("Contradiction, cannot collapse");
-  };
+
   let name_of = t => eval.tileset.tiles[t].name;
+  if (List.is_empty(options)) {
+    raise_notrace(
+      Contradiction({
+        contradiction_at: (x, y, z),
+        contradiction_action:
+          Fitting_walkability(has_walkable, has_unwalkable),
+        during_collapse: None,
+      }),
+    );
+  };
+
   let t =
     random_tile_by_weight(Array.of_list(options), ~tileset=eval.tileset);
   try(force_and_propagate(eval, ~x, ~y, ~z, t)) {
@@ -372,27 +551,6 @@ let collapse_all = eval => {
       failwith("Ran out of tries");
     };
   with_tries(10);
-};
-
-let observe_at_exn = (eval, ~x, ~y, ~z) => {
-  let {xs, ys, zs, ts, _} = eval;
-  let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
-  if (entropy_at(eval, it) != 0) {
-    failwith("Cannot observe because entropy != 0");
-  };
-  Mg_util.Range.find_exn(0, ts - 1, t => eval.possibilities[it + t]);
-};
-
-let observe_at = (eval, ~x, ~y, ~z) => {
-  let {xs, ys, zs, ts, _} = eval;
-  let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
-  let e = entropy_at(eval, it);
-  if (e != 0) {
-    Result.Error(e);
-  } else {
-    let t = Mg_util.Range.find_exn(0, ts - 1, t => eval.possibilities[it + t]);
-    Result.Ok(t);
-  };
 };
 
 module Test_helpers = {
@@ -436,6 +594,7 @@ module Test_helpers = {
         [
           tile(
             ~weight=0.0,
+            Unwalkable,
             [|
               [|
                 [|"a", "a", "a"|], /* */
@@ -456,6 +615,7 @@ module Test_helpers = {
           ),
           tile(
             ~weight=1.0,
+            Unwalkable,
             [|
               [|
                 [|"x", "|", "x"|], /* */
@@ -476,6 +636,7 @@ module Test_helpers = {
           ),
           tile(
             ~weight=1.0,
+            Unwalkable,
             [|
               [|
                 [|"x", "|", "x"|], /* */
@@ -496,6 +657,7 @@ module Test_helpers = {
           ),
           tile(
             ~weight=0.0,
+            Unwalkable,
             [|
               [|
                 [|"a", "|", "x"|], /* */
@@ -524,40 +686,46 @@ module Test_helpers = {
         ~tilesize=2,
         ~tagfix="",
         [
-          tile([|
+          tile(
+            Unwalkable,
             [|
-              [|"a", "a", "a"|], /* */
-              [|"a", "1", "a"|], /* */
-              [|"a", "a", "a"|] /* */
+              [|
+                [|"a", "a", "a"|], /* */
+                [|"a", "1", "a"|], /* */
+                [|"a", "a", "a"|] /* */
+              |],
+              [|
+                [|"a", "a", "a"|], /* */
+                [|"a", "Y", "a"|], /* */
+                [|"a", "a", "a"|] /* */
+              |],
+              [|
+                [|"a", "a", "a"|], /* */
+                [|"a", "1", "a"|], /* */
+                [|"a", "a", "a"|] /* */
+              |],
             |],
+          ),
+          tile(
+            Unwalkable,
             [|
-              [|"a", "a", "a"|], /* */
-              [|"a", "Y", "a"|], /* */
-              [|"a", "a", "a"|] /* */
+              [|
+                [|"a", "a", "a"|], /* */
+                [|"a", "1", "a"|], /* */
+                [|"a", "a", "a"|] /* */
+              |],
+              [|
+                [|"a", "a", "a"|], /* */
+                [|"a", "X", "a"|], /* */
+                [|"a", "a", "a"|] /* */
+              |],
+              [|
+                [|"a", "a", "a"|], /* */
+                [|"a", "0", "a"|], /* */
+                [|"a", "a", "a"|] /* */
+              |],
             |],
-            [|
-              [|"a", "a", "a"|], /* */
-              [|"a", "1", "a"|], /* */
-              [|"a", "a", "a"|] /* */
-            |],
-          |]),
-          tile([|
-            [|
-              [|"a", "a", "a"|], /* */
-              [|"a", "1", "a"|], /* */
-              [|"a", "a", "a"|] /* */
-            |],
-            [|
-              [|"a", "a", "a"|], /* */
-              [|"a", "X", "a"|], /* */
-              [|"a", "a", "a"|] /* */
-            |],
-            [|
-              [|"a", "a", "a"|], /* */
-              [|"a", "0", "a"|], /* */
-              [|"a", "a", "a"|] /* */
-            |],
-          |]),
+          ),
         ],
       )
     );

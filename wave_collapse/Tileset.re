@@ -1,9 +1,16 @@
 open! Core;
 
+type walkability =
+  | Irrelevant // Can be placed regardless of walkability. This should be used for eg. underground or mid-air tiles
+  | Unwalkable // Should be collapsed next to another unwalkable tile
+  | Walkable // Should be collapsed next to another walkable tile
+  | Boundary; // Should be collapsed next to a walkable tile, but is not itself walkable
+
 type tile('a, 'tag) = {
   id: int,
   name: string,
   tags: list('tag),
+  walkability,
   weight: float,
   /* x y z item */
   items: array(array(array('a))),
@@ -35,6 +42,7 @@ type tileset('a, 'tag) = {
 type btile('a, 'tag) = {
   name: option(string),
   tags: list('tag),
+  walkability,
   full_auto: bool,
   weight: float,
   /* x y z item */
@@ -105,11 +113,12 @@ let tile =
       ~rotate=false,
       ~flip_x=false,
       ~flip_z=false,
+      walkability,
       items: array(array(array('a))),
     )
     : btile('a, 'tag) => {
   assert_lengths_match(items);
-  {name, tags, full_auto, items, rotate, flip_x, flip_z, weight};
+  {name, tags, walkability, full_auto, items, rotate, flip_x, flip_z, weight};
 };
 
 let make_blank_pairs = numtiles =>
@@ -171,6 +180,7 @@ let split_multitile =
       ~name: option(string),
       ~tags,
       ~full_auto,
+      ~walkability,
       multitile: array(array(array('a))),
     ) => {
   let xs = Array.length(multitile);
@@ -220,6 +230,7 @@ let split_multitile =
       id,
       name: form_name(~id, ~local_id),
       tags,
+      walkability,
       weight,
       items,
       auto_x0: full_auto || tx == 0,
@@ -359,6 +370,7 @@ let create_tileset =
              btile.items,
              ~name=btile.name,
              ~tags=btile.tags,
+             ~walkability=btile.walkability,
              ~tilesize,
              ~next_id,
              ~full_auto=btile.full_auto,
@@ -673,6 +685,7 @@ let%expect_test "single tiles" = {
       [
         tile(
           ~weight=1.0,
+          Unwalkable,
           [|
             [|
               [|"a", "b", "c"|], /* */
@@ -693,6 +706,7 @@ let%expect_test "single tiles" = {
         ),
         tile(
           ~weight=1.0,
+          Unwalkable,
           [|
             [|
               [|"g", "h", "i"|], /* */
@@ -713,6 +727,7 @@ let%expect_test "single tiles" = {
         ),
         tile(
           ~weight=1.0,
+          Unwalkable,
           [|
             [|
               [|"a", "b", "a"|], /* */
@@ -763,6 +778,7 @@ let%expect_test "multi tiles" = {
       [
         tile(
           ~weight=1.0,
+          Unwalkable,
           [|
             [|
               [|"a", "b", "b", "b", "c"|], /* */
@@ -783,6 +799,7 @@ let%expect_test "multi tiles" = {
         ),
         tile(
           ~weight=1.0,
+          Unwalkable,
           [|
             [|
               [|"h", "h", "i"|], /* */
@@ -803,6 +820,7 @@ let%expect_test "multi tiles" = {
         ),
         tile(
           ~weight=1.0,
+          Unwalkable,
           [|
             [|
               [|"b", "y", "b"|], /* */
@@ -856,6 +874,7 @@ let%expect_test "vertical multi tiles" = {
       [
         tile(
           ~name="abc",
+          Unwalkable,
           [|
             [|
               [|"a", "a", "a"|], /* */
@@ -876,6 +895,7 @@ let%expect_test "vertical multi tiles" = {
         ),
         tile(
           ~name="just_b",
+          Unwalkable,
           [|
             [|
               [|"b", "b"|], /* */
@@ -1120,6 +1140,7 @@ let%expect_test "flipping multi tiles" = {
       [
         tile(
           ~flip_z=true,
+          Unwalkable,
           [|
             [|
               [|"a", "b", "b", "b", "c"|], /* */
