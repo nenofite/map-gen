@@ -28,7 +28,8 @@ let force_at =
 let force_edges =
     (
       ~transition_margin=0,
-      ~walkability=?,
+      ~walkable=false,
+      ~unwalkable=false,
       ~x0=?,
       ~x1=?,
       ~y0=?,
@@ -43,11 +44,14 @@ let force_edges =
     // If allowing transitions, don't force corners
     let (mino, maxo) = (transition_margin, - (1 + transition_margin));
 
-    let set_walk_at = (~x, ~y, ~z) =>
-      switch (walkability) {
-      | Some(w) => Evaluator.mark_walkability(eval, ~x, ~y, ~z, w)
-      | None => ()
+    let set_walk_at = (~x, ~y, ~z) => {
+      if (walkable) {
+        Evaluator.mark_walkability(eval, ~x, ~y, ~z, Walkable);
       };
+      if (unwalkable) {
+        Evaluator.mark_walkability(eval, ~x, ~y, ~z, Unwalkable);
+      };
+    };
 
     switch (x0) {
     | Some(t) =>
@@ -55,8 +59,8 @@ let force_edges =
       for (y in mino to ys + maxo) {
         for (z in mino to zs + maxo) {
           let x = 0;
-          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
           set_walk_at(~x, ~y, ~z);
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
         };
       };
     | None => ()
@@ -67,8 +71,8 @@ let force_edges =
       for (y in mino to ys + maxo) {
         for (z in mino to zs + maxo) {
           let x = xs - 1;
-          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
           set_walk_at(~x, ~y, ~z);
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
         };
       };
     | None => ()
@@ -80,8 +84,8 @@ let force_edges =
       for (x in mino to xs + maxo) {
         for (y in mino to ys + maxo) {
           let z = 0;
-          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
           set_walk_at(~x, ~y, ~z);
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
         };
       };
     | None => ()
@@ -92,8 +96,8 @@ let force_edges =
       for (x in mino to xs + maxo) {
         for (y in mino to ys + maxo) {
           let z = zs - 1;
-          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
           set_walk_at(~x, ~y, ~z);
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
         };
       };
     | None => ()
@@ -105,8 +109,8 @@ let force_edges =
       for (x in mino to xs + maxo) {
         for (z in mino to zs + maxo) {
           let y = 0;
-          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
           set_walk_at(~x, ~y, ~z);
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
         };
       };
     | None => ()
@@ -117,8 +121,8 @@ let force_edges =
       for (x in mino to xs + maxo) {
         for (z in mino to zs + maxo) {
           let y = ys - 1;
-          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
           set_walk_at(~x, ~y, ~z);
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
         };
       };
     | None => ()

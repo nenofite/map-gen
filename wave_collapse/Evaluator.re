@@ -300,29 +300,22 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
       );
     } else if (now_entropy == 0) {
       let tile = observe_at_exn(eval, ~x, ~y, ~z);
-      // Printf.printf(
-      //   "Fully observed %d %d %d as %s\n",
-      //   x,
-      //   y,
-      //   z,
-      //   Tileset.name_of(eval.tileset, tile),
-      // );
-      let nw = get_neighbor_walkability(eval, ~x, ~y, ~z);
+      // let nw = get_neighbor_walkability(eval, ~x, ~y, ~z);
       let w = eval.tileset.tiles[tile].walkability;
-      if (!can_place_walkability(w, nw)) {
-        raise_notrace(
-          Contradiction({
-            contradiction_at: (x, y, z),
-            contradiction_action:
-              Placing_tile_with_walkability(
-                eval.tileset.tiles[tile_id].name,
-                w,
-                nw,
-              ),
-            during_collapse: None,
-          }),
-        );
-      };
+      // if (!can_place_walkability(w, nw)) {
+      //   raise_notrace(
+      //     Contradiction({
+      //       contradiction_at: (x, y, z),
+      //       contradiction_action:
+      //         Placing_tile_with_walkability(
+      //           eval.tileset.tiles[tile_id].name,
+      //           w,
+      //           nw,
+      //         ),
+      //       during_collapse: None,
+      //     }),
+      //   );
+      // };
       mark_walkability(eval, ~x, ~y, ~z, w);
       let w_priority = is_walkable(w);
       add_neighbors_to_frontier(eval, x, y, z, w_priority);
@@ -535,7 +528,7 @@ let collapse_at = (eval, ~x, ~y, ~z) => {
   if (!List.is_empty(options)) {
     let t =
       random_tile_by_weight(Array.of_list(options), ~tileset=eval.tileset);
-    Printf.printf("Collapsing %d %d %d to %s\n", x, y, z, name_of(t));
+    // Printf.printf("Collapsing %d %d %d to %s\n", x, y, z, name_of(t));
     try(force_and_propagate(eval, ~x, ~y, ~z, t)) {
     | Contradiction(c) =>
       raise_notrace(
@@ -563,7 +556,7 @@ let try_collapse_next_lowest_entropy = eval => {
   };
 };
 
-let collapse_all = eval => {
+let collapse_all = (~peek=ignore, eval) => {
   let start = copy(eval);
   let rec with_tries = tries =>
     if (tries > 0) {
@@ -577,6 +570,7 @@ let collapse_all = eval => {
           "*** contra: %s\n",
           Sexp.to_string_hum([%sexp_of: contradiction_info](c)),
         );
+        peek(eval);
         blit(start, eval);
         with_tries(tries - 1);
       };

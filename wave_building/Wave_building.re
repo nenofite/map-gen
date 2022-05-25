@@ -559,6 +559,8 @@ let prepare_wave = (~xs, ~ys, ~zs) => {
   assert(ys >= 8);
   let wave = Wave_collapse.make_blank_wave(ts, ~xs, ~ys, ~zs);
   Wave_collapse.force_edges(
+    ~walkable=true,
+    ~unwalkable=true,
     ~x0=Tag.Edge,
     ~x1=Tag.Edge,
     ~y0=Tag.Bottom,
@@ -567,14 +569,19 @@ let prepare_wave = (~xs, ~ys, ~zs) => {
     ~z1=Tag.Edge,
     wave,
   );
-  Wave_collapse.ignoring_walkability(wave, () => {
-    Wave_collapse.force_at(~x=xs / 2, ~y=1, ~z=zs - 2, Tag.Door, wave)
-  });
+  Wave_collapse.force_at(
+    ~walkability=Walkable,
+    ~x=xs / 2,
+    ~y=1,
+    ~z=zs - 2,
+    Tag.Door,
+    wave,
+  );
   // Wave_collapse.force_at(~x=xs / 2, ~y=1, ~z=zs / 2, Tag.Building, wave);
   // Wave_collapse.force_at(~x=xs / 2, ~y=1, ~z=1, Tag.Building, wave);
   // Wave_collapse.force_at(~x=xs - 2, ~y=1, ~z=zs / 2, Tag.Building, wave);
   // Wave_collapse.force_at(~x=1, ~y=1, ~z=zs / 2, Tag.Building, wave);
-  Wave_collapse.collapse_all(wave);
+  // Wave_collapse.collapse_all(wave);
   wave;
 };
 
@@ -609,10 +616,11 @@ let%expect_test "tileset" = {
 };
 
 let%expect_test "collapsing" = {
-  let xs = 20;
-  let ys = 10;
-  let zs = 20;
+  let xs = 10;
+  let ys = 8;
+  let zs = 10;
   let wave = prepare_wave(~xs, ~ys, ~zs);
+  Wave_collapse.collapse_all(~peek=Test_helpers.print_items, wave);
   Test_helpers.print_items(wave);
   %expect
   {|
