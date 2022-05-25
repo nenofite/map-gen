@@ -3,7 +3,8 @@ open! Core;
 [@deriving sexp_of]
 type contradiction_action =
   | Banning_tile(string)
-  | Fitting_walkability(bool, bool);
+  | Finding_tile_with_walkability(bool, bool)
+  | Placing_tile_with_walkability(string, Tileset.walkability, (bool, bool));
 
 [@deriving sexp_of]
 type contradiction_info = {
@@ -215,85 +216,43 @@ let observe_at = (eval, ~x, ~y, ~z) => {
 
 let get_neighbor_walkability = (eval, ~x, ~y, ~z) => {
   let {xs, ys, zs, _} = eval;
-  let has_walkable = ref(false);
-  let has_unwalkable = ref(false);
+  let has_walkable = ref(Hash_set.mem(eval.walkable, (x, y, z)));
+  let has_unwalkable = ref(Hash_set.mem(eval.unwalkable, (x, y, z)));
   if (x > 0) {
-    switch (observe_at(eval, ~x=x - 1, ~y, ~z)) {
-    | Ok(tile) =>
-      let tile = eval.tileset.tiles[tile];
-      switch (tile.walkability) {
-      | Walkable => has_walkable := true
-      | Unwalkable => has_unwalkable := true
-      | Boundary
-      | Irrelevant => ()
-      };
-    | Error(_) => ()
-    };
+    has_walkable :=
+      has_walkable^ || Hash_set.mem(eval.walkable, (x - 1, y, z));
+    has_unwalkable :=
+      has_unwalkable^ || Hash_set.mem(eval.unwalkable, (x - 1, y, z));
   };
   if (x < xs - 1) {
-    switch (observe_at(eval, ~x=x + 1, ~y, ~z)) {
-    | Ok(tile) =>
-      let tile = eval.tileset.tiles[tile];
-      switch (tile.walkability) {
-      | Walkable => has_walkable := true
-      | Unwalkable => has_unwalkable := true
-      | Boundary
-      | Irrelevant => ()
-      };
-    | Error(_) => ()
-    };
+    has_walkable :=
+      has_walkable^ || Hash_set.mem(eval.walkable, (x + 1, y, z));
+    has_unwalkable :=
+      has_unwalkable^ || Hash_set.mem(eval.unwalkable, (x + 1, y, z));
   };
   if (y > 0) {
-    switch (observe_at(eval, ~x, ~y=y - 1, ~z)) {
-    | Ok(tile) =>
-      let tile = eval.tileset.tiles[tile];
-      switch (tile.walkability) {
-      | Walkable => has_walkable := true
-      | Unwalkable => has_unwalkable := true
-      | Boundary
-      | Irrelevant => ()
-      };
-    | Error(_) => ()
-    };
+    has_walkable :=
+      has_walkable^ || Hash_set.mem(eval.walkable, (x, y - 1, z));
+    has_unwalkable :=
+      has_unwalkable^ || Hash_set.mem(eval.unwalkable, (x, y - 1, z));
   };
   if (y < ys - 1) {
-    switch (observe_at(eval, ~x, ~y=y + 1, ~z)) {
-    | Ok(tile) =>
-      let tile = eval.tileset.tiles[tile];
-      switch (tile.walkability) {
-      | Walkable => has_walkable := true
-      | Unwalkable => has_unwalkable := true
-      | Boundary
-      | Irrelevant => ()
-      };
-    | Error(_) => ()
-    };
+    has_walkable :=
+      has_walkable^ || Hash_set.mem(eval.walkable, (x, y + 1, z));
+    has_unwalkable :=
+      has_unwalkable^ || Hash_set.mem(eval.unwalkable, (x, y + 1, z));
   };
   if (z > 0) {
-    switch (observe_at(eval, ~x, ~y, ~z=z - 1)) {
-    | Ok(tile) =>
-      let tile = eval.tileset.tiles[tile];
-      switch (tile.walkability) {
-      | Walkable => has_walkable := true
-      | Unwalkable => has_unwalkable := true
-      | Boundary
-      | Irrelevant => ()
-      };
-    | Error(_) => ()
-    };
+    has_walkable :=
+      has_walkable^ || Hash_set.mem(eval.walkable, (x, y, z - 1));
+    has_unwalkable :=
+      has_unwalkable^ || Hash_set.mem(eval.unwalkable, (x, y, z - 1));
   };
   if (z < zs - 1) {
-    switch (observe_at(eval, ~x, ~y, ~z=z + 1)) {
-    | Ok(tile) =>
-      let tile = eval.tileset.tiles[tile];
-      switch (tile.walkability) {
-      | Walkable => has_walkable := true
-      | Unwalkable => has_unwalkable := true
-      | Boundary
-      | Irrelevant => ()
-      };
-    | Error(_) => ()
-    };
+    has_walkable :=
+      has_walkable^ || Hash_set.mem(eval.walkable, (x, y, z + 1));
+    has_unwalkable :=
+      has_unwalkable^ || Hash_set.mem(eval.unwalkable, (x, y, z + 1));
   };
   (has_walkable^, has_unwalkable^);
 };
@@ -306,6 +265,15 @@ let can_place_walkability =
   | Boundary => has_walkable
   | Unwalkable => has_unwalkable
   | Irrelevant => true
+  };
+};
+
+let mark_walkability = (eval, ~x, ~y, ~z, walkability: Tileset.walkability) => {
+  switch (walkability) {
+  | Walkable => Hash_set.add(eval.walkable, (x, y, z))
+  | Unwalkable => Hash_set.add(eval.unwalkable, (x, y, z))
+  | Boundary
+  | Irrelevant => ()
   };
 };
 
@@ -339,22 +307,25 @@ let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
       //   z,
       //   Tileset.name_of(eval.tileset, tile),
       // );
-      if (!eval.ignore_walkability) {
-        let nw = get_neighbor_walkability(eval, ~x, ~y, ~z);
-        let w = eval.tileset.tiles[tile].walkability;
-        if (!can_place_walkability(w, nw)) {
-          raise_notrace(
-            Contradiction({
-              contradiction_at: (x, y, z),
-              contradiction_action:
-                Banning_tile(eval.tileset.tiles[tile_id].name),
-              during_collapse: None,
-            }),
-          );
-        };
+      let nw = get_neighbor_walkability(eval, ~x, ~y, ~z);
+      let w = eval.tileset.tiles[tile].walkability;
+      if (!can_place_walkability(w, nw)) {
+        raise_notrace(
+          Contradiction({
+            contradiction_at: (x, y, z),
+            contradiction_action:
+              Placing_tile_with_walkability(
+                eval.tileset.tiles[tile_id].name,
+                w,
+                nw,
+              ),
+            during_collapse: None,
+          }),
+        );
       };
-      let w = is_walkable(eval.tileset.tiles[tile].walkability);
-      add_neighbors_to_frontier(eval, x, y, z, w);
+      mark_walkability(eval, ~x, ~y, ~z, w);
+      let w_priority = is_walkable(w);
+      add_neighbors_to_frontier(eval, x, y, z, w_priority);
     };
     eval.total_entropy = eval.total_entropy - 1;
 
@@ -445,7 +416,8 @@ let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
     frontier: Priority_queue.Int.empty,
     total_entropy: xs * ys * zs * (numtiles - 1),
     needs_ban: Hq_I4.create(),
-    ignore_walkability: false,
+    walkable: Frontier_stack.Hs_I3.create(),
+    unwalkable: Frontier_stack.Hs_I3.create(),
   };
   ban_impossible_tiles(wave);
   wave;
@@ -575,7 +547,7 @@ let collapse_at = (eval, ~x, ~y, ~z) => {
       Contradiction({
         contradiction_at: (x, y, z),
         contradiction_action:
-          Fitting_walkability(has_walkable, has_unwalkable),
+          Finding_tile_with_walkability(has_walkable, has_unwalkable),
         during_collapse: None,
       }),
     );
@@ -647,13 +619,19 @@ module Test_helpers = {
     };
   };
 
+  type tag =
+    | A
+    | One
+    | Two
+    | Three;
+
   let tileset =
     Tileset.(
       create_tileset(
         ~tilesize=3,
-        ~tagfix="",
         [
           tile(
+            ~tags=[A],
             ~weight=0.0,
             Unwalkable,
             [|
@@ -676,6 +654,7 @@ module Test_helpers = {
           ),
           tile(
             ~weight=1.0,
+            ~tags=[One],
             Unwalkable,
             [|
               [|
@@ -697,6 +676,7 @@ module Test_helpers = {
           ),
           tile(
             ~weight=1.0,
+            ~tags=[Two],
             Unwalkable,
             [|
               [|
@@ -718,6 +698,7 @@ module Test_helpers = {
           ),
           tile(
             ~weight=0.0,
+            ~tags=[Three],
             Unwalkable,
             [|
               [|

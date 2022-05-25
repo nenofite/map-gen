@@ -1,5 +1,6 @@
 open! Core;
 
+[@deriving (eq, sexp)]
 type walkability =
   | Irrelevant // Can be placed regardless of walkability. This should be used for eg. underground or mid-air tiles
   | Unwalkable // Should be collapsed next to another unwalkable tile

@@ -6,30 +6,29 @@ let item_dims = (eval: Evaluator.wave_evaluator('a, 'tag)) => {
   (xs * (tsz - 1) + 1, ys * (tsz - 1) + 1, zs * (tsz - 1) + 1);
 };
 
-let ignoring_walkability = (eval: Evaluator.wave_evaluator(_, _), f) => {
-  // TODO don't use state for this
-  let before = eval.ignore_walkability;
-  eval.ignore_walkability = true;
-  let r = f();
-  eval.ignore_walkability = before;
-  r;
-};
-
-let force_at = (~x, ~y, ~z, tag, eval: Evaluator.wave_evaluator('a, 'tag)) =>
+let force_at =
+    (
+      ~walkability=?,
+      ~x,
+      ~y,
+      ~z,
+      tag,
+      eval: Evaluator.wave_evaluator('a, 'tag),
+    ) =>
   Evaluator.wrap_contradiction_error(() => {
-    ignoring_walkability(
-      eval,
-      () => {
-        let bans = Tileset.lookup_tag_inv(tag, eval.tileset);
-        Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
-        Evaluator.finish_propagating(eval);
-      },
-    )
+    switch (walkability) {
+    | Some(w) => Evaluator.mark_walkability(eval, ~x, ~y, ~z, w)
+    | None => ()
+    };
+    let bans = Tileset.lookup_tag_inv(tag, eval.tileset);
+    Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
+    Evaluator.finish_propagating(eval);
   });
 
 let force_edges =
     (
       ~transition_margin=0,
+      ~walkability=?,
       ~x0=?,
       ~x1=?,
       ~y0=?,
@@ -39,81 +38,93 @@ let force_edges =
       eval: Evaluator.wave_evaluator('a, 'tag),
     ) =>
   Evaluator.wrap_contradiction_error(() => {
-    ignoring_walkability(
-      eval,
-      () => {
-        let Evaluator.{xs, ys, zs, tileset, _} = eval;
+    let Evaluator.{xs, ys, zs, tileset, _} = eval;
 
-        // If allowing transitions, don't force corners
-        let (mino, maxo) = (transition_margin, - (1 + transition_margin));
+    // If allowing transitions, don't force corners
+    let (mino, maxo) = (transition_margin, - (1 + transition_margin));
 
-        switch (x0) {
-        | Some(t) =>
-          let bans = Tileset.lookup_tag_inv(t, tileset);
-          for (y in mino to ys + maxo) {
-            for (z in mino to zs + maxo) {
-              Evaluator.ban_multi_no_propagate(eval, ~x=0, ~y, ~z, bans);
-            };
-          };
-        | None => ()
-        };
-        switch (x1) {
-        | Some(t) =>
-          let bans = Tileset.lookup_tag_inv(t, tileset);
-          for (y in mino to ys + maxo) {
-            for (z in mino to zs + maxo) {
-              Evaluator.ban_multi_no_propagate(eval, ~x=xs - 1, ~y, ~z, bans);
-            };
-          };
-        | None => ()
-        };
+    let set_walk_at = (~x, ~y, ~z) =>
+      switch (walkability) {
+      | Some(w) => Evaluator.mark_walkability(eval, ~x, ~y, ~z, w)
+      | None => ()
+      };
 
-        switch (z0) {
-        | Some(t) =>
-          let bans = Tileset.lookup_tag_inv(t, tileset);
-          for (x in mino to xs + maxo) {
-            for (y in mino to ys + maxo) {
-              Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z=0, bans);
-            };
-          };
-        | None => ()
+    switch (x0) {
+    | Some(t) =>
+      let bans = Tileset.lookup_tag_inv(t, tileset);
+      for (y in mino to ys + maxo) {
+        for (z in mino to zs + maxo) {
+          let x = 0;
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
+          set_walk_at(~x, ~y, ~z);
         };
-        switch (z1) {
-        | Some(t) =>
-          let bans = Tileset.lookup_tag_inv(t, tileset);
-          for (x in mino to xs + maxo) {
-            for (y in mino to ys + maxo) {
-              Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z=zs - 1, bans);
-            };
-          };
-        | None => ()
+      };
+    | None => ()
+    };
+    switch (x1) {
+    | Some(t) =>
+      let bans = Tileset.lookup_tag_inv(t, tileset);
+      for (y in mino to ys + maxo) {
+        for (z in mino to zs + maxo) {
+          let x = xs - 1;
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
+          set_walk_at(~x, ~y, ~z);
         };
+      };
+    | None => ()
+    };
 
-        // Top and bottom take priority
-        switch (y0) {
-        | Some(t) =>
-          let bans = Tileset.lookup_tag_inv(t, tileset);
-          for (x in mino to xs + maxo) {
-            for (z in mino to zs + maxo) {
-              Evaluator.ban_multi_no_propagate(eval, ~x, ~y=0, ~z, bans);
-            };
-          };
-        | None => ()
+    switch (z0) {
+    | Some(t) =>
+      let bans = Tileset.lookup_tag_inv(t, tileset);
+      for (x in mino to xs + maxo) {
+        for (y in mino to ys + maxo) {
+          let z = 0;
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
+          set_walk_at(~x, ~y, ~z);
         };
-        switch (y1) {
-        | Some(t) =>
-          let bans = Tileset.lookup_tag_inv(t, tileset);
-          for (x in mino to xs + maxo) {
-            for (z in mino to zs + maxo) {
-              Evaluator.ban_multi_no_propagate(eval, ~x, ~y=ys - 1, ~z, bans);
-            };
-          };
-        | None => ()
+      };
+    | None => ()
+    };
+    switch (z1) {
+    | Some(t) =>
+      let bans = Tileset.lookup_tag_inv(t, tileset);
+      for (x in mino to xs + maxo) {
+        for (y in mino to ys + maxo) {
+          let z = zs - 1;
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
+          set_walk_at(~x, ~y, ~z);
         };
+      };
+    | None => ()
+    };
 
-        Evaluator.finish_propagating(eval);
-      },
-    )
+    switch (y0) {
+    | Some(t) =>
+      let bans = Tileset.lookup_tag_inv(t, tileset);
+      for (x in mino to xs + maxo) {
+        for (z in mino to zs + maxo) {
+          let y = 0;
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
+          set_walk_at(~x, ~y, ~z);
+        };
+      };
+    | None => ()
+    };
+    switch (y1) {
+    | Some(t) =>
+      let bans = Tileset.lookup_tag_inv(t, tileset);
+      for (x in mino to xs + maxo) {
+        for (z in mino to zs + maxo) {
+          let y = ys - 1;
+          Evaluator.ban_multi_no_propagate(eval, ~x, ~y, ~z, bans);
+          set_walk_at(~x, ~y, ~z);
+        };
+      };
+    | None => ()
+    };
+
+    Evaluator.finish_propagating(eval);
   });
 
 include Tileset;
@@ -143,9 +154,8 @@ module Test_helpers = {
 };
 
 let%expect_test "getting items after collapse" = {
-  let eval =
-    Evaluator.make_blank_wave(Test_helpers.tileset, ~xs=3, ~ys=1, ~zs=3);
-  Evaluator.force_and_propagate(eval, ~x=2, ~y=0, ~z=2, 2);
+  let eval = make_blank_wave(Test_helpers.tileset, ~xs=3, ~ys=1, ~zs=3);
+  force_at(~walkability=Unwalkable, ~x=2, ~y=0, ~z=2, Test_helpers.Two, eval);
   while (Evaluator.try_collapse_next_lowest_entropy(eval)) {
     ();
   };
