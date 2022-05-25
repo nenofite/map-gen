@@ -74,6 +74,8 @@ let flip_direction = d =>
 
 let numtiles = ts => Array.length(ts.tiles);
 
+let name_of = (ts, tile_id) => ts.tiles[tile_id].name;
+
 let pop_id = next_id => {
   let id = next_id^;
   next_id := id + 1;

@@ -27,11 +27,14 @@ type wave_evaluator('a, 'tag) = {
    * with this tile */
   /* xyzt-direction_inverted */
   supporters: array(int),
-  frontier: Frontier_stack.t,
+  mutable frontier: Priority_queue.Int.t((int, int, int)),
   mutable total_entropy: int,
   /* Tiles that have become impossible (ie. supporter count reached 0) but have
    * not yet been propagated */
   needs_ban: Hash_queue.t((int, int, int, int), unit),
+  // TODO pull out of Frontier_stack
+  walkable: Frontier_stack.Hs_I3.t,
+  unwalkable: Frontier_stack.Hs_I3.t,
 };
 
 module Int4 = {
@@ -100,6 +103,8 @@ let copy = eval => {
     frontier,
     total_entropy,
     needs_ban,
+    walkable,
+    unwalkable,
   } = eval;
   assert(Hash_queue.is_empty(needs_ban));
   {
@@ -110,10 +115,12 @@ let copy = eval => {
     ts,
     possibilities: Array.copy(possibilities),
     supporters: Array.copy(supporters),
-    frontier: Frontier_stack.copy(frontier),
+    frontier,
     total_entropy,
     // needs_ban should always be empty, so just make a fresh copy
     needs_ban: Hq_I4.create(),
+    walkable: Hash_set.copy(walkable),
+    unwalkable: Hash_set.copy(unwalkable),
   };
 };
 
@@ -133,34 +140,47 @@ let blit = (src, dest) => {
     frontier,
     total_entropy,
     needs_ban,
+    walkable,
+    unwalkable,
   } = src;
   Array.blito(~src=possibilities, ~dst=dest.possibilities, ());
   Array.blito(~src=supporters, ~dst=dest.supporters, ());
-  Frontier_stack.blit(frontier, dest.frontier);
+  dest.frontier = frontier;
   dest.total_entropy = total_entropy;
   assert(Hash_queue.is_empty(needs_ban));
   Hash_queue.clear(dest.needs_ban);
+  Hash_set.clear(dest.walkable);
+  Hash_set.iter(walkable, ~f=c => Hash_set.add(dest.walkable, c));
+  Hash_set.clear(dest.unwalkable);
+  Hash_set.iter(unwalkable, ~f=c => Hash_set.add(dest.unwalkable, c));
 };
 
-let add_neighbors_to_frontier = (eval, x, y, z) => {
+let add_neighbors_to_frontier = (eval, x, y, z, is_walkable) => {
   let {xs, ys, zs, _} = eval;
+  let p = is_walkable ? 0 : 1;
   if (x > 0) {
-    Frontier_stack.add(eval.frontier, (x - 1, y, z));
+    eval.frontier =
+      Priority_queue.Int.insert(eval.frontier, p, (x - 1, y, z));
   };
   if (x < xs - 1) {
-    Frontier_stack.add(eval.frontier, (x + 1, y, z));
+    eval.frontier =
+      Priority_queue.Int.insert(eval.frontier, p, (x + 1, y, z));
   };
   if (y > 0) {
-    Frontier_stack.add(eval.frontier, (x, y - 1, z));
+    eval.frontier =
+      Priority_queue.Int.insert(eval.frontier, p, (x, y - 1, z));
   };
   if (y < ys - 1) {
-    Frontier_stack.add(eval.frontier, (x, y + 1, z));
+    eval.frontier =
+      Priority_queue.Int.insert(eval.frontier, p, (x, y + 1, z));
   };
   if (z > 0) {
-    Frontier_stack.add(eval.frontier, (x, y, z - 1));
+    eval.frontier =
+      Priority_queue.Int.insert(eval.frontier, p, (x, y, z - 1));
   };
   if (z < zs - 1) {
-    Frontier_stack.add(eval.frontier, (x, y, z + 1));
+    eval.frontier =
+      Priority_queue.Int.insert(eval.frontier, p, (x, y, z + 1));
   };
 };
 
@@ -170,156 +190,6 @@ let entropy_at = (eval, it) => {
     s := s^ + Bool.to_int(eval.possibilities[it + t]);
   };
   s^ - 1;
-};
-
-let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
-  let {xs, ys, zs, ts, _} = eval;
-  let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
-  let i = it + tile_id;
-  if (eval.possibilities[i]) {
-    eval.possibilities[i] = false;
-    let now_entropy = entropy_at(eval, it);
-    if (now_entropy < 0) {
-      raise_notrace(
-        Contradiction({
-          contradiction_at: (x, y, z),
-          contradiction_action:
-            Banning_tile(eval.tileset.tiles[tile_id].name),
-          during_collapse: None,
-        }),
-      );
-    } else if (now_entropy == 0) {
-      add_neighbors_to_frontier(eval, x, y, z);
-    };
-    eval.total_entropy = eval.total_entropy - 1;
-
-    let sups = eval.tileset.supportees[tile_id];
-    let sid = si_of_xyztd(~xs, ~ys, ~zs, ~ts, x, y, z, tile_id, 0);
-    for (d in 0 to Tileset.numdirs - 1) {
-      eval.supporters[sid + d] = 0;
-      let (dx, dy, dz) = Tileset.directions[d];
-      let nx = x + dx;
-      let ny = y + dy;
-      let nz = z + dz;
-      if (0 <= nx
-          && nx < eval.xs
-          && 0 <= ny
-          && ny < eval.ys
-          && 0 <= nz
-          && nz < eval.zs) {
-        Array.iter(
-          sups[d],
-          ~f=t1 => {
-            let nsi = si_of_xyztd(~xs, ~ys, ~zs, ~ts, nx, ny, nz, t1, d);
-            eval.supporters[nsi] = eval.supporters[nsi] - 1;
-            if (eval.supporters[nsi] == 0) {
-              Hash_queue.enqueue_back(eval.needs_ban, (nx, ny, nz, t1), ())
-              |> ignore;
-            };
-          },
-        );
-      };
-    };
-  };
-};
-
-[@inline]
-let wrap_contradiction_error = f =>
-  try(f()) {
-  | Contradiction(c) =>
-    let msg = Sexp.to_string_hum(sexp_of_contradiction_info(c));
-    failwithf("Caused contradiction outside collapse: %s", msg, ());
-  };
-
-let force_no_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) =>
-  wrap_contradiction_error(() => {
-    for (t in 0 to eval.ts - 1) {
-      if (t != tile_id) {
-        ban(eval, ~x, ~y, ~z, t);
-      };
-    }
-  });
-
-let ban_multi_no_propagate =
-    (eval, ~x: int, ~y: int, ~z: int, tiles_to_ban: array(int)) =>
-  wrap_contradiction_error(() => {
-    Array.iter(tiles_to_ban, ~f=t => ban(eval, ~x, ~y, ~z, t))
-  });
-
-let finish_propagating = eval => {
-  while (!Hash_queue.is_empty(eval.needs_ban)) {
-    let ((x, y, z, t), _) =
-      Hash_queue.dequeue_back_with_key_exn(eval.needs_ban);
-    ban(eval, ~x, ~y, ~z, t);
-  };
-};
-
-let ban_impossible_tiles = eval => {
-  let {xs, ys, zs, _} = eval;
-  let impossible = Array.filter(eval.tileset.tiles, ~f=t => t.is_impossible);
-  if (!Array.is_empty(impossible)) {
-    for (x in 0 to xs - 1) {
-      for (y in 0 to ys - 1) {
-        for (z in 0 to zs - 1) {
-          Array.iter(impossible, ~f=tile => {ban(eval, ~x, ~y, ~z, tile.id)});
-        };
-      };
-    };
-    finish_propagating(eval);
-  };
-};
-
-let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
-  let numtiles = Tileset.numtiles(tileset);
-  let wave = {
-    tileset,
-    xs,
-    ys,
-    zs,
-    ts: numtiles,
-    possibilities: make_blank_possibilities(~numtiles, xs, ys, zs),
-    supporters: make_blank_supporters(~tileset, xs, ys, zs),
-    frontier: Frontier_stack.create(),
-    total_entropy: xs * ys * zs * (numtiles - 1),
-    needs_ban: Hq_I4.create(),
-  };
-  ban_impossible_tiles(wave);
-  wave;
-};
-
-let force_and_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
-  force_no_propagate(eval, ~x, ~y, ~z, tile_id);
-  finish_propagating(eval);
-};
-
-let rec next_lowest_entropy = eval => {
-  let {xs, ys, zs, ts, _} = eval;
-  switch (Frontier_stack.pop(eval.frontier)) {
-  | None => None
-  | Some((x, y, z)) as next
-      when entropy_at(eval, it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z)) > 0 => next
-  | Some(_) => next_lowest_entropy(eval)
-  };
-  // TODO randomize
-};
-
-let random_tile_by_weight =
-    (options: array(int), ~tileset: Tileset.tileset('a, 'tag)) => {
-  let total_weight =
-    Array.fold(options, ~init=0.0, ~f=(s, i) => s +. tileset.tiles[i].weight);
-  let selected_weight = Random.float(total_weight);
-
-  let rec select = (i, remaining_weight) => {
-    let remaining_weight =
-      remaining_weight -. tileset.tiles[options[i]].weight;
-    if (Float.(remaining_weight <= 0.0)) {
-      options[i];
-    } else {
-      select(i + 1, remaining_weight);
-    };
-  };
-
-  select(0, selected_weight);
 };
 
 let observe_at_exn = (eval, ~x, ~y, ~z) => {
@@ -340,51 +210,6 @@ let observe_at = (eval, ~x, ~y, ~z) => {
   } else {
     let t = Mg_util.Range.find_exn(0, ts - 1, t => eval.possibilities[it + t]);
     Result.Ok(t);
-  };
-};
-
-let item_at_exn = (eval: wave_evaluator('a, 'tag), ~x: int, ~y: int, ~z: int) => {
-  let tsz = eval.tileset.tilesize;
-  let tx = max(0, (x - 1) / (tsz - 1));
-  let ty = max(0, (y - 1) / (tsz - 1));
-  let tz = max(0, (z - 1) / (tsz - 1));
-  let subx = x - tx * (tsz - 1);
-  let suby = y - ty * (tsz - 1);
-  let subz = z - tz * (tsz - 1);
-
-  let t = observe_at_exn(eval, ~x=tx, ~y=ty, ~z=tz);
-  eval.tileset.tiles[t].items[subx][suby][subz];
-};
-
-let item_at =
-    (eval: wave_evaluator('a, 'tag), ~x: int, ~y: int, ~z: int, ~default) => {
-  let tsz = eval.tileset.tilesize;
-  let tx = max(0, (x - 1) / (tsz - 1));
-  let ty = max(0, (y - 1) / (tsz - 1));
-  let tz = max(0, (z - 1) / (tsz - 1));
-  let subx = x - tx * (tsz - 1);
-  let suby = y - ty * (tsz - 1);
-  let subz = z - tz * (tsz - 1);
-
-  switch (observe_at(eval, ~x=tx, ~y=ty, ~z=tz)) {
-  | Result.Ok(t) => eval.tileset.tiles[t].items[subx][suby][subz]
-  | Result.Error(_) => default
-  };
-};
-
-let item_or_entropy_at =
-    (eval: wave_evaluator('a, 'tag), ~x: int, ~y: int, ~z: int) => {
-  let tsz = eval.tileset.tilesize;
-  let tx = max(0, (x - 1) / (tsz - 1));
-  let ty = max(0, (y - 1) / (tsz - 1));
-  let tz = max(0, (z - 1) / (tsz - 1));
-  let subx = x - tx * (tsz - 1);
-  let suby = y - ty * (tsz - 1);
-  let subz = z - tz * (tsz - 1);
-
-  switch (observe_at(eval, ~x=tx, ~y=ty, ~z=tz)) {
-  | Result.Ok(t) => Result.Ok(eval.tileset.tiles[t].items[subx][suby][subz])
-  | Result.Error(_) as e => e
   };
 };
 
@@ -473,6 +298,241 @@ let get_neighbor_walkability = (eval, ~x, ~y, ~z) => {
   (has_walkable^, has_unwalkable^);
 };
 
+let can_place_walkability =
+    (walkability: Tileset.walkability, neighbor_walkability) => {
+  let (has_walkable, has_unwalkable) = neighbor_walkability;
+  switch (walkability) {
+  | Walkable => has_walkable
+  | Boundary => has_walkable
+  | Unwalkable => has_unwalkable
+  | Irrelevant => true
+  };
+};
+
+let ban = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
+  let is_walkable =
+    fun
+    | Tileset.Walkable => true
+    | _ => false;
+
+  let {xs, ys, zs, ts, _} = eval;
+  let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
+  let i = it + tile_id;
+  if (eval.possibilities[i]) {
+    eval.possibilities[i] = false;
+    let now_entropy = entropy_at(eval, it);
+    if (now_entropy < 0) {
+      raise_notrace(
+        Contradiction({
+          contradiction_at: (x, y, z),
+          contradiction_action:
+            Banning_tile(eval.tileset.tiles[tile_id].name),
+          during_collapse: None,
+        }),
+      );
+    } else if (now_entropy == 0) {
+      let tile = observe_at_exn(eval, ~x, ~y, ~z);
+      // Printf.printf(
+      //   "Fully observed %d %d %d as %s\n",
+      //   x,
+      //   y,
+      //   z,
+      //   Tileset.name_of(eval.tileset, tile),
+      // );
+      if (!eval.ignore_walkability) {
+        let nw = get_neighbor_walkability(eval, ~x, ~y, ~z);
+        let w = eval.tileset.tiles[tile].walkability;
+        if (!can_place_walkability(w, nw)) {
+          raise_notrace(
+            Contradiction({
+              contradiction_at: (x, y, z),
+              contradiction_action:
+                Banning_tile(eval.tileset.tiles[tile_id].name),
+              during_collapse: None,
+            }),
+          );
+        };
+      };
+      let w = is_walkable(eval.tileset.tiles[tile].walkability);
+      add_neighbors_to_frontier(eval, x, y, z, w);
+    };
+    eval.total_entropy = eval.total_entropy - 1;
+
+    let sups = eval.tileset.supportees[tile_id];
+    let sid = si_of_xyztd(~xs, ~ys, ~zs, ~ts, x, y, z, tile_id, 0);
+    for (d in 0 to Tileset.numdirs - 1) {
+      eval.supporters[sid + d] = 0;
+      let (dx, dy, dz) = Tileset.directions[d];
+      let nx = x + dx;
+      let ny = y + dy;
+      let nz = z + dz;
+      if (0 <= nx
+          && nx < eval.xs
+          && 0 <= ny
+          && ny < eval.ys
+          && 0 <= nz
+          && nz < eval.zs) {
+        Array.iter(
+          sups[d],
+          ~f=t1 => {
+            let nsi = si_of_xyztd(~xs, ~ys, ~zs, ~ts, nx, ny, nz, t1, d);
+            eval.supporters[nsi] = eval.supporters[nsi] - 1;
+            if (eval.supporters[nsi] == 0) {
+              Hash_queue.enqueue_back(eval.needs_ban, (nx, ny, nz, t1), ())
+              |> ignore;
+            };
+          },
+        );
+      };
+    };
+  };
+};
+
+[@inline]
+let wrap_contradiction_error = f =>
+  try(f()) {
+  | Contradiction(c) =>
+    let msg = Sexp.to_string_hum(sexp_of_contradiction_info(c));
+    failwithf("Caused contradiction outside collapse: %s", msg, ());
+  };
+
+let force_no_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) =>
+  for (t in 0 to eval.ts - 1) {
+    if (t != tile_id) {
+      ban(eval, ~x, ~y, ~z, t);
+    };
+  };
+
+let ban_multi_no_propagate =
+    (eval, ~x: int, ~y: int, ~z: int, tiles_to_ban: array(int)) =>
+  wrap_contradiction_error(() => {
+    Array.iter(tiles_to_ban, ~f=t => ban(eval, ~x, ~y, ~z, t))
+  });
+
+let finish_propagating = eval => {
+  while (!Hash_queue.is_empty(eval.needs_ban)) {
+    let ((x, y, z, t), _) =
+      Hash_queue.dequeue_back_with_key_exn(eval.needs_ban);
+    ban(eval, ~x, ~y, ~z, t);
+  };
+};
+
+let ban_impossible_tiles = eval => {
+  let {xs, ys, zs, _} = eval;
+  let impossible = Array.filter(eval.tileset.tiles, ~f=t => t.is_impossible);
+  if (!Array.is_empty(impossible)) {
+    for (x in 0 to xs - 1) {
+      for (y in 0 to ys - 1) {
+        for (z in 0 to zs - 1) {
+          Array.iter(impossible, ~f=tile => {ban(eval, ~x, ~y, ~z, tile.id)});
+        };
+      };
+    };
+    finish_propagating(eval);
+  };
+};
+
+let make_blank_wave = (tileset, ~xs, ~ys, ~zs) => {
+  let numtiles = Tileset.numtiles(tileset);
+  let wave = {
+    tileset,
+    xs,
+    ys,
+    zs,
+    ts: numtiles,
+    possibilities: make_blank_possibilities(~numtiles, xs, ys, zs),
+    supporters: make_blank_supporters(~tileset, xs, ys, zs),
+    frontier: Priority_queue.Int.empty,
+    total_entropy: xs * ys * zs * (numtiles - 1),
+    needs_ban: Hq_I4.create(),
+    ignore_walkability: false,
+  };
+  ban_impossible_tiles(wave);
+  wave;
+};
+
+let force_and_propagate = (eval, ~x: int, ~y: int, ~z: int, tile_id: int) => {
+  force_no_propagate(eval, ~x, ~y, ~z, tile_id);
+  finish_propagating(eval);
+};
+
+let rec next_lowest_entropy = eval => {
+  let {xs, ys, zs, ts, _} = eval;
+  let (next, frontier) = Priority_queue.Int.extract(eval.frontier);
+  eval.frontier = frontier;
+  switch (next) {
+  | None => None
+  | Some((x, y, z))
+      when entropy_at(eval, it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z)) > 0 => next
+  | Some(_) => next_lowest_entropy(eval)
+  };
+  // TODO randomize
+};
+
+let random_tile_by_weight =
+    (options: array(int), ~tileset: Tileset.tileset('a, 'tag)) => {
+  let total_weight =
+    Array.fold(options, ~init=0.0, ~f=(s, i) => s +. tileset.tiles[i].weight);
+  let selected_weight = Random.float(total_weight);
+
+  let rec select = (i, remaining_weight) => {
+    let remaining_weight =
+      remaining_weight -. tileset.tiles[options[i]].weight;
+    if (Float.(remaining_weight <= 0.0)) {
+      options[i];
+    } else {
+      select(i + 1, remaining_weight);
+    };
+  };
+
+  select(0, selected_weight);
+};
+
+let item_at_exn = (eval: wave_evaluator('a, 'tag), ~x: int, ~y: int, ~z: int) => {
+  let tsz = eval.tileset.tilesize;
+  let tx = max(0, (x - 1) / (tsz - 1));
+  let ty = max(0, (y - 1) / (tsz - 1));
+  let tz = max(0, (z - 1) / (tsz - 1));
+  let subx = x - tx * (tsz - 1);
+  let suby = y - ty * (tsz - 1);
+  let subz = z - tz * (tsz - 1);
+
+  let t = observe_at_exn(eval, ~x=tx, ~y=ty, ~z=tz);
+  eval.tileset.tiles[t].items[subx][suby][subz];
+};
+
+let item_at =
+    (eval: wave_evaluator('a, 'tag), ~x: int, ~y: int, ~z: int, ~default) => {
+  let tsz = eval.tileset.tilesize;
+  let tx = max(0, (x - 1) / (tsz - 1));
+  let ty = max(0, (y - 1) / (tsz - 1));
+  let tz = max(0, (z - 1) / (tsz - 1));
+  let subx = x - tx * (tsz - 1);
+  let suby = y - ty * (tsz - 1);
+  let subz = z - tz * (tsz - 1);
+
+  switch (observe_at(eval, ~x=tx, ~y=ty, ~z=tz)) {
+  | Result.Ok(t) => eval.tileset.tiles[t].items[subx][suby][subz]
+  | Result.Error(_) => default
+  };
+};
+
+let item_or_entropy_at =
+    (eval: wave_evaluator('a, 'tag), ~x: int, ~y: int, ~z: int) => {
+  let tsz = eval.tileset.tilesize;
+  let tx = max(0, (x - 1) / (tsz - 1));
+  let ty = max(0, (y - 1) / (tsz - 1));
+  let tz = max(0, (z - 1) / (tsz - 1));
+  let subx = x - tx * (tsz - 1);
+  let suby = y - ty * (tsz - 1);
+  let subz = z - tz * (tsz - 1);
+
+  switch (observe_at(eval, ~x=tx, ~y=ty, ~z=tz)) {
+  | Result.Ok(t) => Result.Ok(eval.tileset.tiles[t].items[subx][suby][subz])
+  | Result.Error(_) as e => e
+  };
+};
+
 let collapse_at = (eval, ~x, ~y, ~z) => {
   let {xs, ys, zs, ts, _} = eval;
   let it = it_of_xyz(~xs, ~ys, ~zs, ~ts, x, y, z);
@@ -499,8 +559,18 @@ let collapse_at = (eval, ~x, ~y, ~z) => {
       }
     );
 
-  let name_of = t => eval.tileset.tiles[t].name;
-  if (List.is_empty(options)) {
+  let name_of = Tileset.name_of(eval.tileset);
+  if (!List.is_empty(options)) {
+    let t =
+      random_tile_by_weight(Array.of_list(options), ~tileset=eval.tileset);
+    Printf.printf("Collapsing %d %d %d to %s\n", x, y, z, name_of(t));
+    try(force_and_propagate(eval, ~x, ~y, ~z, t)) {
+    | Contradiction(c) =>
+      raise_notrace(
+        Contradiction({...c, during_collapse: Some((x, y, z, name_of(t)))}),
+      )
+    };
+  } else {
     raise_notrace(
       Contradiction({
         contradiction_at: (x, y, z),
@@ -509,15 +579,6 @@ let collapse_at = (eval, ~x, ~y, ~z) => {
         during_collapse: None,
       }),
     );
-  };
-
-  let t =
-    random_tile_by_weight(Array.of_list(options), ~tileset=eval.tileset);
-  try(force_and_propagate(eval, ~x, ~y, ~z, t)) {
-  | Contradiction(c) =>
-    raise_notrace(
-      Contradiction({...c, during_collapse: Some((x, y, z, name_of(t)))}),
-    )
   };
 };
 
@@ -1094,12 +1155,6 @@ let%expect_test "collapse" = {
     1 1 0
 
     total_entropy = 9
-
-    1 1 1
-    0 0 0
-    0 0 0
-
-    total_entropy = 3
 
     0 0 0
     0 0 0
